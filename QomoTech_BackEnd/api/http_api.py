@@ -81,19 +81,11 @@ async def start_program(
         try:
             rs232_open = Rs232SerialSessionRequest.model_validate(rs232_open_raw).model_dump()
         except Exception as exc:
-            return ApiResponse(
-                success=False,
-                message=f"rs232_open 参数无效（需与 /api/rs232/open 一致）：{exc}",
-                data=None,
-            )
+            return ApiResponse(success=False,message=f"rs232_open 参数无效（需与 /api/rs232/open 一致）：{exc}",data=None,)
 
     tasks = OffsetEndpointCalculator.calc_xy_points(entities, 0)
     if not tasks:
-        return ApiResponse(
-            success=False,
-            message="没有可执行的任务，请检查实体几何",
-            data=None,
-        )
+        return ApiResponse(success=False,message="没有可执行的任务，请检查实体几何",data=None,)
 
     rs232 = get_rs232_driver()
 
@@ -111,20 +103,12 @@ async def start_program(
             logger.exception("startProgram 后台任务异常")
 
     asyncio.create_task(_run_program())
-    return ApiResponse(
-        success=True,
-        message="程序已启动",
-        data={"task_count": len(tasks)},
-    )
+    return ApiResponse(success=True,message="程序已启动",data={"task_count": len(tasks)},)
 
 
 @http_router.get("/api/startProgram/status", response_model=ApiResponse)
 def start_program_status() -> ApiResponse:
-    return ApiResponse(
-        success=True,
-        message="ok",
-        data=get_program_status(),
-    )
+    return ApiResponse(success=True,message="ok",data=get_program_status(),)
 
 
 @http_router.post("/api/startProgram/control", response_model=ApiResponse)
@@ -145,11 +129,7 @@ def start_program_control(
         r = program_request_skip(motion)
     else:
         return ApiResponse(success=False, message="未知操作", data=None)
-    return ApiResponse(
-        success=bool(r.get("success")),
-        message=str(r.get("message", "")),
-        data=None,
-    )
+    return ApiResponse(success=bool(r.get("success")),message=str(r.get("message", "")),data=None,)
 
 
 @http_router.get("/api/health", response_model=ApiResponse)

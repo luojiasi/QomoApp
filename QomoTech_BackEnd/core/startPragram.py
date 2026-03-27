@@ -737,26 +737,5 @@ def wangFuLoop(
                     return "abort"
     return True
 
-def wangFuLoop(
-    originalPointsNum: int,
-    recipe_payload: dict[str, Any],
-    controller: ZMotionAdapter,
-    entities: list[dict[str, Any]],
-    *,
-    rs232: Rs232Driver | None = None,
-    rs232_open: dict[str, Any] | None = None,
-) -> bool | str:  # True / False / "skip" / "abort"
-    """
-    这个目的是进行往复运动，而不是到下一个的起始点
-    """
-
-    mainRecipe = recipe_payload.get("selectedMainRecipe") or {}
-
-    # 子配方对象在前端 payload 中是“数组形式”（例如 selectedBlackeningRecipe: [blackening]）
-    blackeningRecipe = searchIdInRecipe(recipe_payload.get("selectedBlackeningRecipe"),mainRecipe.get("blackeningRecipeId"),)
-    machiningRecipe = searchIdInRecipe(recipe_payload.get("selectedMachiningRecipe"),mainRecipe.get("machiningRecipeId"),)
-    cleaningRecipe = searchIdInRecipe(recipe_payload.get("selectedCleaningRecipe"),mainRecipe.get("cleaningRecipeId"),)
-
-    if blackeningRecipe is None or machiningRecipe is None or cleaningRecipe is None:
-        logger.warning("wangFuLoop: mainRecipe -> 子配方查找失败",extra={"mainRecipeId": mainRecipe.get("id"),"blackeningRecipeId": mainRecipe.get("blackeningRecipeId"),"machiningRecipeId": mainRecipe.get("machiningRecipeId"),"cleaningRecipeId": mainRecipe.get("cleaningRecipeId"),},)
-        return False
+def xunhuaiLoop():
+    return True
