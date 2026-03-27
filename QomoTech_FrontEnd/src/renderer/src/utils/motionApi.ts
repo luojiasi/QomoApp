@@ -1,0 +1,355 @@
+import { apiCall, type ApiCallResult } from './toBackendApiCall'
+import type { ControllerParameters } from '../types/settings'
+
+export type MotionAxis = 'X' | 'Y' | 'Z' | 'U' | 'R'
+
+// ---------------------------
+// 控制器（Motion）API
+// ---------------------------
+
+export const getMotionPosition = async (axis: MotionAxis): Promise<ApiCallResult<{ axis: MotionAxis; position_mm: number }>> =>
+  apiCall(`motion/position/${axis}`, 'GET')
+
+// ---------------------------
+// /api/motion/connect payload 构造
+// ---------------------------
+
+export interface MotionAxisConnectPayload {
+  axisNo: number
+  units: number
+  lspeed?: number
+  speed?: number
+  accel?: number
+  decel?: number
+  sramp?: number
+  merge?: number
+  fwd_in?: number
+  rev_in?: number
+  corner_mode?: number
+  axisType?: number
+}
+
+export interface MotionConnectRequestPayload {
+  ipAddress: string
+  axes: MotionAxisConnectPayload[]
+}
+
+/**
+ * 根据“三轴/五轴”选择，只发送对应轴的 { axisNo, units } 给后端。
+ * 后端在 /api/motion/connect 中会将 units 作为轴输入单位重新配置运动驱动。
+ */
+export function buildMotionConnectRequestPayload(controllerSettings: ControllerParameters): MotionConnectRequestPayload {
+  const axisCount = controllerSettings.communication.axisCount
+  const allowedAxisNos = axisCount === 3 ? [0, 1, 2] : [0, 1, 2, 3, 4]
+
+  const axes: MotionAxisConnectPayload[] = controllerSettings.axes
+    .filter((a) => allowedAxisNos.includes(a.axisNo))
+    .map((a) => ({
+      axisNo: a.axisNo,
+      units: a.units,
+      lspeed: a.lspeed,
+      speed: a.speed,
+      accel: a.accel,
+      decel: a.decel,
+      sramp: a.sramp,
+      merge: a.merge,
+      fwd_in: a.fwd_in,
+      rev_in: a.rev_in,
+      corner_mode: a.corner_mode,
+      axisType: a.axisType
+    }))
+
+  return {
+    ipAddress: controllerSettings.communication.ipAddress,
+    axes
+  }
+}
+
+export const connectMotion = async (payload: MotionConnectRequestPayload): Promise<ApiCallResult<Record<string, unknown>>> =>
+  apiCall('motion/connect', 'POST', payload as unknown as Record<string, unknown>)
+
+export const connectMotionWithControllerSettings = async (controllerSettings: ControllerParameters): Promise<ApiCallResult<Record<string, unknown>>> =>
+  connectMotion(buildMotionConnectRequestPayload(controllerSettings))
+
+// ---------------------------
+// 硬件连接（Motion 单例相关）
+// ---------------------------
+
+export const connectHardware = async (): Promise<ApiCallResult<Record<string, unknown>>> =>
+  apiCall('hardware/connect', 'POST')
+
+export const disconnectHardware = async (): Promise<ApiCallResult<Record<string, unknown>>> =>
+  apiCall('hardware/disconnect', 'POST')
+
+export const reconnectHardware = async (
+  payload?: Record<string, unknown> | null
+): Promise<ApiCallResult<Record<string, unknown>>> =>
+  apiCall('hardware/reconnect', 'POST', payload ?? null)
+
+export const startProgram = async (
+  payload: Record<string, unknown>
+): Promise<ApiCallResult<Record<string, unknown>>> =>
+  apiCall('startProgram', 'POST', payload)
+
+export interface StartProgramStatusData {
+  running: boolean
+  paused: boolean
+}
+
+export const getStartProgramStatus = async (): Promise<
+  ApiCallResult<{ running?: boolean; paused?: boolean } & Record<string, unknown>>
+> => apiCall('startProgram/status', 'GET')
+
+export type StartProgramControlAction = 'pause' | 'resume' | 'reset' | 'estop' | 'skip'
+
+export const startProgramControl = async (
+  action: StartProgramControlAction
+): Promise<ApiCallResult<Record<string, unknown>>> =>
+  apiCall('startProgram/control', 'POST', { action } as unknown as Record<string, unknown>)
+
+// ---------------------------
+// Motion IO 输出
+// ---------------------------
+
+export const setMotionIoOutput = async (
+  ioNo: number,
+  value: boolean,
+): Promise<ApiCallResult<Record<string, unknown>>> =>
+  apiCall('motion/io/output', 'POST', { io_no: ioNo, value } as unknown as Record<string, unknown>)
+
+/** 单个数字量输出口状态（对应后端 GET /api/motion/io/output/{io_no}） */
+export interface MotionIoOutputState {
+  io_no: number
+  value: boolean
+}
+
+export const getMotionIoOutput = async (
+  ioNo: number
+): Promise<ApiCallResult<MotionIoOutputState>> =>
+  apiCall<MotionIoOutputState>(`motion/io/output/${Number(ioNo)}`, 'GET')
+
+/**
+ * 批量读取输出口状态（对应后端 GET /api/motion/io/outputs）
+ * data 为 { "0": true, "1": false, ... } 形式的 Record
+ */
+export const getMotionIoOutputsStatus = async (
+  ioStart = 0,
+  ioEnd = 8
+): Promise<ApiCallResult<Record<string, boolean>>> =>
+  apiCall<Record<string, boolean>>('motion/io/outputs', 'GET', null, {
+    io_start: Number(ioStart),
+    io_end: Number(ioEnd)
+  })
+
+// ---------------------------
+// Motion IO 输入
+// ---------------------------
+
+/** 单个数字量输入口状态（对应后端 GET /api/motion/io/input/{io_no}） */
+export interface MotionIoInputState {
+  io_no: number
+  value: boolean
+}
+
+export const getMotionIoInput = async (
+  ioNo: number
+): Promise<ApiCallResult<MotionIoInputState>> =>
+  apiCall<MotionIoInputState>(`motion/io/input/${Number(ioNo)}`, 'GET')
+
+/**
+ * 批量读取输入口状态（对应后端 GET /api/motion/io/inputs）
+ * data 为 { "0": true, "1": false, ... } 形式的 Record
+ */
+export const getMotionIoInputsStatus = async (
+  ioStart = 0,
+  ioEnd = 8
+): Promise<ApiCallResult<Record<string, boolean>>> =>
+  apiCall<Record<string, boolean>>('motion/io/inputs', 'GET', null, {
+    io_start: Number(ioStart),
+    io_end: Number(ioEnd)
+  })
+
+// ---------------------------
+// 单个 Motion Axis 急停
+// ---------------------------
+export const emergencyStopMotion = async (axisNo: number): Promise<ApiCallResult<Record<string, unknown>>> =>
+  apiCall('motion/emergency-stop', 'POST', { axis_no: axisNo } as unknown as Record<string, unknown>)
+
+// ---------------------------
+// 单个 Motion Axis 位置清零
+// ---------------------------
+export const zeroMotionAxis = async (axisNo: number): Promise<ApiCallResult<Record<string, unknown>>> =>
+  apiCall('motion/axis/zero', 'POST', { axis_no: Number(axisNo) } as unknown as Record<string, unknown>)
+// ---------------------------
+// 单个 Motion Axis 绝对运动
+// ---------------------------
+type MoveMotionAxisAbsOptions = {
+  speed?: number
+  controllerSettings?: ControllerParameters
+}
+
+export const moveMotionAxisAbs = async (
+  axisNo: number,
+  targetMm: number,
+  options?: MoveMotionAxisAbsOptions,
+): Promise<ApiCallResult<Record<string, unknown>>> => {
+  const axisNoInt = Number(axisNo)
+  const explicitSpeed = options?.speed
+  const savedAxisSpeed = options?.controllerSettings?.axes.find((a) => a.axisNo === axisNoInt)?.speed
+  const selectedSpeed = explicitSpeed ?? savedAxisSpeed
+
+  // 若提供了 speed，或能从本地设置按轴找到 speed，则先下发该轴速度
+  if (typeof selectedSpeed === 'number' && Number.isFinite(selectedSpeed) && selectedSpeed > 0) {
+    const speedRes = await apiCall('motion/axes/params', 'POST', {
+      params_by_axis: {
+        [axisNoInt]: {
+          speed: selectedSpeed
+        }
+      }
+    } as unknown as Record<string, unknown>)
+    if (!speedRes?.success) {
+      return speedRes as ApiCallResult<Record<string, unknown>>
+    }
+  }
+
+  return apiCall('motion/axis/move-abs', 'POST', {
+    axis_no: axisNoInt,
+    target_mm: targetMm,
+  } as unknown as Record<string, unknown>)
+}
+
+// ---------------------------
+// 单个 Motion Axis 相对运动
+// ---------------------------
+type MoveMotionAxisRelOptions = {
+  speed?: number
+  controllerSettings?: ControllerParameters
+}
+
+export const moveMotionAxisRel = async (
+  axisNo: number,
+  deltaMm: number,
+  options?: MoveMotionAxisRelOptions,
+): Promise<ApiCallResult<Record<string, unknown>>> => {
+  const axisNoInt = Number(axisNo)
+  const explicitSpeed = options?.speed
+  const savedAxisSpeed = options?.controllerSettings?.axes.find((a) => a.axisNo === axisNoInt)?.speed
+  const selectedSpeed = explicitSpeed ?? savedAxisSpeed
+
+  return apiCall('motion/axis/move-rel', 'POST', {
+    axis_no: axisNoInt,
+    delta_mm: deltaMm,
+    ...(typeof selectedSpeed === 'number' && Number.isFinite(selectedSpeed) && selectedSpeed > 0
+      ? { speed: selectedSpeed }
+      : {}),
+  } as unknown as Record<string, unknown>)
+}
+// ---------------------------
+// 硬件快照状态轮询（推荐）
+// ---------------------------
+
+export interface HardwareStatusPayload {
+  state?: {
+    motion_axis_feedback?: Record<string, Record<string, unknown>>
+    motion_io_map?: Array<{
+      digitalIn?: boolean
+      digitalOut?: boolean
+    }>
+    motion_driver_mode?: string
+    motion_last_error?: string | null
+    motion_last_error_code?: number | null
+  }
+  motion_driver_status?: {
+    axis_status?: Record<string, Record<string, unknown>>
+    io?: {
+      inputs?: Record<string, boolean>
+      outputs?: Record<string, boolean>
+    }
+    driver_mode?: string
+    last_error?: string | null
+    last_error_code?: number | null
+  }
+}
+
+export const getHardwareStatus = async (): Promise<ApiCallResult<HardwareStatusPayload>> =>
+  apiCall<HardwareStatusPayload>('hardware/status', 'GET')
+
+export type HardwareStatusListener = (result: ApiCallResult<HardwareStatusPayload>) => void
+
+let hardwareStatusPollingTimer: ReturnType<typeof setInterval> | null = null
+let hardwareStatusPollingInFlight = false
+let hardwareStatusPollingIntervalMs = 200
+let latestHardwareStatusResult: ApiCallResult<HardwareStatusPayload> | null = null
+const hardwareStatusListeners = new Set<HardwareStatusListener>()
+
+const notifyHardwareStatusListeners = (result: ApiCallResult<HardwareStatusPayload>): void => {
+  hardwareStatusListeners.forEach((listener) => {
+    listener(result)
+  })
+}
+
+export const pollHardwareStatusOnce = async (): Promise<ApiCallResult<HardwareStatusPayload> | null> => {
+  if (hardwareStatusPollingInFlight) return null
+  hardwareStatusPollingInFlight = true
+  try {
+    const result = await getHardwareStatus()
+    latestHardwareStatusResult = result
+    notifyHardwareStatusListeners(result)
+    return result
+  } finally {
+    hardwareStatusPollingInFlight = false
+  }
+}
+
+export const startHardwareStatusPolling = (intervalMs = 200, runImmediately = true): void => {
+  const nextInterval = Number(intervalMs)
+  if (Number.isFinite(nextInterval) && nextInterval > 0) {
+    hardwareStatusPollingIntervalMs = nextInterval
+  }
+
+  if (hardwareStatusPollingTimer) {
+    clearInterval(hardwareStatusPollingTimer)
+    hardwareStatusPollingTimer = null
+  }
+
+  hardwareStatusPollingTimer = setInterval(() => {
+    void pollHardwareStatusOnce()
+  }, hardwareStatusPollingIntervalMs)
+
+  if (runImmediately) {
+    void pollHardwareStatusOnce()
+  }
+}
+
+export const stopHardwareStatusPolling = (): void => {
+  if (!hardwareStatusPollingTimer) return
+  clearInterval(hardwareStatusPollingTimer)
+  hardwareStatusPollingTimer = null
+}
+
+export const subscribeHardwareStatus = (
+  listener: HardwareStatusListener,
+  options?: {
+    autoStart?: boolean
+    emitLatest?: boolean
+    intervalMs?: number
+    runImmediately?: boolean
+  }
+): (() => void) => {
+  hardwareStatusListeners.add(listener)
+
+  if (options?.emitLatest !== false && latestHardwareStatusResult) {
+    listener(latestHardwareStatusResult)
+  }
+
+  if (options?.autoStart !== false && !hardwareStatusPollingTimer) {
+    startHardwareStatusPolling(options?.intervalMs ?? 200, options?.runImmediately ?? true)
+  }
+
+  return () => {
+    hardwareStatusListeners.delete(listener)
+    if (hardwareStatusListeners.size === 0) {
+      stopHardwareStatusPolling()
+    }
+  }
+}

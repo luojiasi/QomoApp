@@ -1,0 +1,357 @@
+<script setup lang="ts">
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import CollapsiblePanelHeader from './CollapsiblePanelHeader.vue'
+import OutputComponent from './OutputComponent.vue'
+import { useControllerSettingsStore } from '../stores/controllerSettingsStore'
+import {
+  emergencyStopMotion,
+  moveMotionAxisAbs,
+  subscribeHardwareStatus,
+  zeroMotionAxis,
+  type HardwareStatusPayload
+} from '../utils/motionApi'
+import { useNotification } from '../composables/useNotification'
+
+const controllerStore = useControllerSettingsStore()
+const { success, error } = useNotification()
+
+const isDriverPanelExpanded = ref(false)
+const selectedDriverAxisIndex = ref(0)
+const movingAbs = ref(false)
+const emergencyStopping = ref(false)
+const zeroingAxis = ref(false)
+let unsubscribeHardwareStatus: (() => void) | null = null
+
+type AxisEditSnapshot = {
+  commandPosition: number
+  speed: number
+}
+
+const axisEditCache = ref<Record<number, AxisEditSnapshot>>({})
+const editCommandPosition = ref<number>(0)
+const editSpeed = ref<number>(0)
+
+
+const selectedAxis = computed(() => {
+  const axes = controllerStore.controllerSettings.axes
+  if (!axes.length) return null
+  const i = Math.min(Math.max(0, selectedDriverAxisIndex.value), axes.length - 1)
+  return axes[i]!
+})
+
+const selectedAxisIdleText = computed(() => {
+  const axis = selectedAxis.value
+  if (!axis) return '-'
+  const idleNum = Number(axis.idle)
+  if (!Number.isFinite(idleNum)) return '-'
+  return idleNum === 1 ? '是' : '否'
+})
+
+const selectedAxisStatusText = computed(() => {
+  const axis = selectedAxis.value
+  if (!axis) return '-'
+  const status = Number(axis.axisstatus)
+  return Number.isFinite(status) ? String(status) : '-'
+})
+
+const axisMposLabels = computed(() => {
+  const axisNames = ['X', 'Y', 'Z', 'R', 'U']
+  return axisNames.map((name, axisNo) => {
+    const axis = controllerStore.controllerSettings.axes.find((a) => a.axisNo === axisNo)
+    const mpos = axis ? Number(axis.mpos) : NaN
+    return {
+      name,
+      value: Number.isFinite(mpos) ? mpos.toFixed(3) : '-'
+    }
+  })
+})
+
+function ensureAxisEditSnapshot(axisIndex: number): AxisEditSnapshot | null {
+  const axis = controllerStore.controllerSettings.axes[axisIndex]
+  if (!axis) return null
+  if (!axisEditCache.value[axisIndex]) {
+    axisEditCache.value[axisIndex] = {
+      // 仅在创建/首次选择该轴时读取一次本地参数
+      commandPosition: Number.isFinite(axis.dpos) ? axis.dpos : 0,
+      speed: Number.isFinite(axis.speed) && axis.speed > 0 ? axis.speed : 20,
+    }
+  }
+  return axisEditCache.value[axisIndex]!
+}
+
+function applyEditSnapshotForSelectedAxis() {
+  const snapshot = ensureAxisEditSnapshot(selectedDriverAxisIndex.value)
+  if (!snapshot) return
+  editCommandPosition.value = snapshot.commandPosition
+  editSpeed.value = snapshot.speed
+}
+
+watch(
+  selectedDriverAxisIndex,
+  () => {
+    applyEditSnapshotForSelectedAxis()
+  },
+  { immediate: true }
+)
+
+watch(
+  () => controllerStore.controllerSettings.axes.length,
+  (len) => {
+    if (len > 0 && selectedDriverAxisIndex.value >= len) {
+      selectedDriverAxisIndex.value = len - 1
+    }
+    if (len > 0 && !axisEditCache.value[selectedDriverAxisIndex.value]) {
+      applyEditSnapshotForSelectedAxis()
+    }
+  }
+)
+
+function applyMotionStatusToAxes(statusData: Record<string, Record<string, unknown>>) {
+  const axes = controllerStore.controllerSettings.axes
+  if (!axes.length) return
+
+  for (const axis of axes) {
+    const status = statusData[String(axis.axisNo)]
+    if (!status || typeof status !== 'object') continue
+
+    const dpos = Number(status.dpos)
+    const mpos = Number(status.mpos)
+    const mspeed = Number(status.mspeed)
+    const axisstatus = Number(status.axisstatus ?? status.axis_status)
+    const idleRaw = status.idle
+
+    if (Number.isFinite(dpos)) axis.dpos = dpos
+    if (Number.isFinite(mpos)) axis.mpos = mpos
+    if (Number.isFinite(mspeed)) axis.mspeed = mspeed
+    if (Number.isFinite(axisstatus)) axis.axisstatus = axisstatus
+    if (typeof idleRaw === 'boolean') axis.idle = idleRaw ? 1 : 0
+    else {
+      const idleNum = Number(idleRaw)
+      if (Number.isFinite(idleNum)) axis.idle = idleNum
+    }
+  }
+}
+
+onMounted(() => {
+  unsubscribeHardwareStatus = subscribeHardwareStatus((res) => {
+    if (!res?.success || !res.data || typeof res.data !== 'object') return
+    const payload = res.data as HardwareStatusPayload
+    const axisFromState = payload.state?.motion_axis_feedback
+    const axisFromDriver = payload.motion_driver_status?.axis_status
+    const axisData = axisFromState ?? axisFromDriver
+    if (!axisData || typeof axisData !== 'object') return
+    applyMotionStatusToAxes(axisData as Record<string, Record<string, unknown>>)
+  }, {
+    autoStart: true,
+    intervalMs: 200,
+    runImmediately: true,
+  })
+})
+
+onUnmounted(() => {
+  unsubscribeHardwareStatus?.()
+  unsubscribeHardwareStatus = null
+})
+
+async function handleMoveAbsByEnter() {
+  const axis = selectedAxis.value
+  if (!axis || movingAbs.value) return
+
+  const target = Number(editCommandPosition.value)
+  const speed = Number(editSpeed.value)
+  if (!Number.isFinite(target)) {
+    error('请输入有效的指令位置')
+    return
+  }
+  if (!Number.isFinite(speed) || speed <= 0) {
+    error('请输入有效的速度（> 0）')
+    return
+  }
+
+  movingAbs.value = true
+  try {
+    const res = await moveMotionAxisAbs(axis.axisNo, target, {
+      speed,
+      controllerSettings: controllerStore.controllerSettings
+    })
+    if (!res?.success) {
+      error(res?.message || '绝对移动失败')
+      return
+    }
+
+    axisEditCache.value[selectedDriverAxisIndex.value] = {
+      commandPosition: target,
+      speed,
+    }
+    success('绝对移动指令已发送')
+  } finally {
+    movingAbs.value = false
+  }
+}
+
+async function handleEmergencyStop() {
+  const axis = selectedAxis.value
+  if (!axis) {
+    error('未选择轴')
+    return
+  }
+  if (emergencyStopping.value) return
+  emergencyStopping.value = true
+  try {
+    const res = await emergencyStopMotion(axis.axisNo)
+    if (!res?.success) {
+      error(res?.message || '急停失败')
+      return
+    }
+    success(res?.message || '急停成功')
+  } finally {
+    emergencyStopping.value = false
+  }
+}
+
+async function handleZeroSelectedAxisPosition() {
+  const axis = selectedAxis.value
+  if (!axis) {
+    error('未选择轴')
+    return
+  }
+  if (zeroingAxis.value || movingAbs.value) return
+  zeroingAxis.value = true
+  try {
+    const res = await zeroMotionAxis(axis.axisNo)
+    if (!res?.success) {
+      error(res?.message || '位置清零失败')
+      return
+    }
+    const idx = selectedDriverAxisIndex.value
+    const snap = axisEditCache.value[idx]
+    if (snap) snap.commandPosition = 0
+    editCommandPosition.value = 0
+    if (Number.isFinite(axis.dpos)) axis.dpos = 0
+    success(res?.message || '当前轴位置已清零')
+  } finally {
+    zeroingAxis.value = false
+  }
+}
+</script>
+
+<template>
+  <div
+    class="flex min-h-0 shrink-0 flex-col rounded-2xl border border-(--app-border) bg-(--app-card) p-4 shadow-[0_6px_14px_-6px_rgba(15,23,42,0.14)] transition-[min-height] duration-200 dark:shadow-[0_6px_16px_-6px_rgba(0,0,0,0.42)]"
+    :class="isDriverPanelExpanded ? 'min-h-[min(250px,42vh)]' : ''"
+  >
+    <CollapsiblePanelHeader
+      v-model:expanded="isDriverPanelExpanded"
+      title="控制驱动器面板"
+    />
+    <div v-show="isDriverPanelExpanded" class="mt-4 flex-1 space-y-3 overflow-y-auto pr-1">
+      <div
+        class="rounded-xl border border-(--app-border) bg-(--app-card-soft) p-3 shadow-sm shadow-slate-900/5 ring-1 ring-slate-950/4 dark:shadow-md dark:shadow-black/25 dark:ring-white/5"
+      >
+        <label class="mb-3 flex w-full min-w-0 items-center gap-2">
+          <span class="shrink-0 text-xs text-(--app-text-muted)">驱动器轴</span>
+          <select
+            v-model.number="selectedDriverAxisIndex"
+            class="min-w-0 flex-1 rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm text-(--app-text-primary) shadow-inner shadow-slate-900/5 outline-none transition scheme-light focus:border-sky-500/80 focus:shadow-[0_0_0_3px_rgba(14,165,233,0.15)] focus:ring-2 focus:ring-sky-400/25 disabled:cursor-not-allowed disabled:opacity-60 dark:shadow-black/40 dark:scheme-dark"
+            :disabled="!controllerStore.controllerSettings.axes.length"
+          >
+            <option
+              v-for="(axis, i) in controllerStore.controllerSettings.axes"
+              :key="i"
+              :value="i"
+              class="bg-(--app-input-bg) text-(--app-text-primary)"
+            >
+              {{ axis.axisName || `轴 ${i + 1}` }}
+            </option>
+          </select>
+        </label>
+
+        <div class="grid grid-cols-2 gap-3">
+          <label class="flex min-w-0 flex-col gap-1">
+            <span class="text-xs text-(--app-text-muted)">指令位置 target_pos</span>
+            <input
+              v-model.number="editCommandPosition"
+              type="number"
+              step="0.001"
+              :disabled="movingAbs"
+              class="w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm text-(--app-text-primary) shadow-inner shadow-slate-900/5 outline-none dark:shadow-black/40"
+              @keydown.enter.prevent="handleMoveAbsByEnter"
+            />
+          </label>
+          <label class="flex min-w-0 flex-col gap-1">
+            <span class="text-xs text-(--app-text-muted)">实际速度 actual_speed</span>
+            <input
+              v-model.number="editSpeed"
+              type="number"
+              min="0"
+              step="0.001"
+              :disabled="movingAbs"
+              class="w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm text-(--app-text-primary) shadow-inner shadow-slate-900/5 outline-none dark:shadow-black/40"
+            />
+          </label>
+          <label class="flex min-w-0 flex-col gap-1">
+            <span class="text-xs text-(--app-text-muted)">空闲状态 idle_status</span>
+            <input
+              :value="selectedAxisIdleText"
+              type="text"
+              readonly
+              class="w-full cursor-not-allowed rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm text-(--app-text-primary) shadow-inner shadow-slate-900/5 outline-none dark:shadow-black/40"
+            />
+          </label>
+          <label class="flex min-w-0 flex-col gap-1">
+            <span class="text-xs text-(--app-text-muted)">轴状态 axis_status</span>
+            <input
+              :value="selectedAxisStatusText"
+              type="text"
+              readonly
+              class="w-full cursor-not-allowed rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm text-(--app-text-primary) shadow-inner shadow-slate-900/5 outline-none dark:shadow-black/40"
+            />
+          </label>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap gap-2">
+        <button
+          type="button"
+          :title="zeroingAxis ? '清零执行中' : '将选中轴指令位置置零（控制器 zero）'"
+          :disabled="zeroingAxis || movingAbs || !controllerStore.controllerSettings.axes.length"
+          class="rounded-lg border border-sky-500 bg-sky-50 px-3 py-2 text-xs font-medium text-sky-800 transition hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-sky-950 dark:text-sky-200 dark:hover:bg-sky-900/45"
+          @click="handleZeroSelectedAxisPosition"
+        >
+          {{ zeroingAxis ? '清零中...' : '选中轴位置清零' }}
+        </button>
+        <button
+          type="button"
+          :title="emergencyStopping ? '停止执行中' : '立刻停止选中轴并清空该轴缓存'"
+          :disabled="emergencyStopping"
+          class="rounded-lg border border-yellow-500 bg-yellow-50 px-3 py-2 text-xs font-medium text-yellow-800 transition hover:bg-yellow-100 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-yellow-950 dark:text-yellow-200 dark:hover:bg-yellow-900/45"
+          @click="handleEmergencyStop"
+        >
+          {{ emergencyStopping ? '停止中...' : '立刻停止选中轴并清空该轴缓存' }}
+        </button>
+      </div>
+
+      <div
+        class="rounded-xl border border-(--app-border) bg-(--app-card-soft) p-3 shadow-sm shadow-slate-900/5 ring-1 ring-slate-950/4 dark:shadow-md dark:shadow-black/25 dark:ring-white/5"
+      >
+        <p class="mb-2 text-xs text-(--app-text-muted)">五轴 MPOS</p>
+        <div class="grid grid-cols-5 gap-2">
+          <label
+            v-for="item in axisMposLabels"
+            :key="item.name"
+            class="flex min-w-0 flex-col gap-1 rounded-lg border border-(--app-border) bg-(--app-input-bg) px-2 py-2"
+          >
+            <span class="text-[11px] text-(--app-text-muted)">{{ item.name }} 轴</span>
+            <span class="truncate text-xs font-medium text-(--app-text-primary)">{{ item.value }}</span>
+          </label>
+        </div>
+      </div>
+
+      <div
+        class="rounded-xl border border-(--app-border) bg-(--app-card-soft) p-3 shadow-sm shadow-slate-900/5 ring-1 ring-slate-950/4 dark:shadow-md dark:shadow-black/25 dark:ring-white/5"
+      >
+        <OutputComponent />
+      </div>
+    </div>
+  </div>
+</template>

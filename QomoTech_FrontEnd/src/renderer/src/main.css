@@ -1,0 +1,89 @@
+@import 'tailwindcss';
+
+:root {
+  color-scheme: light;
+  --app-bg: #f1f5f9;
+  --app-card: #ffffff;
+  --app-card-soft: #f8fafc;
+  --app-border: #e2e8f0;
+  --app-text-primary: #1e293b;
+  --app-text-secondary: #475569;
+  --app-text-muted: #64748b;
+  --app-input-bg: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --app-bg: #0f172a;
+    --app-card: #111827;
+    --app-card-soft: #1f2937;
+    --app-border: #334155;
+    --app-text-primary: #e2e8f0;
+    --app-text-secondary: #cbd5e1;
+    --app-text-muted: #94a3b8;
+    --app-input-bg: #0f172a;
+  }
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --app-bg: #f1f5f9;
+  --app-card: #ffffff;
+  --app-card-soft: #f8fafc;
+  --app-border: #e2e8f0;
+  --app-text-primary: #1e293b;
+  --app-text-secondary: #475569;
+  --app-text-muted: #64748b;
+  --app-input-bg: #ffffff;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --app-bg: #0f172a;
+  --app-card: #111827;
+  --app-card-soft: #1f2937;
+  --app-border: #334155;
+  --app-text-primary: #e2e8f0;
+  --app-text-secondary: #cbd5e1;
+  --app-text-muted: #94a3b8;
+  --app-input-bg: #0f172a;
+}
+
+body {
+  background-color: var(--app-bg);
+  color: var(--app-text-primary);
+}
+
+.app-page {
+  background-color: var(--app-bg);
+  color: var(--app-text-primary);
+}
+
+.app-card {
+  background-color: var(--app-card);
+  border: 1px solid var(--app-border);
+}
+
+.app-card-soft {
+  background-color: var(--app-card-soft);
+  border: 1px dashed var(--app-border);
+}
+
+.app-text-primary {
+  color: var(--app-text-primary);
+}
+
+.app-text-secondary {
+  color: var(--app-text-secondary);
+}
+
+.app-text-muted {
+  color: var(--app-text-muted);
+}
+
+.app-input {
+  background-color: var(--app-input-bg);
+  border-color: var(--app-border);
+  color: var(--app-text-primary);
+}
