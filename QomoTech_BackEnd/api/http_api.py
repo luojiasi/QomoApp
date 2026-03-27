@@ -177,11 +177,7 @@ def connect_hardware(
     message = "硬件连接完成"
     if motion.driver_mode != "zauxdll":
         message = "硬件连接完成（运动控制器已回退为模拟模式）"
-    return ApiResponse(
-        success=bool(motion_ok),
-        message=message,
-        data=_hardware_flags(motion_ok),
-    )
+    return ApiResponse(success=bool(motion_ok),message=message,data=_hardware_flags(motion_ok),)
 
 
 @http_router.post("/api/hardware/disconnect", response_model=ApiResponse)
@@ -213,11 +209,7 @@ def reconnect_hardware(
         hardware_connected=bool(motion_ok),
         motion_connected=motion_ok,
     )
-    return ApiResponse(
-        success=bool(motion_ok),
-        message="硬件单例重连完成" if motion_ok else "硬件单例重连失败",
-        data=_hardware_flags(motion_ok),
-    )
+    return ApiResponse(success=bool(motion_ok),message="硬件单例重连完成" if motion_ok else "硬件单例重连失败",data=_hardware_flags(motion_ok),)
 
 @http_router.post("/api/laser/apply", response_model=ApiResponse)
 def laser_apply(payload: LaserApplyRequest) -> ApiResponse:
