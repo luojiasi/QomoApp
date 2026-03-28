@@ -8,6 +8,11 @@ dist/
 logs/
 *.log
 
+# QomoTech_BackEnd: PyInstaller 产物与运行日志（本地构建，不提交）
+QomoTech_BackEnd/build/run/
+QomoTech_BackEnd/dist/
+QomoTech_BackEnd/logs/
+
 # Node/Electron/Vite/Vue
 node_modules/
 dist/
