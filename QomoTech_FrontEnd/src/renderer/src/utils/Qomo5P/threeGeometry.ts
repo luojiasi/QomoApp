@@ -362,7 +362,95 @@ const buildOpenEntityOffsetOverrides = (entities: QomoEntityWithSurface[]) => {
   }
   return overrides
 }
+// 导出与 3D 偏移层一致的 2D 路径计算（含接缝斜接）
+export type OpenEntityOffsetPath2D = {
+  entityId: string
+  points: Point[]
+}
 
+/**
+ * 与 `createEntityReferenceObject` 中偏移参考层一致的 2D 点列（含 `buildOpenEntityOffsetOverrides` 接缝修正）。
+ * 供 Home 相机叠加等仅展示使用；不参与编辑几何。
+ */
+// 导出与 3D 偏移层一致的 2D 路径计算（含接缝斜接）
+export const computeOpenEntityOffsetPathsForCanvas = (
+  entities: QomoEntityWithSurface[]
+): OpenEntityOffsetPath2D[] => {
+  const overrides = buildOpenEntityOffsetOverrides(entities)
+  const out: OpenEntityOffsetPath2D[] = []
+
+  for (const entity of entities) {
+    if (
+      entity.type !== 'LINE' &&
+      entity.type !== 'ARC' &&
+      entity.type !== 'BEZIER' &&
+      entity.type !== 'CIRCLE'
+    ) {
+      continue
+    }
+
+    const openSize = getEffectiveOpenSize(entity)
+    if (openSize < 1e-9) continue
+
+    const endpointOverride = overrides.get(entity.id)
+
+    if (entity.type === 'LINE') {
+      const [calculatedOffsetStart, calculatedOffsetEnd] = offsetSegmentByOpenDirection(
+        entity.start,
+        entity.end,
+        entity.openDirection,
+        openSize
+      )
+      const offsetStart = endpointOverride?.start ?? calculatedOffsetStart
+      const offsetEnd = endpointOverride?.end ?? calculatedOffsetEnd
+      out.push({ entityId: entity.id, points: [offsetStart, offsetEnd] })
+      continue
+    }
+
+    if (entity.type === 'ARC') {
+      const offsetRadius = computeArcOffsetRadius(entity, openSize)
+      const computedOuterPts = createArcPoints(
+        entity.center,
+        offsetRadius,
+        entity.startAngle,
+        entity.endAngle,
+        OPEN_PATH_SAMPLE_SEGMENTS
+      )
+      if (computedOuterPts.length < 2) continue
+      const outerPts = computedOuterPts.map((point) => ({ ...point }))
+      if (endpointOverride?.start) outerPts[0] = endpointOverride.start
+      if (endpointOverride?.end) outerPts[outerPts.length - 1] = endpointOverride.end
+      out.push({ entityId: entity.id, points: outerPts })
+      continue
+    }
+
+    if (entity.type === 'BEZIER') {
+      const innerPts = createBezierPoints(entity.points, OPEN_PATH_SAMPLE_SEGMENTS)
+      const computedOuterPts = offsetOpenPolylineByOpenDirection(
+        innerPts,
+        entity.openDirection,
+        openSize
+      )
+      if (computedOuterPts.length < 2) continue
+      const outerPts = computedOuterPts.map((point) => ({ ...point }))
+      if (endpointOverride?.start) outerPts[0] = endpointOverride.start
+      if (endpointOverride?.end) outerPts[outerPts.length - 1] = endpointOverride.end
+      out.push({ entityId: entity.id, points: outerPts })
+      continue
+    }
+
+    // CIRCLE：与 3D 一致，整圆偏移；不参与开放线接缝表
+    const r = entity.radius
+    const offsetRadius =
+      entity.openDirection === 'RIGHT' ? r + openSize : Math.max(1e-6, r - openSize)
+    const outerPts = createArcPoints(entity.center, offsetRadius, 0, 360, 360)
+    if (outerPts.length < 2) continue
+    out.push({ entityId: entity.id, points: outerPts })
+  }
+
+  return out
+}
+//导出与 3D 偏移层一致的 2D 路径计算（含接缝斜接）
 const createVerticalConnector = (
   point: Point,
   startElevation: number,

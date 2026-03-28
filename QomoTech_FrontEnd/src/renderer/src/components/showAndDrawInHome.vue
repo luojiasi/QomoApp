@@ -177,6 +177,33 @@
             stroke-linejoin="round"
           />
           </template>
+
+          <!-- 仅 Home：与 3D 偏移参考层一致的偏移几何（不影响其他编辑界面） -->
+          <template v-for="item in visibleOffsetPaths" :key="`off-${item.entityId}`">
+            <line
+              v-if="item.points.length === 2"
+              :x1="item.points[0].x"
+              :y1="item.points[0].y"
+              :x2="item.points[1].x"
+              :y2="item.points[1].y"
+              stroke="rgba(74, 170, 110, 0.92)"
+              :stroke-width="entityStrokeWidth"
+              vector-effect="non-scaling-stroke"
+              stroke-linecap="round"
+              stroke-dasharray="5 4"
+            />
+            <path
+              v-else
+              :d="offsetPathD(item.points)"
+              fill="none"
+              stroke="rgba(74, 170, 110, 0.92)"
+              :stroke-width="entityStrokeWidth"
+              vector-effect="non-scaling-stroke"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-dasharray="5 4"
+            />
+          </template>
         </g>
       </g>
     </svg>
@@ -190,6 +217,7 @@ import { useControllerSettingsStore } from '@renderer/stores/controllerSettingsS
 import { useQomo5PStore } from '@renderer/stores/qomo5pEditor'
 import type { Point, QomoEntityWithSurface } from '@renderer/types/Qomo5P'
 import {
+  computeOpenEntityOffsetPathsForCanvas,
   createBezierPoints,
   createHeartPoints,
   createMarquisePoints,
@@ -335,6 +363,21 @@ const visibleEntities = computed(() =>
   entities.value.filter((e) => visibleLayerIdSet.value.has(e.layerId))
 )
 
+/** 用全部实体算接缝斜接，再按可见层过滤；逻辑与 `threeGeometry` 中 3D 偏移层一致 */
+const visibleOffsetPaths = computed(() => {
+  const layerSet = visibleLayerIdSet.value
+  const pathMap = new Map(
+    computeOpenEntityOffsetPathsForCanvas(entities.value).map((p) => [p.entityId, p.points])
+  )
+  const list: { entityId: string; points: Point[] }[] = []
+  for (const e of entities.value) {
+    if (!layerSet.has(e.layerId)) continue
+    const pts = pathMap.get(e.id)
+    if (pts && pts.length >= 2) list.push({ entityId: e.id, points: pts })
+  }
+  return list
+})
+
 const polarToCartesian = (cx: number, cy: number, r: number, angleDeg: number) => {
   const rad = (angleDeg * Math.PI) / 180
   return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) }
@@ -370,6 +413,16 @@ const pointsToPathD = (points: Point[], closed = true) => {
 }
 
 const getOpenPolylinePathD = (points: Point[]) => pointsToPathD(points, false)
+
+/** 闭合圆等首尾重合时用 Z 闭合，其余为开放折线 */
+const offsetPathD = (points: Point[]) => {
+  if (points.length < 2) return ''
+  const a = points[0]
+  const b = points[points.length - 1]
+  const closed =
+    points.length > 2 && Math.abs(a.x - b.x) < 1e-5 && Math.abs(a.y - b.y) < 1e-5
+  return closed ? pointsToPathD(points, true) : getOpenPolylinePathD(points)
+}
 const getBezierCurvePathD = (points: Point[]) => {
   if (points.length < 2) return ''
   return getOpenPolylinePathD(createBezierPoints(points, 96))
