@@ -452,7 +452,8 @@ def wangFuLoop(
     originalPoints_run = originalPoints.copy()
     isneedReceive = False
     originalPoints_receive = originalPoints.copy()
-
+    #TODO：只要读取当前的Z轴位置
+    z_original_position = controller.get_z_dpos_mm()
 
     while step <= 300:
         if _skip_requested():
@@ -547,7 +548,7 @@ def wangFuLoop(
                     #上抬一定高度进行扫黑
                     _depth -= saoheishangtaigaodu
                     
-                __depth = -_depth
+                __depth = -_depth + z_original_position
                 result = controller.absolute_move_speed({'axis':2,'moveDistance':__depth,'speed':runSpeed})
                 if result.get('success') and result is not None:
                     step = 51
@@ -557,7 +558,7 @@ def wangFuLoop(
                 # 判断是否z轴到达位置
                 jumpOutCount = 0
                 paused_seen = False
-                z_target_depth = -_depth
+                z_target_depth = -_depth + z_original_position
                 while True:
                     if _abort_pending():
                         _runtime_cleanup_outputs(controller)

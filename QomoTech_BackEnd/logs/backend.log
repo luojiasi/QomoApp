@@ -702,3 +702,18 @@ TypeError: float() argument must be a string or a real number, not 'NoneType'
 2026-03-27 21:04:06,502 | INFO | qomotech.status_poller | HardwareStatusPoller started (interval=50ms)
 2026-03-27 21:07:49,745 | INFO | qomotech | Starting QomoTech backend
 2026-03-27 21:07:49,872 | INFO | qomotech.status_poller | HardwareStatusPoller started (interval=50ms)
+2026-03-27 21:09:02,989 | ERROR | qomotech.start_program | RS232 打开失败: 打开串口失败: could not open port 'COM5': FileNotFoundError(2, '系统找不到指定的文件。', None, 2)
+2026-03-28 09:11:44,508 | INFO | qomotech | Starting QomoTech backend
+2026-03-28 09:11:44,762 | INFO | qomotech.status_poller | HardwareStatusPoller started (interval=50ms)
+2026-03-28 09:12:57,731 | WARNING | qomotech.zmotion | ZAux_OpenEth failed ret=20008
+2026-03-28 09:12:58,722 | WARNING | qomotech.zmotion | ZAux_OpenEth failed ret=20008
+2026-03-28 09:25:05,833 | INFO | qomotech | Starting QomoTech backend
+2026-03-28 09:25:05,920 | INFO | qomotech.status_poller | HardwareStatusPoller started (interval=50ms)
+2026-03-28 09:48:15,909 | INFO | qomotech | Starting QomoTech backend
+2026-03-28 09:48:16,046 | INFO | qomotech.status_poller | HardwareStatusPoller started (interval=50ms)
+2026-03-28 09:49:36,037 | INFO | qomotech | Starting QomoTech backend
+2026-03-28 09:49:36,132 | INFO | qomotech.status_poller | HardwareStatusPoller started (interval=50ms)
+2026-03-28 09:51:54,066 | INFO | qomotech | Starting QomoTech backend
+2026-03-28 09:51:54,201 | INFO | qomotech.status_poller | HardwareStatusPoller started (interval=50ms)
+2026-03-28 09:53:11,725 | INFO | qomotech | Starting QomoTech backend
+2026-03-28 09:53:11,825 | INFO | qomotech.status_poller | HardwareStatusPoller started (interval=50ms)

@@ -68,7 +68,7 @@
  [],
  False,
  False,
- 1774611459,
+ 1774658883,
  [('run.exe',
    'D:\\Project_Test\\QomoTech\\QomoTech_BackEnd\\.venv\\Lib\\site-packages\\PyInstaller\\bootloader\\Windows-64bit-intel\\run.exe',
    'EXECUTABLE')],

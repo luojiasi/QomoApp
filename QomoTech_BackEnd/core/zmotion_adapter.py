@@ -60,9 +60,14 @@ class ZMotionAdapter:
 
     def get_xy_dpos_mm(self) -> tuple[float, float]:
         st = self._motion.get_axes_status()
-        x = float(st["0"]["dpos"])
-        y = float(st["1"]["dpos"])
+        x = float(st["0"]["mpos"])
+        y = float(st["1"]["mpos"])
         return x, y
+
+    def get_z_dpos_mm(self) -> float:
+        st = self._motion.get_axes_status()
+        z = float(st["2"]["mpos"])
+        return z
 
     def stop_axis_motion(self, axes: list[int]) -> None:
         self._motion.emergency_stop_all_axes(list(axes))
