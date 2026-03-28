@@ -271,7 +271,7 @@ export const createControllerSections = (settings: ControllerParameters): Parame
     description: `固定 ${IO_MAP_GROUP_COUNT} 组；可由上位机下发或界面编辑。`,
     fields: settings.ioMap.map((row, i) => ({
       key: `io-${i}-in`,
-      label: `组 ${i + 1} 数字量输入`,
+      label: `组 ${i} 数字量输入`,
       value: row.digitalIn
     }))
   }
@@ -282,7 +282,7 @@ export const createControllerSections = (settings: ControllerParameters): Parame
     description: `固定 ${IO_MAP_GROUP_COUNT} 组；仅由驱动器回读，界面只读展示。`,
     fields: settings.ioMap.map((row, i) => ({
       key: `io-${i}-out`,
-      label: `组 ${i + 1} 数字量输出`,
+      label: `组 ${i} 数字量输出`,
       value: row.digitalOut
     }))
   }

@@ -79,6 +79,7 @@ const waitAxis3UpperLimitInputFalse = async (timeoutMs = 6000) => {
   let seenNotAtLimit = false
   while (Date.now() - startAt < timeoutMs) {
     const res = await getMotionIoInput(ioNo)
+    console.log('res', res)
     if (res?.success && res.data && typeof res.data.value === 'boolean') {
       if (res.data.value === true) seenNotAtLimit = true
       if (seenNotAtLimit && res.data.value === false) return true
@@ -218,7 +219,7 @@ const handleNewImage = async () => {
     }
 
     // 2) Z 轴向上走，直到停止（通常是到限位/到达行程终点）
-    const Z_UP_TRAVEL_MM = 30
+    const Z_UP_TRAVEL_MM = 3000
     const moveZ = await moveMotionAxisRel(2, Z_UP_TRAVEL_MM, {
       controllerSettings: controllerStore.controllerSettings
     })
@@ -232,7 +233,7 @@ const handleNewImage = async () => {
       return
     }
 
-    const ok = await waitAxis3UpperLimitInputFalse(60000)
+    const ok = await waitAxis3UpperLimitInputFalse(5000)
     if (!ok) {
       error('等待轴3上限位超时', '请检查 Z 运动方向、限位接线及 fwd_in 编号')
       return

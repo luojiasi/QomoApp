@@ -305,15 +305,15 @@ const unsubscribeKeyboard = subscribeGlobalKeyboard((e) => {
       if (Number.isFinite(step) && step !== 0) {
         const dx =
           keyword === 'ARROWLEFT'
-            ? -step
+            ? step
             : keyword === 'ARROWRIGHT'
-              ? step
+              ? -step
               : 0
         const dy =
           keyword === 'ARROWDOWN'
-            ? -step
+            ? step
             : keyword === 'ARROWUP'
-              ? step
+              ? -step
               : 0
         if (dx !== 0 || dy !== 0) {
           qomo5pStore.beginInteractiveTransform()
