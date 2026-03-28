@@ -454,8 +454,6 @@ def wangFuLoop(
     originalPoints_receive = originalPoints.copy()
 
 
-
-
     while step <= 300:
         if _skip_requested():
             _runtime_cleanup_outputs(controller)
