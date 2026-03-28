@@ -21,7 +21,7 @@ class HardwareStatusPoller:
         motion: ZMotionDriver,
         state: StateManager,
         *,
-        interval_s: float = 0.05,
+        interval_s: float = 0.02,
         io_start: int = 0,
         io_end: int = 8,
     ) -> None:

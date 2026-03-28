@@ -107,8 +107,8 @@ export function createDefaultVerticalProcessFormula(): VerticalProcessFormulaRec
       change: createLinearFormulaCoefficients(0, 0)
     },
     descentCutting: {
-      speed: 0.01,
-      zFeed: 0.15,
+      speed: 0.15,
+      zFeed: 0.01,
       change: createLinearFormulaCoefficients(0, 0)
     }
   }

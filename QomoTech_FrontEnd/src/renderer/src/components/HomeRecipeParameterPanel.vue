@@ -7,7 +7,10 @@ import { storeToRefs } from 'pinia'
 import type { MainRecipeDefinition, ProcessFormulaRecipe } from '../types/settings'
 
 const recipeStore = useRecipeSettingsStore()
-const emit = defineEmits<{(e: 'run-recipe-change', payload: Record<string, unknown> | null): void}>()
+const emit = defineEmits<{
+  (e: 'run-recipe-change', payload: Record<string, unknown> | null): void
+  (e: 'upper-opening-change', mm: number | null): void
+}>()
 
 const selectedActiveMainRecipeId = ref('')
 const workpieceHeight = ref<number | null>(null)
@@ -117,11 +120,24 @@ function calculateUpperOpening(height: number): number | null {
   return Number.isFinite(depthCompensation) ? depthCompensation : null
 }
 
+/** 与只读展示一致的上开口数值（mm），供 Home 画布偏移层使用 */
+const upperOpeningMm = computed<number | null>(() => {
+  if (workpieceHeight.value === null || workpieceHeight.value < 0) return null
+  return calculateUpperOpening(workpieceHeight.value)
+})
+
 const readonlyUpperOpening = computed(() => {
-  if (workpieceHeight.value === null || workpieceHeight.value < 0) return '-'
-  const upper = calculateUpperOpening(workpieceHeight.value)
+  const upper = upperOpeningMm.value
   return upper === null ? '-' : upper.toFixed(0)
 })
+
+watch(
+  upperOpeningMm,
+  (mm) => {
+    emit('upper-opening-change', mm)
+  },
+  { immediate: true }
+)
 
 /**
  * 高度(mm)来源：

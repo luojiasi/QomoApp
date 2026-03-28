@@ -469,11 +469,15 @@ def wangFuLoop(
                 result = controller.get_status()
                 if  result.get('connected'):
                     controller.open_output(0, 1)#打开吹风
-                    step = 10
+                    step = 1
                 else:
                     return False
 
-
+            case 1:
+                if saoheiFlag:
+                    #上抬一定高度进行扫黑
+                    _depth -= saoheishangtaigaodu
+                step =10
             case 10:
                 # 移动到起点
                 startX = originalPoints[0].get('x')
@@ -533,10 +537,6 @@ def wangFuLoop(
                     controller.open_output(2, 1)  # 打开激光
                     openLaser = True
                 step = 40
-
-
-
-                    
             case 40:
                 # 判断是否超过深度
                 if  _depth <= depth:
@@ -544,10 +544,6 @@ def wangFuLoop(
                 else:
                     step = 150 
             case 50:
-                if saoheiFlag:
-                    #上抬一定高度进行扫黑
-                    _depth -= saoheishangtaigaodu
-                    
                 __depth = -_depth + z_original_position
                 result = controller.absolute_move_speed({'axis':2,'moveDistance':__depth,'speed':runSpeed})
                 if result.get('success') and result is not None:
@@ -694,7 +690,7 @@ def wangFuLoop(
                 else:
                     jindubaifenbi = _depth/height*100
 
-                if jindubaifenbi > 5 and saoheiFlag:
+                if jindubaifenbi > (decreasingRate)/2 and saoheiFlag:
                     saoheiFlag = False
                     controller.open_output(2, 0)#关闭激光
                     openLaser = False

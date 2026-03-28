@@ -228,8 +228,10 @@ const props = withDefaults(
   defineProps<{
     /** 额外缩放倍率（通常保持 1；为了兼容 Home.vue 旧用法保留该参数） */
     scale?: number
+    /** 配方面板计算的上开口（mm），与 `computeOpenEntityOffsetPathsForCanvas` 的开口尺寸一致 */
+    upperOpeningMm?: number | null
   }>(),
-  { scale: 1 }
+  { scale: 1, upperOpeningMm: null }
 )
 
 const store = useQomo5PStore()
@@ -366,8 +368,12 @@ const visibleEntities = computed(() =>
 /** 用全部实体算接缝斜接，再按可见层过滤；逻辑与 `threeGeometry` 中 3D 偏移层一致 */
 const visibleOffsetPaths = computed(() => {
   const layerSet = visibleLayerIdSet.value
+  const openSize =
+    props.upperOpeningMm != null && Number.isFinite(props.upperOpeningMm) && props.upperOpeningMm > 0
+      ? props.upperOpeningMm
+      : 0
   const pathMap = new Map(
-    computeOpenEntityOffsetPathsForCanvas(entities.value).map((p) => [p.entityId, p.points])
+    computeOpenEntityOffsetPathsForCanvas(entities.value, openSize).map((p) => [p.entityId, p.points])
   )
   const list: { entityId: string; points: Point[] }[] = []
   for (const e of entities.value) {

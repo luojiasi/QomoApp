@@ -63,9 +63,15 @@ function formatElapsedMs(ms: number): string {
 const programElapsedText = computed(() => formatElapsedMs(programElapsedMs.value))
 
 const currentRunRecipePayload = ref<Record<string, unknown> | null>(null)
+/** 配方参数面板上开口（mm），传给 Home 相机叠加层偏移绘制 */
+const recipeUpperOpeningMm = ref<number | null>(null)
 
 function handleRunRecipeChange(payload: Record<string, unknown> | null): void {
   currentRunRecipePayload.value = payload
+}
+
+function handleUpperOpeningChange(mm: number | null): void {
+  recipeUpperOpeningMm.value = mm
 }
 
 function loadProgramStartedAtFromStorage(): number | null {
@@ -551,7 +557,10 @@ onMounted(async () => {
     <section
       class="absolute left-4 top-24 bottom-4 z-20 flex min-h-0 w-[450px] flex-col gap-3 overflow-y-auto p-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
-      <RecipeParameterPanel @run-recipe-change="handleRunRecipeChange" />
+      <RecipeParameterPanel
+        @run-recipe-change="handleRunRecipeChange"
+        @upper-opening-change="handleUpperOpeningChange"
+      />
       <DriverControlPanel />
       <LaserControlPanel />
       <CameraControlPanel />
@@ -564,7 +573,7 @@ onMounted(async () => {
       >
         <CameraPic object-fit="cover" />
         <!-- 透明叠加层：中心十字 + 实体线段绘制，不遮挡相机画面 -->
-        <ShowAndDrawInHome :scale="1" />
+        <ShowAndDrawInHome :scale="1" :upper-opening-mm="recipeUpperOpeningMm" />
       </div>
     </main>
 
