@@ -23,7 +23,8 @@ import {
   moveMotionAxisRel,
   startProgram,
   getStartProgramStatus,
-  startProgramControl
+  startProgramControl,
+  moveMotionAxisAbs
 } from '../utils/motionApi'
 
 const featureLinks = deviceFeatureRoutes
@@ -295,9 +296,8 @@ const unsubscribeKeyboard = subscribeGlobalKeyboard((e) => {
 
   const isArrowKey = ['ARROWUP', 'ARROWDOWN', 'ARROWLEFT', 'ARROWRIGHT'].includes(keyword)
 
-  // 实体联动：按上下左右移动所有实体
-  // 需求：当是 shift + 方向键时，只移动图像，不发给后端（提前 return）
-  if (isArrowKey) {
+  // Shift + 方向键：仅平移全部实体数据，不触发 X/Y 轴点动
+  if (isArrowKey && onlyshiftKey) {
     if (entities.value.length > 0) {
       e.preventDefault()
       if (e.repeat) return
@@ -322,8 +322,7 @@ const unsubscribeKeyboard = subscribeGlobalKeyboard((e) => {
         }
       }
     }
-
-    if (onlyshiftKey) return
+    return
   }
 
   if (keyword === 'ARROWUP' && altKey) {
@@ -354,6 +353,28 @@ const unsubscribeKeyboard = subscribeGlobalKeyboard((e) => {
 
 
   if (e.repeat) return
+
+  if (keyword === 'H' && nokey) {
+    e.preventDefault()
+    void (async () => {
+      try {
+        const zx = await moveMotionAxisAbs(0,0)
+        if (!zx?.success) {
+          error(zx?.message || 'X 轴回原失败')
+          return
+        }
+        const zy = await moveMotionAxisAbs(1,0)
+        if (!zy?.success) {
+          error(zy?.message || 'Y 轴回原失败')
+          return
+        }
+        success('已 X/Y 回原')
+      } catch {
+        error('X/Y 回原失败')
+      }
+    })()
+    return
+  }
   if (keyword === 'F1' && nokey) {
     e.preventDefault()
     moveStep.value = 0.01

@@ -85,7 +85,7 @@
 
     <svg class="h-full w-full">
       <g :transform="worldTransform">
-        <!-- 坐标轴（与 QomoCanvas 一致：世界坐标原点为(0,0)，Y 向上） -->
+        <!-- 十字线固定在世界原点 (0,0)，不随机床 MPOS 平移 -->
         <line
           x1="-10000"
           y1="0"
@@ -105,7 +105,9 @@
           vector-effect="non-scaling-stroke"
         />
 
-        <template v-for="entity in visibleEntities" :key="entity.id">
+        <!-- 仅实体随机床平移显示，不改 Pinia 几何 -->
+        <g :transform="machineFollowTransform">
+          <template v-for="entity in visibleEntities" :key="entity.id">
           <line
             v-if="entity.type === 'LINE'"
             :x1="entity.start.x"
@@ -174,7 +176,8 @@
             stroke-linecap="round"
             stroke-linejoin="round"
           />
-        </template>
+          </template>
+        </g>
       </g>
     </svg>
   </div>
@@ -183,6 +186,7 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { useControllerSettingsStore } from '@renderer/stores/controllerSettingsStore'
 import { useQomo5PStore } from '@renderer/stores/qomo5pEditor'
 import type { Point, QomoEntityWithSurface } from '@renderer/types/Qomo5P'
 import {
@@ -202,6 +206,23 @@ const props = withDefaults(
 
 const store = useQomo5PStore()
 const { viewport, layers, entities } = storeToRefs(store)
+
+const controllerStore = useControllerSettingsStore()
+/** 轴 0/1 的编码器反馈（mm），仅作用于实体绘制；十字线不参与平移 */
+const machineMposXY = computed(() => {
+  const axes = controllerStore.controllerSettings.axes
+  const ax = axes.find((a) => a.axisNo === 0)
+  const ay = axes.find((a) => a.axisNo === 1)
+  const x = ax != null ? Number(ax.mpos) : NaN
+  const y = ay != null ? Number(ay.mpos) : NaN
+  return {
+    x: Number.isFinite(x) ? x : 0,
+    y: Number.isFinite(y) ? y : 0
+  }
+})
+const machineFollowTransform = computed(
+  () => `translate(${-machineMposXY.value.x} ${-machineMposXY.value.y})`
+)
 
 const hostRef = ref<HTMLDivElement | null>(null)
 let ro: ResizeObserver | null = null
