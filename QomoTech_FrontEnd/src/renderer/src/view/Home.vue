@@ -17,6 +17,7 @@ import { useNotification } from '../composables/useNotification'
 import { useControllerSettingsStore } from '../stores/controllerSettingsStore'
 import { useQomo5PStore } from '../stores/qomo5pEditor'
 import { bootstrapControllerOnce } from '../utils/backendBootstrap'
+import { getStartProgramStatusWsUrl } from '../utils/toBackendApiCall'
 import { subscribeGlobalKeyboard } from '../utils/globalKeyboard'
 import {
   setMotionIoOutput,
@@ -43,8 +44,11 @@ const programPaused = ref(false)
 const programTaskCount = ref(0)
 const currentTaskIndex = ref(0)
 const currentTaskJindubaifenbi = ref(0)
-let programStatusPollTimer: ReturnType<typeof setInterval> | null = null
 let programElapsedTimer: ReturnType<typeof setInterval> | null = null
+let programStatusWs: WebSocket | null = null
+let programStatusWsReconnectTimer: ReturnType<typeof setTimeout> | null = null
+/** 为 false 时不再重连（例如页面已卸载） */
+let programStatusWsReconnectEnabled = true
 
 const PROGRAM_STARTED_AT_STORAGE_KEY = 'qomo.startProgram.startedAtMs'
 const programStartedAtMs = ref<number | null>(null)
@@ -113,75 +117,107 @@ function startProgramElapsedTimer(): void {
   }
 }
 
-function stopProgramStatusPolling(): void {
-  if (programStatusPollTimer !== null) {
-    clearInterval(programStatusPollTimer)
-    programStatusPollTimer = null
+type StartProgramStatusPayload = {
+  running?: boolean
+  paused?: boolean
+  total_tasks?: number
+  current_task_index?: number
+  jindubaifenbi?: number
+}
+
+/** 与轮询时代逻辑一致：更新运行/暂停/任务与进度；running 为 false 时清理计时与本地存储 */
+function applyStartProgramStatusPayload(data: StartProgramStatusPayload | undefined): void {
+  if (!data) return
+  if (typeof data.running === 'boolean') {
+    programRunning.value = data.running
+    programPaused.value = Boolean(data.paused)
+  }
+  if (typeof data.total_tasks === 'number') programTaskCount.value = Math.max(0, Math.floor(data.total_tasks))
+  if (typeof data.current_task_index === 'number') {
+    currentTaskIndex.value = Math.max(0, Math.floor(data.current_task_index))
+  }
+  if (typeof data.jindubaifenbi === 'number') currentTaskJindubaifenbi.value = Math.max(0, data.jindubaifenbi)
+
+  if (data.running === false) {
+    programPaused.value = false
+    stopProgramElapsedTimer()
+    programStartedAtMs.value = null
+    programElapsedMs.value = 0
+    persistProgramStartedAtToStorage(null)
   }
 }
 
-function startProgramStatusPolling(): void {
-  stopProgramStatusPolling()
-  programStatusPollTimer = setInterval(async () => {
-    const st = await getStartProgramStatus()
-    if (!st?.success) {
-      return
+function stopProgramStatusWebSocket(): void {
+  programStatusWsReconnectEnabled = false
+  if (programStatusWsReconnectTimer !== null) {
+    clearTimeout(programStatusWsReconnectTimer)
+    programStatusWsReconnectTimer = null
+  }
+  if (programStatusWs) {
+    programStatusWs.onclose = null
+    programStatusWs.onerror = null
+    programStatusWs.onmessage = null
+    programStatusWs.close()
+    programStatusWs = null
+  }
+}
+
+function scheduleProgramStatusWebSocketReconnect(): void {
+  if (!programStatusWsReconnectEnabled) return
+  if (programStatusWsReconnectTimer !== null) return
+  programStatusWsReconnectTimer = setTimeout(() => {
+    programStatusWsReconnectTimer = null
+    connectProgramStatusWebSocket()
+  }, 2000)
+}
+
+function connectProgramStatusWebSocket(): void {
+  if (!programStatusWsReconnectEnabled || typeof WebSocket === 'undefined') return
+  if (programStatusWs && programStatusWs.readyState === WebSocket.OPEN) return
+
+  if (programStatusWs) {
+    programStatusWs.onclose = null
+    programStatusWs.onerror = null
+    programStatusWs.onmessage = null
+    programStatusWs.close()
+    programStatusWs = null
+  }
+
+  const url = getStartProgramStatusWsUrl()
+  try {
+    const ws = new WebSocket(url)
+    programStatusWs = ws
+    ws.onmessage = (ev) => {
+      try {
+        const msg = JSON.parse(String(ev.data)) as { type?: string; data?: unknown }
+        if (msg.type !== 'start_program_status') return
+        if (!msg.data || typeof msg.data !== 'object') return
+        applyStartProgramStatusPayload(msg.data as StartProgramStatusPayload)
+      } catch {
+        // 忽略非 JSON
+      }
     }
-    const data = st.data as {
-      running?: boolean
-      paused?: boolean
-      total_tasks?: number
-      current_task_index?: number
-      jindubaifenbi?: number
-    } | undefined
-    if (data && typeof data.running === 'boolean') {
-      programRunning.value = data.running
-      programPaused.value = Boolean(data.paused)
+    ws.onclose = () => {
+      programStatusWs = null
+      scheduleProgramStatusWebSocketReconnect()
     }
-    if (typeof data?.total_tasks === 'number') {
-      programTaskCount.value = Math.max(0, Math.floor(data.total_tasks))
+    ws.onerror = () => {
+      try {
+        ws.close()
+      } catch {
+        /* ignore */
+      }
     }
-    if (typeof data?.current_task_index === 'number') {
-      currentTaskIndex.value = Math.max(0, Math.floor(data.current_task_index))
-    }
-    if (typeof data?.jindubaifenbi === 'number') {
-      currentTaskJindubaifenbi.value = Math.max(0, data.jindubaifenbi)
-    }
-    if (data?.running === false) {
-      stopProgramStatusPolling()
-      programPaused.value = false
-      stopProgramElapsedTimer()
-      programStartedAtMs.value = null
-      programElapsedMs.value = 0
-      persistProgramStartedAtToStorage(null)
-    }
-  }, 400)
+  } catch {
+    scheduleProgramStatusWebSocketReconnect()
+  }
 }
 
 async function syncProgramStatusOnEnter(): Promise<void> {
   const st = await getStartProgramStatus()
   if (!st?.success) return
-  const data = st.data as {
-    running?: boolean
-    paused?: boolean
-    total_tasks?: number
-    current_task_index?: number
-    jindubaifenbi?: number
-  } | undefined
-
-  if (typeof data?.running === 'boolean') {
-    programRunning.value = data.running
-    programPaused.value = Boolean(data.paused)
-  }
-  if (typeof data?.total_tasks === 'number') {
-    programTaskCount.value = Math.max(0, Math.floor(data.total_tasks))
-  }
-  if (typeof data?.current_task_index === 'number') {
-    currentTaskIndex.value = Math.max(0, Math.floor(data.current_task_index))
-  }
-  if (typeof data?.jindubaifenbi === 'number') {
-    currentTaskJindubaifenbi.value = Math.max(0, data.jindubaifenbi)
-  }
+  const data = st.data as StartProgramStatusPayload | undefined
+  applyStartProgramStatusPayload(data)
 
   if (data?.running === true) {
     const persisted = loadProgramStartedAtFromStorage()
@@ -192,13 +228,6 @@ async function syncProgramStatusOnEnter(): Promise<void> {
       persistProgramStartedAtToStorage(programStartedAtMs.value)
     }
     startProgramElapsedTimer()
-    startProgramStatusPolling()
-  } else if (data?.running === false) {
-    stopProgramStatusPolling()
-    stopProgramElapsedTimer()
-    programStartedAtMs.value = null
-    programElapsedMs.value = 0
-    persistProgramStartedAtToStorage(null)
   }
 }
 
@@ -229,7 +258,6 @@ async function onRunClick(): Promise<void> {
     programElapsedMs.value = 0
     persistProgramStartedAtToStorage(programStartedAtMs.value)
     startProgramElapsedTimer()
-    startProgramStatusPolling()
     success(result?.message || '运行指令已发送。')
   } catch {
     error('运行失败：无法连接后端。')
@@ -248,11 +276,6 @@ async function onPauseToggleClick(): Promise<void> {
     return
   }
   success(r?.message || '已执行。')
-  const st = await getStartProgramStatus()
-  const d = st?.data as { paused?: boolean } | undefined
-  if (typeof d?.paused === 'boolean') {
-    programPaused.value = d.paused
-  }
 }
 
 async function onResetAlarmsClick(): Promise<void> {
@@ -275,7 +298,6 @@ async function onEstopClick(): Promise<void> {
   programPaused.value = false
   currentTaskIndex.value = 0
   currentTaskJindubaifenbi.value = 0
-  stopProgramStatusPolling()
   stopProgramElapsedTimer()
   programStartedAtMs.value = null
   programElapsedMs.value = 0
@@ -480,11 +502,12 @@ const unsubscribeKeyboard = subscribeGlobalKeyboard((e) => {
 
 onUnmounted(() => {
   unsubscribeKeyboard()
-  stopProgramStatusPolling()
+  stopProgramStatusWebSocket()
   stopProgramElapsedTimer()
 })
 
 onMounted(async () => {
+  programStatusWsReconnectEnabled = true
   await controllerSettingsStore.loadControllerSettings()
   try {
     const controllerRes = await bootstrapControllerOnce(controllerSettingsStore.controllerSettings)
@@ -499,6 +522,7 @@ onMounted(async () => {
   } catch {
     // ignore enter sync errors (e.g. backend temporarily unreachable)
   }
+  connectProgramStatusWebSocket()
 })
 </script>
 

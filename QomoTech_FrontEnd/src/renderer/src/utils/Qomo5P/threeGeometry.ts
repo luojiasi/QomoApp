@@ -374,7 +374,8 @@ export type OpenEntityOffsetPath2D = {
  */
 // 导出与 3D 偏移层一致的 2D 路径计算（含接缝斜接）
 export const computeOpenEntityOffsetPathsForCanvas = (
-  entities: QomoEntityWithSurface[]
+  entities: QomoEntityWithSurface[],
+  openSize_details: number
 ): OpenEntityOffsetPath2D[] => {
   const overrides = buildOpenEntityOffsetOverrides(entities)
   const out: OpenEntityOffsetPath2D[] = []
@@ -388,8 +389,7 @@ export const computeOpenEntityOffsetPathsForCanvas = (
     ) {
       continue
     }
-
-    const openSize = getEffectiveOpenSize(entity)
+    const openSize = openSize_details/1000
     if (openSize < 1e-9) continue
 
     const endpointOverride = overrides.get(entity.id)

@@ -368,9 +368,11 @@ const visibleEntities = computed(() =>
 /** 用全部实体算接缝斜接，再按可见层过滤；逻辑与 `threeGeometry` 中 3D 偏移层一致 */
 const visibleOffsetPaths = computed(() => {
   const layerSet = visibleLayerIdSet.value
+
+  const rawOpening = props.upperOpeningMm
   const openSize =
-    props.upperOpeningMm != null && Number.isFinite(props.upperOpeningMm) && props.upperOpeningMm > 0
-      ? props.upperOpeningMm
+    rawOpening != null && Number.isFinite(Number(rawOpening)) && Number(rawOpening) > 0
+      ? Number(rawOpening)
       : 0
   const pathMap = new Map(
     computeOpenEntityOffsetPathsForCanvas(entities.value, openSize).map((p) => [p.entityId, p.points])

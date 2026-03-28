@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import asyncio
+from typing import Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from api.dependencies import camera_driver
+from core.program_status_ws import add_program_status_subscriber, remove_program_status_subscriber
+from core.startPragram import get_program_status
 
 
-router = APIRouter(tags=["camera-ws"])
+router = APIRouter()
 
 
 @router.websocket("/api/camera/ws")
@@ -37,3 +40,19 @@ async def camera_stream_ws(
             await asyncio.sleep(0)
     except WebSocketDisconnect:
         return
+
+
+@router.websocket("/api/startProgram/ws")
+async def start_program_status_ws(websocket: WebSocket) -> None:
+    await websocket.accept()
+    q: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=8)
+    add_program_status_subscriber(q)
+    try:
+        await websocket.send_json({"type": "start_program_status", "data": get_program_status()})
+        while True:
+            data = await q.get()
+            await websocket.send_json({"type": "start_program_status", "data": data})
+    except WebSocketDisconnect:
+        return
+    finally:
+        remove_program_status_subscriber(q)

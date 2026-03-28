@@ -93,6 +93,12 @@ export const getCameraStreamWsUrl = () => {
   return baseUrl ? `${baseUrl}/api/camera/ws` : '/api/camera/ws'
 }
 
+/** 程序运行状态推送（与 GET /api/startProgram/status 字段一致） */
+export const getStartProgramStatusWsUrl = () => {
+  const baseUrl = getBackendWsBaseUrl()
+  return baseUrl ? `${baseUrl}/api/startProgram/ws` : '/api/startProgram/ws'
+}
+
 // API调用函数
 // 全局 API 调用工具
 export const apiCall = async <T = any>(endpoint: string,method: HttpMethod = 'GET',data: ApiPayload = null,queryParams: ApiQueryParams = null): Promise<ApiCallResult<T>> => {

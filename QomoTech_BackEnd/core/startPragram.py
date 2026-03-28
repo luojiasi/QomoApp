@@ -7,6 +7,7 @@ import threading
 from typing import Any
 
 from core.calc_offset_ljs import OffsetEndpointCalculator
+from core.program_status_ws import notify_program_status_changed
 from core.zmotion_adapter import ZMotionAdapter
 from drivers.rs232_driver import Rs232Driver
 from drivers.zmotion_driver import ZMotionDriver
@@ -56,6 +57,7 @@ def program_request_pause(motion: ZMotionDriver | None = None) -> dict[str, Any]
     m = motion or _current_motion_ref
     if m and m.is_connected():
         m.emergency_stop_all_axes([0, 1, 2])
+    notify_program_status_changed(force=True)
     return {"success": True, "message": "已暂停"}
 
 
@@ -65,6 +67,7 @@ def program_request_resume() -> dict[str, Any]:
         if not _program_running:
             return {"success": False, "message": "当前没有运行中的程序"}
         _program_paused = False
+    notify_program_status_changed(force=True)
     return {"success": True, "message": "已继续运行"}
 
 
@@ -76,6 +79,7 @@ def program_request_estop(motion: ZMotionDriver | None = None) -> dict[str, Any]
     m = motion or _current_motion_ref
     if m and m.is_connected():
         m.emergency_stop_all_axes([0, 1, 2])
+    notify_program_status_changed(force=True)
     return {"success": True, "message": "已急停"}
 
 
@@ -88,6 +92,7 @@ def program_request_skip(motion: ZMotionDriver | None = None) -> dict[str, Any]:
     m = motion or _current_motion_ref
     if m and m.is_connected():
         m.emergency_stop_all_axes([0, 1, 2])
+    notify_program_status_changed(force=True)
     return {"success": True, "message": "已请求跳过当前任务"}
 
 
@@ -138,6 +143,7 @@ def _update_program_task_progress(
             _program_current_task_index = max(0, int(current_task_index))
         if current_task_jindubaifenbi is not None:
             _program_current_task_jindubaifenbi = max(0.0, min(100.0, float(current_task_jindubaifenbi)))
+    notify_program_status_changed()
 
 
 def _rebuild_xy_path_from_current(
@@ -291,6 +297,7 @@ def execute_start_program(*,motion: ZMotionDriver,recipe_payload: dict[str, Any]
             _program_current_task_index = 0
             _program_current_task_jindubaifenbi = 0.0
         _PROGRAM_RUN_LOCK.release()
+        notify_program_status_changed(force=True)
 
 
 

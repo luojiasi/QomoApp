@@ -1,6 +1,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import sys
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
@@ -12,6 +13,7 @@ from api.http_api import router as http_router
 from api.websocket_api import router as ws_router
 from api.dependencies import camera_driver, hardware_status_poller, rs232_driver
 from config.app_config import app_config
+from core.program_status_ws import set_program_status_event_loop
 from utils.logger import setup_logger
 
 
@@ -44,6 +46,7 @@ def create_app() -> FastAPI:
 
     @app.on_event("startup")
     async def _startup() -> None:
+        set_program_status_event_loop(asyncio.get_running_loop())
         # 单独状态采集线程：持续写入 state_manager，前端只读缓存。
         hardware_status_poller.start()
 
