@@ -70,9 +70,9 @@ async function handleAxisCountChange(count: ControllerAxisCount): Promise<void> 
 /** 当前选中的轴（与 axisPairs 下标对应） */
 const selectedAxisIndex = ref(0)
 
-const communicationSection = computed(
-  () => sections.value.find((s) => s.id === 'controller-communication') ?? null
-)
+// const communicationSection = computed(
+//   () => sections.value.find((s) => s.id === 'controller-communication') ?? null
+// )
 
 /** 同一轴的「可配置」与「驱动器回读」成对，用于两行布局 */
 const axisPairs = computed(() => {

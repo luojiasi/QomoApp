@@ -3,25 +3,29 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import CollapsiblePanelHeader from './CollapsiblePanelHeader.vue'
 import OutputComponent from './OutputComponent.vue'
 import { useControllerSettingsStore } from '../stores/controllerSettingsStore'
+// import {
+//   emergencyStopMotion,
+//   moveMotionAxisAbs,
+//   subscribeHardwareStatus,
+//   zeroMotionAxis,
+//   type HardwareStatusPayload
+// } from '../utils/motionApi'
 import {
-  emergencyStopMotion,
-  moveMotionAxisAbs,
   subscribeHardwareStatus,
-  zeroMotionAxis,
   type HardwareStatusPayload
 } from '../utils/motionApi'
-import { useNotification } from '../composables/useNotification'
+// import { useNotification } from '../composables/useNotification'
 
 const controllerStore = useControllerSettingsStore()
-const { success, error } = useNotification()
+// const { success, error } = useNotification()
 
 const emit = defineEmits<{(e: 'open-right-panel', target: string): void}>()
 
 const isDriverPanelExpanded = ref(true)
 const selectedDriverAxisIndex = ref(0)
-const movingAbs = ref(false)
-const emergencyStopping = ref(false)
-const zeroingAxis = ref(false)
+// const movingAbs = ref(false)
+// const emergencyStopping = ref(false)
+// const zeroingAxis = ref(false)
 let unsubscribeHardwareStatus: (() => void) | null = null
 
 type AxisEditSnapshot = {
@@ -34,27 +38,27 @@ const editCommandPosition = ref<number>(0)
 const editSpeed = ref<number>(0)
 
 
-const selectedAxis = computed(() => {
-  const axes = controllerStore.controllerSettings.axes
-  if (!axes.length) return null
-  const i = Math.min(Math.max(0, selectedDriverAxisIndex.value), axes.length - 1)
-  return axes[i]!
-})
+// const selectedAxis = computed(() => {
+//   const axes = controllerStore.controllerSettings.axes
+//   if (!axes.length) return null
+//   const i = Math.min(Math.max(0, selectedDriverAxisIndex.value), axes.length - 1)
+//   return axes[i]!
+// })
 
-const selectedAxisIdleText = computed(() => {
-  const axis = selectedAxis.value
-  if (!axis) return '-'
-  const idleNum = Number(axis.idle)
-  if (!Number.isFinite(idleNum)) return '-'
-  return idleNum === 1 ? '是' : '否'
-})
+// const selectedAxisIdleText = computed(() => {
+//   const axis = selectedAxis.value
+//   if (!axis) return '-'
+//   const idleNum = Number(axis.idle)
+//   if (!Number.isFinite(idleNum)) return '-'
+//   return idleNum === 1 ? '是' : '否'
+// })
 
-const selectedAxisStatusText = computed(() => {
-  const axis = selectedAxis.value
-  if (!axis) return '-'
-  const status = Number(axis.axisstatus)
-  return Number.isFinite(status) ? String(status) : '-'
-})
+// const selectedAxisStatusText = computed(() => {
+//   const axis = selectedAxis.value
+//   if (!axis) return '-'
+//   const status = Number(axis.axisstatus)
+//   return Number.isFinite(status) ? String(status) : '-'
+// })
 
 const axisMposLabels = computed(() => {
   const axisNames = ['X', 'Y', 'Z', 'R', 'U']
@@ -155,86 +159,86 @@ onUnmounted(() => {
   unsubscribeHardwareStatus = null
 })
 
-async function handleMoveAbsByEnter() {
-  const axis = selectedAxis.value
-  if (!axis || movingAbs.value) return
+// async function handleMoveAbsByEnter() {
+//   const axis = selectedAxis.value
+//   if (!axis || movingAbs.value) return
 
-  const target = Number(editCommandPosition.value)
-  const speed = Number(editSpeed.value)
-  if (!Number.isFinite(target)) {
-    error('请输入有效的指令位置')
-    return
-  }
-  if (!Number.isFinite(speed) || speed <= 0) {
-    error('请输入有效的速度（> 0）')
-    return
-  }
+//   const target = Number(editCommandPosition.value)
+//   const speed = Number(editSpeed.value)
+//   if (!Number.isFinite(target)) {
+//     error('请输入有效的指令位置')
+//     return
+//   }
+//   if (!Number.isFinite(speed) || speed <= 0) {
+//     error('请输入有效的速度（> 0）')
+//     return
+//   }
 
-  movingAbs.value = true
-  try {
-    const res = await moveMotionAxisAbs(axis.axisNo, target, {
-      speed,
-      controllerSettings: controllerStore.controllerSettings
-    })
-    if (!res?.success) {
-      error(res?.message || '绝对移动失败')
-      return
-    }
+//   movingAbs.value = true
+//   try {
+//     const res = await moveMotionAxisAbs(axis.axisNo, target, {
+//       speed,
+//       controllerSettings: controllerStore.controllerSettings
+//     })
+//     if (!res?.success) {
+//       error(res?.message || '绝对移动失败')
+//       return
+//     }
 
-    axisEditCache.value[selectedDriverAxisIndex.value] = {
-      commandPosition: target,
-      speed,
-    }
-    success('绝对移动指令已发送')
-  } finally {
-    movingAbs.value = false
-  }
-}
+//     axisEditCache.value[selectedDriverAxisIndex.value] = {
+//       commandPosition: target,
+//       speed,
+//     }
+//     success('绝对移动指令已发送')
+//   } finally {
+//     movingAbs.value = false
+//   }
+// }
 
-async function handleEmergencyStop() {
-  const axis = selectedAxis.value
-  if (!axis) {
-    error('未选择轴')
-    return
-  }
-  if (emergencyStopping.value) return
-  emergencyStopping.value = true
-  try {
-    const res = await emergencyStopMotion(axis.axisNo)
-    if (!res?.success) {
-      error(res?.message || '急停失败')
-      return
-    }
-    success(res?.message || '急停成功')
-  } finally {
-    emergencyStopping.value = false
-  }
-}
+// async function handleEmergencyStop() {
+//   const axis = selectedAxis.value
+//   if (!axis) {
+//     error('未选择轴')
+//     return
+//   }
+//   if (emergencyStopping.value) return
+//   emergencyStopping.value = true
+//   try {
+//     const res = await emergencyStopMotion(axis.axisNo)
+//     if (!res?.success) {
+//       error(res?.message || '急停失败')
+//       return
+//     }
+//     success(res?.message || '急停成功')
+//   } finally {
+//     emergencyStopping.value = false
+//   }
+// }
 
-async function handleZeroSelectedAxisPosition() {
-  const axis = selectedAxis.value
-  if (!axis) {
-    error('未选择轴')
-    return
-  }
-  if (zeroingAxis.value || movingAbs.value) return
-  zeroingAxis.value = true
-  try {
-    const res = await zeroMotionAxis(axis.axisNo)
-    if (!res?.success) {
-      error(res?.message || '位置清零失败')
-      return
-    }
-    const idx = selectedDriverAxisIndex.value
-    const snap = axisEditCache.value[idx]
-    if (snap) snap.commandPosition = 0
-    editCommandPosition.value = 0
-    if (Number.isFinite(axis.dpos)) axis.dpos = 0
-    success(res?.message || '当前轴位置已清零')
-  } finally {
-    zeroingAxis.value = false
-  }
-}
+// async function handleZeroSelectedAxisPosition() {
+//   const axis = selectedAxis.value
+//   if (!axis) {
+//     error('未选择轴')
+//     return
+//   }
+//   if (zeroingAxis.value || movingAbs.value) return
+//   zeroingAxis.value = true
+//   try {
+//     const res = await zeroMotionAxis(axis.axisNo)
+//     if (!res?.success) {
+//       error(res?.message || '位置清零失败')
+//       return
+//     }
+//     const idx = selectedDriverAxisIndex.value
+//     const snap = axisEditCache.value[idx]
+//     if (snap) snap.commandPosition = 0
+//     editCommandPosition.value = 0
+//     if (Number.isFinite(axis.dpos)) axis.dpos = 0
+//     success(res?.message || '当前轴位置已清零')
+//   } finally {
+//     zeroingAxis.value = false
+//   }
+// }
 </script>
 
 <template>

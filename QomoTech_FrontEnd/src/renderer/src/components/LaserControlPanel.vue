@@ -49,7 +49,7 @@ const appliedBaselineCurrent = ref<number | null>(null)
 const appliedBaselineTransmission = ref<LaserTransmissionMode | null>(null)
 const applying = ref(false)
 
-const transmissionOptions: LaserTransmissionMode[] = ['网线', 'RS232']
+// const transmissionOptions: LaserTransmissionMode[] = ['网线', 'RS232']
 
 const EPS = 1e-6
 const numericEqual = (a: number | null, b: number | null): boolean => {

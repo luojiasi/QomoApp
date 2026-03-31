@@ -232,7 +232,7 @@ const handleNewImage = async () => {
       error(zz?.message || 'Z 轴位置清零失败')
       return
     }
-    const moveZDown = await moveMotionAxisRel(2, -45, {
+    await moveMotionAxisRel(2, -45, {
       controllerSettings: controllerStore.controllerSettings
     })
 

@@ -963,17 +963,8 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <div class="mt-3 grid gap-3 sm:grid-cols-2">
-            <label class="space-y-1.5 sm:col-span-2">
-              <span class="app-text-secondary text-xs">标题</span>
-              <input
-                v-model="editingQuickCommandDraft.title"
-                type="text"
-                class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
-              />
-            </label>
-
-            <label class="space-y-1.5 sm:col-span-2">
+          <div class="mt-3 grid grid-rows-2">
+            <label class="space-y-1.5">
               <span class="app-text-secondary text-xs">描述</span>
               <input
                 v-model="editingQuickCommandDraft.description"
@@ -981,31 +972,11 @@ onUnmounted(() => {
                 class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
               />
             </label>
-
-            <label class="space-y-1.5">
-              <span class="app-text-secondary text-xs">模式</span>
-              <select
-                v-model="editingQuickCommandDraft.mode"
-                class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
-              >
-                <option
-                  v-for="m in RS232_SEND_MODE_OPTIONS"
-                  :key="m"
-                  :value="m"
-                >
-                  {{ modeLabel(m) }}
-                </option>
-              </select>
-            </label>
-
-            <label class="space-y-1.5">
-              <span class="app-text-secondary text-xs">载荷</span>
-              <textarea
+            <textarea
                 v-model="editingQuickCommandDraft.payload"
                 rows="3"
                 class="app-text-primary w-full resize-y rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
               />
-            </label>
           </div>
         </div>
       </section>

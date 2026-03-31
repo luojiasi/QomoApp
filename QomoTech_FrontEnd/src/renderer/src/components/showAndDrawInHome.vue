@@ -215,7 +215,7 @@ import { storeToRefs } from 'pinia'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useControllerSettingsStore } from '@renderer/stores/controllerSettingsStore'
 import { useQomo5PStore } from '@renderer/stores/qomo5pEditor'
-import type { Point, QomoEntityWithSurface } from '@renderer/types/Qomo5P'
+import type { OpenDirectionType, Point, QomoEntityWithSurface } from '@renderer/types/Qomo5P'
 import {
   computeOpenEntityOffsetPathsForCanvas,
   createBezierPoints,
@@ -251,7 +251,7 @@ const machineMposXY = computed(() => {
   }
 })
 const machineFollowTransform = computed(
-  () => `translate(${-machineMposXY.value.x} ${-machineMposXY.value.y})`
+  () => `translate(${machineMposXY.value.x} ${-machineMposXY.value.y})`
 )
 
 const hostRef = ref<HTMLDivElement | null>(null)
@@ -374,8 +374,17 @@ const visibleOffsetPaths = computed(() => {
     rawOpening != null && Number.isFinite(Number(rawOpening)) && Number(rawOpening) > 0
       ? Number(rawOpening)
       : 0
+
+  // Home 叠加层的坐标系（Y 轴翻转）与开口偏移的“左右”定义相反，这里只在 Home 展示层翻转开口方向。
+  const entitiesForOffset = entities.value.map((e) => {
+    const dir = (e as { openDirection?: OpenDirectionType }).openDirection
+    if (dir !== 'LEFT' && dir !== 'RIGHT') return e
+    const flipped: OpenDirectionType = dir === 'RIGHT' ? 'LEFT' : 'RIGHT'
+    return { ...e, openDirection: flipped }
+  })
+
   const pathMap = new Map(
-    computeOpenEntityOffsetPathsForCanvas(entities.value, openSize).map((p) => [p.entityId, p.points])
+    computeOpenEntityOffsetPathsForCanvas(entitiesForOffset, openSize).map((p) => [p.entityId, p.points])
   )
   const list: { entityId: string; points: Point[] }[] = []
   for (const e of entities.value) {

@@ -5,6 +5,8 @@
   --app-bg: #f1f5f9;
   --app-card: #ffffff;
   --app-card-soft: #f8fafc;
+  --app-status-running-bg: #bbf7d0;
+  --app-status-idle-bg: #fef08a;
   --app-border: #e2e8f0;
   --app-text-primary: #1e293b;
   --app-text-secondary: #475569;
@@ -18,6 +20,8 @@
     --app-bg: #0f172a;
     --app-card: #111827;
     --app-card-soft: #1f2937;
+    --app-status-running-bg: rgba(21, 82, 45, 0.877);
+    --app-status-idle-bg: rgba(197, 112, 38, 0.767);
     --app-border: #334155;
     --app-text-primary: #e2e8f0;
     --app-text-secondary: #cbd5e1;
@@ -31,6 +35,8 @@
   --app-bg: #f1f5f9;
   --app-card: #ffffff;
   --app-card-soft: #f8fafc;
+  --app-status-running-bg: #bbf7d0;
+  --app-status-idle-bg: #fef08a;
   --app-border: #e2e8f0;
   --app-text-primary: #1e293b;
   --app-text-secondary: #475569;
@@ -43,6 +49,8 @@
   --app-bg: #0f172a;
   --app-card: #111827;
   --app-card-soft: #1f2937;
+  --app-status-running-bg: rgba(21, 82, 45, 0.877);
+  --app-status-idle-bg: rgba(197, 112, 38, 0.767);
   --app-border: #334155;
   --app-text-primary: #e2e8f0;
   --app-text-secondary: #cbd5e1;

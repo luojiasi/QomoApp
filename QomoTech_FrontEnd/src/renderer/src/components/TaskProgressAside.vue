@@ -68,7 +68,7 @@ const progressText = computed(() => {
     </div>
 
     <div class="mt-2 text-[10px] leading-4 text-(--app-text-muted)">
-      {{ running ? '运行中' : '空闲' }}
+      {{ jindubaifenbi.toFixed(0) }}%
     </div>
   </aside>
 </template>
