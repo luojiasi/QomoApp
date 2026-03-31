@@ -459,7 +459,6 @@ def wangFuLoop(
     originalPoints_run = originalPoints.copy()
     isneedReceive = False
     originalPoints_receive = originalPoints.copy()
-    #TODO：只要读取当前的Z轴位置
     z_original_position = controller.get_z_dpos_mm()
 
     while step <= 300:
@@ -479,7 +478,6 @@ def wangFuLoop(
                     step = 1
                 else:
                     return False
-
             case 1:
                 if saoheiFlag:
                     #上抬一定高度进行扫黑

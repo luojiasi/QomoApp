@@ -16,15 +16,7 @@ class HardwareStatusPoller:
     - 将结果写入 StateManager，供前端读取快照
     """
 
-    def __init__(
-        self,
-        motion: ZMotionDriver,
-        state: StateManager,
-        *,
-        interval_s: float = 0.02,
-        io_start: int = 0,
-        io_end: int = 8,
-    ) -> None:
+    def __init__(self,motion: ZMotionDriver,state: StateManager,*,interval_s: float = 0.02,io_start: int = 0,io_end: int = 8,) -> None:
         self._motion = motion
         self._state = state
         self._interval_s = float(interval_s)
