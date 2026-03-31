@@ -14,14 +14,15 @@ let displayLoopActive = false
 let displayRafId: number | null = null
 let wsReconnectTimer: ReturnType<typeof setTimeout> | null = null
 let ws: WebSocket | null = null
-let frameDecodeBusy = false
-let pendingDecodeBlob: Blob | null = null
 
 const DEFAULT_TIMEOUT_MS = 1200
-const DEFAULT_QUALITY = 85
-const TARGET_DISPLAY_FPS = 60
+const DEFAULT_QUALITY = 50
+/** 展示刷新上限；实际受显示器刷新率限制 */
+const TARGET_DISPLAY_FPS = 120
 const DISPLAY_FRAME_INTERVAL_MS = Math.floor(1000 / TARGET_DISPLAY_FPS)
+// 重连时间
 const WS_RECONNECT_MS = 120
+/** 队列越小端到端延迟越低，过大只会堆旧帧、拖慢观感 */
 const FRAME_QUEUE_SIZE = 3
 const URL_CACHE_SIZE = 3
 
@@ -51,8 +52,8 @@ async function ensureCameraConnected(): Promise<void> {
       connected.value = false
       return
     }
-  //   connected.value = true
-  //   lastError.value = ''
+    connected.value = true
+    lastError.value = ''
   // } catch (e) {
   //   connected.value = false
   //   lastError.value = e instanceof Error ? e.message : 'camera connect failed'
@@ -117,8 +118,6 @@ function stopStreamWs(): void {
     ws.close()
     ws = null
   }
-  frameDecodeBusy = false
-  pendingDecodeBlob = null
 }
 
 function isWsOpen(): boolean {
@@ -133,38 +132,10 @@ function enqueueFrameObjectUrl(url: string): void {
   }
 }
 
+/** 直接 blob → object URL 入队，避免 Image 预解码阻塞（原逻辑每帧多一次整图解码） */
 function enqueueDecodedFrame(blob: Blob): void {
-  pendingDecodeBlob = blob
-  if (frameDecodeBusy) return
-
-  const processOne = () => {
-    if (!pendingDecodeBlob) {
-      frameDecodeBusy = false
-      return
-    }
-    frameDecodeBusy = true
-    const nextBlob = pendingDecodeBlob
-    pendingDecodeBlob = null
-
-    const objectUrl = URL.createObjectURL(nextBlob)
-    const probe = new Image()
-    probe.onload = () => {
-      probe.onload = null
-      probe.onerror = null
-      enqueueFrameObjectUrl(objectUrl)
-      processOne()
-    }
-    probe.onerror = () => {
-      probe.onload = null
-      probe.onerror = null
-      URL.revokeObjectURL(objectUrl)
-      lastError.value = 'invalid jpeg frame'
-      processOne()
-    }
-    probe.src = objectUrl
-  }
-
-  processOne()
+  const objectUrl = URL.createObjectURL(blob)
+  enqueueFrameObjectUrl(objectUrl)
 }
 
 function scheduleWsReconnect(delayMs: number): void {
@@ -196,7 +167,8 @@ function connectStreamWs(): void {
     return
   }
 
-  ws.binaryType = 'arraybuffer'
+  // Blob 模式少一次 ArrayBuffer→Blob 拷贝，便于浏览器零拷贝路径
+  ws.binaryType = 'blob'
 
   ws.onopen = () => {
     lastError.value = ''
@@ -216,7 +188,8 @@ function connectStreamWs(): void {
       return
     }
 
-    const blob = evt.data instanceof Blob ? evt.data : new Blob([evt.data], { type: 'image/jpeg' })
+    const blob =
+      evt.data instanceof Blob ? evt.data : new Blob([evt.data as ArrayBuffer], { type: 'image/jpeg' })
     enqueueDecodedFrame(blob)
   }
 

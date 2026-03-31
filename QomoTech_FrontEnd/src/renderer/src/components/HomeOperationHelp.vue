@@ -10,19 +10,6 @@ import { useControllerSettingsStore } from '../stores/controllerSettingsStore'
 import { getMotionIoInput, moveMotionAxisRel, zeroMotionAxis } from '../utils/motionApi'
 const controllerStore = useControllerSettingsStore()
 
-const props = withDefaults(
-  defineProps<{
-    programRunning?: boolean
-    programElapsedText?: string
-  }>(),
-  {
-    programRunning: false,
-    programElapsedText: '00:00:00'
-  }
-)
-
-
-
 const isHelpPanelExpanded = ref(true)
 
 const { success, error } = useNotification()
@@ -245,8 +232,11 @@ const handleNewImage = async () => {
       error(zz?.message || 'Z 轴位置清零失败')
       return
     }
+    const moveZDown = await moveMotionAxisRel(2, -45, {
+      controllerSettings: controllerStore.controllerSettings
+    })
 
-    success('已完成新建前回零', 'X/Y 已清零，Z 已上升到位并清零')
+    success('已完成轴准备工作', 'X/Y 已准备，Z 已准备')
 
     // 4) 新建图像：覆盖掉当前已导入的图形数据，重新开始
     userSelectedNone.value = true
@@ -442,27 +432,6 @@ const fillPointFromAxis = (target: 'lineStart' | 'lineEnd' | 'circleCenter') => 
     <div
       class="mt-4 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden text-xs leading-relaxed text-(--app-text-secondary)"
     >
-      <!-- 程序运行状态 / 耗时 -->
-      <div
-        class="rounded-xl border border-(--app-border) bg-(--app-card-soft) p-3 shadow-sm shadow-slate-900/5 ring-1 ring-slate-950/4 dark:shadow-md dark:shadow-black/25 dark:ring-white/5"
-        aria-label="程序运行状态"
-      >
-        <div class="flex items-center justify-between gap-3">
-          <div class="min-w-0">
-            <p class="font-medium text-(--app-text-primary)">程序状态</p>
-            <p class="mt-1 text-[11px] text-(--app-text-muted)">
-              {{ props.programRunning ? '运行中' : '空闲' }}
-            </p>
-          </div>
-          <div class="shrink-0 text-right">
-            <div class="text-[11px] text-(--app-text-muted)">已运行</div>
-            <div class="mt-0.5 font-mono text-sm text-(--app-text-primary)">
-              {{ props.programRunning ? props.programElapsedText : '00:00:00' }}
-            </div>
-          </div>
-        </div>
-      </div>
-
       <input
         ref="importFileInputRef"
         type="file"

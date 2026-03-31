@@ -91,5 +91,13 @@ const handleOutput2 = async () => {
     >
       跳过
     </button>
+    <button
+      type="button"
+      @click="handleSkip"
+      class="flex h-12 w-12 items-center justify-center rounded-full border border-(--app-border) bg-(--app-card-soft) text-xs font-medium text-(--app-text-secondary) shadow-sm transition-colors hover:bg-slate-100/90 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-white/10"
+      @keydown.enter.prevent
+    >
+      回零
+    </button>
   </div>
 </template>

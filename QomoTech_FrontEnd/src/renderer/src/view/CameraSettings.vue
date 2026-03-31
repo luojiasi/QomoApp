@@ -194,12 +194,16 @@ onMounted(async () => {
       <section class="app-card rounded-2xl p-8 shadow-lg">
         <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p class="app-text-secondary text-sm">设备设置中心</p>
             <h1 class="app-text-primary mt-1 text-3xl font-bold">相机参数设置</h1>
-            <p class="app-text-secondary mt-3 max-w-3xl text-sm leading-6">
-              所有参数均与后端接口保持一致：曝光、帧率、镜像、白平衡。登录后预览图像来自后端单帧 JPEG 接口。
-            </p>
           </div>
+          <button
+              type="button"
+              class="app-card-soft app-text-primary rounded-lg border border-(--app-border) px-3 py-2 text-sm font-medium transition hover:bg-(--app-card)"
+              :disabled="busy"
+              @click="handleSaveLocalStorage"
+            >
+              保存本地参数
+            </button>
           <RouterLink
             to="/home"
             class="app-card-soft app-text-primary rounded-xl border border-(--app-border) px-5 py-3 text-center font-medium transition hover:bg-(--app-card)"
@@ -285,10 +289,10 @@ onMounted(async () => {
         </div>
       </section>
 
-      <section class="grid gap-4 lg:grid-cols-2">
+      <section class="grid gap-4 lg:grid-cols-3">
         <div class="app-card rounded-2xl p-6 shadow-sm">
           <h2 class="app-text-primary text-lg font-semibold">曝光参数</h2>
-          <div class="mt-4 grid gap-3 sm:grid-cols-2">
+          <div class="mt-4 grid gap-3 sm:grid-cols-3">
             <label class="space-y-1.5">
               <span class="app-text-secondary text-xs">自动曝光</span>
               <select
@@ -309,8 +313,7 @@ onMounted(async () => {
                 class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
               />
             </label>
-          </div>
-          <button
+            <button
             type="button"
             class="mt-4 w-full rounded-lg border border-blue-500/50 bg-blue-600/90 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-600 disabled:opacity-50"
             :disabled="busy || !isConnected"
@@ -318,11 +321,13 @@ onMounted(async () => {
           >
             应用曝光参数
           </button>
+          </div>
+
         </div>
 
         <div class="app-card rounded-2xl p-6 shadow-sm">
           <h2 class="app-text-primary text-lg font-semibold">帧率参数</h2>
-          <div class="mt-4 grid gap-3 sm:grid-cols-3">
+          <div class="mt-4 grid gap-3 sm:grid-cols-4">
             <label class="space-y-1.5">
               <span class="app-text-secondary text-xs">档位(0-3)</span>
               <input
@@ -354,8 +359,7 @@ onMounted(async () => {
                 class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
               />
             </label>
-          </div>
-          <button
+            <button
             type="button"
             class="mt-4 w-full rounded-lg border border-blue-500/50 bg-blue-600/90 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-600 disabled:opacity-50"
             :disabled="busy || !isConnected"
@@ -363,13 +367,11 @@ onMounted(async () => {
           >
             应用帧率参数
           </button>
+          </div>
         </div>
-      </section>
-
-      <section class="grid gap-4 lg:grid-cols-2">
         <div class="app-card rounded-2xl p-6 shadow-sm">
           <h2 class="app-text-primary text-lg font-semibold">镜像参数</h2>
-          <div class="mt-4 grid gap-3 sm:grid-cols-2">
+          <div class="mt-4 grid gap-3 sm:grid-cols-3">
             <label class="app-card-soft flex items-center gap-3 rounded-lg px-3 py-2 text-sm">
               <input v-model="cameraSettings.mirrorHorizontal" type="checkbox" />
               <span class="app-text-primary">水平镜像</span>
@@ -378,21 +380,23 @@ onMounted(async () => {
               <input v-model="cameraSettings.mirrorVertical" type="checkbox" />
               <span class="app-text-primary">垂直镜像</span>
             </label>
+            <button
+              type="button"
+              class="mt-4 w-full rounded-lg border border-blue-500/50 bg-blue-600/90 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-600 disabled:opacity-50"
+              :disabled="busy || !isConnected"
+              @click="handleApplyMirror"
+            >
+              应用镜像参数
+            </button>
           </div>
-          <button
-            type="button"
-            class="mt-4 w-full rounded-lg border border-blue-500/50 bg-blue-600/90 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-600 disabled:opacity-50"
-            :disabled="busy || !isConnected"
-            @click="handleApplyMirror"
-          >
-            应用镜像参数
-          </button>
         </div>
+      </section>
 
+      <section class="grid gap-4 lg:grid-cols-1">
         <div class="app-card rounded-2xl p-6 shadow-sm">
           <h2 class="app-text-primary text-lg font-semibold">白平衡参数</h2>
-          <div class="mt-4 grid gap-3 sm:grid-cols-2">
-            <label class="space-y-1.5 sm:col-span-2">
+          <div class="mt-4 grid gap-3 sm:grid-cols-6">
+            <label class="space-y-1.5 sm:col-span-1">
               <span class="app-text-secondary text-xs">自动白平衡</span>
               <select
                 v-model="cameraSettings.autoWhiteBalance"
@@ -432,8 +436,6 @@ onMounted(async () => {
                 class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
               />
             </label>
-          </div>
-          <div class="mt-4 grid grid-cols-2 gap-2">
             <button
               type="button"
               class="rounded-lg border border-blue-500/50 bg-blue-600/90 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-600 disabled:opacity-50"
@@ -454,44 +456,6 @@ onMounted(async () => {
         </div>
       </section>
 
-      <section class="app-card rounded-2xl p-6 shadow-sm">
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 class="app-text-primary text-lg font-semibold">预览质量设置</h2>
-            <p class="app-text-secondary mt-1 text-xs">该设置用于前端连接 `/api/camera/ws` 时的 query 参数。</p>
-          </div>
-          <button
-            type="button"
-            class="app-card-soft app-text-primary rounded-lg border border-(--app-border) px-3 py-2 text-sm font-medium transition hover:bg-(--app-card)"
-            :disabled="busy"
-            @click="handleSaveLocalStorage"
-          >
-            保存本地参数
-          </button>
-        </div>
-        <div class="mt-4 grid gap-3 sm:grid-cols-2">
-          <label class="space-y-1.5">
-            <span class="app-text-secondary text-xs">frame timeout(ms)</span>
-            <input
-              v-model.number="cameraSettings.frameTimeoutMs"
-              type="number"
-              min="1"
-              max="10000"
-              class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
-            />
-          </label>
-          <label class="space-y-1.5">
-            <span class="app-text-secondary text-xs">JPEG quality</span>
-            <input
-              v-model.number="cameraSettings.frameQuality"
-              type="number"
-              min="1"
-              max="100"
-              class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
-            />
-          </label>
-        </div>
-      </section>
     </div>
   </div>
 </template>

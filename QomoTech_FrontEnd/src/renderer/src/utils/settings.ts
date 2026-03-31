@@ -8,7 +8,7 @@ export const formatSettingValue = (value: SettingValue, unit?: string): string =
   }
 
   if (typeof value === 'boolean') {
-    return value ? '启用' : '禁用'
+    return value ? '开' : '关'
   }
 
   return unit ? `${value} ${unit}` : String(value)

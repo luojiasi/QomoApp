@@ -9,14 +9,17 @@ import LaserControlPanel from '../components/LaserControlPanel.vue'
 import CameraControlPanel from '../components/CameraControlPanel.vue'
 import AuxiliaryFunctionPanel from '../components/AuxiliaryFunctionPanel.vue'
 import HomeOperationHelp from '../components/HomeOperationHelp.vue'
+import StratProgramRunning from '../components/StratProgramRunning.vue'
 import CameraPic from '../components/cameraPic.vue'
 import ShowAndDrawInHome from '../components/showAndDrawInHome.vue'
 import TaskProgressAside from '../components/TaskProgressAside.vue'
+import ControllerSettings from './ControllerSettings.vue'
 import { deviceFeatureRoutes } from '../configs/settings'
 import { useNotification } from '../composables/useNotification'
 import { useControllerSettingsStore } from '../stores/controllerSettingsStore'
 import { useQomo5PStore } from '../stores/qomo5pEditor'
 import { bootstrapControllerOnce } from '../utils/backendBootstrap'
+import { getDesktopBackendRuntimeStatus, type BackendRuntimeStatus } from '../utils/desktopBridge'
 import { getStartProgramStatusWsUrl } from '../utils/toBackendApiCall'
 import { subscribeGlobalKeyboard } from '../utils/globalKeyboard'
 import {
@@ -25,14 +28,120 @@ import {
   startProgram,
   getStartProgramStatus,
   startProgramControl,
-  moveMotionAxisAbs
+  moveMotionAxisAbs,
+  getHardwareStatus
 } from '../utils/motionApi'
+import DetailedRs232Send from './DetailedRs232Send.vue'
 
 const featureLinks = deviceFeatureRoutes
 const controllerSettingsStore = useControllerSettingsStore()
 const { error, success } = useNotification()
 const qomo5pStore = useQomo5PStore()
 const { entities } = storeToRefs(qomo5pStore)
+
+const backendStatus = ref<BackendRuntimeStatus>({
+  state: 'starting',
+  isReachable: false,
+  message: '正在检测后台服务...'
+})
+
+const BACKEND_POLL_MS = 2000
+let backendPollTimer: ReturnType<typeof setInterval> | undefined
+
+const refreshBackendStatus = async (): Promise<void> => {
+  backendStatus.value = await getDesktopBackendRuntimeStatus()
+}
+
+const backendDotClass = computed(() => {
+  switch (backendStatus.value.state) {
+    case 'running':
+      return 'bg-green-500'
+    case 'starting':
+    case 'restarting':
+      return 'bg-yellow-500'
+    default:
+      return 'bg-red-500'
+  }
+})
+
+type ControllerRuntimeState = 'checking' | 'connected' | 'disconnected'
+
+const controllerStatus = ref<{
+  state: ControllerRuntimeState
+  isConnected: boolean
+  message: string
+}>({
+  state: 'checking',
+  isConnected: false,
+  message: '正在检测控制器连接...'
+})
+
+const CONTROLLER_POLL_MS = 2000
+let controllerPollTimer: ReturnType<typeof setInterval> | undefined
+
+const controllerDotClass = computed(() => {
+  switch (controllerStatus.value.state) {
+    case 'connected':
+      return 'bg-green-500'
+    case 'checking':
+      return 'bg-yellow-500'
+    default:
+      return 'bg-red-500'
+  }
+})
+
+const refreshControllerStatus = async (): Promise<void> => {
+  // 后台没起来时，硬件状态不可用（避免频繁失败请求）
+  if (backendStatus.value.state !== 'running') {
+    controllerStatus.value = {
+      state: 'disconnected',
+      isConnected: false,
+      message: '后台未连接，控制器状态不可用'
+    }
+    return
+  }
+
+  const res = await getHardwareStatus()
+  if (res?.success) {
+    controllerStatus.value = {
+      state: 'connected',
+      isConnected: true,
+      message: '控制器已连接'
+    }
+  } else {
+    controllerStatus.value = {
+      state: 'disconnected',
+      isConnected: false,
+      message: res?.message ? String(res.message) : '控制器未连接'
+    }
+  }
+}
+
+/**
+ * 右侧区域的“嵌入式 View”切换。
+ * 目前由 CollapsiblePanelHeader 触发，传入字符串标识。
+ */
+const rightPanelViewId = ref<string | null>(null)
+
+const rightPanelViewComponent = computed(() => {
+  if (!rightPanelViewId.value) return null
+  switch (rightPanelViewId.value) {
+    case 'ControllerSettings':
+      return ControllerSettings
+    case 'DetailedRs232Send':
+      return DetailedRs232Send
+    default:
+      return null
+  }
+})
+
+function openRightPanel(target: string): void {
+  rightPanelViewId.value = target
+}
+
+function closeRightPanel(): void {
+  rightPanelViewId.value = null
+}
 
 const Qkey = ref(false)
 const Wkey = ref(false)
@@ -504,10 +613,30 @@ onUnmounted(() => {
   unsubscribeKeyboard()
   stopProgramStatusWebSocket()
   stopProgramElapsedTimer()
+
+  if (backendPollTimer) {
+    clearInterval(backendPollTimer)
+    backendPollTimer = undefined
+  }
+  if (controllerPollTimer) {
+    clearInterval(controllerPollTimer)
+    controllerPollTimer = undefined
+  }
 })
 
 onMounted(async () => {
   programStatusWsReconnectEnabled = true
+
+  // 监听后台/控制器连接状态（用于右上角彩色指示）
+  await refreshBackendStatus()
+  await refreshControllerStatus()
+  backendPollTimer = setInterval(() => {
+    void refreshBackendStatus()
+  }, BACKEND_POLL_MS)
+  controllerPollTimer = setInterval(() => {
+    void refreshControllerStatus()
+  }, CONTROLLER_POLL_MS)
+
   await controllerSettingsStore.loadControllerSettings()
   try {
     const controllerRes = await bootstrapControllerOnce(controllerSettingsStore.controllerSettings)
@@ -528,15 +657,29 @@ onMounted(async () => {
 
 <template>
   <div class="app-page relative min-h-screen">
-    <div class="absolute right-6 top-6 z-10">
+    <div class="absolute left-50 top-8 z-10">
       <HomeUserBar />
     </div>
 
-    <div class="absolute left-36 top-2 z-10">
+    <div class="absolute left-15 top-4 z-10">
+      <!-- 监听连接状态：放在“退出登录”右侧 -->
+      <div class="flex flex-row gap-1">
+          <div class="flex items-center gap-2">
+            <span class="h-2 w-2 rounded-full" :class="backendDotClass" />
+            <span class="text-xs text-(--app-text-secondary)">后台</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="h-2 w-2 rounded-full" :class="controllerDotClass" />
+            <span class="text-xs text-(--app-text-secondary)">控制器</span>
+          </div>
+        </div>
+    </div>
+
+    <div class="absolute right-8 top-2 z-999">
       <RouteTabs :links="featureLinks" :show-home-link="false" />
     </div>
 
-    <div class="fixed left-1/2 top-[10%] z-50 flex -translate-x-1/2 transform space-x-4">
+    <div class="fixed left-[40%] top-[2%] z-50 flex -translate-x-1/2 transform space-x-4">
       <button
         class="z-50 h-16 w-16 rounded-2xl bg-green-600 text-lg font-bold text-white shadow-xl transition-all duration-200 hover:scale-110 hover:border-2 hover:border-green-300 hover:bg-green-700 active:scale-90 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-400"
         @keydown.enter.prevent
@@ -578,20 +721,44 @@ onMounted(async () => {
       </button>
     </div>
 
+
+
     <section
-      class="absolute left-4 top-24 bottom-4 z-20 flex min-h-0 w-[450px] flex-col gap-3 overflow-y-auto p-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      v-if="rightPanelViewComponent"
+      class="absolute right-4 top-20 bottom-4 z-20 flex min-h-0 w-5/11 flex-col gap-3 overflow-y-auto p-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
-      <RecipeParameterPanel
-        @run-recipe-change="handleRunRecipeChange"
-        @upper-opening-change="handleUpperOpeningChange"
-      />
-      <DriverControlPanel />
-      <LaserControlPanel />
-      <CameraControlPanel />
-      <AuxiliaryFunctionPanel />
+      <component :is="rightPanelViewComponent" embedded @back="closeRightPanel" />
     </section>
 
-    <main class="absolute inset-x-[470px] top-20 bottom-4 z-10 p-3">
+    <div v-else>
+      <section
+        class="absolute right-4 top-20 bottom-4 z-20 flex min-h-0 w-[min(450px,calc(100vw-2rem))] flex-col gap-3 overflow-y-auto p-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        <StratProgramRunning
+          :programRunning="programRunning"
+          :programElapsedText="programElapsedText"
+        />
+        <RecipeParameterPanel
+          @run-recipe-change="handleRunRecipeChange"
+          @upper-opening-change="handleUpperOpeningChange"
+        />
+        <DriverControlPanel @open-right-panel="openRightPanel" />
+        <LaserControlPanel @open-right-panel="openRightPanel"/>
+        <CameraControlPanel />
+        <AuxiliaryFunctionPanel />
+      </section>
+
+
+      <aside
+        class="absolute left-8/15  top-20 bottom-4 z-20 flex min-h-0 w-108 max-w-[calc(100vw-2rem)] flex-col p-3"
+        aria-label="操作帮助区域"
+      >
+        <HomeOperationHelp />
+      </aside>
+    </div>
+    
+
+    <main class="absolute left-4 w-[940px] top-20 bottom-4 z-10 p-3">
       <div
         class="relative h-full w-full overflow-hidden rounded-2xl border border-(--app-border) bg-transparent shadow-[0_6px_14px_-6px_rgba(15,23,42,0.14)] dark:shadow-[0_6px_16px_-6px_rgba(0,0,0,0.42)]"
       >
@@ -602,13 +769,7 @@ onMounted(async () => {
     </main>
 
 
-    
-    <aside
-      class="absolute right-20 top-20 bottom-4 z-20 flex min-h-0 w-96 max-w-[calc(100vw-2rem)] flex-col p-3"
-      aria-label="操作帮助区域"
-    >
-      <HomeOperationHelp :program-running="programRunning" :program-elapsed-text="programElapsedText" />
-    </aside>
+
 
     <TaskProgressAside
       :task-count="programTaskCount"

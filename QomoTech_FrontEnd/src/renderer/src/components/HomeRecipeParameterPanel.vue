@@ -238,19 +238,21 @@ onMounted(async () => {
 <template>
   <div
     class="flex min-h-0 shrink-0 flex-col rounded-2xl border border-(--app-border) bg-(--app-card) p-4 shadow-[0_6px_14px_-6px_rgba(15,23,42,0.14)] transition-[min-height] duration-200 dark:shadow-[0_6px_16px_-6px_rgba(0,0,0,0.42)]"
-    :class="isProcessPanelExpanded ? 'min-h-[min(210px,42vh)]' : ''"
+    :class="isProcessPanelExpanded ? 'min-h-[min(100px,42vh)]' : ''"
   >
     <CollapsiblePanelHeader
       v-model:expanded="isProcessPanelExpanded"
       title="配方参数面板"
     />
 
-    <div v-show="isProcessPanelExpanded" class="mt-4 flex-1 space-y-3 overflow-y-auto pr-1">
+    <div class="mt-2 flex-1 space-y-3 overflow-y-auto pr-1">
       <div
-        class="rounded-xl border border-(--app-border) bg-(--app-card-soft) p-3 shadow-sm shadow-slate-900/5 ring-1 ring-slate-950/4 dark:shadow-md dark:shadow-black/25 dark:ring-white/5"
+        class="rounded-xl border border-(--app-border) bg-(--app-card-soft) shadow-sm shadow-slate-900/5 ring-1 ring-slate-950/4 dark:shadow-md dark:shadow-black/25 dark:ring-white/5"
       >
-        <label class="flex w-full min-w-0 items-center gap-2">
-          <span class="shrink-0 text-xs text-(--app-text-muted)">选择需要的配方:</span>
+        
+        <div class="flex w-full min-w-0 items-center gap-3">
+          <label class="flex flex-1 min-w-0 items-center gap-2">
+          <!-- <span class="shrink-0 text-xs text-(--app-text-muted)">选择需要的配方:</span> -->
           <select
             v-model="selectedActiveMainRecipeId"
             class="min-w-0 flex-1 rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm text-(--app-text-primary) shadow-inner shadow-slate-900/5 outline-none transition scheme-light focus:border-sky-500/80 focus:shadow-[0_0_0_3px_rgba(14,165,233,0.15)] focus:ring-2 focus:ring-sky-400/25 disabled:cursor-not-allowed disabled:opacity-60 dark:shadow-black/40 dark:scheme-dark"
@@ -267,12 +269,11 @@ onMounted(async () => {
             </option>
           </select>
         </label>
-        <p v-if="!activeMainRecipes.length" class="mt-2 text-xs text-amber-700 dark:text-amber-400">
+        <p v-if="!activeMainRecipes.length" class=" text-xs text-amber-700 dark:text-amber-400">
           当前没有可用的启用主配方，请先在配方管理中激活配方。
         </p>
-        <div class="mt-3 flex w-full min-w-0 items-center gap-3">
+
           <label class="flex min-w-0 flex-1 items-center gap-2">
-            <span class="shrink-0 whitespace-nowrap text-xs text-(--app-text-muted)">高度(mm)</span>
             <input
               v-model.number="workpieceHeight"
               :readonly="true"
@@ -284,7 +285,6 @@ onMounted(async () => {
             />
           </label>
           <label class="flex min-w-0 flex-1 items-center gap-2">
-            <span class="shrink-0 whitespace-nowrap text-xs text-(--app-text-muted)">开口(mm)</span>
             <input
               :value="readonlyUpperOpening"
               type="text"

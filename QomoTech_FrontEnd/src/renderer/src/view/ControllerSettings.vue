@@ -13,6 +13,21 @@ import type {
 import { cloneSettings, formatSettingValue } from '../utils/settings'
 import { subscribeHardwareStatus, type HardwareStatusPayload } from '../utils/motionApi'
 
+const props = defineProps<{
+  /**
+   * 是否作为嵌入式面板展示（例如显示在 Home 右侧）。
+   * 嵌入模式下不显示全页标题与「返回首页」卡片区。
+   */
+  embedded?: boolean
+}>()
+
+const emit = defineEmits<{
+  /**
+   * 嵌入模式下请求关闭右侧面板。
+   */
+  (e: 'back'): void
+}>()
+
 const controllerStore = useControllerSettingsStore()
 const { sections } = useControllerSettingsPage()
 const { success, error } = useNotification()
@@ -87,6 +102,13 @@ watch(
 const selectedAxisPair = computed(
   () => axisPairs.value[selectedAxisIndex.value] ?? null
 )
+
+const axisIndices = computed(() =>
+  Array.from({ length: axisCountValue.value }, (_, i) => i)
+)
+
+const writeFields = computed(() => selectedAxisPair.value?.write.fields ?? [])
+const readFields = computed(() => selectedAxisPair.value?.read.fields ?? [])
 
 const ioInSection = computed(
   () => sections.value.find((s) => s.id === 'controller-io-map-in') ?? null
@@ -209,21 +231,48 @@ function resetCurrentAxisUserInput(): void {
   }
   success('已重置', `已恢复当前轴可配置项为默认值（轴 ${idx}）`)
 }
+
+const AXIS_VALUE_MAX_DECIMALS = 4
+
+function roundToMaxDecimals(n: number, decimals = AXIS_VALUE_MAX_DECIMALS): number {
+  const m = 10 ** decimals
+  return Math.round(n * m) / m
+}
+
+function formatSettingValueMax4Decimals(value: unknown, unit?: string): string {
+  if (value === null || value === undefined) return '-'
+
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    const rounded = roundToMaxDecimals(value)
+    // toFixed(4) 再去掉尾随 0，达到“最多四位小数”
+    let s = rounded.toFixed(AXIS_VALUE_MAX_DECIMALS)
+    s = s.replace(/\.?0+$/u, '')
+    return unit ? `${s} ${unit}` : s
+  }
+
+  return formatSettingValue(value as any, unit)
+}
+
+function normalizeAxisNumberInput(axisIdx: number, fieldKey: string): void {
+  const ax = controllerStore.controllerSettings.axes[axisIdx] as any
+  const v = Number(ax?.[fieldKey])
+  if (!Number.isFinite(v)) return
+  ax[fieldKey] = roundToMaxDecimals(v)
+}
 </script>
 
 <template>
-  <div class="app-page min-h-screen px-6 py-10">
-    <div class="mx-auto max-w-7xl space-y-6">
-      <div class="app-card rounded-2xl p-8 shadow-lg">
+  <div
+    :class="
+      props.embedded ? 'app-page min-h-0 px-4 py-4' : 'app-page min-h-screen px-6 py-10'
+    "
+  >
+    <div v-if="!props.embedded" class="mx-auto max-w-7xl space-y-6">
+      <div  class="app-card rounded-2xl p-8 shadow-lg">
         <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p class="app-text-secondary text-sm">设备设置中心</p>
             <h1 class="app-text-primary mt-1 text-3xl font-bold">控制器参数设置</h1>
-            <p class="app-text-secondary mt-3 max-w-3xl text-sm leading-6">
-              当前页面为 科猛碳极控制器 提供通讯参数、轴运动参数与 I/O 映射字段展示，数据来自本地配置与后续驱动器回读。
-            </p>
           </div>
-
           <RouterLink
             to="/home"
             class="app-card-soft app-text-primary rounded-xl border border-(--app-border) px-5 py-3 text-center font-medium transition hover:bg-(--app-card)"
@@ -264,7 +313,7 @@ function resetCurrentAxisUserInput(): void {
 
       <div class="space-y-6">
         <!-- 通讯参数：单行 -->
-        <section v-if="communicationSection" class="app-card rounded-2xl p-6 shadow-sm">
+        <!-- <section v-if="communicationSection" class="app-card rounded-2xl p-6 shadow-sm">
           <h2 class="app-text-primary text-xl font-semibold">{{ communicationSection.title }}</h2>
           <p class="app-text-secondary mt-2 text-sm">{{ communicationSection.description }}</p>
 
@@ -280,7 +329,7 @@ function resetCurrentAxisUserInput(): void {
               </p>
             </div>
           </div>
-        </section>
+        </section> -->
 
         <!-- 轴参数：标题与轴按钮同一行；其下 I/O 输出单行；再下左写入 / 右回读 -->
         <section v-if="axisPairs.length && selectedAxisPair" class="app-card rounded-2xl p-6 shadow-sm">
@@ -289,7 +338,7 @@ function resetCurrentAxisUserInput(): void {
             class="flex flex-wrap items-center gap-3 border-b border-(--app-border) pb-4"
           >
             <h2 class="app-text-primary shrink-0 text-xl font-semibold">轴参数</h2>
-            <div class="flex min-w-0 flex-1 flex-wrap gap-2">
+            <!-- <div class="flex min-w-0 flex-1 flex-wrap gap-2">
               <button
                 v-for="(pair, i) in axisPairs"
                 :key="pair.write.id"
@@ -304,7 +353,7 @@ function resetCurrentAxisUserInput(): void {
               >
                 {{ axisTabLabels[i] }} 轴
               </button>
-            </div>
+            </div> -->
             <div class="ml-auto flex shrink-0 flex-wrap gap-2">
               <button
                 type="button"
@@ -326,20 +375,21 @@ function resetCurrentAxisUserInput(): void {
           </div>
 
           <!-- 蓝色区域：I/O 数字量输出（驱动器回读），9 组单行（窄屏横向滚动） -->
-          <aside
-            v-if="ioInSection"
+           <div class="grid grid-cols-2 gap-3 justify-center ">
+            <aside
+            v-if="ioOutSection"
             class="mt-4 rounded-xl border-2 border-blue-500/50 bg-blue-950/25 p-3 shadow-[inset_0_1px_0_0_rgba(59,130,246,0.2)]"
           >
             <div class="flex items-baseline justify-between gap-2 gap-y-1">
-              <p class="text-sm font-semibold text-blue-900">{{ ioInSection.title }}</p>
+              <p class="text-sm font-semibold text-blue-900">{{ ioOutSection.title }}</p>
             </div>
             <div
               class="mt-2 flex justify-center gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:thin]"
             >
               <div
-                v-for="field in ioInSection.fields"
+                v-for="field in ioOutSection.fields"
                 :key="field.key"
-                class="min-w-21 shrink-0 rounded-lg border px-2 py-1.5 transition-colors"
+                class="min-w-6 shrink-0 rounded-lg border px-2 py-1.5 transition-colors"
                 :class="
                   field.value === true
                     ? 'border-emerald-400 bg-emerald-500/20'
@@ -357,37 +407,98 @@ function resetCurrentAxisUserInput(): void {
             </div>
           </aside>
 
-          <div class="mt-5 grid gap-6 lg:grid-cols-2">
+            <aside
+              v-if="ioInSection"
+              class="mt-4 rounded-xl border-2 border-blue-500/50 bg-blue-950/25 p-3 shadow-[inset_0_1px_0_0_rgba(59,130,246,0.2)]"
+            >
+              <div class="flex items-baseline justify-between gap-2 gap-y-1">
+                <p class="text-sm font-semibold text-blue-900">{{ ioInSection.title }}</p>
+              </div>
+              <div
+                class="mt-2 flex justify-center gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:thin]"
+              >
+                <div
+                  v-for="field in ioInSection.fields"
+                  :key="field.key"
+                  class="min-w-6 shrink-0 rounded-lg border px-2 py-1.5 transition-colors"
+                  :class="
+                    field.value === true
+                      ? 'border-emerald-400 bg-emerald-500/20'
+                      : 'border-blue-500/25 bg-(--app-card-soft)'
+                  "
+                >
+                  <p class="app-text-muted text-[10px] leading-tight">{{ field.label }}</p>
+                  <p
+                    class="mt-0.5 truncate text-xs font-medium"
+                    :class="field.value === true ? 'text-emerald-800' : 'text-blue-600'"
+                  >
+                    {{ formatSettingValue(field.value, field.unit) }}
+                  </p>
+                </div>
+              </div>
+            </aside>
+           </div>
+
+
+          <div class="mt-5 grid gap-6 lg:hidden">
             <!-- 左：该轴可写入 -->
             <div
               class="rounded-xl border-2 border-rose-500/35 bg-rose-950/10 p-4 shadow-sm"
             >
               <h3 class="app-text-primary text-sm font-semibold">可配置（写入）</h3>
-              <p class="app-text-muted mt-1 text-xs">{{ selectedAxisPair.write.description }}</p>
-              <div class="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                <div
-                  v-for="field in selectedAxisPair.write.fields"
-                  :key="field.key"
-                  class="app-card-soft rounded-xl p-3"
-                >
-                  <p class="app-text-secondary text-xs">{{ field.label }}</p>
-                  <input
-                    v-if="field.key === 'axisName'"
-                    v-model="controllerStore.controllerSettings.axes[selectedAxisIndex].axisName"
-                    type="text"
-                    class="app-text-primary mt-1.5 w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-2 py-1.5 text-sm outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
-                  />
-                  <input
-                    v-else
-                    v-model.number="
-                      controllerStore.controllerSettings.axes[selectedAxisIndex][userNumberKey(field)]
-                    "
-                    type="number"
-                    step="any"
-                    class="app-text-primary mt-1.5 w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-2 py-1.5 text-sm outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
-                  />
-                  <p v-if="field.unit" class="app-text-muted mt-1 text-[10px]">{{ field.unit }}</p>
-                </div>
+              <div class="mt-3 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:thin]">
+                <table class="min-w-[860px] w-full border border-(--app-border) border-collapse">
+                  <thead>
+                    <tr class="border-b border-(--app-border)">
+                      <th class="sticky left-0 z-10 bg-rose-950/10 px-3 py-2 text-left text-xs font-semibold app-text-secondary">
+                        参数
+                      </th>
+                      <th
+                        v-for="axisIdx in axisIndices"
+                        :key="`write-col-${axisIdx}`"
+                        class="px-3 py-2 text-center text-xs font-semibold app-text-secondary"
+                      >
+                        轴{{ axisIdx }}
+                        <div class="text-[10px] font-normal app-text-muted mt-0.5">
+                          {{ axisTabLabels[axisIdx] }}
+                        </div>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr
+                      v-for="field in writeFields"
+                      :key="field.key"
+                      class="border-b border-(--app-border)"
+                    >
+                      <td
+                        class="sticky left-0 z-5 bg-rose-950/10 px-3 py-2 text-xs font-medium app-text-secondary"
+                      >
+                        {{ field.label }}
+                      </td>
+                      <td
+                        v-for="axisIdx in axisIndices"
+                        :key="`${field.key}-${axisIdx}`"
+                        class="px-3 py-1.5 align-middle"
+                      >
+                        <input
+                          v-if="field.key === 'axisName'"
+                          v-model="controllerStore.controllerSettings.axes[axisIdx].axisName"
+                          type="text"
+                          class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-2 py-1 text-xs outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
+                        />
+                        <input
+                          v-else
+                          v-model.number="controllerStore.controllerSettings.axes[axisIdx][userNumberKey(field)]"
+                          type="number"
+                          :step="0.0001"
+                          @blur="normalizeAxisNumberInput(axisIdx, field.key)"
+                          class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-2 py-1 text-xs outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
+                        />
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
 
@@ -397,64 +508,392 @@ function resetCurrentAxisUserInput(): void {
             >
               <h3 class="app-text-primary text-sm font-semibold">驱动器回读（只读）</h3>
               <p class="app-text-muted mt-1 text-xs">{{ selectedAxisPair.read.description }}</p>
-              <div class="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                <div
-                  v-for="field in selectedAxisPair.read.fields"
-                  :key="field.key"
-                  class="app-card-soft rounded-xl p-3"
-                >
-                  <p class="app-text-secondary text-xs">{{ field.label }}</p>
-                  <p class="app-text-primary mt-1.5 text-sm font-medium">
-                    {{ formatSettingValue(field.value, field.unit) }}
-                  </p>
-                </div>
+              <div class="mt-3 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:thin]">
+                <table class="min-w-[860px] w-full border border-(--app-border) border-collapse">
+                  <thead>
+                    <tr class="border-b border-(--app-border)">
+                      <th class="sticky left-0 z-10 bg-rose-950/10 px-3 py-2 text-left text-xs font-semibold app-text-secondary">
+                        参数
+                      </th>
+                      <th
+                        v-for="axisIdx in axisIndices"
+                        :key="`read-col-${axisIdx}`"
+                        class="px-3 py-2 text-center text-xs font-semibold app-text-secondary"
+                      >
+                        轴{{ axisIdx }}
+                        <div class="text-[10px] font-normal app-text-muted mt-0.5">
+                          {{ axisTabLabels[axisIdx] }}
+                        </div>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr
+                      v-for="field in readFields"
+                      :key="field.key"
+                      class="border-b border-(--app-border)"
+                    >
+                      <td
+                        class="sticky left-0 z-5 bg-rose-950/10 px-3 py-2 text-xs font-medium app-text-secondary"
+                      >
+                        {{ field.label }}
+                      </td>
+                      <td
+                        v-for="axisIdx in axisIndices"
+                        :key="`${field.key}-read-${axisIdx}`"
+                        class="px-3 py-2 text-center"
+                      >
+                        <p class="text-sm font-medium app-text-primary">
+                          {{
+                            formatSettingValueMax4Decimals(
+                              (controllerStore.controllerSettings.axes[axisIdx] as any)[field.key],
+                              field.unit
+                            )
+                          }}
+                        </p>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+
+
+
+          <div class="mt-5 gap-6 hidden lg:grid lg:grid-cols-2">
+            <!-- 左：该轴可写入 -->
+            <div
+              class="rounded-xl border-2 border-rose-500/35 bg-rose-950/10 p-4 shadow-sm"
+            >
+              <h3 class="app-text-primary text-sm font-semibold">可配置（写入）</h3>
+              <p class="app-text-muted mt-1 text-xs">{{ selectedAxisPair.write.description }}</p>
+              <div class="mt-3 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:thin]">
+                <table class="min-w-[860px] w-full border border-(--app-border) border-collapse">
+                  <thead>
+                    <tr class="border-b border-(--app-border)">
+                      <th class="sticky left-0 z-10 bg-rose-950/10 px-3 py-2 text-left text-xs font-semibold app-text-secondary">
+                        参数
+                      </th>
+                      <th
+                        v-for="axisIdx in axisIndices"
+                        :key="`write-col-lg-${axisIdx}`"
+                        class="px-3 py-2 text-center text-xs font-semibold app-text-secondary"
+                      >
+                        轴{{ axisIdx }}
+                        <div class="text-[10px] font-normal app-text-muted mt-0.5">
+                          {{ axisTabLabels[axisIdx] }}
+                        </div>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr
+                      v-for="field in writeFields"
+                      :key="`write-row-${field.key}`"
+                      class="border-b border-(--app-border)"
+                    >
+                      <td
+                        class="sticky left-0 z-5 bg-rose-950/10 px-3 py-2 text-xs font-medium app-text-secondary"
+                      >
+                        {{ field.label }}
+                      </td>
+                      <td
+                        v-for="axisIdx in axisIndices"
+                        :key="`write-cell-${field.key}-${axisIdx}`"
+                        class="px-3 py-1.5 align-middle"
+                      >
+                        <input
+                          v-if="field.key === 'axisName'"
+                          v-model="controllerStore.controllerSettings.axes[axisIdx].axisName"
+                          type="text"
+                          class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-2 py-1 text-xs outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
+                        />
+                        <input
+                          v-else
+                          v-model.number="controllerStore.controllerSettings.axes[axisIdx][userNumberKey(field)]"
+                          type="number"
+                          :step="0.0001"
+                          @blur="normalizeAxisNumberInput(axisIdx, field.key)"
+                          class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-2 py-1 text-xs outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
+                        />
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- 右：该轴驱动器回读 -->
+            <div
+              class="rounded-xl border-2 border-rose-500/35 bg-rose-950/10 p-4 shadow-sm"
+            >
+              <h3 class="app-text-primary text-sm font-semibold">驱动器回读（只读）</h3>
+              <p class="app-text-muted mt-1 text-xs">{{ selectedAxisPair.read.description }}</p>
+              <div class="mt-3 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:thin]">
+                <table class="min-w-[860px] w-full border border-(--app-border) border-collapse">
+                  <thead>
+                    <tr class="border-b border-(--app-border)">
+                      <th class="sticky left-0 z-10 bg-rose-950/10 px-3 py-2 text-left text-xs font-semibold app-text-secondary">
+                        参数
+                      </th>
+                      <th
+                        v-for="axisIdx in axisIndices"
+                        :key="`read-col-lg-${axisIdx}`"
+                        class="px-3 py-2 text-center text-xs font-semibold app-text-secondary"
+                      >
+                        轴{{ axisIdx }}
+                        <div class="text-[10px] font-normal app-text-muted mt-0.5">
+                          {{ axisTabLabels[axisIdx] }}
+                        </div>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr
+                      v-for="field in readFields"
+                      :key="`read-row-${field.key}`"
+                      class="border-b border-(--app-border)"
+                    >
+                      <td
+                        class="sticky left-0 z-5 bg-rose-950/10 px-3 py-2 text-xs font-medium app-text-secondary"
+                      >
+                        {{ field.label }}
+                      </td>
+                      <td
+                        v-for="axisIdx in axisIndices"
+                        :key="`read-cell-${field.key}-${axisIdx}`"
+                        class="px-3 py-2 text-center"
+                      >
+                        <p class="text-sm font-medium app-text-primary">
+                          {{
+                            formatSettingValueMax4Decimals(
+                              (controllerStore.controllerSettings.axes[axisIdx] as any)[field.key],
+                              field.unit
+                            )
+                          }}
+                        </p>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
         </section>
 
-        <!-- I/O 数字量输入（可控制），单独一块 -->
-        <template v-if="ioOutSection">
-          <section class="app-card rounded-2xl p-6 shadow-sm">
-            <h2 class="app-text-primary text-xl font-semibold">{{ ioOutSection.title }}</h2>
-            <p class="app-text-secondary mt-2 text-sm">{{ ioOutSection.description }}</p>
-            <div class="mt-5 grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+      </div>
+    </div>
+
+
+    <div v-else class="mx-auto max-w-7xl space-y-6">
+      <div class="space-y-6">
+
+        <!-- 轴参数：标题与轴按钮同一行；其下 I/O 输出单行；再下左写入 / 右回读 -->
+        <section v-if="axisPairs.length && selectedAxisPair" class="app-card rounded-2xl p-6 shadow-sm">
+          <div
+            class="flex flex-wrap items-center gap-3 border-b border-(--app-border) pb-4"
+          >
+            <h2 class="app-text-primary shrink-0 text-xl font-semibold">轴参数</h2>
+            <div class="ml-auto flex shrink-0 flex-wrap gap-2">
+              <button
+                type="button"
+                class="rounded-lg border border-(--app-border) app-card-soft px-3 py-2 text-sm font-medium transition hover:bg-(--app-card)"
+                @click="emit('back')"
+              >
+                关闭面板
+              </button>
+              <button
+                type="button"
+                class="rounded-lg border border-rose-500/40 bg-rose-950/40 px-3 py-2 text-sm font-medium text-rose-100 transition hover:bg-rose-900/50 disabled:opacity-50"
+                :disabled="saving"
+                @click="resetCurrentAxisUserInput"
+              >
+                重置
+              </button>
+              <button
+                type="button"
+                class="rounded-lg border border-blue-500/50 bg-blue-600/90 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-600 disabled:opacity-50"
+                :disabled="saving"
+                @click="handleSaveToFile"
+              >
+                保存
+              </button>
+            </div>
+          </div>
+
+
+          <!-- 蓝色区域：I/O 数字量输出（驱动器回读），9 组单行（窄屏横向滚动） -->
+           <div class="grid grid-cols-2 gap-3 justify-center ">
+            <aside v-if="ioOutSection">
+            <div class="mt-2 flex justify-center gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:thin]" >
               <div
                 v-for="field in ioOutSection.fields"
                 :key="field.key"
-                class="rounded-xl border p-4 transition-colors"
+                class="min-w-6 shrink-0 rounded-lg border px-2 py-1.5 transition-colors"
                 :class="
                   field.value === true
-                    ? 'border-emerald-400 bg-emerald-500/15'
-                    : 'app-card-soft border-(--app-border)'
+                    ? 'border-emerald-400 bg-emerald-500/20'
+                    : 'border-blue-500/25 bg-(--app-card-soft)'
                 "
               >
-                <p class="app-text-secondary text-xs">{{ field.label }}</p>
                 <p
-                  class="mt-2 text-base font-medium"
-                  :class="field.value === true ? 'text-emerald-800' : 'app-text-primary'"
+                  class="mt-0.5 truncate text-xs font-medium"
+                  :class="field.value === true ? 'text-emerald-800' : 'text-blue-600'"
                 >
                   {{ formatSettingValue(field.value, field.unit) }}
                 </p>
               </div>
             </div>
-          </section>
-        </template>
+          </aside>
 
-        <section class="app-card rounded-2xl p-6 shadow-sm">
-          <h2 class="app-text-primary text-xl font-semibold">接口说明</h2>
-          <div class="mt-4 space-y-3 text-sm">
-            <div class="app-card-soft rounded-xl p-4">
-              <p class="app-text-primary font-medium">`loadControllerSettings()`</p>
-              <p class="app-text-secondary mt-2">
-                读取控制器参数的接口，当前以本地配置数据形式返回。
-              </p>
+            <aside v-if="ioInSection" >
+              <div class="mt-2 flex justify-center gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:thin]" >
+                <div
+                  v-for="field in ioInSection.fields"
+                  :key="field.key"
+                  class="min-w-6 shrink-0 rounded-lg border px-2 py-1.5 transition-colors"
+                  :class="
+                    field.value === true
+                      ? 'border-emerald-400 bg-emerald-500/20'
+                      : 'border-blue-500/25 bg-(--app-card-soft)'
+                  "
+                >
+                  <p
+                    class="mt-0.5 truncate text-xs font-medium"
+                    :class="field.value === true ? 'text-emerald-800' : 'text-blue-600'"
+                  >
+                    {{ formatSettingValue(field.value, field.unit) }}
+                  </p>
+                </div>
+              </div>
+            </aside>
+           </div>
+
+
+          <div class="mt-5 grid gap-6 lg:hidden">
+            <!-- 左：该轴可写入 -->
+            <div class="rounded-xl border-2 border-rose-500 bg-rose-950/10 p-4 shadow-sm" >
+              <div class="mt-3 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:thin]">
+                <table class="min-w-[860px] w-full border border-(--app-border) border-collapse">
+                  <thead>
+                    <tr class="border-b border-(--app-border)">
+                      <th class="sticky left-0 z-10 bg-rose-950/10 px-3 py-2 text-left text-xs font-semibold app-text-secondary">
+                        参数
+                      </th>
+                      <th
+                        v-for="axisIdx in axisIndices"
+                        :key="`write-col-${axisIdx}`"
+                        class="px-3 py-2 text-center text-xs font-semibold app-text-secondary"
+                      >
+                        轴{{ axisIdx }}
+                        <div class="text-[10px] font-normal app-text-muted mt-0.5">
+                          {{ axisTabLabels[axisIdx] }}
+                        </div>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr
+                      v-for="field in writeFields"
+                      :key="field.key"
+                      class="border-b border-(--app-border)"
+                    >
+                      <td
+                        class="sticky left-0 z-5 bg-rose-950/10 px-3 py-2 text-xs font-medium app-text-secondary"
+                      >
+                        {{ field.label }}
+                      </td>
+                      <td
+                        v-for="axisIdx in axisIndices"
+                        :key="`${field.key}-${axisIdx}`"
+                        class="px-3 py-1.5 align-middle"
+                      >
+                        <input
+                          v-if="field.key === 'axisName'"
+                          v-model="controllerStore.controllerSettings.axes[axisIdx].axisName"
+                          type="text"
+                          class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-2 py-1 text-xs outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
+                        />
+                        <input
+                          v-else
+                          v-model.number="controllerStore.controllerSettings.axes[axisIdx][userNumberKey(field)]"
+                          type="number"
+                          :step="0.0001"
+                          @blur="normalizeAxisNumberInput(axisIdx, field.key)"
+                          class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-2 py-1 text-xs outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
+                        />
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
-            <div class="app-card-soft rounded-xl p-4">
-              <p class="app-text-primary font-medium">`saveControllerSettings(payload)`</p>
-              <p class="app-text-secondary mt-2">
-                保存控制器参数的接口，后续可替换为真实后端或驱动调用。
-              </p>
+          </div>
+
+
+
+
+          <div class="mt-5 gap-6 hidden lg:grid lg:grid-cols-1">
+            <!-- 左：该轴可写入 -->
+            <div
+              class="rounded-xl border-2 border-rose-500/35 bg-rose-950/10 p-4 shadow-sm"
+            >
+              <div class="mt-3 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:thin]">
+                <table class="min-w-[860px] w-full border border-(--app-border) border-collapse">
+                  <thead>
+                    <tr class="border-b border-(--app-border)">
+                      <th class="sticky left-0 z-10 bg-rose-950/10 px-3 py-2 text-left text-xs font-semibold app-text-secondary">
+                        参数
+                      </th>
+                      <th
+                        v-for="axisIdx in axisIndices"
+                        :key="`write-col-lg-${axisIdx}`"
+                        class="px-3 py-2 text-center text-xs font-semibold app-text-secondary"
+                      >
+                        轴{{ axisIdx }}
+                        <div class="text-[10px] font-normal app-text-muted mt-0.5">
+                          {{ axisTabLabels[axisIdx] }}
+                        </div>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr
+                      v-for="field in writeFields"
+                      :key="`write-row-${field.key}`"
+                      class="border-b border-(--app-border)"
+                    >
+                      <td
+                        class="sticky left-0 z-5 bg-rose-950/10 px-3 py-2 text-xs font-medium app-text-secondary"
+                      >
+                        {{ field.label }}
+                      </td>
+                      <td
+                        v-for="axisIdx in axisIndices"
+                        :key="`write-cell-${field.key}-${axisIdx}`"
+                        class="px-3 py-1.5 align-middle"
+                      >
+                        <input
+                          v-if="field.key === 'axisName'"
+                          v-model="controllerStore.controllerSettings.axes[axisIdx].axisName"
+                          type="text"
+                          class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-2 py-1 text-xs outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
+                        />
+                        <input
+                          v-else
+                          v-model.number="controllerStore.controllerSettings.axes[axisIdx][userNumberKey(field)]"
+                          type="number"
+                          :step="0.0001"
+                          @blur="normalizeAxisNumberInput(axisIdx, field.key)"
+                          class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-2 py-1 text-xs outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
+                        />
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </section>

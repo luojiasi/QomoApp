@@ -12,10 +12,7 @@ export interface ApiCallResult<T = any> {
 }
 
 const isHttpBrowserRuntime = () => {
-  if (typeof window === 'undefined') {
-    return false
-  }
-
+  if (typeof window === 'undefined') return false
   return window.location.protocol === 'http:' || window.location.protocol === 'https:'
 }
 
@@ -87,7 +84,7 @@ export const getBackendWsBaseUrl = () => {
 
   return baseUrl
 }
-
+// 获取相机的wbsocket地址
 export const getCameraStreamWsUrl = () => {
   const baseUrl = getBackendWsBaseUrl()
   return baseUrl ? `${baseUrl}/api/camera/ws` : '/api/camera/ws'
@@ -99,31 +96,30 @@ export const getStartProgramStatusWsUrl = () => {
   return baseUrl ? `${baseUrl}/api/startProgram/ws` : '/api/startProgram/ws'
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
 // API调用函数
 // 全局 API 调用工具
 export const apiCall = async <T = any>(endpoint: string,method: HttpMethod = 'GET',data: ApiPayload = null,queryParams: ApiQueryParams = null): Promise<ApiCallResult<T>> => {
     const url = method === 'GET' ? withApiQuery(endpoint, queryParams) : getBackendApiUrl(endpoint)
-    
-    console.log(`🌐 API调用: ${method} ${url}`)
-    if (data) {
-      console.log('📤 请求数据:', data)
-    }
-    if (queryParams) {
-      console.log('🔍 查询参数:', queryParams)
-    }
+    // if (data) console.log('请求数据:', data)
+    // if (queryParams) console.log('查询参数:', queryParams)
     
     try {
       const headers: Record<string, string> = {}
-      if (data) {
-        headers['Content-Type'] = 'application/json'
-      }
-
-      const response = await fetch(url, {
-        method,
-        headers,
-        body: data ? JSON.stringify(data) : undefined
-      })
-      console.log(`📡 响应状态: ${response.status} ${response.statusText}`)
+      if (data) headers['Content-Type'] = 'application/json'
+      const response = await fetch(url, {method,headers,body: data ? JSON.stringify(data) : undefined})
+      // console.log(`响应状态: ${response.status} ${response.statusText}`)
       if (!response.ok) {
         const contentType = response.headers.get('content-type') || ''
         let errorBody: any = null
@@ -133,33 +129,23 @@ export const apiCall = async <T = any>(endpoint: string,method: HttpMethod = 'GE
           errorBody = null
         }
         console.error(`❌ HTTP错误: ${response.status} ${response.statusText}`, errorBody)
-
         const detailText =
           typeof errorBody === 'string'
             ? errorBody
             : errorBody && typeof errorBody === 'object'
               ? JSON.stringify(errorBody)
               : ''
-        return { 
-          success: false, 
-          message: `HTTP错误: ${response.status} ${response.statusText}${detailText ? ` | ${detailText}` : ''}` 
-        }
+        return { success: false, message: `HTTP错误: ${response.status} ${response.statusText}${detailText ? ` | ${detailText}` : ''}` }
       }
       const contentType = response.headers.get('content-type') || ''
       const result = contentType.includes('application/json')
         ? await response.json()
-        : ({
-            success: true,
-            data: (await response.text()) as unknown as T
-          } satisfies ApiCallResult<T>)
-      console.log(`📥 响应数据:`, result)
+        : ({success: true,data: (await response.text()) as unknown as T} satisfies ApiCallResult<T>)
+      // console.log(`响应数据:`, result)
       return result
     } catch (error: any) {
       console.error(`❌ API调用失败 (${endpoint}):`, error)
-      return { 
-        success: false, 
-        message: `网络错误: ${error.message}` 
-      }
+      return { success: false, message: `网络错误: ${error.message}` }
     }
   }
   

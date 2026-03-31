@@ -3,13 +3,8 @@ import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import {
   createRs232Sections,
-  RS232_BAUD_RATE_OPTIONS,
   RS232_COM_PORT_OPTIONS,
-  RS232_DATA_BITS_OPTIONS,
-  RS232_FLOW_CONTROL_OPTIONS,
-  RS232_PARITY_OPTIONS,
   RS232_SEND_MODE_OPTIONS,
-  RS232_STOP_BITS_OPTIONS
 } from '../configs/settings'
 import { useNotification } from '../composables/useNotification'
 import { useReservePages } from '../composables/useSettingsPages'
@@ -25,6 +20,20 @@ import {
   sendRs232,
   type Rs232PortInfo
 } from '../utils/rs232Api'
+const props = defineProps<{
+  /**
+   * 是否作为嵌入式面板展示（例如显示在 Home 右侧）。
+   * 嵌入模式下不显示全页标题与「返回首页」卡片区。
+   */
+  embedded?: boolean
+}>()
+
+const emit = defineEmits<{
+  /**
+   * 嵌入模式下请求关闭右侧面板。
+   */
+  (e: 'back'): void
+}>()
 
 const reserveStore = useReservePagesStore()
 const rs232Store = useRs232WorkbenchStore()
@@ -203,6 +212,46 @@ function applyQuickCommand(command: Rs232QuickCommand): void {
   workbench.value.send.payload = command.payload
 }
 
+const editingQuickCommandDraft = ref<Rs232QuickCommand | null>(null)
+
+function startEditQuickCommand(command: Rs232QuickCommand): void {
+  // 创建一份本地副本，避免用户还没保存时就直接污染工作台数据
+  editingQuickCommandDraft.value = { ...command }
+}
+
+function cancelEditQuickCommand(): void {
+  editingQuickCommandDraft.value = null
+}
+
+function saveEditQuickCommand(): void {
+  if (!editingQuickCommandDraft.value) return
+
+  const draft = editingQuickCommandDraft.value
+  const title = draft.title.trim()
+  if (!title) {
+    error('标题不能为空', '请为快捷命令填写一个标题。')
+    return
+  }
+
+  const description = draft.description.trim()
+  const list = workbench.value.quickCommands
+  const exists = list.some((c) => c.id === draft.id)
+  if (!exists) {
+    error('保存失败', '该快捷命令不存在或已被更改。')
+    return
+  }
+
+  // 通过替换数组元素来确保 Vue 对数组变更能可靠追踪
+  workbench.value.quickCommands = list.map((c) => (
+    c.id === draft.id
+      ? { ...draft, title, description }
+      : c
+  ))
+
+  success('已保存快捷命令', `「${title}」已更新。`)
+  cancelEditQuickCommand()
+}
+
 function clearPayload(): void {
   workbench.value.send.payload = ''
 }
@@ -283,13 +332,12 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="app-page min-h-screen px-6 py-10">
+  <div v-if="!props.embedded" class="app-page min-h-screen px-6 py-10">
     <div class="mx-auto max-w-7xl space-y-6">
       <div class="app-card rounded-2xl p-8 shadow-lg">
         <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p class="app-text-secondary text-sm">详细RS232数据发送区</p>
-            <h1 class="app-text-primary mt-1 text-3xl font-bold">{{ page.title }}</h1>
+            <h1 class="app-text-primary mt-1 text-3xl font-bold">激光控制区</h1>
             <p class="app-text-secondary mt-3 max-w-3xl text-sm leading-6">
               {{ page.description }}
             </p>
@@ -303,7 +351,8 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <div class="grid gap-6 xl:grid-cols-[1.1fr_1.4fr]">
+      <!-- <div class="grid gap-6 xl:grid-cols-[1.1fr_1.4fr]"> -->
+      <div class="grid gap-6 xl:grid-cols-[1fr]">
         <section class="app-card rounded-2xl p-6 shadow-sm">
           <div class="flex flex-wrap items-start justify-between gap-3 gap-y-2">
             <h2 class="app-text-primary text-xl font-semibold">串口参数配置</h2>
@@ -359,7 +408,7 @@ onUnmounted(() => {
           </p>
           <p v-else-if="!loadingPorts" class="app-text-muted mt-2 text-xs">未从后端获取到串口列表（可仍选 COM1～COM10）。</p>
 
-          <div class="mt-5 grid gap-4 sm:grid-cols-2">
+          <div class="mt-5 grid gap-4 sm:grid-cols-1">
             <label class="space-y-1.5">
               <span class="app-text-secondary text-xs">串口号</span>
               <select
@@ -372,7 +421,7 @@ onUnmounted(() => {
               </select>
             </label>
 
-            <label class="space-y-1.5">
+            <!-- <label class="space-y-1.5">
               <span class="app-text-secondary text-xs">波特率</span>
               <select
                 v-model.number="workbench.port.baudRate"
@@ -452,93 +501,208 @@ onUnmounted(() => {
                 <option value="gbk">gbk</option>
                 <option value="ascii">ascii</option>
               </select>
-            </label>
+            </label> -->
           </div>
         </section>
 
-        <section class="app-card rounded-2xl p-6 shadow-sm">
-          <div class="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 class="app-text-primary text-xl font-semibold">发送帧编辑</h2>
-              <p class="app-text-secondary mt-2 text-sm">
-                连接成功后，可单次发送或开启自动发送（轮询间隔由下方配置决定）。
-              </p>
+
+      </div>
+
+      <div class="grid gap-6 xl:grid-cols-2">
+      <section class="app-card rounded-2xl p-6 shadow-sm">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 class="app-text-primary text-xl font-semibold">发送内容</h2>
+            <!-- <p class="app-text-secondary mt-2 text-sm">
+              连接成功后，可单次发送或开启自动发送（轮询间隔由下方配置决定）。
+            </p> -->
+          </div>
+          <!-- <div class="flex flex-wrap gap-2">
+            <button
+              v-for="mode in RS232_SEND_MODE_OPTIONS"
+              :key="mode"
+              type="button"
+              class="rounded-lg border px-4 py-2 text-sm font-medium transition-colors"
+              :class="
+                workbench.send.mode === mode
+                  ? 'border-blue-500 bg-blue-600 text-white shadow-sm'
+                  : 'app-card-soft border-transparent hover:border-(--app-border)'
+              "
+              @click="workbench.send.mode = mode"
+            >
+              {{ modeLabel(mode) }}
+            </button>
+          </div> -->
+        </div>
+
+        <div class="mt-4">
+          <!-- <p class="app-text-secondary text-xs">发送内容</p> -->
+          <textarea
+            v-model="workbench.send.payload"
+            rows="6"
+            class="app-text-primary mt-2 w-full rounded-xl border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
+            :placeholder="
+              workbench.send.mode === 'hex'
+                ? 'HEX 示例：AA 55 00 01 FF'
+                : 'ASCII 示例：AT+VER?'
+            "
+          />
+        </div>
+        <!-- <div class="mt-4 grid gap-3 sm:grid-cols-2">
+          <label class="app-card-soft flex items-center gap-3 rounded-lg px-3 py-2 text-sm">
+            <input v-model="workbench.send.appendCr" type="checkbox" />
+            <span class="app-text-primary">附加 CR (\\r)</span>
+          </label>
+          <label class="app-card-soft flex items-center gap-3 rounded-lg px-3 py-2 text-sm">
+            <input v-model="workbench.send.appendLf" type="checkbox" />
+            <span class="app-text-primary">附加 LF (\\n)</span>
+          </label>
+          <label class="app-card-soft flex items-center gap-3 rounded-lg px-3 py-2 text-sm">
+            <input v-model="workbench.send.autoSend" type="checkbox" />
+            <span class="app-text-primary">自动发送</span>
+          </label>
+          <label class="space-y-1.5">
+            <span class="app-text-secondary text-xs">自动发送间隔（ms）</span>
+            <input
+              v-model.number="workbench.send.autoSendIntervalMs"
+              type="number"
+              min="50"
+              class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
+            />
+          </label>
+        </div> -->
+        <div class="mt-5 flex flex-wrap gap-3">
+          <button
+            type="button"
+            class="rounded-lg border border-blue-500/50 bg-blue-600/90 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-600 disabled:opacity-50"
+            :disabled="!serialConnected || busySend"
+            @click="doSend()"
+          >
+            {{ busySend ? '发送中…' : '发送' }}
+          </button>
+          <button
+            type="button"
+            class="app-card-soft rounded-lg border border-(--app-border) px-4 py-2 text-sm font-medium"
+            @click="clearPayload"
+          >
+            清空内容
+          </button>
+        </div>
+      </section>
+
+      <section class="app-card rounded-2xl p-6 shadow-sm">
+        <h2 class="app-text-primary text-xl font-semibold">快捷命令模板</h2>
+        <p class="app-text-secondary mt-2 text-sm">
+          选择命令后将填充至发送区，可继续手动修改。
+        </p>
+        <div class="mt-4 grid gap-3 md:grid-cols-3">
+          <div
+            v-for="command in workbench.quickCommands"
+            :key="command.id"
+            class="app-card-soft rounded-xl p-4 text-left transition hover:border hover:border-blue-500/40 cursor-pointer"
+            role="button"
+            tabindex="0"
+            @click="applyQuickCommand(command)"
+            @keydown.enter="applyQuickCommand(command)"
+            @keydown.space.prevent="applyQuickCommand(command)"
+          >
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0">
+                <p class="app-text-primary text-sm font-semibold">
+                  {{ command.title }}
+                </p>
+                <p class="app-text-secondary mt-1 text-xs line-clamp-2">
+                  {{ command.description }}
+                </p>
+                <p class="app-text-muted mt-2 text-xs break-all">
+                  {{ modeLabel(command.mode) }} · {{ command.payload }}
+                </p>
+              </div>
+              <button
+                type="button"
+                class="rounded-lg border border-(--app-border) bg-(--app-card) px-2 py-1 text-xs font-medium transition hover:bg-(--app-card-soft)"
+                @click.stop="startEditQuickCommand(command)"
+              >
+                编辑
+              </button>
             </div>
+          </div>
+        </div>
+
+        <div
+          v-if="editingQuickCommandDraft"
+          class="mt-4 app-card-soft rounded-2xl p-4"
+        >
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <h3 class="app-text-primary text-base font-semibold">
+              编辑快捷命令
+            </h3>
             <div class="flex flex-wrap gap-2">
               <button
-                v-for="mode in RS232_SEND_MODE_OPTIONS"
-                :key="mode"
                 type="button"
-                class="rounded-lg border px-4 py-2 text-sm font-medium transition-colors"
-                :class="
-                  workbench.send.mode === mode
-                    ? 'border-blue-500 bg-blue-600 text-white shadow-sm'
-                    : 'app-card-soft border-transparent hover:border-(--app-border)'
-                "
-                @click="workbench.send.mode = mode"
+                class="app-card-soft rounded-lg border border-(--app-border) px-3 py-2 text-sm font-medium"
+                @click="cancelEditQuickCommand"
               >
-                {{ modeLabel(mode) }}
+                取消
+              </button>
+              <button
+                type="button"
+                class="rounded-lg border border-blue-500/50 bg-blue-600/90 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-600 disabled:opacity-50"
+                @click="saveEditQuickCommand"
+              >
+                保存
               </button>
             </div>
           </div>
 
-          <div class="mt-4">
-            <p class="app-text-secondary text-xs">发送内容</p>
-            <textarea
-              v-model="workbench.send.payload"
-              rows="6"
-              class="app-text-primary mt-2 w-full rounded-xl border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
-              :placeholder="
-                workbench.send.mode === 'hex'
-                  ? 'HEX 示例：AA 55 00 01 FF'
-                  : 'ASCII 示例：AT+VER?'
-              "
-            />
-          </div>
-
-          <div class="mt-4 grid gap-3 sm:grid-cols-2">
-            <label class="app-card-soft flex items-center gap-3 rounded-lg px-3 py-2 text-sm">
-              <input v-model="workbench.send.appendCr" type="checkbox" />
-              <span class="app-text-primary">附加 CR (\\r)</span>
-            </label>
-            <label class="app-card-soft flex items-center gap-3 rounded-lg px-3 py-2 text-sm">
-              <input v-model="workbench.send.appendLf" type="checkbox" />
-              <span class="app-text-primary">附加 LF (\\n)</span>
-            </label>
-            <label class="app-card-soft flex items-center gap-3 rounded-lg px-3 py-2 text-sm">
-              <input v-model="workbench.send.autoSend" type="checkbox" />
-              <span class="app-text-primary">自动发送</span>
-            </label>
-            <label class="space-y-1.5">
-              <span class="app-text-secondary text-xs">自动发送间隔（ms）</span>
+          <div class="mt-3 grid gap-3 sm:grid-cols-2">
+            <label class="space-y-1.5 sm:col-span-2">
+              <span class="app-text-secondary text-xs">标题</span>
               <input
-                v-model.number="workbench.send.autoSendIntervalMs"
-                type="number"
-                min="50"
+                v-model="editingQuickCommandDraft.title"
+                type="text"
                 class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
               />
             </label>
-          </div>
 
-          <div class="mt-5 flex flex-wrap gap-3">
-            <button
-              type="button"
-              class="rounded-lg border border-blue-500/50 bg-blue-600/90 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-600 disabled:opacity-50"
-              :disabled="!serialConnected || busySend"
-              @click="doSend()"
-            >
-              {{ busySend ? '发送中…' : '发送' }}
-            </button>
-            <button
-              type="button"
-              class="app-card-soft rounded-lg border border-(--app-border) px-4 py-2 text-sm font-medium"
-              @click="clearPayload"
-            >
-              清空内容
-            </button>
+            <label class="space-y-1.5 sm:col-span-2">
+              <span class="app-text-secondary text-xs">描述</span>
+              <input
+                v-model="editingQuickCommandDraft.description"
+                type="text"
+                class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
+              />
+            </label>
+
+            <label class="space-y-1.5">
+              <span class="app-text-secondary text-xs">模式</span>
+              <select
+                v-model="editingQuickCommandDraft.mode"
+                class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
+              >
+                <option
+                  v-for="m in RS232_SEND_MODE_OPTIONS"
+                  :key="m"
+                  :value="m"
+                >
+                  {{ modeLabel(m) }}
+                </option>
+              </select>
+            </label>
+
+            <label class="space-y-1.5">
+              <span class="app-text-secondary text-xs">载荷</span>
+              <textarea
+                v-model="editingQuickCommandDraft.payload"
+                rows="3"
+                class="app-text-primary w-full resize-y rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
+              />
+            </label>
           </div>
-        </section>
+        </div>
+      </section>
       </div>
+
 
       <section class="app-card rounded-2xl p-6 shadow-sm">
         <div class="flex flex-wrap items-start justify-between gap-3">
@@ -548,7 +712,8 @@ onUnmounted(() => {
               连接后由后端读线程写入缓冲；下方区域约每 250ms 刷新一次。连接与断开在上方「串口参数配置」中操作。
             </p>
           </div>
-          <div class="flex flex-wrap gap-2">
+          
+          <!-- <div class="flex flex-wrap gap-2">
             <button
               v-for="mode in RS232_SEND_MODE_OPTIONS"
               :key="`rx-${mode}`"
@@ -563,7 +728,7 @@ onUnmounted(() => {
             >
               接收 · {{ modeLabel(mode) }}
             </button>
-          </div>
+          </div> -->
         </div>
 
         <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -610,29 +775,7 @@ onUnmounted(() => {
         </div>
       </section>
 
-      <section class="app-card rounded-2xl p-6 shadow-sm">
-        <h2 class="app-text-primary text-xl font-semibold">快捷命令模板</h2>
-        <p class="app-text-secondary mt-2 text-sm">
-          选择命令后将填充至发送区，可继续手动修改。
-        </p>
-        <div class="mt-4 grid gap-3 md:grid-cols-3">
-          <button
-            v-for="command in workbench.quickCommands"
-            :key="command.id"
-            type="button"
-            class="app-card-soft rounded-xl p-4 text-left transition hover:border hover:border-blue-500/40"
-            @click="applyQuickCommand(command)"
-          >
-            <p class="app-text-primary text-sm font-semibold">{{ command.title }}</p>
-            <p class="app-text-secondary mt-1 text-xs">
-              {{ command.description }}
-            </p>
-            <p class="app-text-muted mt-2 text-xs">
-              {{ modeLabel(command.mode) }} · {{ command.payload }}
-            </p>
-          </button>
-        </div>
-      </section>
+
 
       <section class="app-card rounded-2xl p-6 shadow-sm">
         <h2 class="app-text-primary text-xl font-semibold">当前配置概览</h2>
@@ -674,4 +817,230 @@ onUnmounted(() => {
       </section>
     </div>
   </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  <div v-else class="app-page min-h-screen px-6 py-10">
+    <div class="mx-auto max-w-7xl space-y-6">
+      <!-- <div class="grid gap-6 xl:grid-cols-[1.1fr_1.4fr]"> -->
+      <div class="grid gap-6 xl:grid-cols-[1fr]">
+        <section class="app-card rounded-2xl p-6 shadow-sm">
+          <div class="flex flex-wrap items-start justify-between gap-3 gap-y-2">
+            <h2 class="app-text-primary text-xl font-semibold">串口参数配置</h2>
+            <div class="flex flex-wrap gap-2">
+              <button
+                type="button"
+                class="rounded-lg border border-(--app-border) app-card-soft px-3 py-2 text-sm font-medium transition hover:bg-(--app-card)"
+                @click="emit('back')"
+              >
+                关闭面板
+              </button>
+              <button
+                type="button"
+                class="rounded-lg border border-blue-500/50 bg-blue-600/90 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-600 disabled:opacity-50"
+                :disabled="saving"
+                @click="handleSaveToLocalFile"
+              >
+                保存本地文件
+              </button>
+              <button
+                type="button"
+                class="app-card-soft app-text-primary rounded-lg border border-(--app-border) px-3 py-2 text-sm font-medium transition hover:bg-(--app-card) disabled:opacity-50"
+                :disabled="saving"
+                @click="handleSaveToLocalStorage"
+              >
+                本地存储
+              </button>
+            </div>
+          </div>
+          <p v-if="portsFromApi.length" class="app-text-muted mt-2 text-xs">
+            本机检测：
+            <span v-for="(p, i) in portsFromApi" :key="p.device + i" class="mr-2 inline-block">
+              {{ p.device }}<span v-if="p.description">（{{ p.description }}）</span>
+            </span>
+          </p>
+          <p v-else-if="!loadingPorts" class="app-text-muted mt-2 text-xs">未从后端获取到串口列表（可仍选 COM1～COM10）。</p>
+
+          <div class="mt-5 grid gap-4 sm:grid-cols-1">
+            <label class="space-y-1.5">
+              <span class="app-text-secondary text-xs">串口号</span>
+              <select
+                v-model="workbench.port.portName"
+                class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
+              >
+                <option v-for="p in portNameOptions" :key="p" :value="p">
+                  {{ p }}
+                </option>
+              </select>
+            </label>
+          </div>
+        </section>
+
+
+      </div>
+
+      <div class="grid gap-6 xl:grid-cols-1">
+      <section class="app-card rounded-2xl p-6 shadow-sm">
+        <h2 class="app-text-primary text-xl font-semibold">快捷命令模板</h2>
+        <p class="app-text-secondary mt-2 text-sm">
+          选择命令后将填充至发送区，可继续手动修改。
+        </p>
+        <div class="mt-4 grid gap-3 md:grid-cols-3">
+          <div
+            v-for="command in workbench.quickCommands"
+            :key="command.id"
+            class="app-card-soft rounded-xl p-4 text-left transition hover:border hover:border-blue-500/40 cursor-pointer"
+            role="button"
+            tabindex="0"
+            @click="applyQuickCommand(command)"
+            @keydown.enter="applyQuickCommand(command)"
+            @keydown.space.prevent="applyQuickCommand(command)"
+          >
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0">
+                <p class="app-text-primary text-sm font-semibold">
+                  {{ command.title }}
+                </p>
+                <p class="app-text-secondary mt-1 text-xs line-clamp-2">
+                  {{ command.description }}
+                </p>
+                <p class="app-text-muted mt-2 text-xs break-all">
+                  {{ modeLabel(command.mode) }} · {{ command.payload }}
+                </p>
+              </div>
+              <button
+                type="button"
+                class="rounded-lg border border-(--app-border) bg-(--app-card) px-2 py-1 text-xs font-medium transition hover:bg-(--app-card-soft)"
+                @click.stop="startEditQuickCommand(command)"
+              >
+                编辑
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div
+          v-if="editingQuickCommandDraft"
+          class="mt-4 app-card-soft rounded-2xl p-4"
+        >
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <h3 class="app-text-primary text-base font-semibold">
+              编辑快捷命令
+            </h3>
+            <div class="flex flex-wrap gap-2">
+              <button
+                type="button"
+                class="app-card-soft rounded-lg border border-(--app-border) px-3 py-2 text-sm font-medium"
+                @click="cancelEditQuickCommand"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                class="rounded-lg border border-blue-500/50 bg-blue-600/90 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-600 disabled:opacity-50"
+                @click="saveEditQuickCommand"
+              >
+                保存
+              </button>
+            </div>
+          </div>
+
+          <div class="mt-3 grid gap-3 sm:grid-cols-2">
+            <label class="space-y-1.5 sm:col-span-2">
+              <span class="app-text-secondary text-xs">标题</span>
+              <input
+                v-model="editingQuickCommandDraft.title"
+                type="text"
+                class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
+              />
+            </label>
+
+            <label class="space-y-1.5 sm:col-span-2">
+              <span class="app-text-secondary text-xs">描述</span>
+              <input
+                v-model="editingQuickCommandDraft.description"
+                type="text"
+                class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
+              />
+            </label>
+
+            <label class="space-y-1.5">
+              <span class="app-text-secondary text-xs">模式</span>
+              <select
+                v-model="editingQuickCommandDraft.mode"
+                class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
+              >
+                <option
+                  v-for="m in RS232_SEND_MODE_OPTIONS"
+                  :key="m"
+                  :value="m"
+                >
+                  {{ modeLabel(m) }}
+                </option>
+              </select>
+            </label>
+
+            <label class="space-y-1.5">
+              <span class="app-text-secondary text-xs">载荷</span>
+              <textarea
+                v-model="editingQuickCommandDraft.payload"
+                rows="3"
+                class="app-text-primary w-full resize-y rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
+              />
+            </label>
+          </div>
+        </div>
+      </section>
+      </div>
+
+
+
+      <section class="app-card rounded-2xl p-6 shadow-sm">
+        <h2 class="app-text-primary text-xl font-semibold">当前配置概览</h2>
+        <div class="mt-4 grid gap-4 lg:grid-cols-2">
+          <div v-if="portSection" class="app-card-soft rounded-xl p-4">
+            <p class="app-text-primary text-sm font-semibold">{{ portSection.title }}</p>
+            <div class="mt-3 grid gap-2 sm:grid-cols-2">
+              <div v-for="field in portSection.fields" :key="field.key">
+                <p class="app-text-secondary text-xs">{{ field.label }}</p>
+                <p class="app-text-primary text-sm">
+                  {{ formatSettingValue(field.value, field.unit) }}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div v-if="sendSection" class="app-card-soft rounded-xl p-4">
+            <p class="app-text-primary text-sm font-semibold">{{ sendSection.title }}</p>
+            <div class="mt-3 grid gap-2 sm:grid-cols-2">
+              <div v-for="field in sendSection.fields" :key="field.key">
+                <p class="app-text-secondary text-xs">{{ field.label }}</p>
+                <p class="app-text-primary text-sm break-all">
+                  {{ formatSettingValue(field.value, field.unit) }}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+  
 </template>

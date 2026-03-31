@@ -172,73 +172,77 @@ async function handleApplySettings(isOpen:boolean=false): Promise<void> {
 
 const handleApply = () => handleApplySettings(false)
 const handleOpenLaser = () => handleApplySettings(true)
+const emit = defineEmits<{(e: 'open-right-panel', target: string): void}>()
 </script>
 
 <template>
   <div
     class="flex min-h-0 shrink-0 flex-col rounded-2xl border border-(--app-border) bg-(--app-card) p-4 shadow-[0_6px_14px_-6px_rgba(15,23,42,0.14)] transition-[min-height] duration-200 dark:shadow-[0_6px_16px_-6px_rgba(0,0,0,0.42)]"
-    :class="isLaserPanelExpanded ? 'min-h-[min(200px,46vh)]' : ''"
+    :class="isLaserPanelExpanded ? 'min-h-[min(100px,46vh)]' : ''"
   >
     <CollapsiblePanelHeader
       v-model:expanded="isLaserPanelExpanded"
+      action-target="DetailedRs232Send"
+      @open-right-panel="(target) => emit('open-right-panel', target)"
       title="激光面板"
     />
-    <div v-show="isLaserPanelExpanded" class="mt-4 flex-1 space-y-3 overflow-y-auto pr-1">
+    <!-- <div v-show="isLaserPanelExpanded" class="mt-4 flex-1 space-y-3 overflow-y-auto pr-1">
       <div
         class="rounded-xl border border-(--app-border) bg-(--app-card-soft) p-3 shadow-sm shadow-slate-900/5 ring-1 ring-slate-950/4 dark:shadow-md dark:shadow-black/25 dark:ring-white/5"
       >
-        <div class="grid grid-cols-3 gap-3">
-          <label class="col-span-2 flex min-w-0 flex-col gap-1">
-            <span class="text-xs text-(--app-text-muted)">激光厂家</span>
-            <input
-              v-model="laserManufacturer"
-              type="text"
-              class="w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm text-(--app-text-primary) shadow-inner shadow-slate-900/5 outline-none transition focus:border-sky-500/80 focus:shadow-[0_0_0_3px_rgba(14,165,233,0.15)] focus:ring-2 focus:ring-sky-400/25 dark:shadow-black/40"
-            />
-          </label>
-          <label class="col-span-1 flex min-w-0 flex-col gap-1">
-            <span class="text-xs text-(--app-text-muted)">传输方式</span>
-            <select
-              v-model="transmissionMode"
-              class="w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm text-(--app-text-primary) shadow-inner shadow-slate-900/5 outline-none transition focus:border-sky-500/80 focus:shadow-[0_0_0_3px_rgba(14,165,233,0.15)] focus:ring-2 focus:ring-sky-400/25 dark:shadow-black/40"
-            >
-              <option v-for="opt in transmissionOptions" :key="opt" :value="opt">
-                {{ opt }}
-              </option>
-            </select>
-          </label>
-          <label class="flex min-w-0 flex-col gap-1">
-            <span class="text-xs text-(--app-text-muted)">激光功率</span>
-            <input
-              v-model.number="laserPower"
-              type="number"
-              min="0"
-              step="1"
-              class="w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm text-(--app-text-primary) shadow-inner shadow-slate-900/5 outline-none transition focus:border-sky-500/80 focus:shadow-[0_0_0_3px_rgba(14,165,233,0.15)] focus:ring-2 focus:ring-sky-400/25 dark:shadow-black/40"
-            />
-          </label>
-          <label class="flex min-w-0 flex-col gap-1">
-            <span class="text-xs text-(--app-text-muted)">激光频率</span>
-            <input
-              v-model.number="laserFrequency"
-              type="number"
-              min="0"
-              step="1"
-              class="w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm text-(--app-text-primary) shadow-inner shadow-slate-900/5 outline-none transition focus:border-sky-500/80 focus:shadow-[0_0_0_3px_rgba(14,165,233,0.15)] focus:ring-2 focus:ring-sky-400/25 dark:shadow-black/40"
-            />
-          </label>
-          <label class="col-span-1 flex min-w-0 flex-col gap-1">
-            <span class="text-xs text-(--app-text-muted)">激光电流</span>
-            <input
-              v-model.number="laserCurrent"
-              type="number"
-              min="0"
-              step="0.1"
-              class="w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm text-(--app-text-primary) shadow-inner shadow-slate-900/5 outline-none transition focus:border-sky-500/80 focus:shadow-[0_0_0_3px_rgba(14,165,233,0.15)] focus:ring-2 focus:ring-sky-400/25 dark:shadow-black/40"
-            />
-          </label>
-        </div>
+
       </div>
+    </div> -->
+    <div class="grid grid-cols-3 gap-3" v-show="isLaserPanelExpanded">
+      <!-- <label class="col-span-2 flex min-w-0 flex-col gap-1">
+        <span class="text-xs text-(--app-text-muted)">激光厂家</span>
+        <input
+          v-model="laserManufacturer"
+          type="text"
+          class="w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm text-(--app-text-primary) shadow-inner shadow-slate-900/5 outline-none transition focus:border-sky-500/80 focus:shadow-[0_0_0_3px_rgba(14,165,233,0.15)] focus:ring-2 focus:ring-sky-400/25 dark:shadow-black/40"
+        />
+      </label>
+      <label class="col-span-1 flex min-w-0 flex-col gap-1">
+        <span class="text-xs text-(--app-text-muted)">传输方式</span>
+        <select
+          v-model="transmissionMode"
+          class="w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm text-(--app-text-primary) shadow-inner shadow-slate-900/5 outline-none transition focus:border-sky-500/80 focus:shadow-[0_0_0_3px_rgba(14,165,233,0.15)] focus:ring-2 focus:ring-sky-400/25 dark:shadow-black/40"
+        >
+          <option v-for="opt in transmissionOptions" :key="opt" :value="opt">
+            {{ opt }}
+          </option>
+        </select>
+      </label> -->
+      <label class="flex min-w-0 gap-1">
+        <span class="text-xs text-(--app-text-muted)">功率</span>
+        <input
+          v-model.number="laserPower"
+          type="number"
+          min="0"
+          step="1"
+          class="w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm text-(--app-text-primary) shadow-inner shadow-slate-900/5 outline-none transition focus:border-sky-500/80 focus:shadow-[0_0_0_3px_rgba(14,165,233,0.15)] focus:ring-2 focus:ring-sky-400/25 dark:shadow-black/40"
+        />
+      </label>
+      <label class="flex min-w-0 gap-1">
+        <span class="text-xs text-(--app-text-muted)">频率</span>
+        <input
+          v-model.number="laserFrequency"
+          type="number"
+          min="0"
+          step="1"
+          class="w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm text-(--app-text-primary) shadow-inner shadow-slate-900/5 outline-none transition focus:border-sky-500/80 focus:shadow-[0_0_0_3px_rgba(14,165,233,0.15)] focus:ring-2 focus:ring-sky-400/25 dark:shadow-black/40"
+        />
+      </label>
+      <label class="col-span-1 flex min-w-0 gap-1">
+        <span class="text-xs text-(--app-text-muted)">电流</span>
+        <input
+          v-model.number="laserCurrent"
+          type="number"
+          min="0"
+          step="0.1"
+          class="w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm text-(--app-text-primary) shadow-inner shadow-slate-900/5 outline-none transition focus:border-sky-500/80 focus:shadow-[0_0_0_3px_rgba(14,165,233,0.15)] focus:ring-2 focus:ring-sky-400/25 dark:shadow-black/40"
+        />
+      </label>
     </div>
     <div class="mt-4 flex w-full gap-3">
       <button

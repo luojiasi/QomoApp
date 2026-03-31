@@ -15,7 +15,9 @@ import { useNotification } from '../composables/useNotification'
 const controllerStore = useControllerSettingsStore()
 const { success, error } = useNotification()
 
-const isDriverPanelExpanded = ref(false)
+const emit = defineEmits<{(e: 'open-right-panel', target: string): void}>()
+
+const isDriverPanelExpanded = ref(true)
 const selectedDriverAxisIndex = ref(0)
 const movingAbs = ref(false)
 const emergencyStopping = ref(false)
@@ -243,9 +245,11 @@ async function handleZeroSelectedAxisPosition() {
     <CollapsiblePanelHeader
       v-model:expanded="isDriverPanelExpanded"
       title="控制驱动器面板"
+      action-target="ControllerSettings"
+      @open-right-panel="(target) => emit('open-right-panel', target)"
     />
-    <div v-show="isDriverPanelExpanded" class="mt-4 flex-1 space-y-3 overflow-y-auto pr-1">
-      <div
+    <div v-show="true" class="mt-4 flex-1 space-y-3 overflow-y-auto pr-1">
+      <!-- <div
         class="rounded-xl border border-(--app-border) bg-(--app-card-soft) p-3 shadow-sm shadow-slate-900/5 ring-1 ring-slate-950/4 dark:shadow-md dark:shadow-black/25 dark:ring-white/5"
       >
         <label class="mb-3 flex w-full min-w-0 items-center gap-2">
@@ -308,17 +312,17 @@ async function handleZeroSelectedAxisPosition() {
             />
           </label>
         </div>
-      </div>
+      </div> -->
 
-      <div class="flex flex-wrap gap-2">
+      <!-- <div class="flex flex-wrap gap-2">
         <button
           type="button"
-          :title="zeroingAxis ? '清零执行中' : '将选中轴指令位置置零（控制器 zero）'"
+          :title="zeroingAxis ? '执行回零' : '执行回零操作中...'"
           :disabled="zeroingAxis || movingAbs || !controllerStore.controllerSettings.axes.length"
           class="rounded-lg border border-sky-500 bg-sky-50 px-3 py-2 text-xs font-medium text-sky-800 transition hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-sky-950 dark:text-sky-200 dark:hover:bg-sky-900/45"
           @click="handleZeroSelectedAxisPosition"
         >
-          {{ zeroingAxis ? '清零中...' : '选中轴位置清零' }}
+          {{ zeroingAxis ? '执行回零中...' : '执行回零' }}
         </button>
         <button
           type="button"
@@ -329,12 +333,11 @@ async function handleZeroSelectedAxisPosition() {
         >
           {{ emergencyStopping ? '停止中...' : '立刻停止选中轴并清空该轴缓存' }}
         </button>
-      </div>
+      </div> -->
 
       <div
         class="rounded-xl border border-(--app-border) bg-(--app-card-soft) p-3 shadow-sm shadow-slate-900/5 ring-1 ring-slate-950/4 dark:shadow-md dark:shadow-black/25 dark:ring-white/5"
       >
-        <p class="mb-2 text-xs text-(--app-text-muted)">五轴 MPOS</p>
         <div class="grid grid-cols-5 gap-2">
           <label
             v-for="item in axisMposLabels"

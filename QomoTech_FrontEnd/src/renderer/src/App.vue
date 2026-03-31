@@ -1,6 +1,6 @@
 <template>
   
-  <div class="fixed left-12 top-6 z-50 flex space-x-4">
+  <div class="fixed left-12 top-12 z-50 flex space-x-4">
     <CameraPic :hidden-keep-alive="true" :show-hint="false" alt="global-camera-stream-keeper" />
     <button
       class="flex h-4 w-4 cursor-pointer items-center justify-center rounded-full bg-red-500 shadow"

@@ -98,7 +98,7 @@ export const defaultRs232WorkbenchState: Rs232WorkbenchState = {
   send: {
     mode: 'ascii',
     payload: '',
-    appendCr: false,
+    appendCr: true,
     appendLf: true,
     autoSend: false,
     autoSendIntervalMs: 1000
@@ -112,25 +112,25 @@ export const defaultRs232WorkbenchState: Rs232WorkbenchState = {
   receiveBuffer: '',
   quickCommands: [
     {
-      id: 'query-version',
-      title: '查询版本',
-      description: '设备版本查询指令',
+      id: 'send-current',
+      title: '发送电流',
+      description: '发送电流指令',
       mode: 'ascii',
-      payload: 'AT+VER?'
+      payload: 'LD1CS 100'
     },
     {
-      id: 'heartbeat',
-      title: '心跳检测',
-      description: '基础连通性检测包',
-      mode: 'hex',
-      payload: 'AA 55 00 01 FF'
+      id: 'send-power',
+      title: '发送功率',
+      description: '发送功率指令',
+      mode: 'ascii',
+      payload: 'POW 100'
     },
     {
-      id: 'device-reset',
-      title: '设备复位',
-      description: '重启设备控制逻辑',
+      id: 'send-frequency',
+      title: '发送频率',
+      description: '发送频率指令',
       mode: 'ascii',
-      payload: 'AT+RST'
+      payload: 'REPF 100'
     }
   ]
 }

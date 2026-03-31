@@ -189,15 +189,15 @@ export const defaultControllerParameters: ControllerParameters = {
 const userInputFields = (axis: ControllerAxisSettings): ParameterSection['fields'] => [
   { key: 'axisNo', label: '轴号', value: axis.axisNo },
   { key: 'axisName', label: '轴名称', value: axis.axisName },
-  { key: 'axisType', label: '轴类型(1步进/2伺服)', value: axis.axisType },
-  { key: 'units', label: '脉冲当量 UNITS', value: axis.units },
+  { key: 'axisType', label: '轴类型', value: axis.axisType },
+  { key: 'units', label: '脉冲当量', value: axis.units },
   { key: 'speed', label: '运行速度', value: axis.speed },
   { key: 'lspeed', label: '启动速度', value: axis.lspeed },
   { key: 'creep', label: '爬行速度', value: axis.creep },
   { key: 'accel', label: '加速度', value: axis.accel },
   { key: 'decel', label: '减速度', value: axis.decel },
   { key: 'merge', label: '连续插补', value: axis.merge },
-  { key: 'sramp', label: '加减速曲线 SRAMP', value: axis.sramp },
+  { key: 'sramp', label: '加减速曲线', value: axis.sramp },
   { key: 'fwd_in', label: '正限位输入', value: axis.fwd_in },
   { key: 'rev_in', label: '负限位输入', value: axis.rev_in },
   { key: 'corner_mode', label: '拐角模式', value: axis.corner_mode },
@@ -271,7 +271,7 @@ export const createControllerSections = (settings: ControllerParameters): Parame
     description: `固定 ${IO_MAP_GROUP_COUNT} 组；可由上位机下发或界面编辑。`,
     fields: settings.ioMap.map((row, i) => ({
       key: `io-${i}-in`,
-      label: `组 ${i} 数字量输入`,
+      label: `输入${i} `,
       value: row.digitalIn
     }))
   }
@@ -282,7 +282,7 @@ export const createControllerSections = (settings: ControllerParameters): Parame
     description: `固定 ${IO_MAP_GROUP_COUNT} 组；仅由驱动器回读，界面只读展示。`,
     fields: settings.ioMap.map((row, i) => ({
       key: `io-${i}-out`,
-      label: `组 ${i} 数字量输出`,
+      label: `输出${i}`,
       value: row.digitalOut
     }))
   }

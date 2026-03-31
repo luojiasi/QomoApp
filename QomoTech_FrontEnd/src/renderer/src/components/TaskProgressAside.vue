@@ -47,7 +47,7 @@ const progressText = computed(() => {
 
 <template>
   <aside
-    class="absolute right-4 top-20 bottom-4 z-20 flex w-14 min-h-0 flex-col items-center rounded-2xl border border-(--app-border) bg-(--app-card) p-2 shadow-[0_6px_14px_-6px_rgba(15,23,42,0.14)] dark:shadow-[0_6px_16px_-6px_rgba(0,0,0,0.42)]"
+    class="absolute left-1/2 top-23 bottom-4 z-20 flex w-14 min-h-0 flex-col items-center rounded-2xl border border-(--app-border) bg-(--app-card) p-2 shadow-[0_6px_14px_-6px_rgba(15,23,42,0.14)] dark:shadow-[0_6px_16px_-6px_rgba(0,0,0,0.42)]"
     aria-label="任务进度区域"
   >
     <div class="mb-2 text-center text-[10px] leading-4 text-(--app-text-muted)">
