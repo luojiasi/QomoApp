@@ -1,13 +1,26 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref,watch} from 'vue'
 import SvgIcon from './SvgIcon.vue'
 import { setMotionIoOutput } from '../utils/motionApi'
 import { apiCall } from '../utils/toBackendApiCall'
+
+const props = defineProps<{
+  motionIoMap: Array<{ digitalIn: boolean; digitalOut: boolean }>
+}>()
+
 
 const outPut = ref({
   output0: false,
   output1: false,
   output2: false
+})
+watch(() => props.motionIoMap, (ioMap) => {
+  const next = Array.isArray(ioMap) ? ioMap : []
+  outPut.value = {
+    output0: Boolean(next[0]?.digitalOut),
+    output1: Boolean(next[1]?.digitalOut),
+    output2: Boolean(next[2]?.digitalOut)
+  }
 })
 
 const handleSkip = async () => {
@@ -49,7 +62,7 @@ const handleOutput2 = async () => {
       @click="handleOutput0"
       :class="[
         'flex h-12 w-12 items-center justify-center rounded-lg border-2 shadow-sm transition-colors duration-200',
-        outPut.output0
+        Boolean(motionIoMap?.[0]?.digitalOut)
           ? 'border-green-500 bg-green-500 text-white shadow-green-900/20'
           : 'border-(--app-border) bg-(--app-card-soft) text-(--app-text-muted) hover:border-sky-400/50 hover:text-(--app-text-secondary)'
       ]"
@@ -62,20 +75,20 @@ const handleOutput2 = async () => {
       @click="handleOutput1"
       :class="[
         'flex h-12 w-12 items-center justify-center rounded-lg border-2 shadow-sm transition-colors duration-200',
-        outPut.output1
+        Boolean(motionIoMap?.[1]?.digitalOut)
           ? 'border-green-500 bg-green-500 text-white shadow-green-900/20'
           : 'border-(--app-border) bg-(--app-card-soft) text-(--app-text-muted) hover:border-sky-400/50 hover:text-(--app-text-secondary)'
       ]"
       @keydown.enter.prevent
     >
-      <SvgIcon icon-name="icon-switch" class-name="text-2xl" />
+      <SvgIcon icon-name="icon-kejian" class-name="text-2xl" />
     </button>
     <button
       type="button"
       @click="handleOutput2"
       :class="[
         'flex h-12 w-12 items-center justify-center rounded-lg border-2 shadow-sm transition-colors duration-200',
-        outPut.output2
+        Boolean(motionIoMap?.[2]?.digitalOut)
           ? 'border-green-500 bg-green-500 text-white shadow-green-900/20'
           : 'border-(--app-border) bg-(--app-card-soft) text-(--app-text-muted) hover:border-sky-400/50 hover:text-(--app-text-secondary)'
       ]"

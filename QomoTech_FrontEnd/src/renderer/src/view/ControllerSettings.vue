@@ -570,7 +570,7 @@ function normalizeAxisNumberInput(axisIdx: number, fieldKey: string): void {
               <h3 class="app-text-primary text-sm font-semibold">可配置（写入）</h3>
               <p class="app-text-muted mt-1 text-xs">{{ selectedAxisPair.write.description }}</p>
               <div class="mt-3 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:thin]">
-                <table class="min-w-[860px] w-full border border-(--app-border) border-collapse">
+                <table class="min-w-[300px] w-full border border-(--app-border) border-collapse">
                   <thead>
                     <tr class="border-b border-(--app-border)">
                       <th class="sticky left-0 z-10 bg-rose-950/10 px-3 py-2 text-left text-xs font-semibold app-text-secondary">
@@ -581,9 +581,8 @@ function normalizeAxisNumberInput(axisIdx: number, fieldKey: string): void {
                         :key="`write-col-lg-${axisIdx}`"
                         class="px-3 py-2 text-center text-xs font-semibold app-text-secondary"
                       >
-                        轴{{ axisIdx }}
                         <div class="text-[10px] font-normal app-text-muted mt-0.5">
-                          {{ axisTabLabels[axisIdx] }}
+                          轴{{ axisIdx }}   {{ axisTabLabels[axisIdx] }}
                         </div>
                       </th>
                     </tr>
@@ -632,7 +631,7 @@ function normalizeAxisNumberInput(axisIdx: number, fieldKey: string): void {
               <h3 class="app-text-primary text-sm font-semibold">驱动器回读（只读）</h3>
               <p class="app-text-muted mt-1 text-xs">{{ selectedAxisPair.read.description }}</p>
               <div class="mt-3 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:thin]">
-                <table class="min-w-[860px] w-full border border-(--app-border) border-collapse">
+                <table class="min-w-[200px] w-full border border-(--app-border) border-collapse">
                   <thead>
                     <tr class="border-b border-(--app-border)">
                       <th class="sticky left-0 z-10 bg-rose-950/10 px-3 py-2 text-left text-xs font-semibold app-text-secondary">
@@ -689,7 +688,6 @@ function normalizeAxisNumberInput(axisIdx: number, fieldKey: string): void {
 
     <div v-else class="mx-auto max-w-7xl space-y-6">
       <div class="space-y-6">
-
         <!-- 轴参数：标题与轴按钮同一行；其下 I/O 输出单行；再下左写入 / 右回读 -->
         <section v-if="axisPairs.length && selectedAxisPair" class="app-card rounded-2xl p-6 shadow-sm">
           <div
@@ -776,7 +774,7 @@ function normalizeAxisNumberInput(axisIdx: number, fieldKey: string): void {
             <!-- 左：该轴可写入 -->
             <div class="rounded-xl border-2 border-rose-500 bg-rose-950/10 p-4 shadow-sm" >
               <div class="mt-3 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:thin]">
-                <table class="min-w-[860px] w-full border border-(--app-border) border-collapse">
+                <table class="min-w-[300px] w-full border border-(--app-border) border-collapse">
                   <thead>
                     <tr class="border-b border-(--app-border)">
                       <th class="sticky left-0 z-10 bg-rose-950/10 px-3 py-2 text-left text-xs font-semibold app-text-secondary">
@@ -841,7 +839,7 @@ function normalizeAxisNumberInput(axisIdx: number, fieldKey: string): void {
               class="rounded-xl border-2 border-rose-500/35 bg-rose-950/10 p-4 shadow-sm"
             >
               <div class="mt-3 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:thin]">
-                <table class="min-w-[860px] w-full border border-(--app-border) border-collapse">
+                <table class="min-w-[300px] w-full border border-(--app-border) border-collapse">
                   <thead>
                     <tr class="border-b border-(--app-border)">
                       <th class="sticky left-0 z-10 bg-rose-950/10 px-3 py-2 text-left text-xs font-semibold app-text-secondary">
@@ -896,6 +894,8 @@ function normalizeAxisNumberInput(axisIdx: number, fieldKey: string): void {
               </div>
             </div>
           </div>
+
+          
         </section>
       </div>
     </div>

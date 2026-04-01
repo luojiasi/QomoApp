@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import CollapsiblePanelHeader from './CollapsiblePanelHeader.vue'
 import OutputComponent from './OutputComponent.vue'
 import { useControllerSettingsStore } from '../stores/controllerSettingsStore'
@@ -22,20 +22,20 @@ const controllerStore = useControllerSettingsStore()
 const emit = defineEmits<{(e: 'open-right-panel', target: string): void}>()
 
 const isDriverPanelExpanded = ref(true)
-const selectedDriverAxisIndex = ref(0)
+// const selectedDriverAxisIndex = ref(0)
 // const movingAbs = ref(false)
 // const emergencyStopping = ref(false)
 // const zeroingAxis = ref(false)
 let unsubscribeHardwareStatus: (() => void) | null = null
 
-type AxisEditSnapshot = {
-  commandPosition: number
-  speed: number
-}
+// type AxisEditSnapshot = {
+//   commandPosition: number
+//   speed: number
+// }
 
-const axisEditCache = ref<Record<number, AxisEditSnapshot>>({})
-const editCommandPosition = ref<number>(0)
-const editSpeed = ref<number>(0)
+// const axisEditCache = ref<Record<number, AxisEditSnapshot>>({})
+// const editCommandPosition = ref<number>(0)
+// const editSpeed = ref<number>(0)
 
 
 // const selectedAxis = computed(() => {
@@ -72,45 +72,45 @@ const axisMposLabels = computed(() => {
   })
 })
 
-function ensureAxisEditSnapshot(axisIndex: number): AxisEditSnapshot | null {
-  const axis = controllerStore.controllerSettings.axes[axisIndex]
-  if (!axis) return null
-  if (!axisEditCache.value[axisIndex]) {
-    axisEditCache.value[axisIndex] = {
-      // 仅在创建/首次选择该轴时读取一次本地参数
-      commandPosition: Number.isFinite(axis.dpos) ? axis.dpos : 0,
-      speed: Number.isFinite(axis.speed) && axis.speed > 0 ? axis.speed : 20,
-    }
-  }
-  return axisEditCache.value[axisIndex]!
-}
+// function ensureAxisEditSnapshot(axisIndex: number): AxisEditSnapshot | null {
+//   const axis = controllerStore.controllerSettings.axes[axisIndex]
+//   if (!axis) return null
+//   if (!axisEditCache.value[axisIndex]) {
+//     axisEditCache.value[axisIndex] = {
+//       // 仅在创建/首次选择该轴时读取一次本地参数
+//       commandPosition: Number.isFinite(axis.dpos) ? axis.dpos : 0,
+//       speed: Number.isFinite(axis.speed) && axis.speed > 0 ? axis.speed : 20,
+//     }
+//   }
+//   return axisEditCache.value[axisIndex]!
+// }
 
-function applyEditSnapshotForSelectedAxis() {
-  const snapshot = ensureAxisEditSnapshot(selectedDriverAxisIndex.value)
-  if (!snapshot) return
-  editCommandPosition.value = snapshot.commandPosition
-  editSpeed.value = snapshot.speed
-}
+// function applyEditSnapshotForSelectedAxis() {
+//   const snapshot = ensureAxisEditSnapshot(selectedDriverAxisIndex.value)
+//   if (!snapshot) return
+//   editCommandPosition.value = snapshot.commandPosition
+//   editSpeed.value = snapshot.speed
+// }
 
-watch(
-  selectedDriverAxisIndex,
-  () => {
-    applyEditSnapshotForSelectedAxis()
-  },
-  { immediate: true }
-)
+// watch(
+//   selectedDriverAxisIndex,
+//   () => {
+//     applyEditSnapshotForSelectedAxis()
+//   },
+//   { immediate: true }
+// )
 
-watch(
-  () => controllerStore.controllerSettings.axes.length,
-  (len) => {
-    if (len > 0 && selectedDriverAxisIndex.value >= len) {
-      selectedDriverAxisIndex.value = len - 1
-    }
-    if (len > 0 && !axisEditCache.value[selectedDriverAxisIndex.value]) {
-      applyEditSnapshotForSelectedAxis()
-    }
-  }
-)
+// watch(
+//   () => controllerStore.controllerSettings.axes.length,
+//   (len) => {
+//     if (len > 0 && selectedDriverAxisIndex.value >= len) {
+//       selectedDriverAxisIndex.value = len - 1
+//     }
+//     if (len > 0 && !axisEditCache.value[selectedDriverAxisIndex.value]) {
+//       applyEditSnapshotForSelectedAxis()
+//     }
+//   }
+// )
 
 function applyMotionStatusToAxes(statusData: Record<string, Record<string, unknown>>) {
   const axes = controllerStore.controllerSettings.axes
@@ -138,10 +138,15 @@ function applyMotionStatusToAxes(statusData: Record<string, Record<string, unkno
   }
 }
 
+let ioMapForChild = ref<Array<{ digitalIn: boolean; digitalOut: boolean }>>([])
+
 onMounted(() => {
   unsubscribeHardwareStatus = subscribeHardwareStatus((res) => {
     if (!res?.success || !res.data || typeof res.data !== 'object') return
     const payload = res.data as HardwareStatusPayload
+    const ioMapFor = payload.state?.motion_io_map
+    if (!ioMapFor || typeof ioMapFor !== 'object') return
+    ioMapForChild.value = Array.isArray(ioMapFor)? ioMapFor.map((item) => ({digitalIn: Boolean(item?.digitalIn),digitalOut: Boolean(item?.digitalOut)})): []
     const axisFromState = payload.state?.motion_axis_feedback
     const axisFromDriver = payload.motion_driver_status?.axis_status
     const axisData = axisFromState ?? axisFromDriver
@@ -149,7 +154,7 @@ onMounted(() => {
     applyMotionStatusToAxes(axisData as Record<string, Record<string, unknown>>)
   }, {
     autoStart: true,
-    intervalMs: 200,
+    intervalMs: 50,
     runImmediately: true,
   })
 })
@@ -357,7 +362,7 @@ onUnmounted(() => {
       <div
         class="rounded-xl border border-(--app-border) bg-(--app-card-soft) p-3 shadow-sm shadow-slate-900/5 ring-1 ring-slate-950/4 dark:shadow-md dark:shadow-black/25 dark:ring-white/5"
       >
-        <OutputComponent />
+        <OutputComponent :motion-io-map="ioMapForChild" />
       </div>
     </div>
   </div>

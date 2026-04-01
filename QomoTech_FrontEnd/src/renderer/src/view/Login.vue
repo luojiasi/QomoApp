@@ -4,19 +4,29 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useNotification } from '@/composables/useNotification'
 import { useLicenseStore } from '../stores/license'
-import { useControllerSettingsStore } from '../stores/controllerSettingsStore'
+// import { useControllerSettingsStore } from '../stores/controllerSettingsStore'
 import { getDesktopBackendRuntimeStatus, type BackendRuntimeStatus } from '../utils/desktopBridge'
-import { bootstrapControllerOnce } from '../utils/backendBootstrap'
+// import { bootstrapControllerOnce } from '../utils/backendBootstrap'
 const { success, error } = useNotification()
 
 
 const router = useRouter()
 const authStore = useAuthStore()
 const licenseStore = useLicenseStore()
-const controllerSettingsStore = useControllerSettingsStore()
+// const controllerSettingsStore = useControllerSettingsStore()
 
 const username = ref('')
 const password = ref('')
+
+
+
+
+
+
+
+
+// 获取控制器状态
+
 const backendStatus = ref<BackendRuntimeStatus>({
   state: 'starting',
   isReachable: false,
@@ -26,21 +36,19 @@ const backendStatus = ref<BackendRuntimeStatus>({
 const BACKEND_POLL_MS = 2000
 let backendPollTimer: ReturnType<typeof setInterval> | undefined
 
-const refreshBackendStatus = async () => {
-  backendStatus.value = await getDesktopBackendRuntimeStatus()
-}
+const refreshBackendStatus = async () => backendStatus.value = await getDesktopBackendRuntimeStatus()
 
 const backendDotClass = computed(() => {
   switch (backendStatus.value.state) {
     case 'running':
       return 'bg-green-500'
-    case 'starting':
-    case 'restarting':
-      return 'bg-yellow-500'
     default:
       return 'bg-red-500'
   }
 })
+
+
+
 
 const canLogin = computed(() => backendStatus.value.state === 'running')
 
@@ -72,15 +80,15 @@ const handleLogin = async () => {
 
   success(result.message)
 
-  try {
-    await controllerSettingsStore.loadControllerSettings()
-    const controllerRes = await bootstrapControllerOnce(controllerSettingsStore.controllerSettings)
-    if (!controllerRes.success) {
-      error(controllerRes.message)
-    }
-  } catch {
-    error('控制器初始化失败：无法连接后端或硬件未就绪。')
-  }
+  // try {
+  //   await controllerSettingsStore.loadControllerSettings()
+  //   const controllerRes = await bootstrapControllerOnce(controllerSettingsStore.controllerSettings)
+  //   if (!controllerRes.success) {
+  //     error(controllerRes.message)
+  //   }
+  // } catch {
+  //   error('控制器初始化失败：无法连接后端或硬件未就绪。')
+  // }
 
   await router.push('/home')
 }

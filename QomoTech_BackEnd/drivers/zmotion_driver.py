@@ -486,7 +486,6 @@ class ZMotionDriver(BaseDriver):
                 "decel": float(axis.decel),
                 "sramp": float(axis.sramp),
                 "axis_status": int(axis.axis_status),
-                "axisstatus": int(axis.axis_status),
                 "fs_limit": int(axis.fs_limit),
                 "rs_limit": int(axis.rs_limit),
                 "axis_type": runtime["axis_type"],

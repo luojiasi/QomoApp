@@ -14,10 +14,7 @@ const unsupportedStatus: BackendRuntimeStatus = {
 
 export const getDesktopBackendRuntimeStatus = async (): Promise<BackendRuntimeStatus> => {
   const getter = window.api?.getBackendRuntimeStatus
-  if (!getter) {
-    return unsupportedStatus
-  }
-
+  if (!getter) return unsupportedStatus
   try {
     return await getter()
   } catch (error) {

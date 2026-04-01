@@ -487,8 +487,10 @@ def wangFuLoop(
                 # 移动到起点
                 startX = originalPoints[0].get('x')
                 startY = originalPoints[0].get('y')
-                resultX = controller.absolute_move_speed({'axis':0,'moveDistance':startX,'speed':runSpeed*middleCuttingSpeedRate})
-                resultY = controller.absolute_move_speed({'axis':1,'moveDistance':startY,'speed':runSpeed*middleCuttingSpeedRate})
+                # resultX = controller.absolute_move_speed({'axis':0,'moveDistance':startX,'speed':runSpeed*middleCuttingSpeedRate})
+                # resultY = controller.absolute_move_speed({'axis':1,'moveDistance':startY,'speed':runSpeed*middleCuttingSpeedRate})
+                resultX = controller.absolute_move_speed({'axis':0,'moveDistance':1000,'speed':1})
+                resultY = controller.absolute_move_speed({'axis':1,'moveDistance':1000,'speed':1})
                 if not resultX.get('success') or not resultY.get('success') or resultX is None or resultY is None:
                     return False
                 step = 20
@@ -510,10 +512,10 @@ def wangFuLoop(
                     resultX = controller.get_notIsMoving(0)
                     resultY = controller.get_notIsMoving(1)
                     print(resultY)
+                    if paused_seen:
+                        step = 20
+                        break
                     if resultX.get('success') and resultY.get('success'):
-                        if paused_seen:
-                            step = 20
-                            break
                         if resultX.get('notMoving')==-1 and resultY.get('notMoving')==-1:
                             step =21
                             break
@@ -577,7 +579,7 @@ def wangFuLoop(
                     result = controller.get_notIsMoving(2)
                     if result.get('success') and result is not None:
                         if paused_seen:
-                            r_z = controller.absolute_move_speed({'axis': 2, 'moveDistance': float(z_target_depth), 'speed': runSpeed*middleCuttingSpeedRate})
+                            r_z = controller.absolute_move_speed({'axis': 2, 'moveDistance': float(z_target_depth), 'speed': runSpeed})
                             if not r_z.get('success'):
                                 return False
                             paused_seen = False

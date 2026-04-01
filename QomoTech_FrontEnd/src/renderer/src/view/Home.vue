@@ -14,44 +14,40 @@ import CameraPic from '../components/cameraPic.vue'
 import ShowAndDrawInHome from '../components/showAndDrawInHome.vue'
 import TaskProgressAside from '../components/TaskProgressAside.vue'
 import ControllerSettings from './ControllerSettings.vue'
-import { deviceFeatureRoutes } from '../configs/settings'
-import { useNotification } from '../composables/useNotification'
-import { useControllerSettingsStore } from '../stores/controllerSettingsStore'
-import { useQomo5PStore } from '../stores/qomo5pEditor'
-import { bootstrapControllerOnce } from '../utils/backendBootstrap'
-import { getDesktopBackendRuntimeStatus, type BackendRuntimeStatus } from '../utils/desktopBridge'
-import { getStartProgramStatusWsUrl } from '../utils/toBackendApiCall'
-import { subscribeGlobalKeyboard } from '../utils/globalKeyboard'
-import {
-  setMotionIoOutput,
-  moveMotionAxisRel,
-  startProgram,
-  getStartProgramStatus,
-  startProgramControl,
-  moveMotionAxisAbs,
-  getHardwareStatus
-} from '../utils/motionApi'
-import DetailedRs232Send from './DetailedRs232Send.vue'
 
+
+
+
+// 需要用的时候添加的routers
+import { deviceFeatureRoutes } from '../configs/settings'
 const featureLinks = deviceFeatureRoutes
-const controllerSettingsStore = useControllerSettingsStore()
+
+// 全局显示状态
+import { useNotification } from '../composables/useNotification'
 const { error, success } = useNotification()
+
+// 控制器参数保存在本地
+import { useControllerSettingsStore } from '../stores/controllerSettingsStore'
+const controllerSettingsStore = useControllerSettingsStore()
+
+// 5P参数
+import { useQomo5PStore } from '../stores/qomo5pEditor'
 const qomo5pStore = useQomo5PStore()
 const { entities } = storeToRefs(qomo5pStore)
 
+// 个人觉得只是用来初始化驱动器的参数
+import { bootstrapControllerOnce } from '../utils/backendBootstrap'
+import { getDesktopBackendRuntimeStatus, type BackendRuntimeStatus } from '../utils/desktopBridge'
 const backendStatus = ref<BackendRuntimeStatus>({
   state: 'starting',
   isReachable: false,
   message: '正在检测后台服务...'
 })
-
 const BACKEND_POLL_MS = 2000
 let backendPollTimer: ReturnType<typeof setInterval> | undefined
-
 const refreshBackendStatus = async (): Promise<void> => {
   backendStatus.value = await getDesktopBackendRuntimeStatus()
 }
-
 const backendDotClass = computed(() => {
   switch (backendStatus.value.state) {
     case 'running':
@@ -64,13 +60,37 @@ const backendDotClass = computed(() => {
   }
 })
 
-type ControllerRuntimeState = 'checking' | 'connected' | 'disconnected'
 
-const controllerStatus = ref<{
-  state: ControllerRuntimeState
-  isConnected: boolean
-  message: string
-}>({
+import { getStartProgramStatusWsUrl } from '../utils/toBackendApiCall'
+import { subscribeGlobalKeyboard } from '../utils/globalKeyboard'
+import {
+  setMotionIoOutput,
+  moveMotionAxisRel,
+  startProgram,
+  getStartProgramStatus,
+  startProgramControl,
+  moveMotionAxisAbs,
+  getHardwareStatus
+} from '../utils/motionApi'
+import DetailedRs232Send from './DetailedRs232Send.vue'
+import SvgIcon from '@/components/SvgIcon.vue'
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+type ControllerRuntimeState = 'checking' | 'connected' | 'disconnected'
+const controllerStatus = ref<{ state: ControllerRuntimeState, isConnected: boolean, message: string }>({
   state: 'checking',
   isConnected: false,
   message: '正在检测控制器连接...'
@@ -117,6 +137,51 @@ const refreshControllerStatus = async (): Promise<void> => {
   }
 }
 
+const onRefreshClick = async (): Promise<void> => {
+  console.log('onRefreshClick')
+  const result = await bootstrapControllerOnce(controllerSettingsStore.controllerSettings)
+  console.log('result', result)
+}
+
+
+
+
+
+
+const axisStatusLabels = computed(()=>{
+  const axisNames = ['X', 'Y', 'Z', 'R', 'U']
+  return axisNames.map((name, axisNo) => {
+    const axis = controllerSettingsStore.controllerSettings.axes.find((a) => a.axisNo === axisNo)
+    const status = axis ? Number(axis.axisstatus) : NaN
+    if (!Number.isFinite(status)) {
+      return {
+        status:status,
+        label: `${name}: 未知`
+      }
+    }
+
+    const labels: string[] = []
+    if ((status & 16) !== 0) labels.push('正向硬限位异常')
+    if ((status & 32) !== 0) labels.push('负向硬限位异常')
+
+    if (labels.length === 0) {
+      return {
+        status:status,
+        label: `${name}: 正常`
+      }
+    }
+
+    return {
+      status:status,
+      label: `${name}: ${labels.join('，')}`
+    }
+  })
+})
+
+
+
+
+
 /**
  * 右侧区域的“嵌入式 View”切换。
  * 目前由 CollapsiblePanelHeader 触发，传入字符串标识。
@@ -142,6 +207,9 @@ function openRightPanel(target: string): void {
 function closeRightPanel(): void {
   rightPanelViewId.value = null
 }
+
+
+// 键盘监听
 
 const Qkey = ref(false)
 const Wkey = ref(false)
@@ -423,6 +491,16 @@ async function onSkipTaskClick(): Promise<void> {
   success(r?.message || '已请求跳过。')
 }
 
+
+
+
+
+
+
+
+
+
+
 const unsubscribeKeyboard = subscribeGlobalKeyboard((e) => {
 
   const keyword = e.key.toUpperCase() 
@@ -609,6 +687,12 @@ const unsubscribeKeyboard = subscribeGlobalKeyboard((e) => {
   }
 })
 
+
+
+
+
+
+
 onUnmounted(() => {
   unsubscribeKeyboard()
   stopProgramStatusWebSocket()
@@ -630,13 +714,14 @@ onMounted(async () => {
   // 监听后台/控制器连接状态（用于右上角彩色指示）
   await refreshBackendStatus()
   await refreshControllerStatus()
-  backendPollTimer = setInterval(() => {
-    void refreshBackendStatus()
-  }, BACKEND_POLL_MS)
-  controllerPollTimer = setInterval(() => {
-    void refreshControllerStatus()
-  }, CONTROLLER_POLL_MS)
+  backendPollTimer = setInterval(() => {void refreshBackendStatus()}, BACKEND_POLL_MS)
+  controllerPollTimer = setInterval(() => {void refreshControllerStatus()}, CONTROLLER_POLL_MS)
 
+
+
+
+
+  // 进入这个页面就下发一次参数
   await controllerSettingsStore.loadControllerSettings()
   try {
     const controllerRes = await bootstrapControllerOnce(controllerSettingsStore.controllerSettings)
@@ -646,6 +731,14 @@ onMounted(async () => {
   } catch {
     error('控制器初始化失败：无法连接后端或硬件未就绪。')
   }
+
+
+
+
+
+
+
+
   try {
     await syncProgramStatusOnEnter()
   } catch {
@@ -657,11 +750,11 @@ onMounted(async () => {
 
 <template>
   <div class="app-page relative min-h-screen">
-    <div class="absolute left-50 top-8 z-10">
+    <div class="absolute right-[5%] top-8 z-10">
       <HomeUserBar />
     </div>
 
-    <div class="absolute left-15 top-4 z-10">
+    <div class="absolute left-[3%] top-4 z-10">
       <!-- 监听连接状态：放在“退出登录”右侧 -->
       <div class="flex flex-row gap-1">
           <div class="flex items-center gap-2">
@@ -672,14 +765,17 @@ onMounted(async () => {
             <span class="h-2 w-2 rounded-full" :class="controllerDotClass" />
             <span class="text-xs text-(--app-text-secondary)">控制器</span>
           </div>
+          <button @click="onRefreshClick">
+            <SvgIcon icon-name="icon-refresh" class-name=" text-sm" />
+          </button>
         </div>
     </div>
 
-    <div class="absolute right-8 top-2 z-999">
+    <div class="absolute left-[50%] top-2 z-999">
       <RouteTabs :links="featureLinks" :show-home-link="false" />
     </div>
 
-    <div class="fixed left-[40%] top-[2%] z-50 flex -translate-x-1/2 transform space-x-4">
+    <div class="fixed left-[25%] top-[2%] z-50 flex -translate-x-1/2 transform space-x-4">
       <button
         class="z-50 h-16 w-16 rounded-2xl bg-green-600 text-lg font-bold text-white shadow-xl transition-all duration-200 hover:scale-110 hover:border-2 hover:border-green-300 hover:bg-green-700 active:scale-90 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-400"
         @keydown.enter.prevent
@@ -737,6 +833,7 @@ onMounted(async () => {
         <StratProgramRunning
           :programRunning="programRunning"
           :programElapsedText="programElapsedText"
+          :axisStatusLabels="axisStatusLabels"
         />
         <RecipeParameterPanel
           @run-recipe-change="handleRunRecipeChange"
