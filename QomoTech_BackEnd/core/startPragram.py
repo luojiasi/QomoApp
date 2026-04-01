@@ -453,7 +453,7 @@ def wangFuLoop(
     
     # 下开口
     minOffset = lowerOpening = lowerOpeningK * height + lowerOpeningB
-    maxoffset = upperOpening = depthCompensationK * 2000 * (height+depthCompensationB) * tana + lowerOpening
+    maxoffset = upperOpening = depthCompensationK * 1000 * (height+depthCompensationB) * tana + lowerOpening
 
     originalPoints = OffsetEndpointCalculator.calc_xy_points(entities,0)[originalPointsNum]
     originalPoints_run = originalPoints.copy()
@@ -509,19 +509,21 @@ def wangFuLoop(
                         continue
                     resultX = controller.get_notIsMoving(0)
                     resultY = controller.get_notIsMoving(1)
+                    print(resultY)
                     if resultX.get('success') and resultY.get('success'):
                         if paused_seen:
                             step = 20
                             break
-                        step =21
-                        break
-                    if jumpOutCount>=2000:
-                        controller.open_output(2, 0)#关闭激光
-                        openLaser = False
-                        return False
-                    jumpOutCount+=1
-                    time.sleep(0.5)
-            
+                        if resultX.get('notMoving')==-1 and resultY.get('notMoving')==-1:
+                            step =21
+                            break
+                        else:
+                            if jumpOutCount>=2000:
+                                controller.open_output(2, 0)#关闭激光
+                                openLaser = False
+                                return False
+                            jumpOutCount+=1
+                            time.sleep(0.02)
             case 21:
                 if saoheiFlag:
                     step = 31
@@ -585,12 +587,7 @@ def wangFuLoop(
                     if jumpOutCount>=50:
                         return False
                     jumpOutCount+=1
-                    time.sleep(0.05)
-
-
-
-
-
+                    time.sleep(0.02)
 
             case 60:
                 # 连续运动（不下发 wait_until_done，便于暂停/急停时在 case 70 轮询）
@@ -633,13 +630,15 @@ def wangFuLoop(
                                 break
                             step = 60
                             break
-                        step = 80
-                        break
-                    if jumpOutCount>=2000:
-                        controller.open_output(2, 0)#关闭激光
-                        return False
-                    jumpOutCount+=1
-                    time.sleep(0.05)
+                        if resultX.get('notMoving')==-1 and resultY.get('notMoving')==-1:
+                            step = 80
+                            break
+                        else:
+                            if jumpOutCount>=2000:
+                                controller.open_output(2, 0)#关闭激光
+                                return False
+                            jumpOutCount+=1
+                            time.sleep(0.01)
             case 80:
                 if isPaddingFlag and cutTime < cutTimes:
                     # TODO:出现一个问题就是当我切割边缘的时候还是会移动到到起点进行切割

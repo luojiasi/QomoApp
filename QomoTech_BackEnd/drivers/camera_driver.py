@@ -97,6 +97,26 @@ class CameraDriver:
                     self._last_error = f"启动视频流失败: DeviceStart={status}"
                     self._camera.close_camera()
                     return False
+                status = self._camera.set_mirror(MD_HORIZONTAL, True)
+                if status != 0:
+                    self._last_error = f"设置水平镜像失败: {status}"
+                    self._camera.close_camera()
+                    return False
+                status = self._camera.set_frame_speed(HIGH_SPEED, True)
+                if status != 0:
+                    self._last_error = f"设置帧率失败: {status}"
+                    self._camera.close_camera()
+                    return False
+                status = self._camera.set_auto_exposure(True)
+                if status != 0:
+                    self._last_error = f"设置自动曝光失败: {status}"
+                    self._camera.close_camera()
+                    return False
+                status = self._camera.set_auto_white_balance(True)
+                if status != 0:
+                    self._last_error = f"设置自动白平衡失败: {status}"
+                    self._camera.close_camera()
+                    return False
 
                 self._selected_index = int(index)
                 self._clear_error()

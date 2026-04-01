@@ -55,8 +55,9 @@ class ZMotionAdapter:
         key = str(int(axis_no))
         if key not in st:
             return {"success": False}
-        idle = int(st[key].get("idle", 1))
-        return {"success": idle == 1}
+        idle = int(st[key].get("idle"))
+        idle = self._motion.getAxisisMoving(axis_no)
+        return {"success": True, "notMoving": idle}
 
     def get_xy_dpos_mm(self) -> tuple[float, float]:
         st = self._motion.get_axes_status()

@@ -446,7 +446,7 @@ class ZMotionDriver(BaseDriver):
                     axis.axis_status = axis_status_val
                 idle_val = self._read_zaux_value("ZAux_Direct_GetIfIdle", axis_no, cast=int)
                 if idle_val is not None:
-                    axis.moving = not bool(idle_val)
+                    axis.moving = idle_val
 
                 int_fields = {
                     "axis_type": "ZAux_Direct_GetAtype",
@@ -475,7 +475,7 @@ class ZMotionDriver(BaseDriver):
 
             status[str(axis_no)] = {
                 "axis_no": axis_no,
-                "idle": int(not axis.moving),
+                "idle": int(axis.moving),
                 "dpos": float(axis.pos_mm),
                 "mpos": float(axis.pos_mm),
                 "endmove": float(axis.pos_mm),
@@ -696,6 +696,9 @@ class ZMotionDriver(BaseDriver):
         self._clear_error()
         return True
 
+    def getAxisisMoving(self, axis_no: int) -> bool:
+        idle_val = self._read_zaux_value("ZAux_Direct_GetIfIdle", axis_no, cast=int)
+        return idle_val
     @property
     def driver_mode(self) -> str:
         return self._driver_mode
