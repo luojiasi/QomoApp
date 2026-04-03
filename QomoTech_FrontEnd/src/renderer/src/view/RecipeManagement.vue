@@ -70,14 +70,14 @@ const openingShapeFormulaPresets: Record<
     compensationAngleFormula: { k: 0, b: 0 }
   },
   '||型': {
-    angleFormula: { k: 0, b: 2 },
-    lowerOpeningFormula: { k: 5, b: 90 },
-    depthCompensationFormula: { k: 2, b: 1 },
+    angleFormula: { k: 0, b: 0 },
+    lowerOpeningFormula: { k: 0, b: 50 },
+    depthCompensationFormula: { k: 0, b: 0 },
     compensationAngleFormula: { k: 0, b: 0 }
   },
   '//型': {
-    angleFormula: { k: 0.54, b: 2 },
-    lowerOpeningFormula: { k: 5, b: 35 },
+    angleFormula: { k: 0.54, b: 0 },
+    lowerOpeningFormula: { k: 0, b: 50 },
     depthCompensationFormula: { k: 2, b: 0.5 },
     compensationAngleFormula: { k: 0, b: 0 }
   }

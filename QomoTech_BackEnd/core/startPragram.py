@@ -738,5 +738,142 @@ def wangFuLoop(
                     return "abort"
     return True
 
-def xunhuaiLoop():
+def xunhuaiLoop(    
+    originalPointsNum: int,
+    recipe_payload: dict[str, Any],
+    controller: ZMotionAdapter,
+    entities: list[dict[str, Any]],
+    *,
+    rs232: Rs232Driver | None = None,
+    rs232_open: dict[str, Any] | None = None,
+) -> bool | str:  # True / False / "skip" / "abort"
+    
+    mainRecipe = recipe_payload.get("selectedMainRecipe") or {}
+
+    # 子配方对象在前端 payload 中是“数组形式”（例如 selectedBlackeningRecipe: [blackening]）
+    blackeningRecipe = searchIdInRecipe(recipe_payload.get("selectedBlackeningRecipe"),mainRecipe.get("blackeningRecipeId"),)
+    machiningRecipe = searchIdInRecipe(recipe_payload.get("selectedMachiningRecipe"),mainRecipe.get("machiningRecipeId"),)
+    cleaningRecipe = searchIdInRecipe(recipe_payload.get("selectedCleaningRecipe"),mainRecipe.get("cleaningRecipeId"),)
+
+    if blackeningRecipe is None or machiningRecipe is None or cleaningRecipe is None:
+        logger.warning("wangFuLoop: mainRecipe -> 子配方查找失败",extra={"mainRecipeId": mainRecipe.get("id"),"blackeningRecipeId": mainRecipe.get("blackeningRecipeId"),"machiningRecipeId": mainRecipe.get("machiningRecipeId"),"cleaningRecipeId": mainRecipe.get("cleaningRecipeId"),},)
+        return False
+    # 激光/公式对象在前端 payload 中是数组合并后的结果
+    blackeningLaserPowerRecipe = searchIdInRecipe(recipe_payload.get("selectedLaserRecipe"),blackeningRecipe.get("laserPowerRecipeId"),)
+    machiningLaserPowerRecipe = searchIdInRecipe(recipe_payload.get("selectedLaserRecipe"),machiningRecipe.get("laserPowerRecipeId"),)
+
+    machiningHorizontalFormula = searchIdInRecipe(recipe_payload.get("selectedHorizontal"),machiningRecipe.get("horizontalFormulaId"))
+    machiningVerticalFormula = searchIdInRecipe(recipe_payload.get("selectedVertical"),machiningRecipe.get("verticalFormulaId"))
+    cleaningHorizontalFormula = searchIdInRecipe(recipe_payload.get("selectedHorizontal"),cleaningRecipe.get("horizontalFormulaId"))
+    cleaningVerticalFormula = searchIdInRecipe(recipe_payload.get("selectedVertical"),cleaningRecipe.get("verticalFormulaId"))
+
+    if ( blackeningLaserPowerRecipe is None or machiningLaserPowerRecipe is None or machiningHorizontalFormula is None or machiningVerticalFormula is None or cleaningHorizontalFormula is None or cleaningVerticalFormula is None ):
+        logger.warning("wangFuLoop: 子配方 -> 公式/激光查找失败",extra={"blackeningRecipeId": blackeningRecipe.get("id"),"machiningRecipeId": machiningRecipe.get("id"),"cleaningRecipeId": cleaningRecipe.get("id"),},)
+        return False
+
+    saoheiPower = blackeningLaserPowerRecipe.get("laserPower")
+    saoheiFrequency = blackeningLaserPowerRecipe.get("laserFrequency")
+    saoheiCurrent = blackeningLaserPowerRecipe.get("laserCurrent")
+
+    workPower = machiningLaserPowerRecipe.get("laserPower")
+    workFrequency = machiningLaserPowerRecipe.get("laserFrequency")
+    workCurrent = machiningLaserPowerRecipe.get("laserCurrent")
+
+
+
+    # TODO: 后续根据这些 recipe 对应字段执行真实运动逻辑
+    step=0
+    needJump = False
+    isPaddingFlag = True
+    jindubaifenbi = 0
+    previous_increments =0
+    pointOffset = 0
+    minToMax = True
+    _depth = 0
+    cutTime=0
+    openLaser = False
+
+    height = depth = float(recipe_payload.get('extraHeight')) 
+    decreasingRate = float(machiningVerticalFormula.get("formula").get("changePercent"))#变化百分比
+    offsetStep = float(machiningVerticalFormula.get("formula").get("xFeed"))#X-FEED
+
+
+    depthStep = float(machiningVerticalFormula.get("formula").get("descentCutting").get("speed"))#下降速度
+    decreasingRateReduce = float(machiningVerticalFormula.get("formula").get("descentCutting").get("zFeed"))#Z-FEED
+
+    
+    cutTimes = float(machiningVerticalFormula.get("formula").get("edgeCutting").get("cutTimes"))#边缘切割次数
+    middleCutTimes = float(machiningVerticalFormula.get("formula").get("middleCutting").get("cutTimes"))#中间切割次数
+
+    runSpeed = float(machiningVerticalFormula.get("formula").get("xSpeed"))#X-SPEED
+    edgeCuttingSpeedRate = float(machiningVerticalFormula.get("formula").get("edgeCutting").get("speed"))/100#边缘切割速度百分比
+    middleCuttingSpeedRate = float(machiningVerticalFormula.get("formula").get("middleCutting").get("speed"))/100#中间切割速度百分比
+
+    saoheiFlag = bool(blackeningRecipe.get("enabled"))
+    saoheishangtaigaodu = float(blackeningRecipe.get("jiaojubuchang"))/1000
+
+    jiaoduK  = float(machiningHorizontalFormula.get('formula').get('angleFormula').get('k'))
+    jiaoduB = float(machiningHorizontalFormula.get('formula').get('angleFormula').get('b'))
+
+    tana = math.tan(math.radians(jiaoduK))
+
+    lowerOpeningK = float(machiningHorizontalFormula.get('formula').get('lowerOpeningFormula').get('k'))
+    lowerOpeningB = float(machiningHorizontalFormula.get('formula').get('lowerOpeningFormula').get('b'))
+
+    depthCompensationK = float(machiningHorizontalFormula.get('formula').get('depthCompensationFormula').get('k'))
+    depthCompensationB = float(machiningHorizontalFormula.get('formula').get('depthCompensationFormula').get('b'))
+
+    compensationAngleK = float(machiningHorizontalFormula.get('formula').get('compensationAngleFormula').get('k'))
+    compensationAngleB = float(machiningHorizontalFormula.get('formula').get('compensationAngleFormula').get('b'))
+    
+    # 下开口
+    minOffset = lowerOpening = lowerOpeningK * height + lowerOpeningB
+    maxoffset = upperOpening = depthCompensationK * 1000 * (height+depthCompensationB) * tana + lowerOpening
+
+    originalPoints = OffsetEndpointCalculator.calc_xy_points(entities,0)[originalPointsNum]
+    originalPoints_run = originalPoints.copy()
+    isneedReceive = False
+    originalPoints_receive = originalPoints.copy()
+    z_original_position = controller.get_z_dpos_mm()
+    while step <= 300:
+        if _skip_requested():
+            _runtime_cleanup_outputs(controller)
+            _clear_skip_request()
+            return "skip"
+        if _abort_pending():
+            step = 300
+
+        match step:
+            case 0:
+                # 判断控制器是否连上
+                step=10
+            case 10:
+                break
+            case 20:
+                break
+            case 30:
+                break
+            case 40:
+                break
+            case 50:
+                break
+            case 60:
+                break
+            case 70:
+                break
+            case 80:
+                break
+            case 90:
+                break
+            case 100:
+                break
+            case 110:
+                break
+            case 150:
+                break
+            case 300:
+                break
+            case 999:
+                break
+
     return True
