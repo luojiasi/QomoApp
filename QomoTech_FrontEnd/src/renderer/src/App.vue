@@ -1,11 +1,12 @@
 <template>
+
   
-  <div class="fixed left-12 top-12 z-50 flex space-x-4">
-    <CameraPic :hidden-keep-alive="true" :show-hint="false" alt="global-camera-stream-keeper" />
+  <div class="fixed right-6 top-4 z-50 flex space-x-4">
+  <CameraPic :hidden-keep-alive="true" :show-hint="false" alt="global-camera-stream-keeper" />
     <button
-      class="flex h-4 w-4 cursor-pointer items-center justify-center rounded-full bg-red-500 shadow"
+      class="flex h-4 w-4 cursor-pointer items-center justify-center rounded-full bg-green-500 shadow"
       type="button"
-      @click="handleClose"
+      @click="handleMaximize"
     ></button>
     <button
       class="flex h-4 w-4 cursor-pointer items-center justify-center rounded-full bg-yellow-500 shadow"
@@ -13,10 +14,12 @@
       @click="handleMinimize"
     ></button>
     <button
-      class="flex h-4 w-4 cursor-pointer items-center justify-center rounded-full bg-green-500 shadow"
+      class="flex h-4 w-4 cursor-pointer items-center justify-center rounded-full bg-red-500 shadow"
       type="button"
-      @click="handleMaximize"
+      @click="handleClose"
     ></button>
+
+
   </div>
 
   <NotificationToast ref="toastRef" />
@@ -89,17 +92,11 @@ watch(
   { immediate: true }
 )
 
-const handleClose = (): void => {
-  window.electron?.ipcRenderer?.send('window-control', 'close')
-}
+const handleClose = (): void => {window.electron?.ipcRenderer?.send('window-control', 'close')}
 
-const handleMinimize = (): void => {
-  window.electron?.ipcRenderer?.send('window-control', 'minimize')
-}
+const handleMinimize = (): void => {window.electron?.ipcRenderer?.send('window-control', 'minimize')}
 
-const handleMaximize = (): void => {
-  window.electron?.ipcRenderer?.send('window-control', 'maximize')
-}
+const handleMaximize = (): void => {window.electron?.ipcRenderer?.send('window-control', 'maximize')}
 
 const syncLicenseStatus = async (): Promise<void> => {
   const status = await licenseStore.refreshStatus()

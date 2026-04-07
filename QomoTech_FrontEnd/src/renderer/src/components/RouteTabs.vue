@@ -37,7 +37,7 @@ const effectiveShowHomeLink = computed(() => props.showHomeLink && authStore.isA
 <template>
   <!-- 与 Home 工艺面板一致：页面用 --app-bg，导航条用 --app-card，比背景更亮 -->
   <nav
-    class="flex items-center justify-between rounded-2xl border border-(--app-border) bg-(--app-card) p-2 text-(--app-text-primary) shadow-[0_25px_50px_-12px_rgba(15,23,42,0.12),0_10px_20px_-6px_rgba(15,23,42,0.08)] ring-1 ring-slate-950/5 dark:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.55),0_10px_20px_-6px_rgba(0,0,0,0.45)] dark:ring-white/10"
+    class="flex items-center justify-between rounded-2xl border border-(--app-border) bg-(--app-card) p-1 text-(--app-text-primary) shadow-[0_25px_50px_-12px_rgba(15,23,42,0.12),0_10px_20px_-6px_rgba(15,23,42,0.08)] ring-1 ring-slate-950/5 dark:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.55),0_10px_20px_-6px_rgba(0,0,0,0.45)] dark:ring-white/10"
   >
     <div class="shrink-0">
       <button
@@ -46,7 +46,7 @@ const effectiveShowHomeLink = computed(() => props.showHomeLink && authStore.isA
         title="切换浅色 / 深色"
         @click="toggleColorScheme"
       >
-        <img :src="logo" alt="Logo" class="pointer-events-none h-10 w-10" />
+        <img :src="logo" alt="Logo" class="pointer-events-none h-6 w-6" />
       </button>
     </div>
 
@@ -77,7 +77,7 @@ const effectiveShowHomeLink = computed(() => props.showHomeLink && authStore.isA
       >
         <!-- {{ item.title }} -->
           <div class="flex flex-col items-center">
-            <SvgIcon :icon-name="item.title" class-name="text-2xl" />
+            <SvgIcon :icon-name="item.title" class-name="text-sm" />
             <span class="text-xs">{{ item.name }}</span>
           </div>
         

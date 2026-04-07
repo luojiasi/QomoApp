@@ -749,86 +749,79 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="app-page relative min-h-screen">
-    <div class="absolute right-[5%] top-8 z-10">
-      <HomeUserBar />
-    </div>
-
-    <div class="absolute left-[3%] top-4 z-10">
-      <!-- 监听连接状态：放在“退出登录”右侧 -->
-      <div class="flex flex-row gap-1">
-          <div class="flex items-center gap-2">
-            <span class="h-2 w-2 rounded-full" :class="backendDotClass" />
-            <span class="text-xs text-(--app-text-secondary)">后台</span>
-          </div>
-          <div class="flex items-center gap-2">
-            <span class="h-2 w-2 rounded-full" :class="controllerDotClass" />
-            <span class="text-xs text-(--app-text-secondary)">控制器</span>
-          </div>
-          <button @click="onRefreshClick">
-            <SvgIcon icon-name="icon-refresh" class-name=" text-sm" />
-          </button>
-        </div>
-    </div>
-
-    <div class="absolute left-[50%] top-2 z-999">
+    <div class="home-toolbar">
       <RouteTabs :links="featureLinks" :show-home-link="false" />
+      <div class="home-toolbar-sep" />
+      <div class="flex items-center gap-1">
+        <span class="h-2 w-2 rounded-full" :class="backendDotClass" />
+        <span class="text-xs text-(--app-text-secondary)">后台</span>
+        <span class="h-2 w-2 rounded-full" :class="controllerDotClass" />
+        <span class="text-xs text-(--app-text-secondary)">控制器</span>
+      </div>
+      <div class="home-toolbar-sep" />
+      <button @click="onRefreshClick">
+        <SvgIcon icon-name="icon-refresh" class-name=" text-sm" />
+      </button>
+      <div class="home-toolbar-sep" />
+      <div class="flex gap-3">
+        <button
+          class="z-50 h-10 w-16 rounded-2xl bg-green-600 text-lg font-bold text-white shadow-xl transition-all duration-200 hover:scale-110 hover:border-2 hover:border-green-300 hover:bg-green-700 active:scale-90 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-400"
+          @keydown.enter.prevent
+          :disabled="programRunning"
+          @click="onRunClick"
+        >
+          运行
+        </button>
+        <button
+          class="z-50 h-10 w-16 rounded-2xl bg-yellow-600 text-lg font-bold text-white shadow-xl transition-all duration-200 hover:scale-110 hover:border-2 hover:border-yellow-300 hover:bg-yellow-700 active:scale-90 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-400"
+          @keydown.enter.prevent
+          :disabled="!programRunning"
+          @click="onPauseToggleClick"
+        >
+          {{ programPaused ? '继续' : '暂停' }}
+        </button>
+        <button
+          class="z-50 h-10 w-16 rounded-2xl bg-blue-700 text-lg font-bold text-white shadow-xl transition-all duration-200 hover:scale-110 hover:border-2 hover:border-blue-300 hover:bg-blue-800 active:scale-90 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-400"
+          @keydown.enter.prevent
+          @click="onResetAlarmsClick"
+        >
+          复位
+        </button>
+        <button
+          class="z-50 h-10 w-16 rounded-2xl bg-red-700 text-lg font-bold text-white shadow-xl transition-all duration-200 hover:scale-110 hover:border-2 hover:border-red-300 hover:bg-red-800 active:scale-90 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-400"
+          @keydown.enter.prevent
+          @click="onEstopClick"
+        >
+          急停
+        </button>
+        <button
+          v-if="programTaskCount >= 2"
+          class="z-50 h-10 w-16 rounded-2xl bg-orange-600 text-lg font-bold text-white shadow-xl transition-all duration-200 hover:scale-110 hover:border-2 hover:border-orange-300 hover:bg-orange-700 active:scale-90 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-400"
+          @keydown.enter.prevent
+          :disabled="!programRunning"
+          @click="onSkipTaskClick"
+        >
+          跳过
+        </button>
+      </div>
+      <div class="home-toolbar-sep" />
+      <HomeUserBar />
+      <div class="home-toolbar-sep" />
+
     </div>
 
-    <div class="fixed left-[25%] top-[2%] z-50 flex -translate-x-1/2 transform space-x-4">
-      <button
-        class="z-50 h-16 w-16 rounded-2xl bg-green-600 text-lg font-bold text-white shadow-xl transition-all duration-200 hover:scale-110 hover:border-2 hover:border-green-300 hover:bg-green-700 active:scale-90 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-400"
-        @keydown.enter.prevent
-        :disabled="programRunning"
-        @click="onRunClick"
-      >
-        运行
-      </button>
-      <button
-        class="z-50 h-16 w-16 rounded-2xl bg-yellow-600 text-lg font-bold text-white shadow-xl transition-all duration-200 hover:scale-110 hover:border-2 hover:border-yellow-300 hover:bg-yellow-700 active:scale-90 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-400"
-        @keydown.enter.prevent
-        :disabled="!programRunning"
-        @click="onPauseToggleClick"
-      >
-        {{ programPaused ? '继续' : '暂停' }}
-      </button>
-      <button
-        class="z-50 h-16 w-16 rounded-2xl bg-blue-700 text-lg font-bold text-white shadow-xl transition-all duration-200 hover:scale-110 hover:border-2 hover:border-blue-300 hover:bg-blue-800 active:scale-90 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-400"
-        @keydown.enter.prevent
-        @click="onResetAlarmsClick"
-      >
-        复位
-      </button>
-      <button
-        class="z-50 h-16 w-16 rounded-2xl bg-red-700 text-lg font-bold text-white shadow-xl transition-all duration-200 hover:scale-110 hover:border-2 hover:border-red-300 hover:bg-red-800 active:scale-90 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-400"
-        @keydown.enter.prevent
-        @click="onEstopClick"
-      >
-        急停
-      </button>
-      <button
-        v-if="programTaskCount >= 2"
-        class="z-50 h-16 w-16 rounded-2xl bg-orange-600 text-lg font-bold text-white shadow-xl transition-all duration-200 hover:scale-110 hover:border-2 hover:border-orange-300 hover:bg-orange-700 active:scale-90 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-400"
-        @keydown.enter.prevent
-        :disabled="!programRunning"
-        @click="onSkipTaskClick"
-      >
-        跳过
-      </button>
-    </div>
-
-
+    <!-- 中间内容 -->
 
     <section
       v-if="rightPanelViewComponent"
-      class="absolute right-4 top-20 bottom-4 z-20 flex min-h-0 w-5/11 flex-col gap-3 overflow-y-auto p-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      class="absolute right-4 top-10 bottom-4 z-20 flex min-h-0 w-6/12 flex-col gap-3 overflow-y-auto p-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       <component :is="rightPanelViewComponent" embedded @back="closeRightPanel" />
     </section>
 
     <div v-else>
       <section
-        class="absolute right-4 top-20 bottom-4 z-20 flex min-h-0 w-[min(450px,calc(100vw-2rem))] flex-col gap-3 overflow-y-auto p-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        class="absolute right-4 top-16 bottom-4 z-20 flex min-h-0 w-[min(450px,calc(100vw-2rem))] flex-col gap-3 overflow-y-auto p-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         <StratProgramRunning
           :programRunning="programRunning"
@@ -847,7 +840,7 @@ onMounted(async () => {
 
 
       <aside
-        class="absolute left-8/15  top-20 bottom-4 z-20 flex min-h-0 w-108 max-w-[calc(100vw-2rem)] flex-col p-3"
+        class="absolute left-1/2 top-16 bottom-8 z-20 flex min-h-0 w-120 max-w-[calc(100vw-2rem)] flex-col p-3"
         aria-label="操作帮助区域"
       >
         <HomeOperationHelp />
@@ -855,24 +848,48 @@ onMounted(async () => {
     </div>
     
 
-    <main class="absolute left-4 w-[940px] top-20 bottom-4 z-10 p-3">
+    <main class="absolute left-4 w-[940px] top-16 bottom-8 z-10 p-3">
       <div
         class="relative h-full w-full overflow-hidden rounded-2xl border border-(--app-border) bg-transparent shadow-[0_6px_14px_-6px_rgba(15,23,42,0.14)] dark:shadow-[0_6px_16px_-6px_rgba(0,0,0,0.42)]"
       >
         <CameraPic object-fit="cover" />
-        <!-- 透明叠加层：中心十字 + 实体线段绘制，不遮挡相机画面 -->
         <ShowAndDrawInHome :scale="1" :upper-opening-mm="recipeUpperOpeningMm" />
       </div>
     </main>
-
-
-
-
-    <TaskProgressAside
+    <div class="flex items-center gap-2 absolute left-8 bottom-4 w-[940px]">
+      <TaskProgressAside
       :task-count="programTaskCount"
       :current-task-index="currentTaskIndex"
       :jindubaifenbi="currentTaskJindubaifenbi"
       :running="programRunning"
-    />
-  </div>
+      />
+    </div>
+
+
 </template>
+<style>
+.home-toolbar {
+  height: 52px;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 0;
+  background-color: var(--app-card);
+  border-bottom: 1px solid var(--app-border);
+  flex-shrink: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.home-toolbar::-webkit-scrollbar { display: none; }
+
+.home-toolbar-sep {
+  width: 1px;
+  height: 24px;
+  background-color: var(--app-border);
+  margin: 0 10px;
+  flex-shrink: 0;
+}
+</style>

@@ -44,7 +44,7 @@ const progressText = computed(() => {
   return `任务 ${current}/${safeTaskCount.value}`
 })
 </script>
-
+<!-- 
 <template>
   <aside
     class="absolute left-1/2 top-23 bottom-4 z-20 flex w-14 min-h-0 flex-col items-center rounded-2xl border border-(--app-border) bg-(--app-card) p-2 shadow-[0_6px_14px_-6px_rgba(15,23,42,0.14)] dark:shadow-[0_6px_16px_-6px_rgba(0,0,0,0.42)]"
@@ -71,4 +71,34 @@ const progressText = computed(() => {
       {{ jindubaifenbi.toFixed(0) }}%
     </div>
   </aside>
-</template>
+</template> -->
+<template>
+  <div class="flex w-full min-w-0 items-center gap-3" aria-label="任务进度区域">
+    <div class="shrink-0 text-xs text-(--app-text-muted) whitespace-nowrap">
+      {{ progressText }}
+    </div>
+
+    <div
+      v-if="safeTaskCount > 0"
+      class="flex h-5 flex-1 min-w-0 gap-0.5 overflow-hidden rounded-lg bg-(--app-card-soft) p-0.5"
+    >
+      <div
+        v-for="(fillRatio, idx) in segmentFillRatios"
+        :key="`task-seg-${idx}`"
+        class="relative flex-1 overflow-hidden rounded bg-(--app-bg)"
+      >
+        <div
+          class="absolute left-0 top-0 bottom-0 bg-blue-500 transition-all duration-300"
+          :style="{ width: `${fillRatio * 100}%` }"
+        />
+      </div>
+    </div>
+
+    <div v-else class="h-5 flex-1 rounded-lg bg-(--app-card-soft)" />
+
+    <div class="shrink-0 text-xs text-(--app-text-muted) whitespace-nowrap">
+      {{ Number.isFinite(jindubaifenbi) ? jindubaifenbi.toFixed(0) : '0' }}%
+    </div>
+  </div>
+</template> -->
+

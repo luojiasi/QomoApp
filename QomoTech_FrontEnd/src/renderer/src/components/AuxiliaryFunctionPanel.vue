@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue'
 import CollapsiblePanelHeader from './CollapsiblePanelHeader.vue'
 import {moveMotionAxisRel,setMotionIoOutput} from '../utils/motionApi'
 import { useNotification } from '../composables/useNotification'
-const { error } = useNotification()
+const { error,success } = useNotification()
 type AuxiliaryTabId =
   | 'axisCenterCalib'
   | 'quickDot'
@@ -140,6 +140,7 @@ const handleQuickConcentric = async()=>{
       setMotionIoOutput(2, true)
       await sleep(1000)
       setMotionIoOutput(2, false)
+      await moveMotionAxisRel(2,10)
     }
 
   }
@@ -148,6 +149,20 @@ const handleQuickConcentric = async()=>{
   }
 }
 
+const isAxisCenterCalib = ref(false)
+const handleAxisCenterCalib = async()=>{
+  if (isAxisCenterCalib.value) {
+    error("正在五轴中心校准中")
+    return
+  }
+  try{
+    isAxisCenterCalib.value = true
+  }
+  finally{
+    isAxisCenterCalib.value = false
+    success("五轴中心校准完成")
+  }
+}
 </script>
 
 <template>
@@ -185,12 +200,16 @@ const handleQuickConcentric = async()=>{
       <div
         class="rounded-xl border border-(--app-border) bg-(--app-card-soft) p-3 shadow-sm shadow-slate-900/5 ring-1 ring-slate-950/4 dark:shadow-md dark:shadow-black/25 dark:ring-white/5"
       >
-        <p
-          v-if="activeTab !== 'quickFocus'"
-          class="text-xs leading-relaxed text-(--app-text-muted)"
-        >
-          {{ sectionPlaceholders[activeTab] }}
-        </p>
+        <div v-if="activeTab === 'axisCenterCalib'" class="mt-2 space-y-3">
+          <button
+            type="button"
+            :disabled="isQuickFocusing"
+            @click="handleAxisCenterCalib"
+            class="w-full rounded-lg border border-sky-500/50 bg-sky-500/10 py-2 text-sm font-medium text-(--app-text-primary) transition hover:bg-sky-500/90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            五轴中心校准
+          </button>
+        </div>
         <div v-if="activeTab === 'quickFocus'" class="mt-2 space-y-3">
           <button
             type="button"
@@ -253,7 +272,7 @@ const handleQuickConcentric = async()=>{
             :disabled="isQuickFocusing"
             class="w-full rounded-lg border border-sky-500/50 bg-sky-500/10 py-2 text-sm font-medium text-(--app-text-primary) transition hover:bg-sky-500/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            设定找焦点
+            快速打点
           </button>
         </div>
         <div v-if="activeTab === 'quickConcentric'" class="mt-2 space-y-3">
@@ -264,6 +283,15 @@ const handleQuickConcentric = async()=>{
             class="w-full rounded-lg border border-sky-500/50 bg-sky-500/10 py-2 text-sm font-medium text-(--app-text-primary) transition hover:bg-sky-500/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             快速找同心度
+          </button>
+        </div>
+        <div v-if="activeTab === 'userCustom'" class="mt-2 space-y-3">
+          <button
+            type="button"
+            :disabled="isQuickFocusing"
+            class="w-full rounded-lg border border-sky-500/50 bg-sky-500/10 py-2 text-sm font-medium text-(--app-text-primary) transition hover:bg-sky-500/90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            用户自定义
           </button>
         </div>
       </div>

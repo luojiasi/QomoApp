@@ -10,7 +10,7 @@
     <!-- 顶部工具栏 -->
     <header class="h-12 w-full border-b border-slate-800 bg-slate-900/60 backdrop-blur">
       <div class="relative flex h-full items-center justify-between px-3">
-        <div class="relative px-40 flex items-center gap-2">
+        <div class="relative px-2 flex items-center gap-2">
           <!-- 左上角：文件菜单按钮 -->
           <button
             ref="fileBtnRef"
@@ -42,7 +42,7 @@
           </button>
         </div>
 
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 px-30">
           <button
             class="rounded-md border border-red-700/30 bg-blue-700 px-2 py-1 text-xs hover:bg-red-800 hover:border-blue-700"
             type="button"

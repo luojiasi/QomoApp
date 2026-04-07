@@ -95,3 +95,309 @@ body {
   border-color: var(--app-border);
   color: var(--app-text-primary);
 }
+
+
+
+
+/* ═══════════════════════════════════════════════════════
+   Windows-style Title Bar
+═══════════════════════════════════════════════════════ */
+
+.titlebar-root {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: var(--titlebar-height);
+  z-index: 9999;
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  background-color: var(--app-card);
+  border-bottom: 1px solid var(--app-border);
+  -webkit-app-region: drag;
+  user-select: none;
+  overflow: visible;
+}
+
+.titlebar-left {
+  display: flex;
+  align-items: stretch;
+  -webkit-app-region: no-drag;
+}
+
+.titlebar-logo-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  border-right: 1px solid var(--app-border);
+  cursor: pointer;
+  transition: background-color 0.12s;
+  -webkit-app-region: no-drag;
+}
+.titlebar-logo-btn:hover {
+  background-color: var(--app-card-soft);
+}
+
+.titlebar-menu-wrap {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  -webkit-app-region: no-drag;
+}
+
+.titlebar-menu-trigger {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding: 0 12px;
+  font-size: 12px;
+  color: var(--app-text-primary);
+  cursor: pointer;
+  transition: background-color 0.1s;
+  background: transparent;
+  border: none;
+  outline: none;
+}
+.titlebar-menu-trigger:hover,
+.titlebar-menu-trigger.is-active {
+  background-color: var(--app-card-soft);
+}
+
+.titlebar-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 10001;
+  min-width: 180px;
+  background-color: var(--app-card);
+  border: 1px solid var(--app-border);
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+  box-shadow: 0 8px 20px -4px rgba(15, 23, 42, 0.18);
+  padding: 4px 0;
+}
+
+.titlebar-dropdown-sep {
+  height: 1px;
+  background-color: var(--app-border);
+  margin: 4px 0;
+}
+
+.titlebar-dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 6px 14px;
+  font-size: 12px;
+  color: var(--app-text-primary);
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  outline: none;
+  white-space: nowrap;
+  transition: background-color 0.1s;
+  gap: 24px;
+}
+.titlebar-dropdown-item:hover {
+  background-color: var(--app-card-soft);
+}
+
+.titlebar-dropdown-shortcut {
+  font-size: 11px;
+  color: var(--app-text-muted);
+  flex-shrink: 0;
+}
+
+.titlebar-drag-area {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-app-region: drag;
+  overflow: hidden;
+}
+
+.titlebar-app-name {
+  font-size: 11px;
+  color: var(--app-text-muted);
+  letter-spacing: 0.04em;
+  pointer-events: none;
+}
+
+.titlebar-winctrl {
+  display: flex;
+  align-items: stretch;
+  -webkit-app-region: no-drag;
+}
+
+.titlebar-wc-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 100%;
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  outline: none;
+  transition: background-color 0.1s, color 0.1s;
+}
+.titlebar-wc-btn:hover {
+  background-color: var(--app-card-soft);
+}
+.titlebar-wc-close:hover {
+  background-color: #c42b1c !important;
+  color: #fff !important;
+}
+
+/* Main content area (below titlebar) */
+.app-main-content {
+  padding-top: var(--titlebar-height);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+/* ═══════════════════════════════════════════════════════
+   Home Page Layout
+═══════════════════════════════════════════════════════ */
+
+.home-page-root {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  background-color: var(--app-bg);
+  color: var(--app-text-primary);
+}
+
+/* Single merged toolbar: Navigation + Status + User + Operation buttons */
+.home-toolbar {
+  height: 52px;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 0;
+  background-color: var(--app-card);
+  border-bottom: 1px solid var(--app-border);
+  flex-shrink: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.home-toolbar::-webkit-scrollbar { display: none; }
+
+.home-toolbar-sep {
+  width: 1px;
+  height: 24px;
+  background-color: var(--app-border);
+  margin: 0 10px;
+  flex-shrink: 0;
+}
+
+/* Main content row */
+.home-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 8px;
+  padding: 8px 8px 4px 8px;
+  overflow: hidden;
+}
+
+/* Camera column (flex: 3) */
+.home-camera-col {
+  flex: 3;
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+  border: 1px solid var(--app-border);
+  background-color: #000;
+  box-shadow: 0 6px 14px -6px rgba(15, 23, 42, 0.14);
+}
+
+/* Operation Help column (flex: 1) */
+.home-ophelp-col {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.home-ophelp-col::-webkit-scrollbar { display: none; }
+
+/* Right control panels column (flex: 1) */
+.home-right {
+  flex: 1;
+  min-width: 0;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.home-right::-webkit-scrollbar { display: none; }
+
+/* Horizontal task progress bar at bottom */
+.home-task-bar {
+  height: 44px;
+  min-height: 44px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 8px;
+  background-color: var(--app-card);
+  border-top: 1px solid var(--app-border);
+}
+
+/* Operation buttons */
+.home-op-btn {
+  height: 34px;
+  min-width: 56px;
+  padding: 0 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  border: none;
+  outline: none;
+  transition: background-color 0.12s, opacity 0.12s, transform 0.08s;
+  flex-shrink: 0;
+}
+.home-op-btn:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+.home-op-btn:not(:disabled):active { transform: scale(0.94); }
+
+.home-op-run   { background: #16a34a; }
+.home-op-run:not(:disabled):hover   { background: #15803d; }
+.home-op-pause { background: #ca8a04; }
+.home-op-pause:not(:disabled):hover { background: #a16207; }
+.home-op-reset { background: #1d4ed8; }
+.home-op-reset:not(:disabled):hover { background: #1e40af; }
+.home-op-estop { background: #b91c1c; }
+.home-op-estop:not(:disabled):hover { background: #991b1b; }
+.home-op-skip  { background: #c2410c; }
+.home-op-skip:not(:disabled):hover  { background: #9a3412; }
+
+/* Step size buttons (after estop) */
+.home-op-step  { background: #334155; min-width: 46px; padding: 0 8px; }
+.home-op-step:not(:disabled):hover  { background: #475569; }
+.home-op-step.is-active { background: #1d4ed8; box-shadow: inset 0 0 0 2px rgba(255,255,255,0.25); }

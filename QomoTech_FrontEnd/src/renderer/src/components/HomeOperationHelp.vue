@@ -446,7 +446,6 @@ const fillPointFromAxis = (target: 'lineStart' | 'lineEnd' | 'circleCenter') => 
       <div
         class="rounded-xl border border-(--app-border) bg-(--app-card-soft) p-3 shadow-sm shadow-slate-900/5 ring-1 ring-slate-950/4 dark:shadow-md dark:shadow-black/25 dark:ring-white/5"
       >
-        <p class="font-medium text-(--app-text-primary)">新建图像</p>
         <div class="mt-3">
           <button
             type="button"
@@ -761,13 +760,13 @@ const fillPointFromAxis = (target: 'lineStart' | 'lineEnd' | 'circleCenter') => 
           </div>
         </div>
       </div>
-      <RouterLink
+      <!-- <RouterLink
         to="/help"
         class="inline-flex items-center gap-1.5 rounded-lg border border-sky-400/40 bg-sky-50/80 px-3 py-2 text-sm font-medium text-sky-800 transition hover:bg-sky-100/90 dark:border-sky-500/35 dark:bg-sky-950/40 dark:text-sky-200 dark:hover:bg-sky-900/50"
       >
         打开完整帮助界面
         <span aria-hidden="true">→</span>
-      </RouterLink>
+      </RouterLink> -->
     </div>
   </div>
 </template>
