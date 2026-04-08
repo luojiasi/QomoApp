@@ -2,12 +2,32 @@ import { apiCall, type ApiCallResult } from './toBackendApiCall'
 import type { ControllerParameters } from '../types/settings'
 
 export type MotionAxis = 'X' | 'Y' | 'Z' | 'U' | 'R'
+const MAX_AXIS_NO = 4
+const AXIS_NOS_3 = [0, 1, 2] as const
+const AXIS_NOS_5 = [0, 1, 2, 3, 4] as const
+
+const getAllowedAxisNos = (axisCount: ControllerParameters['communication']['axisCount']): readonly number[] =>
+  axisCount === 3 ? AXIS_NOS_3 : AXIS_NOS_5
+
+const isValidAxisNo = (axisNo: number): boolean =>
+  Number.isInteger(axisNo) && axisNo >= 0 && axisNo <= MAX_AXIS_NO
+
+const isPositiveFiniteNumber = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isFinite(value) && value > 0
+
+const pickAxisSpeed = (axisNo: number,options?: { speed?: number; controllerSettings?: ControllerParameters }): number | undefined => {
+  const explicitSpeed = options?.speed
+  if (isPositiveFiniteNumber(explicitSpeed)) return explicitSpeed
+  const savedSpeed = options?.controllerSettings?.axes.find((a) => a.axisNo === axisNo)?.speed
+  return isPositiveFiniteNumber(savedSpeed) ? savedSpeed : undefined
+}
 
 // ---------------------------
 // 控制器（Motion）API
 // ---------------------------
 
-export const getMotionPosition = async (axis: MotionAxis): Promise<ApiCallResult<{ axis: MotionAxis; position_mm: number }>> =>apiCall(`motion/position/${axis}`, 'GET')
+export const getMotionPosition = async (axis: MotionAxis): Promise<ApiCallResult<{ axis: MotionAxis; position_mm: number }>> =>
+  apiCall(`motion/position/${axis}`, 'GET')
 
 // ---------------------------
 // /api/motion/connect payload 构造
@@ -33,13 +53,13 @@ export interface MotionConnectRequestPayload {
   axes: MotionAxisConnectPayload[]
 }
 
+
 /**
  * 根据“三轴/五轴”选择，只发送对应轴的 { axisNo, units } 给后端。
  * 后端在 /api/motion/connect 中会将 units 作为轴输入单位重新配置运动驱动。
  */
 export function buildMotionConnectRequestPayload(controllerSettings: ControllerParameters): MotionConnectRequestPayload {
-  const axisCount = controllerSettings.communication.axisCount
-  const allowedAxisNos = axisCount === 3 ? [0, 1, 2] : [0, 1, 2, 3, 4]
+  const allowedAxisNos = getAllowedAxisNos(controllerSettings.communication.axisCount)
 
   const axes: MotionAxisConnectPayload[] = controllerSettings.axes
     .filter((a) => allowedAxisNos.includes(a.axisNo))
@@ -69,6 +89,59 @@ export const connectMotion = async (payload: MotionConnectRequestPayload): Promi
 
 export const connectMotionWithControllerSettings = async (controllerSettings: ControllerParameters): Promise<ApiCallResult<Record<string, unknown>>> =>
   connectMotion(buildMotionConnectRequestPayload(controllerSettings))
+
+
+
+// 用于更新驱动器参数的接口
+export interface MotionAxisParamsPayload {
+  units?: number
+  lspeed?: number
+  speed?: number
+  accel?: number
+  decel?: number
+  sramp?: number
+  fwd_in?: number
+  rev_in?: number
+}
+
+export interface MotionAllAxesParamsRequestPayload {
+  params_by_axis: Record<number, MotionAxisParamsPayload>
+}
+
+
+export function buildMotionAllAxesParamsRequestPayload(controllerSettings: ControllerParameters): MotionAllAxesParamsRequestPayload {
+  const allowedAxisNos = getAllowedAxisNos(controllerSettings.communication.axisCount)
+  const paramsByAxis: Record<number, MotionAxisParamsPayload> = {}
+
+  controllerSettings.axes
+    .filter((a) => allowedAxisNos.includes(a.axisNo) && isValidAxisNo(a.axisNo))
+    .forEach((a) => {
+      paramsByAxis[a.axisNo] = {
+        units: a.units,
+        lspeed: a.lspeed,
+        speed: a.speed,
+        accel: a.accel,
+        decel: a.decel,
+        sramp: a.sramp,
+        fwd_in: a.fwd_in,
+        rev_in: a.rev_in
+      }
+    })
+
+  return {
+    params_by_axis: paramsByAxis
+  }
+}
+
+export const setMotionAllAxesParams = async (payload: MotionAllAxesParamsRequestPayload): Promise<ApiCallResult<Record<string, unknown>>> =>
+  apiCall('motion/axes/params', 'POST', payload as unknown as Record<string, unknown>)
+
+export const setMotionAllAxesParamsWithControllerSettings = async (controllerSettings: ControllerParameters): Promise<ApiCallResult<Record<string, unknown>>> =>
+  setMotionAllAxesParams(buildMotionAllAxesParamsRequestPayload(controllerSettings))
+
+
+
+
 
 // ---------------------------
 // 硬件连接（Motion 单例相关）
@@ -149,26 +222,21 @@ export const zeroMotionAxis = async (axisNo: number): Promise<ApiCallResult<Reco
 // ---------------------------
 // 单个 Motion Axis 绝对运动
 // ---------------------------
-type MoveMotionAxisAbsOptions = {speed?: number;controllerSettings?: ControllerParameters}
+type MoveMotionAxisAbsOptions = { speed?: number; controllerSettings?: ControllerParameters }
+
+const pushAxisSpeed = async (axisNo: number, speed: number): Promise<ApiCallResult<Record<string, unknown>>> =>
+  setMotionAllAxesParams({
+    params_by_axis: {[axisNo]: {speed}}
+  })
 
 export const moveMotionAxisAbs = async (axisNo: number,targetMm: number,options?: MoveMotionAxisAbsOptions,): Promise<ApiCallResult<Record<string, unknown>>> => {
   const axisNoInt = Number(axisNo)
-  const explicitSpeed = options?.speed
-  const savedAxisSpeed = options?.controllerSettings?.axes.find((a) => a.axisNo === axisNoInt)?.speed
-  const selectedSpeed = explicitSpeed ?? savedAxisSpeed
+  const selectedSpeed = pickAxisSpeed(axisNoInt, options)
 
   // 若提供了 speed，或能从本地设置按轴找到 speed，则先下发该轴速度
-  if (typeof selectedSpeed === 'number' && Number.isFinite(selectedSpeed) && selectedSpeed > 0) {
-    const speedRes = await apiCall('motion/axes/params', 'POST', {
-      params_by_axis: {
-        [axisNoInt]: {
-          speed: selectedSpeed
-        }
-      }
-    } as unknown as Record<string, unknown>)
-    if (!speedRes?.success) {
-      return speedRes as ApiCallResult<Record<string, unknown>>
-    }
+  if (typeof selectedSpeed === 'number') {
+    const speedRes = await pushAxisSpeed(axisNoInt, selectedSpeed)
+    if (!speedRes?.success) return speedRes as ApiCallResult<Record<string, unknown>>
   }
 
   return apiCall('motion/axis/move-abs', 'POST', {
@@ -180,18 +248,16 @@ export const moveMotionAxisAbs = async (axisNo: number,targetMm: number,options?
 // ---------------------------
 // 单个 Motion Axis 相对运动
 // ---------------------------
-type MoveMotionAxisRelOptions = {speed?: number;controllerSettings?: ControllerParameters}
+type MoveMotionAxisRelOptions = { speed?: number; controllerSettings?: ControllerParameters }
 
 export const moveMotionAxisRel = async (axisNo: number,deltaMm: number,options?: MoveMotionAxisRelOptions,): Promise<ApiCallResult<Record<string, unknown>>> => {
   const axisNoInt = Number(axisNo)
-  const explicitSpeed = options?.speed
-  const savedAxisSpeed = options?.controllerSettings?.axes.find((a) => a.axisNo === axisNoInt)?.speed
-  const selectedSpeed = explicitSpeed ?? savedAxisSpeed
+  const selectedSpeed = pickAxisSpeed(axisNoInt, options)
 
   return apiCall('motion/axis/move-rel', 'POST', {
     axis_no: axisNoInt,
     delta_mm: deltaMm,
-    ...(typeof selectedSpeed === 'number' && Number.isFinite(selectedSpeed) && selectedSpeed > 0
+    ...(typeof selectedSpeed === 'number'
       ? { speed: selectedSpeed }
       : {}),
   } as unknown as Record<string, unknown>)
@@ -206,11 +272,14 @@ export const moveMotionAxisRel = async (axisNo: number,deltaMm: number,options?:
 // 好像有很多重复的要清理TODO
 export interface HardwareStatusPayload {
   state?: {
+    hardware_connected?: boolean
+    motion_connected?: boolean
     motion_axis_feedback?: Record<string, Record<string, unknown>>
     motion_io_map?: Array<{
       digitalIn?: boolean
       digitalOut?: boolean
     }>
+    motion_positions?: Record<string, number>
     motion_driver_mode?: string
     motion_last_error?: string | null
     motion_last_error_code?: number | null

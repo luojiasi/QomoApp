@@ -25,10 +25,7 @@ def _apply_axis_speed_if_present(motion: ZMotionDriver, axis_no: int, speed: flo
 
 
 @router.post("/motion/connect", response_model=ApiResponse)
-def connect_motion(
-    payload: MotionConnectRequest,
-    motion: ZMotionDriver = Depends(get_motion_driver),
-) -> ApiResponse:
+def connect_motion(payload: MotionConnectRequest,motion: ZMotionDriver = Depends(get_motion_driver),) -> ApiResponse:
     axis_params_by_axis: dict[int, dict[str, float]] = {}
     for axis in payload.axes:
         raw = axis.model_dump(exclude_none=True)
@@ -52,10 +49,7 @@ def disconnect_motion(motion: ZMotionDriver = Depends(get_motion_driver)) -> Api
     return ApiResponse(success=ok, message="控制器断开成功" if ok else "控制器断开失败", data={"connected": False})
 
 @router.post("/motion/axes/params", response_model=ApiResponse)
-def set_all_axes_params(
-    payload: MotionAllAxesParamsRequest,
-    motion: ZMotionDriver = Depends(get_motion_driver),
-) -> ApiResponse:
+def set_all_axes_params(payload: MotionAllAxesParamsRequest,motion: ZMotionDriver = Depends(get_motion_driver),) -> ApiResponse:
     ok = motion.set_all_axes_params(payload.to_driver_dict())
     return ApiResponse(success=ok, message="轴参数设置成功" if ok else "轴参数设置失败")
 

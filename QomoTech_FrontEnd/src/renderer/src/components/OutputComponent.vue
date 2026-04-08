@@ -3,6 +3,12 @@ import { ref,watch} from 'vue'
 import SvgIcon from './SvgIcon.vue'
 import { setMotionIoOutput } from '../utils/motionApi'
 import { apiCall } from '../utils/toBackendApiCall'
+import { zeroMotionAxis,moveMotionAxisRel,getMotionIoInput} from '../utils/motionApi'
+import { useNotification } from '@renderer/composables/useNotification'
+import { useControllerSettingsStore } from '../stores/controllerSettingsStore'
+const { success, error } = useNotification()
+const controllerStore = useControllerSettingsStore()
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 const props = defineProps<{
   motionIoMap: Array<{ digitalIn: boolean; digitalOut: boolean }>
@@ -52,6 +58,98 @@ const handleOutput2 = async () => {
   const result = await setMotionIoOutput(2, !outPut.value.output2)
   if (!result?.success) return
   outPut.value.output2 = !outPut.value.output2
+}
+
+// 添加回零按钮
+const isMovingHome = ref(false)
+/**
+ * 约定：未压限位时为 true，压到上限位后变为 false。
+ */
+ const getAxisUpperLimitInputNo = (AxisNum:number): number | null => {
+  const axis = controllerStore.controllerSettings.axes.find((a) => a.axisNo === AxisNum)
+  if (!axis) return null
+  const n = Number(axis.fwd_in)
+  if (!Number.isFinite(n) || n < 0) return null
+  return Math.floor(n)
+}
+/**
+ * 轮询读取轴 上限位输入：先确认曾离开限位（值为 true），再等到变为 false 视为到位。
+ */
+const waitAxisUpperLimitInputFalse = async (AxisNum:number,timeoutMs = 6000) => {
+  const ioNo = getAxisUpperLimitInputNo(AxisNum)
+  if (ioNo === null) return false
+  const startAt = Date.now()
+  let seenNotAtLimit = false
+  while (Date.now() - startAt < timeoutMs) {
+    const res = await getMotionIoInput(ioNo)
+    if (res?.success && res.data && typeof res.data.value === 'boolean') {
+      if (res.data.value === true) seenNotAtLimit = true
+      if (seenNotAtLimit && res.data.value === false) return true
+    }
+    await sleep(200)
+  }
+  return false
+}
+
+
+const handleHome = async () => {
+  if (isMovingHome.value) return
+  isMovingHome.value = true
+  try {
+    //首先判断XY轴的限位不能为-1
+    if (getAxisUpperLimitInputNo(0) === null && getAxisUpperLimitInputNo(1)===null && getAxisUpperLimitInputNo(2)===null) {
+      error('未配置XYZ限位','请在控制器设置中为轴配置有效的限位输入口')
+      return
+    }
+
+    // 2) Z 轴向上走，直到停止（通常是到限位/到达行程终点）
+    const UP_TRAVEL_MM = 5000
+    const [moveX, moveY, moveZ] = await Promise.all([
+      moveMotionAxisRel(0, UP_TRAVEL_MM, {speed: 10}),
+      moveMotionAxisRel(1, UP_TRAVEL_MM, {speed: 10}),
+      moveMotionAxisRel(2, UP_TRAVEL_MM, {speed: 10})
+    ])  
+    if (!moveX?.success || !moveY?.success || !moveZ?.success){
+      const message = [!moveX && 'X', !moveY && 'Y', !moveZ && 'Z'].filter(Boolean).join('/')
+      error('回零运动发送失败',message)
+      return
+    }
+    const [okX, okY, okZ] = await Promise.all([
+      waitAxisUpperLimitInputFalse(0),
+      waitAxisUpperLimitInputFalse(1),
+      waitAxisUpperLimitInputFalse(2)
+    ])
+    if (!okX || !okY || !okZ) {
+      const message = [!okX && 'X', !okY && 'Y', !okZ && 'Z'].filter(Boolean).join('/')
+      error('等待轴上限位超时',message)
+      return
+    }
+
+    // 3)  清零 X/Y（控制器层面的“位置清零”）
+    const [zx,zy,zz] = await Promise.all([
+      zeroMotionAxis(0),
+      zeroMotionAxis(1),
+      zeroMotionAxis(2)
+    ])
+    if (!zz?.success && !zx?.success && !zy?.success) {
+      const message = [!zx && 'X', !zy && 'Y', !zz && 'Z'].filter(Boolean).join('/')
+      error("清零失败,请检查控制器设置",message)
+      return
+    }
+    const [moveX2, moveY2, moveZ2] = await Promise.all([
+      moveMotionAxisRel(0, 80, {controllerSettings: controllerStore.controllerSettings}),
+      moveMotionAxisRel(1, -80, {controllerSettings: controllerStore.controllerSettings}),
+      moveMotionAxisRel(2, -40, {controllerSettings: controllerStore.controllerSettings})
+    ])
+    if (!moveX2?.success || !moveY2?.success || !moveZ2?.success) {
+      const message = [!moveX2 && 'X', !moveY2 && 'Y', !moveZ2 && 'Z'].filter(Boolean).join('/')
+      error('回零运动失败',message)
+      return
+    }
+    success('回零运动完成')
+  } finally {
+    isMovingHome.value = false
+  }
 }
 </script>
 
@@ -106,7 +204,7 @@ const handleOutput2 = async () => {
     </button>
     <button
       type="button"
-      @click="handleSkip"
+      @click="handleHome"
       class="flex h-12 w-12 items-center justify-center rounded-full border border-(--app-border) bg-(--app-card-soft) text-xs font-medium text-(--app-text-secondary) shadow-sm transition-colors hover:bg-slate-100/90 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-white/10"
       @keydown.enter.prevent
     >

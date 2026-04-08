@@ -7,12 +7,14 @@ import type {
   SettingsSaveResult
 } from '../types/settings'
 import { cloneSettings } from '../utils/settings'
+import { setMotionAllAxesParamsWithControllerSettings } from '../utils/motionApi'
 import { createSettingsSaveResult } from './settingsStoreUtils'
 
 /** 与 `qomotech-auth` 等并列，供 Application → Local Storage 查看 */
 export const CONTROLLER_SETTINGS_STORAGE_KEY = 'qomotech-controller-settings'
 
-const PERSIST_DEBOUNCE_MS = 400
+const PERSIST_DEBOUNCE_MS = 800
+const DRIVER_SYNC_DEBOUNCE_MS = 1000
 
 function normalizeControllerParameters(payload: ControllerParameters): ControllerParameters {
   const ac = payload.communication.axisCount
@@ -55,9 +57,7 @@ function loadControllerSettingsFromStorage(): ControllerParameters | null {
 }
 
 function persistControllerSettingsToStorage(value: ControllerParameters): void {
-  if (typeof window === 'undefined') {
-    return
-  }
+  if (typeof window === 'undefined') return
   try {
     window.localStorage.setItem(CONTROLLER_SETTINGS_STORAGE_KEY, JSON.stringify(value))
   } catch (e) {
@@ -72,29 +72,89 @@ export const useControllerSettingsStore = defineStore('controller-settings', () 
   )
 
   let persistTimer: ReturnType<typeof setTimeout> | null = null
-  const schedulePersist = (): void => {
-    if (persistTimer !== null) {
-      clearTimeout(persistTimer)
+  let syncTimer: ReturnType<typeof setTimeout> | null = null
+  let syncInFlight = false
+  let syncQueued = false
+  let lastSyncedSignature = ''
+
+  const buildSyncSignature = (value: ControllerParameters): string => JSON.stringify({
+    axisCount: value.communication.axisCount,
+    axes: value.axes.map((a) => ({
+      axisNo: a.axisNo,
+      units: a.units,
+      lspeed: a.lspeed,
+      speed: a.speed,
+      accel: a.accel,
+      decel: a.decel,
+      sramp: a.sramp,
+      fwd_in: a.fwd_in,
+      rev_in: a.rev_in
+    }))
+  })
+
+  const syncControllerSettingsToDriver = async (): Promise<void> => {
+    const snapshot = cloneSettings(controllerSettings.value)
+    const signature = buildSyncSignature(snapshot)
+    if (signature === lastSyncedSignature) {
+      return
     }
+
+    if (syncInFlight) {
+      syncQueued = true
+      return
+    }
+
+    syncInFlight = true
+    try {
+      const result = await setMotionAllAxesParamsWithControllerSettings(snapshot)
+      if (result?.success) {
+        lastSyncedSignature = signature
+        return
+      }
+      console.warn('[controller-settings] 同步驱动器参数失败', result?.message ?? result)
+    } catch (error) {
+      console.warn('[controller-settings] 同步驱动器参数异常', error)
+    } finally {
+      syncInFlight = false
+      if (syncQueued) {
+        syncQueued = false
+        void syncControllerSettingsToDriver()
+      }
+    }
+  }
+
+  const schedulePersist = (): void => {
+    if (persistTimer !== null) clearTimeout(persistTimer)
     persistTimer = setTimeout(() => {
       persistTimer = null
       persistControllerSettingsToStorage(controllerSettings.value)
     }, PERSIST_DEBOUNCE_MS)
   }
 
-  watch(controllerSettings, schedulePersist, { deep: true, flush: 'post' })
+  const scheduleDriverSync = (): void => {
+    if (syncTimer !== null) clearTimeout(syncTimer)
+    syncTimer = setTimeout(() => {
+      syncTimer = null
+      void syncControllerSettingsToDriver()
+    }, DRIVER_SYNC_DEBOUNCE_MS)
+  }
+
+  watch(
+    controllerSettings,
+    () => {
+      schedulePersist()
+      scheduleDriverSync()
+    },
+    { deep: true, flush: 'post' }
+  )
 
   const loadControllerSettings = async (): Promise<SettingsSaveResult<ControllerParameters>> => {
     const fromStorage = loadControllerSettingsFromStorage()
-    if (fromStorage) {
-      controllerSettings.value = cloneSettings(fromStorage)
-    }
+    if (fromStorage) controllerSettings.value = cloneSettings(fromStorage)
     return createSettingsSaveResult('已从本地存储加载控制器参数。', controllerSettings.value)
   }
 
-  const saveControllerSettings = async (
-    payload: ControllerParameters
-  ): Promise<SettingsSaveResult<ControllerParameters>> => {
+  const saveControllerSettings = async (payload: ControllerParameters): Promise<SettingsSaveResult<ControllerParameters>> => {
     controllerSettings.value = cloneSettings(normalizeControllerParameters(payload))
     return createSettingsSaveResult('控制器参数已保存（含本地存储）。', controllerSettings.value)
   }

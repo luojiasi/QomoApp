@@ -62,11 +62,7 @@ async def start_program(
     entities = payload.get("entities")
     
     if recipe_payload is None or entities is None:
-        return ApiResponse(
-            success=False,
-            message="startProgram 入参缺少 recipe_payload 或 entities",
-            data=None,
-        )
+        return ApiResponse(success=False,message="startProgram 入参缺少 recipe_payload 或 entities",data=None,)
 
     if not isinstance(recipe_payload, dict):
         return ApiResponse(success=False, message="startProgram 入参不合法：recipe_payload 必须是对象", data=None)
@@ -91,14 +87,7 @@ async def start_program(
 
     async def _run_program() -> None:
         try:
-            await asyncio.to_thread(
-                execute_start_program,
-                motion=motion,
-                recipe_payload=recipe_payload,
-                entities=entities,
-                rs232=rs232,
-                rs232_open=rs232_open,
-            )
+            await asyncio.to_thread(execute_start_program,motion=motion,recipe_payload=recipe_payload,entities=entities,rs232=rs232,rs232_open=rs232_open,)
         except Exception:
             logger.exception("startProgram 后台任务异常")
 

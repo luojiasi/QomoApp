@@ -1,7 +1,11 @@
 import { ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { defaultRs232WorkbenchState } from '../configs/settings'
-import type { Rs232WorkbenchState, SettingsSaveResult } from '../types/settings'
+import type {
+  Rs232SerialSessionRequest,
+  Rs232WorkbenchState,
+  SettingsSaveResult
+} from '../types/settings'
 import { cloneSettings } from '../utils/settings'
 import { createSettingsSaveResult } from './settingsStoreUtils'
 
@@ -49,6 +53,17 @@ function loadRs232WorkbenchFromStorage(): Rs232WorkbenchState | null {
     return normalizeRs232Workbench(parsed as Rs232WorkbenchState)
   } catch {
     return null
+  }
+}
+
+export function parseRs232SessionFromLocalStorage(): Rs232SerialSessionRequest | null {
+  const workbench = loadRs232WorkbenchFromStorage()
+  if (!workbench) return null
+  if (typeof workbench.port.portName !== 'string' || !workbench.port.portName.trim()) return null
+  return {
+    port: cloneSettings(workbench.port),
+    send: cloneSettings(workbench.send),
+    receive: cloneSettings(workbench.receive)
   }
 }
 

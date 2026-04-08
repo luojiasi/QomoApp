@@ -175,16 +175,6 @@ def _rebuild_xy_path_from_current(
         return head + [{"x": conv[best_i][0], "y": conv[best_i][1]}]
     return head + rest
 
-
-def _safe_float(value: Any, *, default: float | None = None) -> float | None:
-    try:
-        v = float(value)
-    except (TypeError, ValueError):
-        return default
-    if math.isfinite(v):
-        return v
-    return default
-
 def searchIdInRecipe(recipe_payload: Any, id: Any) -> dict[str, Any] | None:
     """
     在 recipe_payload 中查找具有 `id == id` 的 dict。
@@ -265,14 +255,23 @@ def execute_start_program(*,motion: ZMotionDriver,recipe_payload: dict[str, Any]
             if _abort_pending():
                 _runtime_cleanup_outputs(controller)
                 return {"success": False, "message": "程序已急停", "data": None}
-            outcome = wangFuLoop(
-                originalPointsNum=_i,
-                recipe_payload=recipe_payload,
-                controller=controller,
-                entities=entities,
-                rs232=rs232,
-                rs232_open=rs232_open,
-            )
+            # 根据recip选择然后选择切的类型
+            mainRecipe = recipe_payload.get("selectedMainRecipe") or {}
+            machiningRecipe = searchIdInRecipe(recipe_payload.get("selectedMachiningRecipe"),mainRecipe.get("machiningRecipeId"),)
+            machiningHorizontalFormula = searchIdInRecipe(recipe_payload.get("selectedHorizontal"),machiningRecipe.get("horizontalFormulaId"))
+            if(machiningHorizontalFormula.get("formula").get("openingShape") == "//型"):
+                outcome = qiepianLoop(
+                    originalPointsNum=_i,
+                    recipe_payload=recipe_payload,
+                    controller=controller,
+                    entities=entities,
+                    rs232=rs232,
+                    rs232_open=rs232_open
+                )
+            elif(machiningHorizontalFormula.get("formula").get("openingShape") == "V型"):
+                outcome = wangFuLoop(originalPointsNum=_i,recipe_payload=recipe_payload,controller=controller,entities=entities,rs232=rs232,rs232_open=rs232_open,)
+
+            
             if outcome == "skip":
                 continue
             if outcome == "abort":
@@ -321,7 +320,7 @@ def _ensure_rs232_before_laser(
     每次发送间隔 0.5 秒
     """
     if rs232 is None or rs232_open is None:
-        return True
+        return False
 
     port = rs232_open.get("port")
     receive = rs232_open.get("receive")
@@ -360,15 +359,7 @@ def _ensure_rs232_before_laser(
     return True
 
 
-def wangFuLoop(
-    originalPointsNum: int,
-    recipe_payload: dict[str, Any],
-    controller: ZMotionAdapter,
-    entities: list[dict[str, Any]],
-    *,
-    rs232: Rs232Driver | None = None,
-    rs232_open: dict[str, Any] | None = None,
-) -> bool | str:  # True / False / "skip" / "abort"
+def wangFuLoop(originalPointsNum: int,recipe_payload: dict[str, Any],controller: ZMotionAdapter,entities: list[dict[str, Any]],*,rs232: Rs232Driver | None = None,rs232_open: dict[str, Any] | None = None,) -> bool | str:  # True / False / "skip" / "abort"
     """
     这个目的是进行往复运动，而不是到下一个的起始点
     """
@@ -454,6 +445,7 @@ def wangFuLoop(
     # 下开口
     minOffset = lowerOpening = lowerOpeningK * height + lowerOpeningB
     maxoffset = upperOpening = depthCompensationK * 1000 * (height+depthCompensationB) * tana + lowerOpening
+    minOffset = 0
 
     originalPoints = OffsetEndpointCalculator.calc_xy_points(entities,0)[originalPointsNum]
     originalPoints_run = originalPoints.copy()
@@ -487,10 +479,8 @@ def wangFuLoop(
                 # 移动到起点
                 startX = originalPoints[0].get('x')
                 startY = originalPoints[0].get('y')
-                # resultX = controller.absolute_move_speed({'axis':0,'moveDistance':startX,'speed':runSpeed*middleCuttingSpeedRate})
-                # resultY = controller.absolute_move_speed({'axis':1,'moveDistance':startY,'speed':runSpeed*middleCuttingSpeedRate})
-                resultX = controller.absolute_move_speed({'axis':0,'moveDistance':1000,'speed':1})
-                resultY = controller.absolute_move_speed({'axis':1,'moveDistance':1000,'speed':1})
+                resultX = controller.absolute_move_speed({'axis':0,'moveDistance':startX,'speed':runSpeed*middleCuttingSpeedRate})
+                resultY = controller.absolute_move_speed({'axis':1,'moveDistance':startY,'speed':runSpeed*middleCuttingSpeedRate})
                 if not resultX.get('success') or not resultY.get('success') or resultX is None or resultY is None:
                     return False
                 step = 20
@@ -737,17 +727,8 @@ def wangFuLoop(
                 if _abort_pending():
                     return "abort"
     return True
-
-def xunhuaiLoop(    
-    originalPointsNum: int,
-    recipe_payload: dict[str, Any],
-    controller: ZMotionAdapter,
-    entities: list[dict[str, Any]],
-    *,
-    rs232: Rs232Driver | None = None,
-    rs232_open: dict[str, Any] | None = None,
-) -> bool | str:  # True / False / "skip" / "abort"
-    
+# 每条直线切两次
+def qiepianLoop(originalPointsNum: int,recipe_payload: dict[str, Any],controller: ZMotionAdapter,entities: list[dict[str, Any]],*,rs232: Rs232Driver | None = None,rs232_open: dict[str, Any] | None = None,) -> bool | str:  # True / False / "skip" / "abort"
     mainRecipe = recipe_payload.get("selectedMainRecipe") or {}
 
     # 子配方对象在前端 payload 中是“数组形式”（例如 selectedBlackeningRecipe: [blackening]）
@@ -826,15 +807,19 @@ def xunhuaiLoop(
     compensationAngleK = float(machiningHorizontalFormula.get('formula').get('compensationAngleFormula').get('k'))
     compensationAngleB = float(machiningHorizontalFormula.get('formula').get('compensationAngleFormula').get('b'))
     
-    # 下开口
+    # 下开口============如果是修面就直接用B
     minOffset = lowerOpening = lowerOpeningK * height + lowerOpeningB
-    maxoffset = upperOpening = depthCompensationK * 1000 * (height+depthCompensationB) * tana + lowerOpening
+    maxOffset = upperOpening = depthCompensationK * 1000 * (height+depthCompensationB) * tana + lowerOpening
+    # 这个是偏移的最小开口
+    minOffset = 0
+    # maxOffset = minOffset+lowerOpeningB
 
     originalPoints = OffsetEndpointCalculator.calc_xy_points(entities,0)[originalPointsNum]
     originalPoints_run = originalPoints.copy()
     isneedReceive = False
     originalPoints_receive = originalPoints.copy()
     z_original_position = controller.get_z_dpos_mm()
+
     while step <= 300:
         if _skip_requested():
             _runtime_cleanup_outputs(controller)
@@ -846,34 +831,139 @@ def xunhuaiLoop(
         match step:
             case 0:
                 # 判断控制器是否连上
-                step=10
+                result = controller.get_status()
+                if result.get('connected'):
+                    step = 10
+                else:
+                    step = 999
             case 10:
-                break
+                # 首先移动到起点
+                startX = originalPoints[0].get('x')
+                startY = originalPoints[0].get('y')
+                originalPoints = [{'x': startX, 'y': startY}]
+                resultX = controller.absolute_move_speed({'axis':0,'moveDistance':startX,'speed':runSpeed})
+                resultY = controller.absolute_move_speed({'axis':1,'moveDistance':startY,'speed':runSpeed})
+                if resultX.get('success') and resultY.get('success') and resultX is not None and resultY is not None:
+                    step = 20
+                else:
+                    step = 999
+
             case 20:
-                break
+                if controller.get_notIsMoving(0,untilReturnTrue=True).get('notMoving') and controller.get_notIsMoving(1,untilReturnTrue=True).get('notMoving'):
+                    step=30
             case 30:
-                break
+                # 判断是否打开扫黑功能
+                if saoheiFlag:
+                    step = 31
+                else:
+                    step=32
+            case 31:
+                # 发送扫黑的的参数
+                _ensure_rs232_before_laser(rs232, rs232_open, str(saoheiPower), str(saoheiFrequency), str(saoheiCurrent))
+                # 将扫黑Flag改成False
+                saoheiFlag = False
+                step = 40
+            case 32:
+                # 发送工作参数
+                _ensure_rs232_before_laser(rs232, rs232_open, str(workPower), str(workFrequency), str(workCurrent))
+                step = 40
             case 40:
-                break
+                if not openLaser:
+                    controller.open_output(2, 1)  # 打开激光
+                    openLaser = True
+                step=50
             case 50:
-                break
+                # 判断是否到达深度
+                if  _depth <= depth:
+                    step = 60
+                else:
+                    step = 999
             case 60:
-                break
+                # 移动到目标深度 =  累计下降量+当前Z轴位置
+                targetDepth = -_depth + z_original_position
+                result= controller.absolute_move_speed({'axis':2,'moveDistance':targetDepth,'speed':runSpeed})
+                if result.get('success') and result is not None:
+                    step = 70
+                else:
+                    step = 999
             case 70:
-                break
+                # 判断是否到达目标位置
+                if controller.get_notIsMoving(2,untilReturnTrue=True).get('notMoving'):
+                    step = 80
+                else:
+                    step = 999
+
             case 80:
-                break
+                # 计算偏移并连续运动
+                path_groups = OffsetEndpointCalculator.calc_xy_points(entities, pointOffset)
+                if isPaddingFlag:
+                    targetSpeed = runSpeed*edgeCuttingSpeedRate
+                else:
+                    targetSpeed = runSpeed*middleCuttingSpeedRate
+                
+                result = controller.continuous_interpolation_move_adapter(path_groups[originalPointsNum],speed=targetSpeed)
+                if result.get('success') and result is not None:
+                    step = 81
+                else:
+                    step = 999
+            case 81:
+                # 判断是否在边缘
+                if isPaddingFlag and (cutTime+1)<cutTimes:
+                    cutTime += 1
+                    step = 80
+                else:
+                    cutTime = 0
+                    step = 90 if not needJump else 100
             case 90:
-                break
+                # 计算偏移值
+                pointOffset = pointOffset+offsetStep if minToMax else pointOffset-offsetStep
+
+                result1 = minOffset/1000 < pointOffset
+                result2 = pointOffset < maxOffset/1000
+                if result1 and result2:
+                    isneedReceive = not isneedReceive
+                    isPaddingFlag = False
+                if maxOffset/1000 < pointOffset and minToMax and not needJump:
+                    pointOffset = maxOffset/1000
+                    isPaddingFlag = True
+                    minToMax = not minToMax
+                    needJump = True
+
+                if minOffset/1000 > pointOffset and not minToMax and not needJump:
+                    pointOffset = minOffset/1000
+                    isPaddingFlag = True
+                    minToMax = not minToMax
+                    needJump = True
+
+                step = 80
+
             case 100:
-                break
+                # 计算下一层的偏移开口
+                current_increments = int(jindubaifenbi // decreasingRate)
+                delta = current_increments - previous_increments
+                depthStep -= delta * decreasingRateReduce
+                previous_increments = current_increments
+                _depth += round(depthStep,4)
+                # 下降一层计算新开口 = 初始上开口 - tan（角度） *累计下降量um * 2 //单位um
+                newScanLength = upperOpening - tana * _depth * 2 * 1000
+                minOffset += tana * _depth * 2 * 1000
+                maxOffset += tana * _depth * 2 * 1000
+                print("minOffset,maxOffset",minOffset,maxOffset)
+                # scanLengthChaZhi = (upperOpening - newScanLength)/2
+                # minOffset = round(scanLengthChaZhi, 4)
+                # maxOffset = round(upperOpening - scanLengthChaZhi, 4)
+                needJump = False
+                step=50
             case 110:
-                break
+                step=150
             case 150:
-                break
+                controller.stop_axis_motion([0, 1, 2])
+                controller.open_output(0, 0)#关闭吹风
+                controller.open_output(2, 0)#关闭激光
+                step=300
             case 300:
-                break
+                step = 999
             case 999:
-                break
+                step=9999
 
     return True

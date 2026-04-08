@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import { RouterLink } from 'vue-router'
+// import { RouterLink } from 'vue-router'
 import CollapsiblePanelHeader from './CollapsiblePanelHeader.vue'
 import { useNotification } from '@renderer/composables/useNotification'
 import { useQomo5PStore } from '../stores/qomo5pEditor'
@@ -204,6 +204,11 @@ const handleNewImage = async () => {
       error(zy?.message || 'Y 轴位置清零失败')
       return
     }
+    //首先判断Z轴的限位不能为-1
+    if (getAxis3UpperLimitInputNo() === null) {
+      error('未配置Z轴上限位','请在控制器设置中为轴2Z轴中 配置有效的正限位输入口')
+      return
+    }
 
     // 2) Z 轴向上走，直到停止（通常是到限位/到达行程终点）
     const Z_UP_TRAVEL_MM = 3000
@@ -212,11 +217,6 @@ const handleNewImage = async () => {
     })
     if (!moveZ?.success) {
       error(moveZ?.message || 'Z 轴上升失败')
-      return
-    }
-
-    if (getAxis3UpperLimitInputNo() === null) {
-      error('未配置轴3上限位输入','请在控制器设置中为 axisNo=2 配置有效的正限位输入口')
       return
     }
 

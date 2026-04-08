@@ -35,7 +35,6 @@ export const bootstrapControllerOnce = async (controllerSettings: ControllerPara
     if (!stillConnected) return reconnectControllerSingleton(controllerSettings)
     return {success: true,message: '控制器单实例已初始化，无需重复连接。'}
   }
-
   if (controllerBootstrapPromise) return controllerBootstrapPromise
 
   controllerBootstrapPromise = (async () => {

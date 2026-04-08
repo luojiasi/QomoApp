@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+import time
 from typing import Any
 
 from drivers.zmotion_driver import ZMotionDriver
@@ -27,7 +27,7 @@ class ZMotionAdapter:
             return {"success": False, "message": "控制器未连接"}
         ok = self._motion.move_abs(axis, move_distance)
         if not ok:
-            return {"success": False, "message": self._motion.last_error() or "absolute_move 失败"}
+            return {"success": False, "message": self._motion.last_error or "absolute_move 失败"}
         return {"success": True}
 
     def absolute_move_speed(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -42,21 +42,33 @@ class ZMotionAdapter:
         if key in st:
             prev_speed = float(st[key].get("speed", 20.0))
         if not self._motion.set_all_axes_params({axis: {"speed": speed, "lspeed": speed}}):
-            return {"success": False, "message": self._motion.last_error() or "设置速度失败"}
+            return {"success": False, "message": self._motion.last_error or "设置速度失败"}
         ok = self._motion.move_abs(axis, move_distance)
         if prev_speed is not None:
             self._motion.set_all_axes_params({axis: {"speed": prev_speed, "lspeed": prev_speed}})
         if not ok:
-            return {"success": False, "message": self._motion.last_error() or "absolute_move_slice 失败"}
+            return {"success": False, "message": self._motion.last_error or "absolute_move_slice 失败"}
         return {"success": True}
 
-    def get_notIsMoving(self, axis_no: int) -> dict[str, Any]:
+    def get_notIsMoving(self, axis_no: int ,untilReturnTrue:bool=False ,countOut:float=2000.0,interruptTime:float=0.05) -> dict[str, Any]:
         st = self._motion.get_axes_status()
         key = str(int(axis_no))
         if key not in st:
             return {"success": False}
         idle = int(st[key].get("idle"))
         idle = self._motion.getAxisisMoving(axis_no)
+
+        
+        if untilReturnTrue:
+            jumpoutCount = 0
+            while jumpoutCount<=countOut:
+                time.sleep(interruptTime)
+                idle = self._motion.getAxisisMoving(axis_no)
+                if idle == -1:
+                    return {"success": True, "notMoving": idle}
+                jumpoutCount+=1
+                print('jumpoutCount:',jumpoutCount)
+            return {"success": False, "notMoving": idle}
         return {"success": True, "notMoving": idle}
 
     def get_xy_dpos_mm(self) -> tuple[float, float]:
@@ -114,7 +126,7 @@ class ZMotionAdapter:
             if not self._motion.set_all_axes_params(
                 {axis_list[0]: {"speed": speed_val, "lspeed": speed_val}, axis_list[1]: {"speed": speed_val, "lspeed": speed_val}}
             ):
-                return {"success": False, "message": self._motion.last_error() or "设置速度失败"}
+                return {"success": False, "message": self._motion.last_error or "设置速度失败"}
 
         def _pick_point_speed(point: dict[str, float] | list[float] | tuple[float, ...], idx: int) -> float:
             if speed is not None:
@@ -128,7 +140,6 @@ class ZMotionAdapter:
                 if len(point) >= 3 and point[2] is not None:
                     return float(point[2])  # type: ignore[index]
                 raise ValueError(f"path_points[{idx}] 缺少 speed")
-            raise ValueError(f"path_points[{idx}] 类型不支持: {type(point)}")
 
         # 转换成驱动器期望的格式：dict 含 x/y/speed
         converted: list[dict[str, float]] = []
@@ -171,5 +182,5 @@ class ZMotionAdapter:
             self._motion.set_all_axes_params(restore_payload)
 
         if not ok:
-            return {"success": False, "message": self._motion.last_error() or "continuous_interpolation_move 失败"}
+            return {"success": False, "message": self._motion.last_error or "continuous_interpolation_move 失败"}
         return {"success": True}

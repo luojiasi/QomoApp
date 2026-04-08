@@ -14,6 +14,8 @@ import CameraPic from '../components/cameraPic.vue'
 import ShowAndDrawInHome from '../components/showAndDrawInHome.vue'
 import TaskProgressAside from '../components/TaskProgressAside.vue'
 import ControllerSettings from './ControllerSettings.vue'
+import { parseRs232SessionFromLocalStorage } from '../stores/rs232WorkbenchStore'
+import { syncRs232Workbench } from '../utils/rs232Api'
 
 
 
@@ -122,25 +124,42 @@ const refreshControllerStatus = async (): Promise<void> => {
   }
 
   const res = await getHardwareStatus()
-  if (res?.success) {
+  const isConnected = Boolean(res?.success && res?.data?.state?.motion_connected)
+  if (isConnected) {
     controllerStatus.value = {
       state: 'connected',
       isConnected: true,
       message: '控制器已连接'
     }
   } else {
+    const backendReason = res?.data?.state?.motion_last_error
+      ?? res?.data?.motion_driver_status?.last_error
+      ?? res?.message
+    const resolvedMessage = backendReason ? String(backendReason) : '控制器未连接'
     controllerStatus.value = {
       state: 'disconnected',
       isConnected: false,
-      message: res?.message ? String(res.message) : '控制器未连接'
+      message: resolvedMessage
     }
   }
 }
 
 const onRefreshClick = async (): Promise<void> => {
-  console.log('onRefreshClick')
   const result = await bootstrapControllerOnce(controllerSettingsStore.controllerSettings)
-  console.log('result', result)
+  if (result?.success) {
+    success('控制器重连成功')
+  } else {
+    error('控制器重连失败')
+  }
+  // 进入这个页面也下发一次Rs232的参数
+  const workbenchPayload = parseRs232SessionFromLocalStorage()
+  if (!workbenchPayload) {
+    error('激光接口参数重连失败')
+    return
+  }
+  await syncRs232Workbench(workbenchPayload)
+  success('激光接口重连成功')
+
 }
 
 
@@ -732,11 +751,14 @@ onMounted(async () => {
     error('控制器初始化失败：无法连接后端或硬件未就绪。')
   }
 
-
-
-
-
-
+  // 进入这个页面也下发一次Rs232的参数
+  const workbenchPayload = parseRs232SessionFromLocalStorage()
+  if (!workbenchPayload) {
+    error('激光接口参数未同步。')
+    return
+  }
+  await syncRs232Workbench(workbenchPayload)
+  success('激光接口参数已同步。')
 
 
   try {

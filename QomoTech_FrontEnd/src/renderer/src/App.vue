@@ -38,8 +38,7 @@ import {
 import { useAuthStore } from './stores/auth'
 import { useLicenseStore } from './stores/license'
 import { dispatchGlobalKeyboard } from './utils/globalKeyboard'
-import { RS232_WORKBENCH_STORAGE_KEY } from './stores/rs232WorkbenchStore'
-import type { Rs232SerialSessionRequest } from './types/settings'
+import { parseRs232SessionFromLocalStorage } from './stores/rs232WorkbenchStore'
 import { syncRs232Workbench } from './utils/rs232Api'
 
 const toastRef = ref<InstanceType<typeof NotificationToast> | null>(null)
@@ -104,27 +103,6 @@ const syncLicenseStatus = async (): Promise<void> => {
   if (!status.valid && router.currentRoute.value.name !== 'license') {
     authStore.logout()
     await router.push('/license')
-  }
-}
-
-function parseRs232SessionFromLocalStorage(): Rs232SerialSessionRequest | null {
-  if (typeof window === 'undefined') return null
-  try {
-    const raw = window.localStorage.getItem(RS232_WORKBENCH_STORAGE_KEY)
-    if (!raw) return null
-    const parsed = JSON.parse(raw) as Record<string, unknown>
-    const port = parsed.port as Record<string, unknown> | undefined
-    const send = parsed.send as Record<string, unknown> | undefined
-    const receive = parsed.receive as Record<string, unknown> | undefined
-    if (!port || !send || !receive) return null
-    if (typeof port.portName !== 'string' || !port.portName.trim()) return null
-    return {
-      port: port as unknown as Rs232SerialSessionRequest['port'],
-      send: send as unknown as Rs232SerialSessionRequest['send'],
-      receive: receive as unknown as Rs232SerialSessionRequest['receive']
-    }
-  } catch {
-    return null
   }
 }
 

@@ -141,7 +141,7 @@ export const apiCall = async <T = any>(endpoint: string,method: HttpMethod = 'GE
       const result = contentType.includes('application/json')
         ? await response.json()
         : ({success: true,data: (await response.text()) as unknown as T} satisfies ApiCallResult<T>)
-      console.log(`响应数据:`, result)
+      // console.log(`响应数据:`, result)
       return result
     } catch (error: any) {
       console.error(`❌ API调用失败 (${endpoint}):`, error)

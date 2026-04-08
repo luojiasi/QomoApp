@@ -51,6 +51,9 @@ class MotionAxisParamsPayload(BaseModel):
     accel: float | None = Field(default=None, gt=0)
     decel: float | None = Field(default=None, gt=0)
     sramp: float | None = Field(default=None, ge=0)
+    # 正/负限位输入选择：允许 -1 表示未启用
+    fwd_in: int | None = Field(default=None, ge=-1)
+    rev_in: int | None = Field(default=None, ge=-1)
 
 
 class MotionAllAxesParamsRequest(BaseModel):
