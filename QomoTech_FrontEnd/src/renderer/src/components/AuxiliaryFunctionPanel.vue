@@ -339,9 +339,9 @@ async function moveAxisToAngle(axisNo: number, angle: number): Promise<void> {
 
 const isQuickFocusing = ref(false)
 /** XY 每边数量，形成 N×N 矩阵（对应 xCount / yCount） */
-const quickFocusGridSize = ref(3)
-const quickFocusStep = ref(2)
-const quickFocusZStep = ref(0.5)
+const quickFocusGridSize = ref(5)
+const quickFocusStep = ref(0.2)
+const quickFocusZStep = ref(0.1)
 const quickFocusPoints = ref<QuickFocusPoint[]>([])
 
 const rebuildQuickFocusPoints = () => {
@@ -391,14 +391,14 @@ const handleQuickFocus = async () => {
   try {
     // 从当前点开始，按矩阵逐点扫描，避免累计偏移导致轨迹变形
     for (let X = 0; X < xCount; X++) {
-      if (X > 0) await moveMotionAxisRel(0, step)
+      if (X > 0) await moveMotionAxisRel(1, step)
 
       for (let Y = 0; Y < yCount; Y++) {
-        if (Y > 0) await moveMotionAxisRel(1, step)
+        if (Y > 0) await moveMotionAxisRel(0, step)
         const pointIndex = X * yCount + Y
         quickFocusPoints.value[pointIndex].state = 'current'
 
-        await moveMotionAxisRel(2, -Z_step)
+        
 
         await sleep(500)
         setMotionIoOutput(2, true)
@@ -413,7 +413,8 @@ const handleQuickFocus = async () => {
 
       // 每一行结束回到该行起点，确保下一行仍是标准矩阵
       if (yCount > 1) {
-        await moveMotionAxisRel(1, -step * (yCount - 1))
+        await moveMotionAxisRel(0, -step * (yCount - 1))
+        await moveMotionAxisRel(2, -Z_step)
       }
     }
   } finally {

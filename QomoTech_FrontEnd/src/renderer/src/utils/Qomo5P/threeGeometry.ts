@@ -400,8 +400,9 @@ export const computeOpenEntityOffsetPathsForCanvas = (entities: QomoEntityWithSu
     }
 
     // CIRCLE：与 3D 一致，整圆偏移；不参与开放线接缝表
+    // 规则：LEFT 偏移在圆外侧（半径增大），RIGHT 偏移在圆内侧（半径减小）
     const r = entity.radius
-    const offsetRadius = Math.max(1e-6, r - openSize * getOpenDirectionSign(entity.openDirection))
+    const offsetRadius = Math.max(1e-6, r + openSize * getOpenDirectionSign(entity.openDirection))
     const outerPts = createArcPoints(entity.center, offsetRadius, 0, 360, 360)
     if (outerPts.length < 2) continue
     out.push({ entityId: entity.id, points: outerPts })
@@ -889,11 +890,11 @@ const createEntityReferenceObject = (entity: QomoEntityWithSurface,selected: boo
     }
     case 'CIRCLE': {
       // 与 LINE/ARC 一致：原始圆（uniform）+ 偏移圆（gradient）；surfaceAngle 同样经 makeSurfaceAngleRotation 作用
-      // 圆环方向约定：LEFT 偏移在圆内侧（半径减小）；RIGHT 偏移在圆外侧（半径增大）
+      // 圆环方向约定：LEFT 偏移在圆外侧（半径增大）；RIGHT 偏移在圆内侧（半径减小）
       const segments = 360
       const openSize = getEffectiveOpenSize(entity)
       const r = entity.radius
-      const offsetRadius = Math.max(1e-6, r - openSize * getOpenDirectionSign(entity.openDirection))
+      const offsetRadius = Math.max(1e-6, r + openSize * getOpenDirectionSign(entity.openDirection))
 
       const innerPts = createArcPoints(entity.center, r, 0, 360, segments)
       const outerPts = createArcPoints(entity.center, offsetRadius, 0, 360, segments)

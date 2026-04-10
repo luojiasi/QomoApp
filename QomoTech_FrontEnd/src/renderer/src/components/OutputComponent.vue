@@ -3,12 +3,23 @@ import { computed, onMounted, ref,watch} from 'vue'
 import SvgIcon from './SvgIcon.vue'
 import { setMotionIoOutput } from '../utils/motionApi'
 import { apiCall } from '../utils/toBackendApiCall'
-import { zeroMotionAxis,moveMotionAxisRel,getMotionIoInput} from '../utils/motionApi'
+import { zeroMotionAxis,moveMotionAxisRel,getMotionIoInput, getHardwareStatus } from '../utils/motionApi'
 import { useNotification } from '@renderer/composables/useNotification'
 import { useControllerSettingsStore } from '../stores/controllerSettingsStore'
 const { success, error } = useNotification()
 const controllerStore = useControllerSettingsStore()
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+// 用来等待连接控制器之后执行自动回零
+const waitMotionConnected = async (timeoutMs = 15000, pollMs = 300): Promise<boolean> => {
+  const startAt = Date.now()
+  while (Date.now() - startAt < timeoutMs) {
+    const statusRes = await getHardwareStatus()
+    if (statusRes?.success && statusRes.data?.state?.motion_connected) return true
+    await sleep(pollMs)
+  }
+  return false
+}
 
 const props = defineProps<{
   motionIoMap: Array<{ digitalIn: boolean; digitalOut: boolean }>
@@ -204,9 +215,14 @@ const handleHome = async () => {
     isMovingHome.value = false
   }
 }
-onMounted(() => {
+onMounted(async () => {
   if (autoHomeOnStart.value && !ISARRIVEDHOME.value) {
-    void handleHome()
+    const connected = await waitMotionConnected()
+    if (!connected) {
+      error('启动自动回零失败', '控制器未就绪，请稍后手动回零')
+      return
+    }
+    await handleHome()
   }
 })
 </script>
