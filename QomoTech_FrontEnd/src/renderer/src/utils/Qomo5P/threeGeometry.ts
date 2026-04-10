@@ -30,13 +30,19 @@ const ROCENTERPOS = { START: { x: 0, y: 10, z: 0 }, END: { x: 0, y: -10, z: 0 } 
 /** 与实体 welding.openSize 一致；未定义时用 1（后续可再接开口角/高度公式） */
 const DEFAULT_OPEN_SIZE = 1
 
+// 实体开口变量是否需要取反
+const OPEN_SIZE_NEED_REVERSE = false
+
+const getOpenDirectionSign = (openDirection: OpenDirectionType) => {
+  const baseSign = openDirection === 'RIGHT' ? -1 : 1
+  return OPEN_SIZE_NEED_REVERSE ? baseSign : -baseSign
+}
+
 /** Canvas 世界坐标与 Three XY 同向：Three (x,y,z) = (canvas.x, canvas.y, 标高)，避免 3D 与 2D 左右/上下镜像不一致 */
 const toThreePosition = (point: Point, elevation = 0) =>
   new THREE.Vector3(point.x, point.y, elevation)
 
-const isEllipseLikeIrregularEntity = (
-  entity: QomoEntityWithSurface
-): entity is QomoIrregularSurfacesEntity =>
+const isEllipseLikeIrregularEntity = (entity: QomoEntityWithSurface): entity is QomoIrregularSurfacesEntity =>
   entity.type === 'IRREGULAR' &&
   (entity.shape === 'oval' ||
     entity.shape === 'marquise' ||
@@ -48,11 +54,7 @@ type AxisRotationContext = {
   rotationMatrix: THREE.Matrix4
 }
 
-const makeAxisRotationContext = (
-  axisStart: THREE.Vector3,
-  axisEnd: THREE.Vector3,
-  angleRad: number
-): AxisRotationContext | null => {
+const makeAxisRotationContext = (axisStart: THREE.Vector3,axisEnd: THREE.Vector3,angleRad: number): AxisRotationContext | null => {
   if (!Number.isFinite(angleRad) || Math.abs(angleRad) < 1e-9) return null
   const axisDir = axisEnd.clone().sub(axisStart)
   const axisLen = axisDir.length()
@@ -64,11 +66,7 @@ const makeAxisRotationContext = (
   }
 }
 
-const toThreePositionWithAxisRotation = (
-  point: Point,
-  elevation = 0,
-  rotation: AxisRotationContext | null = null
-) => {
+const toThreePositionWithAxisRotation = (point: Point,elevation = 0,rotation: AxisRotationContext | null = null) => {
   const v = toThreePosition(point, elevation)
   if (!rotation) return v
   return v.sub(rotation.axisStart).applyMatrix4(rotation.rotationMatrix).add(rotation.axisStart)
@@ -79,11 +77,7 @@ const toThreePositionWithAxisRotation = (
  * 投影后保留旋转后的 x/y，仅把 z 置 0。
  * 坐标约定：Three Z-up，(canvas.x, canvas.y, 标高) → (x, y, z)。
  */
-export const projectRotatedEntityPointToThreeZPlane = (
-  point: Point,
-  elevation: number,
-  surfaceAngleDeg: number
-): THREE.Vector3 => {
+export const projectRotatedEntityPointToThreeZPlane = (point: Point,elevation: number,surfaceAngleDeg: number): THREE.Vector3 => {
   const rotation = makeSurfaceAngleRotation(surfaceAngleDeg)
   const v = toThreePositionWithAxisRotation(point, elevation, rotation)
   return new THREE.Vector3(v.x, v.y, 0)
@@ -136,7 +130,7 @@ const offsetSegmentByOpenDirection = (
   if (len < 1e-9) return [start, end]
   const rx = dy / len
   const ry = -dx / len
-  const sign = openDirection === 'RIGHT' ? -1 : 1
+  const sign = getOpenDirectionSign(openDirection)
   const ox = rx * openSize * sign
   const oy = ry * openSize * sign
   return [
@@ -145,13 +139,9 @@ const offsetSegmentByOpenDirection = (
   ]
 }
 
-const offsetOpenPolylineByOpenDirection = (
-  points: Point[],
-  openDirection: OpenDirectionType,
-  openSize: number
-) => {
+const offsetOpenPolylineByOpenDirection = (points: Point[],openDirection: OpenDirectionType,openSize: number) => {
   if (points.length < 2 || openSize < 1e-9) return points.map((point) => ({ ...point }))
-  const sign = openDirection === 'RIGHT' ? -1 : 1
+  const sign = getOpenDirectionSign(openDirection)
   const segmentNormals = points.slice(0, -1).map((point, index) => {
     const next = points[index + 1]
     const dx = next.x - point.x
@@ -218,34 +208,22 @@ const intersectLines2D = (a0: Point, a1: Point, b0: Point, b1: Point): Point | n
   const t = (dx * by - dy * bx) / det
   return { x: a0.x + ax * t, y: a0.y + ay * t }
 }
-
-const computeArcOffsetRadius = (
-  entity: Extract<QomoEntityWithSurface, { type: 'ARC' }>,
-  openSize: number
-) => {
+// 计算圆弧偏移的半径
+const computeArcOffsetRadius = (entity: Extract<QomoEntityWithSurface, { type: 'ARC' }>,openSize: number) => {
   let sweep = entity.endAngle - entity.startAngle
   if (Math.abs(sweep) < 1e-9) sweep = sweep >= 0 ? 360 : -360
   const orientationSign = sweep >= 0 ? 1 : -1
-  const deltaRadius = -(
-    (entity.openDirection === 'RIGHT' ? orientationSign : -orientationSign) * openSize
-  )
+  const deltaRadius = orientationSign * getOpenDirectionSign(entity.openDirection) * openSize
   return Math.max(1e-6, entity.radius + deltaRadius)
 }
-
-const buildOpenEntityOffsetProfile = (
-  entity: OpenJoinEntityWithSurface
-): OpenEntityOffsetProfile | null => {
+// 构建开放实体偏移的轮廓
+const buildOpenEntityOffsetProfile = (entity: OpenJoinEntityWithSurface): OpenEntityOffsetProfile | null => {
   const openSize = getEffectiveOpenSize(entity)
   if (openSize < 1e-9) return null
 
   if (entity.type === 'LINE') {
     const originalPoints = [entity.start, entity.end]
-    const [offsetStart, offsetEnd] = offsetSegmentByOpenDirection(
-      entity.start,
-      entity.end,
-      entity.openDirection,
-      openSize
-    )
+    const [offsetStart, offsetEnd] = offsetSegmentByOpenDirection(entity.start,entity.end,entity.openDirection,openSize)
     return {
       entityId: entity.id,
       entity,
@@ -256,21 +234,9 @@ const buildOpenEntityOffsetProfile = (
   }
 
   if (entity.type === 'ARC') {
-    const originalPoints = createArcPoints(
-      entity.center,
-      entity.radius,
-      entity.startAngle,
-      entity.endAngle,
-      OPEN_PATH_SAMPLE_SEGMENTS
-    )
+    const originalPoints = createArcPoints(entity.center,entity.radius,entity.startAngle,entity.endAngle,OPEN_PATH_SAMPLE_SEGMENTS)
     const offsetRadius = computeArcOffsetRadius(entity, openSize)
-    const offsetPoints = createArcPoints(
-      entity.center,
-      offsetRadius,
-      entity.startAngle,
-      entity.endAngle,
-      OPEN_PATH_SAMPLE_SEGMENTS
-    )
+    const offsetPoints = createArcPoints(entity.center,offsetRadius,entity.startAngle,entity.endAngle,OPEN_PATH_SAMPLE_SEGMENTS)
     if (originalPoints.length < 2 || offsetPoints.length < 2) return null
     return { entityId: entity.id, entity, openSize, originalPoints, offsetPoints }
   }
@@ -280,11 +246,8 @@ const buildOpenEntityOffsetProfile = (
   if (originalPoints.length < 2 || offsetPoints.length < 2) return null
   return { entityId: entity.id, entity, openSize, originalPoints, offsetPoints }
 }
-
-const getOffsetEndpointLine = (
-  profile: OpenEntityOffsetProfile,
-  side: EndpointSide
-): OffsetEndpointLine | null => {
+// 获取偏移实体的端点线
+const getOffsetEndpointLine = (profile: OpenEntityOffsetProfile,side: EndpointSide): OffsetEndpointLine | null => {
   const points = profile.offsetPoints
   if (points.length < 2) return null
   if (side === 'start') {
@@ -296,7 +259,7 @@ const getOffsetEndpointLine = (
     baseOffsetEndpoint: points[points.length - 1]
   }
 }
-
+// 获取原始实体的端点
 const getOriginalEndpoint = (profile: OpenEntityOffsetProfile, side: EndpointSide) =>
   side === 'start'
     ? profile.originalPoints[0]
@@ -373,10 +336,7 @@ export type OpenEntityOffsetPath2D = {
  * 供 Home 相机叠加等仅展示使用；不参与编辑几何。
  */
 // 导出与 3D 偏移层一致的 2D 路径计算（含接缝斜接）
-export const computeOpenEntityOffsetPathsForCanvas = (
-  entities: QomoEntityWithSurface[],
-  openSize_details: number
-): OpenEntityOffsetPath2D[] => {
+export const computeOpenEntityOffsetPathsForCanvas = (entities: QomoEntityWithSurface[],openSize_details: number): OpenEntityOffsetPath2D[] => {
   const overrides = buildOpenEntityOffsetOverrides(entities)
   const out: OpenEntityOffsetPath2D[] = []
 
@@ -441,8 +401,7 @@ export const computeOpenEntityOffsetPathsForCanvas = (
 
     // CIRCLE：与 3D 一致，整圆偏移；不参与开放线接缝表
     const r = entity.radius
-    const offsetRadius =
-      entity.openDirection === 'RIGHT' ? r + openSize : Math.max(1e-6, r - openSize)
+    const offsetRadius = Math.max(1e-6, r - openSize * getOpenDirectionSign(entity.openDirection))
     const outerPts = createArcPoints(entity.center, offsetRadius, 0, 360, 360)
     if (outerPts.length < 2) continue
     out.push({ entityId: entity.id, points: outerPts })
@@ -451,13 +410,7 @@ export const computeOpenEntityOffsetPathsForCanvas = (
   return out
 }
 //导出与 3D 偏移层一致的 2D 路径计算（含接缝斜接）
-const createVerticalConnector = (
-  point: Point,
-  startElevation: number,
-  endElevation: number,
-  color: number,
-  rotation: AxisRotationContext | null = null
-) => {
+const createVerticalConnector = (point: Point,startElevation: number,endElevation: number,color: number,rotation: AxisRotationContext | null = null) => {
   const geometry = new THREE.BufferGeometry().setFromPoints([
     toThreePositionWithAxisRotation(point, startElevation, rotation),
     toThreePositionWithAxisRotation(point, endElevation, rotation)
@@ -466,12 +419,7 @@ const createVerticalConnector = (
   return new THREE.Line(geometry, material)
 }
 
-const createLineFromPoints = (
-  points: Point[],
-  elevation: number,
-  color: number,
-  rotation: AxisRotationContext | null = null
-) => {
+const createLineFromPoints = (points: Point[],elevation: number,color: number,rotation: AxisRotationContext | null = null) => {
   const geometry = new THREE.BufferGeometry().setFromPoints(
     points.map((point) => toThreePositionWithAxisRotation(point, elevation, rotation))
   )
@@ -480,13 +428,7 @@ const createLineFromPoints = (
 }
 
 /** startAngle/endAngle 为定向扫掠：end - start 为带符号扫掠角（度），可越过 ±360 */
-export const createArcPoints = (
-  center: Point,
-  radius: number,
-  startAngle: number,
-  endAngle: number,
-  segments = 48
-) => {
+export const createArcPoints = (center: Point,radius: number,startAngle: number,endAngle: number,segments = 48) => {
   // 与 2D 的 describeArc 保持一致：把扫掠角归一化到 (-360, 360]，
   // 避免 endAngle-startAngle 出现 “360 + 小角度” 时被画成整圆+多一段。
   let sweep = endAngle - startAngle
@@ -547,15 +489,7 @@ export const createBezierPoints = (controlPoints: Point[], segments = 64) => {
 }
 
 /** 参数化椭圆：长轴方向与 +X 夹角 rotationDeg（度），t 为参数角（度） */
-export const createEllipsePoints = (
-  center: Point,
-  radiusX: number,
-  radiusY: number,
-  rotationDeg: number,
-  startAngleDeg = 0,
-  endAngleDeg = 360,
-  segments = 96
-): Point[] => {
+export const createEllipsePoints = (center: Point,radiusX: number,radiusY: number,rotationDeg: number,startAngleDeg = 0,endAngleDeg = 360,segments = 96): Point[] => {
   const rot = (rotationDeg * Math.PI) / 180
   const ux = Math.cos(rot)
   const uy = Math.sin(rot)
@@ -580,13 +514,7 @@ export const createEllipsePoints = (
 }
 
 /** 宝石状马眼：两端更尖、肩部更饱满，避免旧贝塞尔轮廓偏叶片/椭圆感 */
-export const createMarquisePoints = (
-  center: Point,
-  radiusX: number,
-  radiusY: number,
-  rotationDeg: number,
-  segments = 96
-): Point[] => {
+export const createMarquisePoints = (center: Point,radiusX: number,radiusY: number,rotationDeg: number,segments = 96): Point[] => {
   const rot = (rotationDeg * Math.PI) / 180
   const ux = Math.cos(rot)
   const uy = Math.sin(rot)
@@ -625,13 +553,7 @@ export const createMarquisePoints = (
 }
 
 /** 梨形：圆润尾部 + 单侧尖端，尖端朝局部 +X 方向（与第二个定向点一致） */
-export const createPearPoints = (
-  center: Point,
-  radiusX: number,
-  radiusY: number,
-  rotationDeg: number,
-  segments = 96
-): Point[] => {
+export const createPearPoints = (center: Point,radiusX: number,radiusY: number,rotationDeg: number,segments = 96): Point[] => {
   const rot = (rotationDeg * Math.PI) / 180
   const ux = Math.cos(rot)
   const uy = Math.sin(rot)
@@ -674,13 +596,7 @@ export const createPearPoints = (
 }
 
 /** 心形：上方双圆弧 + 下方尖点，尖点朝局部 +X 方向（与第二个定向点一致） */
-export const createHeartPoints = (
-  center: Point,
-  radiusX: number,
-  radiusY: number,
-  rotationDeg: number,
-  segments = 96
-): Point[] => {
+export const createHeartPoints = (center: Point,radiusX: number,radiusY: number,rotationDeg: number,segments = 96): Point[] => {
   const rot = (rotationDeg * Math.PI) / 180
   const ux = Math.cos(rot)
   const uy = Math.sin(rot)
@@ -727,11 +643,7 @@ const makeSurfaceAngleRotation = (surfaceAngleDeg: number) => {
   return makeAxisRotationContext(axisStart, axisEnd, (-surfaceAngleDeg * Math.PI) / 180)
 }
 
-const createEntityReferenceObject = (
-  entity: QomoEntityWithSurface,
-  selected: boolean,
-  endpointOffsetOverride?: EndpointOffsetOverride
-) => {
+const createEntityReferenceObject = (entity: QomoEntityWithSurface,selected: boolean,endpointOffsetOverride?: EndpointOffsetOverride) => {
   const color = getReferenceDisplayColor(selected)
   const offsetColor = getOffsetReferenceDisplayColor(selected, entity.openDirection)
   const surfaceAngleDeg = entity.surfaceAngle ?? 0
@@ -981,8 +893,7 @@ const createEntityReferenceObject = (
       const segments = 360
       const openSize = getEffectiveOpenSize(entity)
       const r = entity.radius
-      const offsetRadius =
-        entity.openDirection === 'RIGHT' ? r + openSize : Math.max(1e-6, r - openSize)
+      const offsetRadius = Math.max(1e-6, r - openSize * getOpenDirectionSign(entity.openDirection))
 
       const innerPts = createArcPoints(entity.center, r, 0, 360, segments)
       const outerPts = createArcPoints(entity.center, offsetRadius, 0, 360, segments)
@@ -1170,7 +1081,7 @@ const createEntityReferenceObject = (
       const rx = entity.radiusX
       const ry = entity.radiusY
       const rot = entity.rotationDeg
-      const delta = entity.openDirection === 'RIGHT' ? openSize : -openSize
+      const delta = -openSize * getOpenDirectionSign(entity.openDirection)
       const outerRx = Math.max(1e-6, rx + delta)
       const outerRy = Math.max(1e-6, ry + delta)
 
@@ -1549,10 +1460,7 @@ export const disposeThreeObject = (object: THREE.Object3D) => {
   })
 }
 
-export const buildQomo5PSceneObjects = (
-  entities: QomoEntityWithSurface[],
-  selectedEntityIds: string[]
-) => {
+export const buildQomo5PSceneObjects = (entities: QomoEntityWithSurface[],selectedEntityIds: string[]) => {
   const selectedIdSet = new Set(selectedEntityIds)
   const endpointOffsetOverrides = buildOpenEntityOffsetOverrides(entities)
   return entities
@@ -1566,11 +1474,7 @@ export const buildQomo5PSceneObjects = (
     .filter((object): object is THREE.Object3D => Boolean(object))
 }
 
-export const buildQomo5PEntityObject3d = (
-  entity: QomoEntityWithSurface,
-  selected = false,
-  endpointOffsetOverride?: EndpointOffsetOverride
-) => {
+export const buildQomo5PEntityObject3d = (entity: QomoEntityWithSurface,selected = false,endpointOffsetOverride?: EndpointOffsetOverride) => {
   const object = createEntityReferenceObject(entity, selected, endpointOffsetOverride)
 
   if (!object) return null
@@ -1580,10 +1484,7 @@ export const buildQomo5PEntityObject3d = (
   return object
 }
 
-const buildProjectionToZ0ForEntity = (
-  entity: QomoEntityWithSurface,
-  selected: boolean
-): THREE.Object3D | undefined => {
+const buildProjectionToZ0ForEntity = (entity: QomoEntityWithSurface,selected: boolean): THREE.Object3D | undefined => {
   // 原始实体点先旋转，再投影到 z=0
   const surfaceAngleDeg = entity.surfaceAngle ?? 0
   const color = getReferenceDisplayColor(selected)
@@ -1673,10 +1574,7 @@ const buildProjectionToZ0ForEntity = (
   return undefined
 }
 
-export const buildQomo5PProjectionToZ0Objects = (
-  entities: QomoEntityWithSurface[],
-  selectedEntityIds: string[]
-) => {
+export const buildQomo5PProjectionToZ0Objects = (entities: QomoEntityWithSurface[],selectedEntityIds: string[]) => {
   const selectedIdSet = new Set(selectedEntityIds)
   return entities
     .map((entity) => buildProjectionToZ0ForEntity(entity, selectedIdSet.has(entity.id)))

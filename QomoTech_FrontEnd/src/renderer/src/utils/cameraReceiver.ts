@@ -1,6 +1,7 @@
 import { readonly, ref } from 'vue'
 import { getBackendApiUrl, getCameraStreamWsUrl } from './toBackendApiCall'
-import { initSdkEnumAndConnectIndex0 } from './cameraApi'
+import { bootstrapCameraSettings, initSdkEnumAndConnectIndex0 } from './cameraApi'
+import type { CameraSettingsState } from '../types/settings'
 
 const frameUrl = ref('')
 const running = ref(false)
@@ -25,11 +26,65 @@ const WS_RECONNECT_MS = 120
 /** 队列越小端到端延迟越低，过大只会堆旧帧、拖慢观感 */
 const FRAME_QUEUE_SIZE = 3
 const URL_CACHE_SIZE = 3
+const CAMERA_SETTINGS_STORAGE_KEY = 'qomotech-camera-settings'
 
 const loadedFrameQueue: string[] = []
 const staleFrameUrlCache: string[] = []
 let currentFrameObjectUrl = ''
 let lastDisplayTs = 0
+
+function clampInt(value: unknown, min: number, max: number, fallback: number): number {
+  const n = Number(value)
+  if (!Number.isFinite(n)) return fallback
+  return Math.min(max, Math.max(min, Math.trunc(n)))
+}
+
+function clampFloat(value: unknown, min: number, max: number, fallback: number): number {
+  const n = Number(value)
+  if (!Number.isFinite(n)) return fallback
+  return Math.min(max, Math.max(min, n))
+}
+
+function loadCameraSettingsFromLocalStorage(): CameraSettingsState | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = window.localStorage.getItem(CAMERA_SETTINGS_STORAGE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as Partial<CameraSettingsState>
+    if (!parsed || typeof parsed !== 'object') return null
+    return {
+      cameraIndex: clampInt(parsed.cameraIndex, 0, 5, 0),
+      autoExposure: typeof parsed.autoExposure === 'boolean' ? parsed.autoExposure : true,
+      exposureTime: clampInt(parsed.exposureTime, 0, 65535, 1000),
+      frameSpeedLevel: clampInt(parsed.frameSpeedLevel, 0, 3, 1) as 0 | 1 | 2 | 3,
+      frameSpeedAutoTune: typeof parsed.frameSpeedAutoTune === 'boolean' ? parsed.frameSpeedAutoTune : true,
+      frameSpeedTune: clampFloat(parsed.frameSpeedTune, 0, 1, 1),
+      mirrorHorizontal: typeof parsed.mirrorHorizontal === 'boolean' ? parsed.mirrorHorizontal : true,
+      mirrorVertical: typeof parsed.mirrorVertical === 'boolean' ? parsed.mirrorVertical : true,
+      autoWhiteBalance: typeof parsed.autoWhiteBalance === 'boolean' ? parsed.autoWhiteBalance : true,
+      whiteBalanceRGain: clampInt(parsed.whiteBalanceRGain, 0, 65535, 21),
+      whiteBalanceGGain: clampInt(parsed.whiteBalanceGGain, 0, 65535, 22),
+      whiteBalanceBGain: clampInt(parsed.whiteBalanceBGain, 0, 65535, 16),
+      frameTimeoutMs: clampInt(parsed.frameTimeoutMs, 1, 10000, 1000),
+      frameQuality: clampInt(parsed.frameQuality, 1, 100, 90)
+    }
+  } catch {
+    return null
+  }
+}
+
+async function pushLocalCameraSettingsBeforeConnect(): Promise<void> {
+  const settings = loadCameraSettingsFromLocalStorage()
+  if (!settings) return
+  const res = await bootstrapCameraSettings({
+    auto_exposure: settings.autoExposure,
+    exposure_time: settings.exposureTime,
+    speed_level: settings.frameSpeedLevel,
+    mirror_horizontal: settings.mirrorHorizontal,
+    mirror_vertical: settings.mirrorVertical,
+  })
+  if (!res.success) {lastError.value = res.message ?? '同步相机本地参数失败'}
+}
 
 async function ensureCameraConnected(): Promise<void> {
   if (connecting) return
@@ -45,6 +100,7 @@ async function ensureCameraConnected(): Promise<void> {
       }
     }
     connected.value = false
+    await pushLocalCameraSettingsBeforeConnect()
 
     const connectRes = await initSdkEnumAndConnectIndex0()
     if (!connectRes.success) {

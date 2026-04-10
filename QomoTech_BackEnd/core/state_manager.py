@@ -178,9 +178,7 @@ class StateManager:
                     current = getattr(axis_fb, field)
                     raw = self._pick(axis_data, aliases, current)
                     setattr(axis_fb, field, self._safe_int(raw, current))
-
-                idle_raw = axis_data.get("idle", axis_fb.idle)
-                axis_fb.idle = 1 if bool(idle_raw) else 0
+                axis_fb.idle = axis_data.get("idle", axis_fb.idle)
 
                 self.motion_positions[axis_no] = axis_fb.dpos
 

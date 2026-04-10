@@ -10,6 +10,7 @@ import { startGlobalCameraReceiver } from './utils/cameraReceiver'
 import { createApp } from 'vue'
 
 applySavedTheme()
+// 相机首次与后端进行连接
 startGlobalCameraReceiver()
 
 const app = createApp(App)

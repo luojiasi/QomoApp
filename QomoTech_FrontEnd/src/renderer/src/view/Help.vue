@@ -110,7 +110,7 @@ onUnmounted(() => {
 
       <div class="app-card-soft rounded-2xl p-6">
         <p class="app-text-primary text-lg">
-          欢迎你，<span class="font-semibold text-blue-600">{{ authStore.username }}</span>
+          欢迎登录
         </p>
         <p class="app-text-secondary mt-3 text-sm">
           当前身份：
@@ -119,10 +119,7 @@ onUnmounted(() => {
           </span>
         </p>
         <p class="app-text-secondary mt-2 text-sm">
-          管理员状态：{{ authStore.isAdmin }}，用户状态：{{ authStore.isUser }}
-        </p>
-        <p class="app-text-muted mt-3 text-sm leading-6">
-          当前已经通过 Pinia 保存登录信息到本地，并通过 Vue Router 完成页面导航。
+          管理员状态：{{ authStore.isAdmin?'是':'否' }}，用户状态：{{ authStore.isUser?'是':'否' }}
         </p>
       </div>
 

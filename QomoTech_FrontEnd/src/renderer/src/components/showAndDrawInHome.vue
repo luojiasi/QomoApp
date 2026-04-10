@@ -256,23 +256,19 @@ const machineFollowTransform = computed(
 
 const hostRef = ref<HTMLDivElement | null>(null)
 let ro: ResizeObserver | null = null
-
+/** 显示倍率设置面板 */
 const showScalePanel = ref(false)
-
 type LocalScaleSettings = {
   scaleX: number
   scaleY: number
   crosshairStrokeMul: number
   entityStrokeMul: number
 }
-
 const STORAGE_KEY = 'qomo.showAndDrawInHome.localScale'
-
 const coerceFinitePositive = (v: unknown, fallback: number) => {
   const n = typeof v === 'number' ? v : Number(v)
   return Number.isFinite(n) && n > 0 ? n : fallback
 }
-
 const loadScaleSettings = (): LocalScaleSettings => {
   const defaults: LocalScaleSettings = { scaleX: 1, scaleY: 1, crosshairStrokeMul: 1, entityStrokeMul: 1 }
   try {
@@ -289,7 +285,6 @@ const loadScaleSettings = (): LocalScaleSettings => {
     return defaults
   }
 }
-
 const scaleSettings = reactive<LocalScaleSettings>(loadScaleSettings())
 
 const persistScaleSettings = () => {
@@ -328,6 +323,7 @@ const resetScaleSettings = () => {
   persistScaleSettings()
 }
 
+/** 初始化 */
 onMounted(() => {
   if (!hostRef.value) return
   ro = new ResizeObserver((entries) => {
@@ -337,7 +333,6 @@ onMounted(() => {
   })
   ro.observe(hostRef.value)
 })
-
 onBeforeUnmount(() => {
   ro?.disconnect()
   ro = null
@@ -361,9 +356,7 @@ const entityStrokeWidth = computed(
 )
 
 const visibleLayerIdSet = computed(() => new Set(layers.value.filter((l) => l.visible).map((l) => l.id)))
-const visibleEntities = computed(() =>
-  entities.value.filter((e) => visibleLayerIdSet.value.has(e.layerId))
-)
+const visibleEntities = computed(() =>entities.value.filter((e) => visibleLayerIdSet.value.has(e.layerId)))
 
 /** 用全部实体算接缝斜接，再按可见层过滤；逻辑与 `threeGeometry` 中 3D 偏移层一致 */
 const visibleOffsetPaths = computed(() => {
@@ -379,7 +372,7 @@ const visibleOffsetPaths = computed(() => {
   const entitiesForOffset = entities.value.map((e) => {
     const dir = (e as { openDirection?: OpenDirectionType }).openDirection
     if (dir !== 'LEFT' && dir !== 'RIGHT') return e
-    const flipped: OpenDirectionType = dir === 'RIGHT' ? 'LEFT' : 'RIGHT'
+    const flipped: OpenDirectionType = dir === 'RIGHT' ? 'RIGHT' : 'LEFT'
     return { ...e, openDirection: flipped }
   })
 

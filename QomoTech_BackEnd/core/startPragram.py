@@ -260,14 +260,7 @@ def execute_start_program(*,motion: ZMotionDriver,recipe_payload: dict[str, Any]
             machiningRecipe = searchIdInRecipe(recipe_payload.get("selectedMachiningRecipe"),mainRecipe.get("machiningRecipeId"),)
             machiningHorizontalFormula = searchIdInRecipe(recipe_payload.get("selectedHorizontal"),machiningRecipe.get("horizontalFormulaId"))
             if(machiningHorizontalFormula.get("formula").get("openingShape") == "//型"):
-                outcome = qiepianLoop(
-                    originalPointsNum=_i,
-                    recipe_payload=recipe_payload,
-                    controller=controller,
-                    entities=entities,
-                    rs232=rs232,
-                    rs232_open=rs232_open
-                )
+                outcome = qiepianLoop(originalPointsNum=_i,recipe_payload=recipe_payload,controller=controller,entities=entities,rs232=rs232,rs232_open=rs232_open)
             elif(machiningHorizontalFormula.get("formula").get("openingShape") == "V型"):
                 outcome = wangFuLoop(originalPointsNum=_i,recipe_payload=recipe_payload,controller=controller,entities=entities,rs232=rs232,rs232_open=rs232_open,)
 
@@ -452,7 +445,6 @@ def wangFuLoop(originalPointsNum: int,recipe_payload: dict[str, Any],controller:
     isneedReceive = False
     originalPoints_receive = originalPoints.copy()
     z_original_position = controller.get_z_dpos_mm()
-
     while step <= 300:
         if _skip_requested():
             _runtime_cleanup_outputs(controller)
@@ -506,7 +498,7 @@ def wangFuLoop(originalPointsNum: int,recipe_payload: dict[str, Any],controller:
                         step = 20
                         break
                     if resultX.get('success') and resultY.get('success'):
-                        if resultX.get('notMoving')==-1 and resultY.get('notMoving')==-1:
+                        if resultX.get('notMoving') and resultY.get('notMoving'):
                             step =21
                             break
                         else:
@@ -567,15 +559,16 @@ def wangFuLoop(originalPointsNum: int,recipe_payload: dict[str, Any],controller:
                         time.sleep(0.05)
                         continue
                     result = controller.get_notIsMoving(2)
-                    if result.get('success') and result is not None:
+                    if result.get('success'):
                         if paused_seen:
                             r_z = controller.absolute_move_speed({'axis': 2, 'moveDistance': float(z_target_depth), 'speed': runSpeed})
                             if not r_z.get('success'):
                                 return False
                             paused_seen = False
                             continue
-                        step = 60
-                        break
+                        if result.get('notMoving'):
+                            step = 60
+                            break
                     if jumpOutCount>=50:
                         return False
                     jumpOutCount+=1
@@ -588,11 +581,7 @@ def wangFuLoop(originalPointsNum: int,recipe_payload: dict[str, Any],controller:
                 else:
                     speed = runSpeed*middleCuttingSpeedRate
 
-                r_ip = controller.continuous_interpolation_move_adapter(
-                    originalPoints_run,
-                    speed=speed,
-                    wait_until_done=True,
-                )
+                r_ip = controller.continuous_interpolation_move_adapter(originalPoints_run,speed=speed,wait_until_done=True,)
                 if not r_ip.get('success'):
                     return False
                 step = 70
@@ -622,7 +611,7 @@ def wangFuLoop(originalPointsNum: int,recipe_payload: dict[str, Any],controller:
                                 break
                             step = 60
                             break
-                        if resultX.get('notMoving')==-1 and resultY.get('notMoving')==-1:
+                        if resultX.get('notMoving') and resultY.get('notMoving'):
                             step = 80
                             break
                         else:

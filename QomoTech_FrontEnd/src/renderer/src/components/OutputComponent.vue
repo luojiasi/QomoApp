@@ -65,18 +65,23 @@ const isMovingHome = ref(false)
 /**
  * 约定：未压限位时为 true，压到上限位后变为 false。
  */
- const getAxisUpperLimitInputNo = (AxisNum:number): number | null => {
+ const getAxisLimitInputNo = (AxisNum:number,fwd_in:boolean): number | null => {
   const axis = controllerStore.controllerSettings.axes.find((a) => a.axisNo === AxisNum)
   if (!axis) return null
-  const n = Number(axis.fwd_in)
+  let n = -1
+  if (fwd_in){
+    n = Number(axis.fwd_in)
+  }else{
+    n = Number(axis.rev_in)
+  }
   if (!Number.isFinite(n) || n < 0) return null
   return Math.floor(n)
 }
 /**
  * 轮询读取轴 上限位输入：先确认曾离开限位（值为 true），再等到变为 false 视为到位。
  */
-const waitAxisUpperLimitInputFalse = async (AxisNum:number,timeoutMs = 6000) => {
-  const ioNo = getAxisUpperLimitInputNo(AxisNum)
+const waitAxisUpperLimitInputFalse = async (AxisNum:number,fwd_in:boolean=false,timeoutMs = 10000) => {
+  const ioNo = getAxisLimitInputNo(AxisNum,fwd_in)
   if (ioNo === null) return false
   const startAt = Date.now()
   let seenNotAtLimit = false
@@ -97,7 +102,7 @@ const handleHome = async () => {
   isMovingHome.value = true
   try {
     //首先判断XY轴的限位不能为-1
-    if (getAxisUpperLimitInputNo(0) === null && getAxisUpperLimitInputNo(1)===null && getAxisUpperLimitInputNo(2)===null) {
+    if (getAxisLimitInputNo(0,false) === null && getAxisLimitInputNo(1,true)===null && getAxisLimitInputNo(2,true)===null) {
       error('未配置XYZ限位','请在控制器设置中为轴配置有效的限位输入口')
       return
     }
@@ -115,9 +120,9 @@ const handleHome = async () => {
       return
     }
     const [okX, okY, okZ] = await Promise.all([
-      waitAxisUpperLimitInputFalse(0),
-      waitAxisUpperLimitInputFalse(1),
-      waitAxisUpperLimitInputFalse(2)
+      waitAxisUpperLimitInputFalse(0,false),
+      waitAxisUpperLimitInputFalse(1,true),
+      waitAxisUpperLimitInputFalse(2,true)
     ])
     if (!okX || !okY || !okZ) {
       const message = [!okX && 'X', !okY && 'Y', !okZ && 'Z'].filter(Boolean).join('/')

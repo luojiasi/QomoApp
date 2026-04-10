@@ -30,8 +30,6 @@ const visibleLinks = computed(() => {
   return props.links.filter((item) => USER_VISIBLE_PATHS.has(item.path))
 })
 
-/** 普通用户不展示顶部「首页」入口，避免与「仅两项」策略冲突 */
-const effectiveShowHomeLink = computed(() => props.showHomeLink && authStore.isAdmin)
 </script>
 
 <template>
@@ -51,7 +49,7 @@ const effectiveShowHomeLink = computed(() => props.showHomeLink && authStore.isA
     </div>
 
     <div class="flex flex-1 flex-wrap gap-x-4 gap-y-2 pl-6">
-      <RouterLink
+      <!-- <RouterLink
         v-if="effectiveShowHomeLink"
         to="/home"
         class="transition-colors"
@@ -62,7 +60,7 @@ const effectiveShowHomeLink = computed(() => props.showHomeLink && authStore.isA
         "
       >
         首页
-      </RouterLink>
+      </RouterLink> -->
 
       <RouterLink
         v-for="item in visibleLinks"
@@ -75,7 +73,6 @@ const effectiveShowHomeLink = computed(() => props.showHomeLink && authStore.isA
             : 'text-(--app-text-secondary) hover:text-(--app-text-primary)'
         "
       >
-        <!-- {{ item.title }} -->
           <div class="flex flex-col items-center">
             <SvgIcon :icon-name="item.title" class-name="text-sm" />
             <span class="text-xs">{{ item.name }}</span>

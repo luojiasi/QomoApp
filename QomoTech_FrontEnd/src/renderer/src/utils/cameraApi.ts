@@ -20,6 +20,20 @@ export interface CameraConnectPayload {
   index: number
 }
 
+export interface CameraBootstrapSettingsPayload {
+  auto_exposure?: boolean
+  exposure_time?: number
+  speed_level?: 0 | 1 | 2 | 3
+  auto_tune?: boolean
+  tune?: number
+  mirror_horizontal?: boolean
+  mirror_vertical?: boolean
+  auto_white_balance?: boolean
+  r_gain?: number
+  g_gain?: number
+  b_gain?: number
+}
+
 export interface CameraExposurePayload {
   auto_exposure?: boolean
   exposure_time?: number
@@ -47,14 +61,8 @@ export interface CameraWhiteBalancePayload {
 export const fetchCameraDevices = async (): Promise<ApiCallResult<{ devices: CameraDeviceInfo[] }>> =>
   apiCall<{ devices: CameraDeviceInfo[] }>('camera/devices', 'GET')
 
-export const connectCamera = async (
-  payload: CameraConnectPayload
-): Promise<ApiCallResult<CameraStatusPayload>> =>
-  apiCall<{ connected: boolean; selected_index: number | null }>(
-    'camera/connect',
-    'POST',
-    payload as unknown as Record<string, unknown>
-  ).then(async (res) => {
+export const connectCamera = async (payload: CameraConnectPayload): Promise<ApiCallResult<CameraStatusPayload>> =>
+  apiCall<{ connected: boolean; selected_index: number | null }>('camera/connect','POST',payload as unknown as Record<string, unknown>).then(async (res) => {
     if (!res.success) return res as unknown as ApiCallResult<CameraStatusPayload>
     return getCameraStatus()
   })
@@ -85,6 +93,12 @@ export const disconnectCamera = async (): Promise<ApiCallResult<CameraStatusPayl
 
 export const getCameraStatus = async (): Promise<ApiCallResult<CameraStatusPayload>> =>
   apiCall<CameraStatusPayload>('camera/status', 'GET')
+
+export const bootstrapCameraSettings = async (payload: CameraBootstrapSettingsPayload): Promise<ApiCallResult<CameraStatusPayload>> =>
+  apiCall<unknown>('camera/bootstrap-settings','POST',payload as unknown as Record<string, unknown>).then(async (res) => {
+    if (!res.success) return res as unknown as ApiCallResult<CameraStatusPayload>
+    return getCameraStatus()
+  })
 
 export const setCameraExposure = async (
   payload: CameraExposurePayload
