@@ -208,6 +208,44 @@ class CameraWhiteBalanceRequest(BaseModel):
         return self
 
 
+class CameraBootstrapSettingsRequest(BaseModel):
+    auto_exposure: bool | None = None
+    exposure_time: int | None = Field(default=None, ge=0)
+    speed_level: Literal[0, 1, 2, 3] | None = None
+    auto_tune: bool = True
+    tune: float | None = Field(default=None, ge=0.0, le=1.0)
+    mirror_horizontal: bool | None = None
+    mirror_vertical: bool | None = None
+    auto_white_balance: bool | None = None
+    r_gain: int | None = Field(default=None, ge=0)
+    g_gain: int | None = Field(default=None, ge=0)
+    b_gain: int | None = Field(default=None, ge=0)
+
+    @model_validator(mode="after")
+    def _check_payload(self):
+        has_manual_gain = any(v is not None for v in (self.r_gain, self.g_gain, self.b_gain))
+        if has_manual_gain and not all(v is not None for v in (self.r_gain, self.g_gain, self.b_gain)):
+            raise ValueError("手动白平衡增益必须同时提供 r_gain/g_gain/b_gain")
+        has_any = any(
+            v is not None
+            for v in (
+                self.auto_exposure,
+                self.exposure_time,
+                self.speed_level,
+                self.tune,
+                self.mirror_horizontal,
+                self.mirror_vertical,
+                self.auto_white_balance,
+                self.r_gain,
+                self.g_gain,
+                self.b_gain,
+            )
+        )
+        if not has_any:
+            raise ValueError("至少提供一个相机启动参数")
+        return self
+
+
 # —— RS232（字段名与前端 rs232Settings 对齐）——
 class Rs232PortConfig(BaseModel):
     portName: str

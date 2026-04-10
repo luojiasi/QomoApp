@@ -293,6 +293,22 @@ def _compute_arc_offset_radius(entity: Dict[str, Any], open_size: float) -> Opti
     return max(1e-6, float(radius) + delta_radius)
 
 
+def _compute_circle_offset_radius(entity: Dict[str, Any], open_size: float) -> Optional[float]:
+    """
+    作用：计算圆偏移后的半径（与前端 threeGeometry.ts 保持一致）。
+    规则：
+        - RIGHT：向外偏移，半径增大；
+        - LEFT：向内偏移，半径减小（最小夹到 1e-6）。
+    """
+    radius = entity.get("radius")
+    if not isinstance(radius, (int, float)):
+        return None
+    open_direction = _normalize_open_direction(entity.get("openDirection"))
+    if open_direction == "RIGHT":
+        return float(radius) + open_size
+    return max(1e-6, float(radius) - open_size)
+
+
 def _build_profile(entity: Dict[str, Any], open_size: float) -> Optional[EntityOffsetProfile]:
     """
     作用：把单个实体转成 EntityOffsetProfile(偏移实体)。
@@ -301,7 +317,9 @@ def _build_profile(entity: Dict[str, Any], open_size: float) -> Optional[EntityO
         2.ARC：
             解析 center/radius/startAngle/endAngle -> 采样原弧与偏移弧
             original_start/end 优先用实体显式端点（startPoint/endPoint 或 start/end），避免角度反算与原数据细微不一致。
-        3.其他类型返回 None。
+        3.CIRCLE：
+            解析 center/radius -> 采样原圆与偏移圆（0~360）。
+        4.其他类型返回 None。
     用途：统一各实体为可拼接格式。
     """
     entity_type = str(entity.get("type", "")).upper()
@@ -325,7 +343,7 @@ def _build_profile(entity: Dict[str, Any], open_size: float) -> Optional[EntityO
         radius = entity.get("radius")
         start_angle = entity.get("startAngle")
         end_angle = entity.get("endAngle")
-        # TODO:了解到底该怎么区做这个圆偏移半径
+        # TODO:了解到底该怎么去做这个圆偏移半径
         offset_radius = _compute_arc_offset_radius(entity, open_size)
         if (
             not center
@@ -336,13 +354,7 @@ def _build_profile(entity: Dict[str, Any], open_size: float) -> Optional[EntityO
         ):
             return None
 
-        original_points = _create_arc_points(
-            center=center,
-            radius=float(radius),
-            start_angle=float(start_angle),
-            end_angle=float(end_angle),
-            segments=OPEN_PATH_SAMPLE_SEGMENTS,
-        )
+        original_points = _create_arc_points(center=center,radius=float(radius),start_angle=float(start_angle),end_angle=float(end_angle),segments=OPEN_PATH_SAMPLE_SEGMENTS,)
         if len(original_points) < 2:
             return None
 
@@ -362,6 +374,40 @@ def _build_profile(entity: Dict[str, Any], open_size: float) -> Optional[EntityO
             "entity": entity,
             "original_start": original_start,
             "original_end": original_end,
+            "offset_points": offset_points,
+        }
+    if entity_type == "CIRCLE":
+        center = _to_point(entity.get("center"))
+        radius = entity.get("radius")
+        offset_radius = _compute_circle_offset_radius(entity, open_size)
+        if (
+            not center
+            or not isinstance(radius, (int, float))
+            or offset_radius is None
+        ):
+            return None
+
+        original_points = _create_arc_points(
+            center=center,
+            radius=float(radius),
+            start_angle=0.0,
+            end_angle=360.0,
+            segments=360,
+        )
+        if len(original_points) < 2:
+            return None
+
+        offset_points = _create_arc_points(
+            center=center,
+            radius=offset_radius,
+            start_angle=0.0,
+            end_angle=360.0,
+            segments=360,
+        )
+        return {
+            "entity": entity,
+            "original_start": original_points[0],
+            "original_end": original_points[-1],
             "offset_points": offset_points,
         }
 
@@ -645,7 +691,7 @@ class OffsetEndpointCalculator:
         invert_open_direction: bool = False,
     ) -> List[List[PointDict]]:
         """
-        计算并按「连通图形」分组拼接偏移点位（LINE/ARC）：
+        计算并按「连通图形」分组拼接偏移点位（LINE/ARC/CIRCLE）：
         - 先按实体独立偏移；
         - 端点相接或通过 entity.node 相连的实体归为同一图形并拼接点序；
         - 与上一组无任何共点、也无 node 关联的实体进入新的子列表（新图形）。

@@ -6,9 +6,12 @@ import type {
   ControllerParameters,
   SettingsSaveResult
 } from '../types/settings'
+import { HOME_STATE_KEY, type HomeState } from '../types/auth'
 import { cloneSettings } from '../utils/settings'
 import { setMotionAllAxesParamsWithControllerSettings } from '../utils/motionApi'
 import { createSettingsSaveResult } from './settingsStoreUtils'
+
+
 
 /** 与 `qomotech-auth` 等并列，供 Application → Local Storage 查看 */
 export const CONTROLLER_SETTINGS_STORAGE_KEY = 'qomotech-controller-settings'
@@ -64,6 +67,36 @@ function persistControllerSettingsToStorage(value: ControllerParameters): void {
     console.warn('[controller-settings] 写入 localStorage 失败', e)
   }
 }
+// 用于读取控制器回零的方式：手动回零还是自动回零
+function loadHomeStateFromStorage(): HomeState {
+  if (typeof window === 'undefined') {
+    return { ISARRIVEDHOME: false, AUTO_HOME_ON_START: false }
+  }
+  try {
+    const raw = window.localStorage.getItem(HOME_STATE_KEY)
+    if (!raw) {
+      const legacyIsArrived = window.localStorage.getItem('ISARRIVEDHOME') === 'true'
+      return { ISARRIVEDHOME: legacyIsArrived, AUTO_HOME_ON_START: false }
+    }
+    const parsed = JSON.parse(raw) as Partial<HomeState>
+    return {
+      ISARRIVEDHOME: Boolean(parsed.ISARRIVEDHOME),
+      AUTO_HOME_ON_START: Boolean(parsed.AUTO_HOME_ON_START)
+    }
+  } catch {
+    return { ISARRIVEDHOME: false, AUTO_HOME_ON_START: false }
+  }
+}
+
+function persistHomeStateToStorage(value: HomeState): void {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(HOME_STATE_KEY, JSON.stringify(value))
+  } catch (e) {
+    console.warn('[home-state] 写入 localStorage 失败', e)
+  }
+}
+// 用于读取控制器回零的方式：手动回零还是自动回零end
 
 export const useControllerSettingsStore = defineStore('controller-settings', () => {
   const controllerSettings = ref<ControllerParameters>(
@@ -163,11 +196,24 @@ export const useControllerSettingsStore = defineStore('controller-settings', () 
     controllerSettings.value = cloneSettings(applyControllerAxisCount(controllerSettings.value, count))
     return createSettingsSaveResult('轴数量已更新。', controllerSettings.value)
   }
+// 用于读取控制器回零
+  const loadHomeState = (): HomeState => loadHomeStateFromStorage()
+// 写入控制器回零
+  const saveHomeState = (payload: HomeState): HomeState => {
+    const next: HomeState = {
+      ISARRIVEDHOME: Boolean(payload.ISARRIVEDHOME),
+      AUTO_HOME_ON_START: Boolean(payload.AUTO_HOME_ON_START)
+    }
+    persistHomeStateToStorage(next)
+    return next
+  }
 
   return {
     controllerSettings,
     loadControllerSettings,
     saveControllerSettings,
-    setAxisCount
+    setAxisCount,
+    loadHomeState,
+    saveHomeState
   }
 })

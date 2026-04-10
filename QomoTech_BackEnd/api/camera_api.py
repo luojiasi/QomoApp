@@ -6,6 +6,7 @@ from fastapi.responses import Response
 from api.dependencies import get_camera_driver
 from api.schemas import (
     ApiResponse,
+    CameraBootstrapSettingsRequest,
     CameraConnectRequest,
     CameraExposureRequest,
     CameraFrameSpeedRequest,
@@ -28,18 +29,19 @@ def camera_devices(camera: CameraDriver = Depends(get_camera_driver)) -> ApiResp
 
 
 @router.post("/connect", response_model=ApiResponse)
-def camera_connect(
-    payload: CameraConnectRequest,
-    camera: CameraDriver = Depends(get_camera_driver),
-) -> ApiResponse:
+def camera_connect(payload: CameraConnectRequest,camera: CameraDriver = Depends(get_camera_driver),) -> ApiResponse:
     ok = camera.connect(payload.index)
     diag = camera.diagnostics()
     msg = "相机连接成功" if ok else (diag.last_error or "相机连接失败")
-    return ApiResponse(
-        success=ok,
-        message=msg,
-        data={"connected": bool(diag.connected), "selected_index": diag.selected_index},
-    )
+    return ApiResponse(success=ok,message=msg,data={"connected": bool(diag.connected), "selected_index": diag.selected_index},)
+
+# 首次相机连接发送给相机的数据
+@router.post("/bootstrap-settings", response_model=ApiResponse)
+def camera_bootstrap_settings(payload: CameraBootstrapSettingsRequest,camera: CameraDriver = Depends(get_camera_driver),) -> ApiResponse:
+    ok = camera.set_bootstrap_settings(payload.model_dump(exclude_none=True))
+    diag = camera.diagnostics()
+    msg = "相机启动参数已缓存" if ok else (diag.last_error or "相机启动参数缓存失败")
+    return ApiResponse(success=ok, message=msg)
 
 
 @router.post("/disconnect", response_model=ApiResponse)

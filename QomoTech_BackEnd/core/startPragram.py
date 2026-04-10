@@ -935,8 +935,8 @@ def qiepianLoop(originalPointsNum: int,recipe_payload: dict[str, Any],controller
                 _depth += round(depthStep,4)
                 # 下降一层计算新开口 = 初始上开口 - tan（角度） *累计下降量um * 2 //单位um
                 newScanLength = upperOpening - tana * _depth * 2 * 1000
-                minOffset += tana * _depth * 2 * 1000
-                maxOffset += tana * _depth * 2 * 1000
+                minOffset = tana * _depth * 2 * 1000
+                maxOffset = tana * _depth * 2 * 1000 + upperOpening
                 print("minOffset,maxOffset",minOffset,maxOffset)
                 # scanLengthChaZhi = (upperOpening - newScanLength)/2
                 # minOffset = round(scanLengthChaZhi, 4)

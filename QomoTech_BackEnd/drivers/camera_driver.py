@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import threading
 from dataclasses import dataclass
+from typing import TypedDict
 
 import cv2
 
@@ -25,6 +26,20 @@ class CameraDiagnostics:
     last_error: str | None
 
 
+class CameraBootstrapSettings(TypedDict, total=False):
+    auto_exposure: bool
+    exposure_time: int
+    speed_level: int
+    auto_tune: bool
+    tune: float
+    mirror_horizontal: bool
+    mirror_vertical: bool
+    auto_white_balance: bool
+    r_gain: int
+    g_gain: int
+    b_gain: int
+
+
 class CameraDriver:
     """CGImageTech 相机驱动单例包装。"""
 
@@ -33,6 +48,7 @@ class CameraDriver:
         self._lock = threading.RLock()
         self._selected_index: int | None = None
         self._last_error: str | None = None
+        self._bootstrap_settings: CameraBootstrapSettings = {}
 
     def _set_error(self, exc: Exception) -> None:
         self._last_error = str(exc)
@@ -40,6 +56,20 @@ class CameraDriver:
     def _clear_error(self) -> None:
         self._last_error = None
 
+    def _safe_speed_level(self, value: int) -> int:
+        if value in (HIGHEST_SPEED, HIGH_SPEED, LOW_SPEED, LOWEST_SPEED):
+            return value
+        return HIGH_SPEED
+# 首次相机连接发送给相机的数据
+    def set_bootstrap_settings(self, settings: CameraBootstrapSettings) -> bool:
+        with self._lock:
+            try:
+                self._bootstrap_settings = dict(settings)
+                self._clear_error()
+                return True
+            except Exception as exc:  # noqa: BLE001
+                self._set_error(exc)
+                return False
     def diagnostics(self) -> CameraDiagnostics:
         with self._lock:
             return CameraDiagnostics(
@@ -97,26 +127,64 @@ class CameraDriver:
                     self._last_error = f"启动视频流失败: DeviceStart={status}"
                     self._camera.close_camera()
                     return False
-                status = self._camera.set_mirror(MD_HORIZONTAL, True)
+                cfg = dict(self._bootstrap_settings)
+
+                mirror_horizontal = bool(cfg.get("mirror_horizontal", True))
+                status = self._camera.set_mirror(MD_HORIZONTAL, mirror_horizontal)
                 if status != 0:
                     self._last_error = f"设置水平镜像失败: {status}"
                     self._camera.close_camera()
                     return False
-                status = self._camera.set_frame_speed(HIGH_SPEED, True)
+                if "mirror_vertical" in cfg:
+                    status = self._camera.set_mirror(MD_VERTICAL, bool(cfg["mirror_vertical"]))
+                    if status != 0:
+                        self._last_error = f"设置垂直镜像失败: {status}"
+                        self._camera.close_camera()
+                        return False
+
+                speed_level = self._safe_speed_level(int(cfg.get("speed_level", HIGH_SPEED)))
+                auto_tune = bool(cfg.get("auto_tune", True))
+                status = self._camera.set_frame_speed(speed_level, auto_tune)
                 if status != 0:
                     self._last_error = f"设置帧率失败: {status}"
                     self._camera.close_camera()
                     return False
-                status = self._camera.set_auto_exposure(True)
+                if "tune" in cfg:
+                    status = self._camera.set_frame_speed_tune(float(cfg["tune"]))
+                    if status != 0:
+                        self._last_error = f"设置帧率微调失败: {status}"
+                        self._camera.close_camera()
+                        return False
+
+                auto_exposure = bool(cfg.get("auto_exposure", True))
+                status = self._camera.set_auto_exposure(auto_exposure)
                 if status != 0:
                     self._last_error = f"设置自动曝光失败: {status}"
                     self._camera.close_camera()
                     return False
-                status = self._camera.set_auto_white_balance(True)
+                if "exposure_time" in cfg:
+                    status = self._camera.set_exposure_time(int(cfg["exposure_time"]))
+                    if status != 0:
+                        self._last_error = f"设置曝光时间失败: {status}"
+                        self._camera.close_camera()
+                        return False
+
+                auto_white_balance = bool(cfg.get("auto_white_balance", True))
+                status = self._camera.set_auto_white_balance(auto_white_balance)
                 if status != 0:
                     self._last_error = f"设置自动白平衡失败: {status}"
                     self._camera.close_camera()
                     return False
+                if all(k in cfg for k in ("r_gain", "g_gain", "b_gain")):
+                    status = self._camera.set_white_balance_gain(
+                        int(cfg["r_gain"]),
+                        int(cfg["g_gain"]),
+                        int(cfg["b_gain"]),
+                    )
+                    if status != 0:
+                        self._last_error = f"设置白平衡增益失败: {status}"
+                        self._camera.close_camera()
+                        return False
 
                 self._selected_index = int(index)
                 self._clear_error()

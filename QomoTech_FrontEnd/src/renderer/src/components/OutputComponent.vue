@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref,watch} from 'vue'
+import { computed, onMounted, ref,watch} from 'vue'
 import SvgIcon from './SvgIcon.vue'
 import { setMotionIoOutput } from '../utils/motionApi'
 import { apiCall } from '../utils/toBackendApiCall'
@@ -60,8 +60,48 @@ const handleOutput2 = async () => {
   outPut.value.output2 = !outPut.value.output2
 }
 
-// 添加回零按钮
+// 添加回零按钮 同时添加是否启动开机就自动回零
 const isMovingHome = ref(false)
+const persistHomeStateToLocal = () => {
+  controllerStore.saveHomeState({
+    ISARRIVEDHOME: ISARRIVEDHOME.value,
+    AUTO_HOME_ON_START: autoHomeOnStart.value
+  })
+}
+const homeState = controllerStore.loadHomeState()
+const isSetHome = ref(homeState.ISARRIVEDHOME ? '回零完成' : '未回零')
+const ISARRIVEDHOME = ref<boolean>(homeState.ISARRIVEDHOME)
+const autoHomeOnStart = ref<boolean>(homeState.AUTO_HOME_ON_START)
+watch(
+  () => isSetHome.value,
+  (status) => {
+    ISARRIVEDHOME.value = status === '回零完成'
+    persistHomeStateToLocal()
+  },
+  { immediate: true }
+)
+watch(() => autoHomeOnStart.value, persistHomeStateToLocal)
+
+
+
+
+
+
+
+
+
+
+
+
+const homeStatusClass = computed(() => {
+  if (isSetHome.value === '回零中') {
+    return 'border-yellow-500 bg-yellow-500 text-white shadow-yellow-900/20'
+  }
+  if (isSetHome.value === '回零完成') {
+    return 'border-green-500 bg-green-500 text-white shadow-green-900/20'
+  }
+  return 'border-red-500 bg-red-500 text-white shadow-red-900/20'
+})
 /**
  * 约定：未压限位时为 true，压到上限位后变为 false。
  */
@@ -100,22 +140,26 @@ const waitAxisUpperLimitInputFalse = async (AxisNum:number,fwd_in:boolean=false,
 const handleHome = async () => {
   if (isMovingHome.value) return
   isMovingHome.value = true
+  isSetHome.value = '回零中'
   try {
-    //首先判断XY轴的限位不能为-1
+    // //首先判断XY轴的限位不能为-1
     if (getAxisLimitInputNo(0,false) === null && getAxisLimitInputNo(1,true)===null && getAxisLimitInputNo(2,true)===null) {
       error('未配置XYZ限位','请在控制器设置中为轴配置有效的限位输入口')
+      isSetHome.value = '未回零'
       return
     }
 
     // 2) Z 轴向上走，直到停止（通常是到限位/到达行程终点）
     const UP_TRAVEL_MM = 5000
     const [moveX, moveY, moveZ] = await Promise.all([
-      moveMotionAxisRel(0, UP_TRAVEL_MM, {speed: 10}),
+      // 除了x其他都往正方向走
+      moveMotionAxisRel(0, -UP_TRAVEL_MM, {speed: 10}),
       moveMotionAxisRel(1, UP_TRAVEL_MM, {speed: 10}),
       moveMotionAxisRel(2, UP_TRAVEL_MM, {speed: 10})
     ])  
     if (!moveX?.success || !moveY?.success || !moveZ?.success){
       const message = [!moveX && 'X', !moveY && 'Y', !moveZ && 'Z'].filter(Boolean).join('/')
+      isSetHome.value = '未回零'
       error('回零运动发送失败',message)
       return
     }
@@ -126,6 +170,7 @@ const handleHome = async () => {
     ])
     if (!okX || !okY || !okZ) {
       const message = [!okX && 'X', !okY && 'Y', !okZ && 'Z'].filter(Boolean).join('/')
+      isSetHome.value = '未回零'
       error('等待轴上限位超时',message)
       return
     }
@@ -138,6 +183,7 @@ const handleHome = async () => {
     ])
     if (!zz?.success && !zx?.success && !zy?.success) {
       const message = [!zx && 'X', !zy && 'Y', !zz && 'Z'].filter(Boolean).join('/')
+      isSetHome.value = '未回零'
       error("清零失败,请检查控制器设置",message)
       return
     }
@@ -148,14 +194,21 @@ const handleHome = async () => {
     ])
     if (!moveX2?.success || !moveY2?.success || !moveZ2?.success) {
       const message = [!moveX2 && 'X', !moveY2 && 'Y', !moveZ2 && 'Z'].filter(Boolean).join('/')
+      isSetHome.value = '未回零'
       error('回零运动失败',message)
       return
     }
+    isSetHome.value = '回零完成'
     success('回零运动完成')
   } finally {
     isMovingHome.value = false
   }
 }
+onMounted(() => {
+  if (autoHomeOnStart.value && !ISARRIVEDHOME.value) {
+    void handleHome()
+  }
+})
 </script>
 
 <template>
@@ -210,10 +263,21 @@ const handleHome = async () => {
     <button
       type="button"
       @click="handleHome"
-      class="flex h-12 w-12 items-center justify-center rounded-full border border-(--app-border) bg-(--app-card-soft) text-xs font-medium text-(--app-text-secondary) shadow-sm transition-colors hover:bg-slate-100/90 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-white/10"
+      :class="[
+        'flex h-12 w-12 items-center justify-center rounded-full border text-xs font-medium shadow-sm transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-50',
+        homeStatusClass
+      ]"
       @keydown.enter.prevent
     >
-      回零
+      {{ isSetHome }}
     </button>
+    <label class="flex items-center gap-1 text-xs text-(--app-text-secondary) select-none">
+      <input
+        v-model="autoHomeOnStart"
+        type="checkbox"
+        class="h-4 w-4 accent-sky-500"
+      />
+      启动自动回零
+    </label>
   </div>
 </template>

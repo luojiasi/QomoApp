@@ -1,8 +1,10 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { AccountInfo, AuthStorage, LoginResult } from '../types/auth'
+import { AUTH_STORAGE_KEY } from '../types/auth'
 
-const AUTH_STORAGE_KEY = 'qomotech-auth'
+
+
 const DEFAULT_ADMIN_ACCOUNT: AccountInfo = {
   username: 'admin',
   password: 'admin123'
@@ -12,8 +14,6 @@ const DEFAULT_USER_ACCOUNT: AccountInfo = {
   username: 'user',
   password: '123456'
 }
-
-
 
 const getDefaultAuthState = (): AuthStorage => ({
   username: '',

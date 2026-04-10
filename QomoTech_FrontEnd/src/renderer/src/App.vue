@@ -35,16 +35,18 @@ import {
   registerNotificationToast,
   type NotificationToastExpose
 } from './composables/useNotification'
-import { useAuthStore } from './stores/auth'
+import { useAuthStore} from './stores/auth'
 import { useLicenseStore } from './stores/license'
+import { useControllerSettingsStore } from './stores/controllerSettingsStore'
 import { dispatchGlobalKeyboard } from './utils/globalKeyboard'
 import { parseRs232SessionFromLocalStorage } from './stores/rs232WorkbenchStore'
-import { syncRs232Workbench } from './utils/rs232Api'
-
+import { syncRs232Workbench } from './utils/rs232Api' 
+import type { HomeState } from './types/auth'
 const toastRef = ref<InstanceType<typeof NotificationToast> | null>(null)
 const router = useRouter()
 const authStore = useAuthStore()
 const licenseStore = useLicenseStore()
+const controllerSettingsStore = useControllerSettingsStore()
 let licenseTimer: number | null = null
 
 function isTypingFocusTarget(target: EventTarget | null): boolean {
@@ -113,6 +115,11 @@ async function syncRs232WorkbenchAfterLogin(): Promise<void> {
 }
 
 onMounted(async () => {
+  const nextHomeState: HomeState = {
+    ...controllerSettingsStore.loadHomeState(),
+    ISARRIVEDHOME: false
+  }
+  controllerSettingsStore.saveHomeState(nextHomeState)
   await nextTick()
   const inst = toastRef.value as unknown as NotificationToastExpose | null
   registerNotificationToast(inst)
