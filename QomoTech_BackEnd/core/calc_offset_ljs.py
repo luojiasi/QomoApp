@@ -72,9 +72,7 @@ def _is_same_point(a: PointDict, b: PointDict, eps: float = POINT_EPS) -> bool:
     return abs(a["x"] - b["x"]) <= eps and abs(a["y"] - b["y"]) <= eps
 
 # =========================================================共享端点的优化========================================================
-def _intersect_lines_2d(
-    a0: PointDict, a1: PointDict, b0: PointDict, b1: PointDict
-) -> Optional[PointDict]:
+def _intersect_lines_2d(a0: PointDict, a1: PointDict, b0: PointDict, b1: PointDict) -> Optional[PointDict]:
     """
     无限长直线求交；近平行返回 None。与 threeGeometry.intersectLines2D 一致。
     """
@@ -91,9 +89,7 @@ def _intersect_lines_2d(
     return {"x": a0["x"] + ax * t, "y": a0["y"] + ay * t}
 
 
-def _get_offset_endpoint_line(
-    offset_points: List[PointDict], side: str
-) -> Optional[Tuple[PointDict, PointDict, PointDict]]:
+def _get_offset_endpoint_line(offset_points: List[PointDict], side: str) -> Optional[Tuple[PointDict, PointDict, PointDict]]:
     """
     偏移轮廓在 start/end 侧的切线（from→to）及原始偏移端点 base（用于 miter 距离）。
     side: 'start' | 'end'。与 getOffsetEndpointLine 一致。
@@ -114,9 +110,7 @@ def _profile_stable_key(profile: EntityOffsetProfile, index: int) -> str:
     return eid if eid else f"__idx_{index}"
 
 
-def _apply_open_entity_endpoint_overrides(
-    profiles: List[EntityOffsetProfile], open_size: float
-) -> None:
+def _apply_open_entity_endpoint_overrides(profiles: List[EntityOffsetProfile], open_size: float) -> None:
     """
     共享原始端点处，对两侧「偏移端点切线」求交，通过 miter 限制则覆盖首尾偏移点。
     仅修改 offset_points 的首/末坐标；与 line-offset-join-diagram.md / buildOpenEntityOffsetOverrides 一致。
@@ -199,13 +193,7 @@ def _dedupe_consecutive(points: List[PointDict]) -> List[PointDict]:
     return out
 
 
-def _create_arc_points(
-    center: PointDict,
-    radius: float,
-    start_angle: float,
-    end_angle: float,
-    segments: int = 48,
-) -> List[PointDict]:
+def _create_arc_points(center: PointDict,radius: float,start_angle: float,end_angle: float,segments: int = 48,) -> List[PointDict]:
     """
     作用：按角度范围采样圆弧点列。
     关键逻辑：
@@ -237,9 +225,7 @@ def _create_arc_points(
     return points
 
 
-def _offset_segment_by_open_direction(
-    start: PointDict, end: PointDict, open_direction: str, open_size: float
-) -> List[PointDict]:
+def _offset_segment_by_open_direction(start: PointDict, end: PointDict, open_direction: str, open_size: float) -> List[PointDict]:
     """
     作用：给线段做“左右法向”偏移。
     关键逻辑：
@@ -514,7 +500,6 @@ def _share_original_endpoint(a: EntityOffsetProfile, b: EntityOffsetProfile) -> 
 
 class _DSU:
     """并查集：按几何共点 + node 邻接划分连通分量。"""
-
     def __init__(self, n: int) -> None:
         self._p = list(range(n))
 
@@ -529,10 +514,7 @@ class _DSU:
             self._p[rb] = ra
 
 
-def _entity_index_components(
-    original_profiles: List[EntityOffsetProfile],
-    id_to_idx: Dict[str, int],
-) -> List[Set[int]]:
+def _entity_index_components(original_profiles: List[EntityOffsetProfile],id_to_idx: Dict[str, int],) -> Tuple[List[Set[int]], List[bool]]:
     """
     将实体索引划分为若干连通分量：
     - 任意 src.start/end 与另一实体的原始端点在 POINT_EPS 内重合则同属一分量；
@@ -540,7 +522,7 @@ def _entity_index_components(
     """
     n = len(original_profiles)
     if n == 0:
-        return []
+        return [], []
     dsu = _DSU(n)
     for i in range(n):
         node = original_profiles[i]["entity"].get("node")
@@ -563,16 +545,51 @@ def _entity_index_components(
     buckets: Dict[int, Set[int]] = defaultdict(set)
     for i in range(n):
         buckets[dsu.find(i)].add(i)
+    # 这个是分组的结果
+    result = [buckets[r] for r in sorted(buckets.keys(), key=lambda r: min(buckets[r]))]
+
+
+    is_closed_groups: List[bool] = []
+    for comp in result:
+        is_closed = True
+        for i in comp:
+            profile = original_profiles[i]
+            node = profile["entity"].get("node")
+            for side in ("start", "end"):
+                endpoint_connected = False
+
+                # 1) 优先用 node 邻接判断（若存在且指向组内实体，则视为已连接）
+                if isinstance(node, dict):
+                    ref = node.get(side)
+                    if isinstance(ref, dict):
+                        tid = ref.get("id")
+                        if tid is not None:
+                            j = id_to_idx.get(str(tid))
+                            if j is not None and j in comp and j != i:
+                                endpoint_connected = True
+
+                # 2) 回退到几何共端点判断
+                if not endpoint_connected:
+                    joint = _original_endpoint_by_side(profile, side)
+                    for j in comp:
+                        if j == i:
+                            continue
+                        other = original_profiles[j]
+                        if _is_same_point(other["original_start"], joint) or _is_same_point(other["original_end"], joint):
+                            endpoint_connected = True
+                            break
+
+                if not endpoint_connected:
+                    is_closed = False
+                    break
+            if not is_closed:
+                break
+        is_closed_groups.append(is_closed)
     # 稳定顺序：分量按最小下标排序，便于测试结果与调试可复现
-    return [buckets[r] for r in sorted(buckets.keys(), key=lambda r: min(buckets[r]))]
+    return result, is_closed_groups
 
 
-def _walk_chain_by_node(
-    first_idx: int,
-    profiles: List[EntityOffsetProfile],
-    id_to_idx: Dict[str, int],
-    allowed_indices: Optional[Set[int]] = None,
-) -> Tuple[List[int], List[bool]]:
+def _walk_chain_by_node(first_idx: int,profiles: List[EntityOffsetProfile],id_to_idx: Dict[str, int],allowed_indices: Optional[Set[int]] = None,) -> Tuple[List[int], List[bool]]:
     """
     沿 entity.node 走完整链：出口在几何终点时用 node.end，在几何起点时用 node.start。
     ref.endpoint=='start' 则下一段不反转，'end' 则反转。
@@ -614,9 +631,7 @@ def _walk_chain_by_node(
     return order, forwards
 
 
-def _stitch_profiles(
-    originalProfiles: List[EntityOffsetProfile], profiles: List[EntityOffsetProfile]
-) -> List[List[PointDict]]:
+def _stitch_profiles(originalProfiles: List[EntityOffsetProfile], profiles: List[EntityOffsetProfile]) -> List[List[PointDict]]:
     """
     作用：按「连通图形」分别拼接偏移轮廓点列。
     连通判定：原始几何共端点（POINT_EPS）或与 entity.node 邻接指向的实体同属一条图链；
@@ -631,10 +646,11 @@ def _stitch_profiles(
         if eid and eid not in id_to_idx:
             id_to_idx[eid] = i
 
-    components = _entity_index_components(originalProfiles, id_to_idx)
+    # 这一步就是将图像分成联通组别；is_closed_groups 与 components 下标一一对应
+    components, is_closed_groups = _entity_index_components(originalProfiles, id_to_idx)
     all_polylines: List[List[PointDict]] = []
 
-    for comp in components:
+    for comp, _is_closed in zip(components, is_closed_groups):
         used: Set[int] = set()
         figure_points: List[PointDict] = []
 

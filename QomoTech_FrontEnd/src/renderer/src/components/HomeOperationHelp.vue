@@ -7,7 +7,7 @@ import { useQomo5PStore } from '../stores/qomo5pEditor'
 import { storeToRefs } from 'pinia'
 import type { Point, QomoArcSurfacesEntity } from '@renderer/types/Qomo5P'
 import { useControllerSettingsStore } from '../stores/controllerSettingsStore'
-import { getMotionIoInput, moveMotionAxisRel, zeroMotionAxis } from '../utils/motionApi'
+// import { getMotionIoInput, moveMotionAxisRel, zeroMotionAxis } from '../utils/motionApi'
 const controllerStore = useControllerSettingsStore()
 
 const isHelpPanelExpanded = ref(true)
@@ -22,7 +22,7 @@ const selectableEntities = computed(() => entities.value.filter((e) => visibleLa
 const importFileInputRef = ref<HTMLInputElement | null>(null)
 
 type CreateWizardStep = 'height' | 'shape' | 'params'
-type CreateShapeType = 'LINE' | 'CIRCLE'
+type CreateShapeType = 'LINE' | 'CIRCLE' | 'ARC'
 
 const isCreateWizardOpen = ref(false)
 const createWizardStep = ref<CreateWizardStep>('height')
@@ -41,40 +41,40 @@ const perEntityExtrudeHeightInput = ref<number>(5)
 const isAxisFetching = ref(false)
 const newImageHoming = ref(false)
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+// const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
-/**
- * 轴 3（axisNo === 2）在控制器配置中的正限位输入口编号（fwd_in）。
- * 约定：未压限位时为 true，压到上限位后变为 false。
- */
-const getAxis3UpperLimitInputNo = (): number | null => {
-  const axis = controllerStore.controllerSettings.axes.find((a) => a.axisNo === 2)
-  if (!axis) return null
-  const n = Number(axis.fwd_in)
-  if (!Number.isFinite(n) || n < 0) return null
-  return Math.floor(n)
-}
+// /**
+//  * 轴 3（axisNo === 2）在控制器配置中的正限位输入口编号（fwd_in）。
+//  * 约定：未压限位时为 true，压到上限位后变为 false。
+//  */
+// const getAxis3UpperLimitInputNo = (): number | null => {
+//   const axis = controllerStore.controllerSettings.axes.find((a) => a.axisNo === 2)
+//   if (!axis) return null
+//   const n = Number(axis.fwd_in)
+//   if (!Number.isFinite(n) || n < 0) return null
+//   return Math.floor(n)
+// }
 
-/**
- * 轮询读取轴 3 上限位输入：先确认曾离开限位（值为 true），再等到变为 false 视为到位。
- */
-const waitAxis3UpperLimitInputFalse = async (timeoutMs = 6000) => {
-  const ioNo = getAxis3UpperLimitInputNo()
-  if (ioNo === null) return false
+// /**
+//  * 轮询读取轴 3 上限位输入：先确认曾离开限位（值为 true），再等到变为 false 视为到位。
+//  */
+// const waitAxis3UpperLimitInputFalse = async (timeoutMs = 6000) => {
+//   const ioNo = getAxis3UpperLimitInputNo()
+//   if (ioNo === null) return false
 
-  const startAt = Date.now()
-  let seenNotAtLimit = false
-  while (Date.now() - startAt < timeoutMs) {
-    const res = await getMotionIoInput(ioNo)
-    console.log('res', res)
-    if (res?.success && res.data && typeof res.data.value === 'boolean') {
-      if (res.data.value === true) seenNotAtLimit = true
-      if (seenNotAtLimit && res.data.value === false) return true
-    }
-    await sleep(200)
-  }
-  return false
-}
+//   const startAt = Date.now()
+//   let seenNotAtLimit = false
+//   while (Date.now() - startAt < timeoutMs) {
+//     const res = await getMotionIoInput(ioNo)
+//     console.log('res', res)
+//     if (res?.success && res.data && typeof res.data.value === 'boolean') {
+//       if (res.data.value === true) seenNotAtLimit = true
+//       if (seenNotAtLimit && res.data.value === false) return true
+//     }
+//     await sleep(200)
+//   }
+//   return false
+// }
 
 const resetCreateWizard = () => {
   createWizardStep.value = 'height'
@@ -193,50 +193,50 @@ const handleNewImage = async () => {
   if (newImageHoming.value) return
   newImageHoming.value = true
   try {
-    // 1) 清零 X/Y（控制器层面的“位置清零”）
-    const zx = await zeroMotionAxis(0)
-    if (!zx?.success) {
-      error(zx?.message || 'X 轴位置清零失败')
-      return
-    }
-    const zy = await zeroMotionAxis(1)
-    if (!zy?.success) {
-      error(zy?.message || 'Y 轴位置清零失败')
-      return
-    }
-    //首先判断Z轴的限位不能为-1
-    if (getAxis3UpperLimitInputNo() === null) {
-      error('未配置Z轴上限位','请在控制器设置中为轴2Z轴中 配置有效的正限位输入口')
-      return
-    }
+    // // 1) 清零 X/Y（控制器层面的“位置清零”）
+    // const zx = await zeroMotionAxis(0)
+    // if (!zx?.success) {
+    //   error(zx?.message || 'X 轴位置清零失败')
+    //   return
+    // }
+    // const zy = await zeroMotionAxis(1)
+    // if (!zy?.success) {
+    //   error(zy?.message || 'Y 轴位置清零失败')
+    //   return
+    // }
+    // //首先判断Z轴的限位不能为-1
+    // if (getAxis3UpperLimitInputNo() === null) {
+    //   error('未配置Z轴上限位','请在控制器设置中为轴2Z轴中 配置有效的正限位输入口')
+    //   return
+    // }
 
-    // 2) Z 轴向上走，直到停止（通常是到限位/到达行程终点）
-    const Z_UP_TRAVEL_MM = 3000
-    const moveZ = await moveMotionAxisRel(2, Z_UP_TRAVEL_MM, {
-      controllerSettings: controllerStore.controllerSettings
-    })
-    if (!moveZ?.success) {
-      error(moveZ?.message || 'Z 轴上升失败')
-      return
-    }
+    // // 2) Z 轴向上走，直到停止（通常是到限位/到达行程终点）
+    // const Z_UP_TRAVEL_MM = 3000
+    // const moveZ = await moveMotionAxisRel(2, Z_UP_TRAVEL_MM, {
+    //   controllerSettings: controllerStore.controllerSettings
+    // })
+    // if (!moveZ?.success) {
+    //   error(moveZ?.message || 'Z 轴上升失败')
+    //   return
+    // }
 
-    const ok = await waitAxis3UpperLimitInputFalse(5000)
-    if (!ok) {
-      error('等待轴3上限位超时', '请检查 Z 运动方向、限位接线及 fwd_in 编号')
-      return
-    }
+    // const ok = await waitAxis3UpperLimitInputFalse(5000)
+    // if (!ok) {
+    //   error('等待轴3上限位超时', '请检查 Z 运动方向、限位接线及 fwd_in 编号')
+    //   return
+    // }
 
-    // 3) 到限位后清零 Z
-    const zz = await zeroMotionAxis(2)
-    if (!zz?.success) {
-      error(zz?.message || 'Z 轴位置清零失败')
-      return
-    }
-    await moveMotionAxisRel(2, -45, {
-      controllerSettings: controllerStore.controllerSettings
-    })
+    // // 3) 到限位后清零 Z
+    // const zz = await zeroMotionAxis(2)
+    // if (!zz?.success) {
+    //   error(zz?.message || 'Z 轴位置清零失败')
+    //   return
+    // }
+    // await moveMotionAxisRel(2, -45, {
+    //   controllerSettings: controllerStore.controllerSettings
+    // })
 
-    success('已完成轴准备工作', 'X/Y 已准备，Z 已准备')
+    // success('已完成轴准备工作', 'X/Y 已准备，Z 已准备')
 
     // 4) 新建图像：覆盖掉当前已导入的图形数据，重新开始
     userSelectedNone.value = true
@@ -247,7 +247,7 @@ const handleNewImage = async () => {
     newImageHoming.value = false
   }
 }
-
+// 用于导入文件
 const handleImportFileChange = async (event: Event) => {
   const input = event.target as HTMLInputElement | null
   const file = input?.files?.[0]
@@ -443,21 +443,23 @@ const fillPointFromAxis = (target: 'lineStart' | 'lineEnd' | 'circleCenter') => 
 
 
       <!-- 新建图像（单独一个 card） -->
-      <div
-        class="rounded-xl border border-(--app-border) bg-(--app-card-soft) p-3 shadow-sm shadow-slate-900/5 ring-1 ring-slate-950/4 dark:shadow-md dark:shadow-black/25 dark:ring-white/5"
-      >
-        <div class="mt-3">
-          <button
-            type="button"
-            :disabled="newImageHoming"
+      <div class="flex items-start justify-center gap-2">
+        <button
+          type="button"
+          :disabled="newImageHoming"
+          class="w-full rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2 text-sm text-(--app-text-primary) hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+          @click="handleNewImage"
+        >
+          {{ newImageHoming ? '新建准备中…' : '新建新图像' }}
+        </button>
+        <button
+          type="button"
             class="w-full rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2 text-sm text-(--app-text-primary) hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-            @click="handleNewImage"
-          >
-            {{ newImageHoming ? '新建准备中…' : '新建新图像' }}
-          </button>
-        </div>
+          @click="handleImportClick"
+        >
+          导入…
+        </button>
       </div>
-
       <!-- 新建图像向导（统一高度 / 形状 / 参数） -->
       <div v-if="isCreateWizardOpen" class="mt-3" @keydown.capture="handleWizardKeydown">
         <div
@@ -667,9 +669,9 @@ const fillPointFromAxis = (target: 'lineStart' | 'lineEnd' | 'circleCenter') => 
         </div>
       </div>
       <div
-        class="rounded-xl border border-(--app-border) bg-(--app-card-soft) p-5 shadow-sm shadow-slate-900/5 ring-1 ring-slate-950/4 dark:shadow-md dark:shadow-black/25 dark:ring-white/5"
+        class="rounded-xl border border-(--app-border) bg-(--app-card-soft) p-2 shadow-sm shadow-slate-900/5 ring-1 ring-slate-950/4 dark:shadow-md dark:shadow-black/25 dark:ring-white/5"
       >
-        <div class="flex items-start justify-between gap-3">
+        <!-- <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
             <p class="font-medium text-(--app-text-primary) text-2xl">图像数据</p>
           </div>
@@ -683,10 +685,10 @@ const fillPointFromAxis = (target: 'lineStart' | 'lineEnd' | 'circleCenter') => 
               导入…
             </button>
           </div>
-        </div>
+        </div> -->
 
-        <div class="mt-4">
-          <div class="flex items-center gap-3">
+        <div class="mt-1">
+          <div class="flex items-center gap-3" v-if="selectableEntities.length > 0">
             <select
               v-model="dropdownSelectedEntityId"
               :disabled="selectableEntities.length === 0"
@@ -694,20 +696,25 @@ const fillPointFromAxis = (target: 'lineStart' | 'lineEnd' | 'circleCenter') => 
             >
               <option value="">无</option>
               <option v-for="e in selectableEntities" :key="e.id" :value="e.id">
-                {{ e.type }} / {{ e.id.slice(0, 8) }} / {{ e.layerName }}
+                {{ e.type }} / {{ e.id }} / {{ e.layerName }}
               </option>
             </select>
           </div>
         </div>
 
-        <div class="mt-4">
+        <div class="mt-1">
           <div
-            v-if="!selectedEntity"
+            v-if="selectableEntities.length === 0"
             class="min-h-[140px] rounded-md border border-dashed border-(--app-border) bg-(--app-card-soft-2) p-3 text-xs text-(--app-text-secondary)"
           >
-            当前没有选中实体；请先导入 .ljs / .dxf。
+            当前没有实体；请先新建图像或者导入 ".ljs" / ".dxf" 文件。
           </div>
-
+          <div
+            v-else-if="!selectedEntity"
+            class="min-h-[140px] rounded-md border border-dashed border-(--app-border) bg-(--app-card-soft-2) p-3 text-xs text-(--app-text-secondary)"
+          >
+            选择实体以查看相关实体参数
+          </div>
           <div
             v-else
             class="rounded-xl border border-(--app-border) bg-(--app-card-soft) p-4 text-xs text-(--app-text-secondary) shadow-inner shadow-slate-900/5"
@@ -725,8 +732,8 @@ const fillPointFromAxis = (target: 'lineStart' | 'lineEnd' | 'circleCenter') => 
 
             <div class="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-(--app-text-muted)">
               <!-- 固定两参数：每行只放两条 -->
-              <div>extrudeHeight：{{ selectedEntity.extrudeHeight.toFixed(3) }}</div>
-              <div>surfaceAngle：{{ selectedEntity.surfaceAngle.toFixed(3) }}</div>
+              <div>图形高度：{{ selectedEntity.extrudeHeight.toFixed(3) }}</div>
+              <div>旋转角度：{{ selectedEntity.surfaceAngle.toFixed(3) }}</div>
 
               <!-- 具有起点/终点的实体：LINE / ARC / BEZIER -->
               <template v-if="selectedEntity.type === 'LINE'">
@@ -737,6 +744,11 @@ const fillPointFromAxis = (target: 'lineStart' | 'lineEnd' | 'circleCenter') => 
               <template v-else-if="selectedEntity.type === 'ARC'">
                 <div class="col-span-2">起点：{{ formatPointOrDash(getArcStartPoint(selectedEntity)) }}</div>
                 <div class="col-span-2">终点：{{ formatPointOrDash(getArcEndPoint(selectedEntity)) }}</div>
+                <div class="col-span-2">圆心：{{ formatPoint(selectedEntity.center) }}</div>
+                <div class="col-span-2">半径：{{ selectedEntity.radius.toFixed(3) }}</div>
+              </template>
+              
+              <template v-else-if="selectedEntity.type === 'CIRCLE'">
                 <div class="col-span-2">圆心：{{ formatPoint(selectedEntity.center) }}</div>
                 <div class="col-span-2">半径：{{ selectedEntity.radius.toFixed(3) }}</div>
               </template>

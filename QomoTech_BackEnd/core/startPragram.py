@@ -259,10 +259,12 @@ def execute_start_program(*,motion: ZMotionDriver,recipe_payload: dict[str, Any]
             mainRecipe = recipe_payload.get("selectedMainRecipe") or {}
             machiningRecipe = searchIdInRecipe(recipe_payload.get("selectedMachiningRecipe"),mainRecipe.get("machiningRecipeId"),)
             machiningHorizontalFormula = searchIdInRecipe(recipe_payload.get("selectedHorizontal"),machiningRecipe.get("horizontalFormulaId"))
-            if(machiningHorizontalFormula.get("formula").get("openingShape") == "//型"):
-                outcome = qiepianLoop(originalPointsNum=_i,recipe_payload=recipe_payload,controller=controller,entities=entities,rs232=rs232,rs232_open=rs232_open)
-            elif(machiningHorizontalFormula.get("formula").get("openingShape") == "V型"):
-                outcome = wangFuLoop(originalPointsNum=_i,recipe_payload=recipe_payload,controller=controller,entities=entities,rs232=rs232,rs232_open=rs232_open,)
+            # TODO：将//型和V型要进行合并
+            outcome = xiumianLoop(originalPointsNum=_i,recipe_payload=recipe_payload,controller=controller,entities=entities,rs232=rs232,rs232_open=rs232_open)
+            # if(machiningHorizontalFormula.get("formula").get("openingShape") == "//型"):
+            #     outcome = xiumianLoop(originalPointsNum=_i,recipe_payload=recipe_payload,controller=controller,entities=entities,rs232=rs232,rs232_open=rs232_open)
+            # elif(machiningHorizontalFormula.get("formula").get("openingShape") == "V型"):
+            #     outcome = wangFuLoop(originalPointsNum=_i,recipe_payload=recipe_payload,controller=controller,entities=entities,rs232=rs232,rs232_open=rs232_open,)
 
             
             if outcome == "skip":
@@ -438,13 +440,17 @@ def wangFuLoop(originalPointsNum: int,recipe_payload: dict[str, Any],controller:
     # 下开口
     minOffset = lowerOpening = lowerOpeningK * height + lowerOpeningB
     maxoffset = upperOpening = depthCompensationK * 1000 * (height+depthCompensationB) * tana + lowerOpening
+    # 这个是偏移的最小开口
     minOffset = 0
+    # maxOffset = minOffset+lowerOpeningB
 
     originalPoints = OffsetEndpointCalculator.calc_xy_points(entities,0)[originalPointsNum]
     originalPoints_run = originalPoints.copy()
     isneedReceive = False
+    # 如果是封闭的那我isneedReceive就可以不需要翻转
+    isClosed = False
     originalPoints_receive = originalPoints.copy()
-    z_original_position = controller.get_z_dpos_mm()
+    z_original_position = controller.get_z_mpos_mm()
     while step <= 300:
         if _skip_requested():
             _runtime_cleanup_outputs(controller)
@@ -664,8 +670,12 @@ def wangFuLoop(originalPointsNum: int,recipe_payload: dict[str, Any],controller:
             case 101:
                 # 按当前 pointOffset 计算偏移轨迹；若 isneedReceive 则需反转点序（首点变末点）
                 path_groups = OffsetEndpointCalculator.calc_xy_points(entities, pointOffset)
+
+
+                # 判断是否闭合我需要有一些参数比如说他是不是圆,如果是圆则是闭合,如果不是则要判断
+                isClosed = True if path_groups[originalPointsNum][0]['x'] == path_groups[originalPointsNum][-1]['x'] and path_groups[originalPointsNum][0]['y'] == path_groups[originalPointsNum][-1]['y'] else False
                 pts: list[dict[str, Any]] = list(path_groups[originalPointsNum])
-                if isneedReceive:
+                if isneedReceive and not isClosed:
                     pts = list(reversed(pts))
                 originalPoints_run = list(pts)
                 step = 60
@@ -717,7 +727,11 @@ def wangFuLoop(originalPointsNum: int,recipe_payload: dict[str, Any],controller:
                     return "abort"
     return True
 # 每条直线切两次
-def qiepianLoop(originalPointsNum: int,recipe_payload: dict[str, Any],controller: ZMotionAdapter,entities: list[dict[str, Any]],*,rs232: Rs232Driver | None = None,rs232_open: dict[str, Any] | None = None,) -> bool | str:  # True / False / "skip" / "abort"
+def xiumianLoop(originalPointsNum: int,recipe_payload: dict[str, Any],controller: ZMotionAdapter,entities: list[dict[str, Any]],*,rs232: Rs232Driver | None = None,rs232_open: dict[str, Any] | None = None,) -> bool | str:  # True / False / "skip" / "abort"
+    """
+    这个是单独拿出来的修面但是要和实际去相匹配
+    """
+    
     mainRecipe = recipe_payload.get("selectedMainRecipe") or {}
 
     # 子配方对象在前端 payload 中是“数组形式”（例如 selectedBlackeningRecipe: [blackening]）
@@ -796,6 +810,7 @@ def qiepianLoop(originalPointsNum: int,recipe_payload: dict[str, Any],controller
     compensationAngleK = float(machiningHorizontalFormula.get('formula').get('compensationAngleFormula').get('k'))
     compensationAngleB = float(machiningHorizontalFormula.get('formula').get('compensationAngleFormula').get('b'))
     
+    openingShape = machiningHorizontalFormula.get('formula').get('openingShape')
     # 下开口============如果是修面就直接用B
     minOffset = lowerOpening = lowerOpeningK * height + lowerOpeningB
     maxOffset = upperOpening = depthCompensationK * 1000 * (height+depthCompensationB) * tana + lowerOpening
@@ -807,7 +822,7 @@ def qiepianLoop(originalPointsNum: int,recipe_payload: dict[str, Any],controller
     originalPoints_run = originalPoints.copy()
     isneedReceive = False
     originalPoints_receive = originalPoints.copy()
-    z_original_position = controller.get_z_dpos_mm()
+    z_original_position = controller.get_z_mpos_mm()
 
     while step <= 300:
         if _skip_requested():
@@ -838,19 +853,44 @@ def qiepianLoop(originalPointsNum: int,recipe_payload: dict[str, Any],controller
                     step = 999
 
             case 20:
-                if controller.get_notIsMoving(0,untilReturnTrue=True).get('notMoving') and controller.get_notIsMoving(1,untilReturnTrue=True).get('notMoving'):
-                    step=30
+                jumpOutCount = 0
+                paused_seen = False
+                while True:
+                    if _abort_pending():
+                        _runtime_cleanup_outputs(controller)
+                        return "abort"
+                    if _skip_requested():
+                        _runtime_cleanup_outputs(controller)
+                        _clear_skip_request()
+                        return "skip"
+                    if _paused():
+                        paused_seen = True
+                        time.sleep(0.05)
+                        continue
+                    resultX = controller.get_notIsMoving(0)
+                    resultY = controller.get_notIsMoving(1)
+                    if paused_seen:
+                        # 从暂停恢复后重新走一次状态确认
+                        step = 20
+                        break
+                    if resultX.get('success') and resultY.get('success'):
+                        if resultX.get('notMoving') and resultY.get('notMoving'):
+                            step = 30
+                            break
+                    if jumpOutCount >= 2000:
+                        return False
+                    jumpOutCount += 1
+                    time.sleep(0.02)
             case 30:
                 # 判断是否打开扫黑功能
                 if saoheiFlag:
                     step = 31
+                    _depth -= saoheishangtaigaodu
                 else:
                     step=32
             case 31:
                 # 发送扫黑的的参数
                 _ensure_rs232_before_laser(rs232, rs232_open, str(saoheiPower), str(saoheiFrequency), str(saoheiCurrent))
-                # 将扫黑Flag改成False
-                saoheiFlag = False
                 step = 40
             case 32:
                 # 发送工作参数
@@ -868,7 +908,6 @@ def qiepianLoop(originalPointsNum: int,recipe_payload: dict[str, Any],controller
                 else:
                     step = 999
             case 60:
-                # 移动到目标深度 =  累计下降量+当前Z轴位置
                 targetDepth = -_depth + z_original_position
                 result= controller.absolute_move_speed({'axis':2,'moveDistance':targetDepth,'speed':runSpeed})
                 if result.get('success') and result is not None:
@@ -876,21 +915,51 @@ def qiepianLoop(originalPointsNum: int,recipe_payload: dict[str, Any],controller
                 else:
                     step = 999
             case 70:
-                # 判断是否到达目标位置
-                if controller.get_notIsMoving(2,untilReturnTrue=True).get('notMoving'):
-                    step = 80
-                else:
-                    step = 999
+                # 判断是否到达目标位置（支持暂停后重下发当前目标深度）
+                jumpOutCount = 0
+                paused_seen = False
+                z_target_depth = -_depth + z_original_position
+                while True:
+                    if _abort_pending():
+                        _runtime_cleanup_outputs(controller)
+                        return "abort"
+                    if _skip_requested():
+                        _runtime_cleanup_outputs(controller)
+                        _clear_skip_request()
+                        return "skip"
+                    if _paused():
+                        paused_seen = True
+                        time.sleep(0.05)
+                        continue
+                    result = controller.get_notIsMoving(2)
+                    if result.get('success'):
+                        if paused_seen:
+                            r_z = controller.absolute_move_speed({'axis': 2, 'moveDistance': float(z_target_depth), 'speed': runSpeed})
+                            if not r_z.get('success'): return False
+                            paused_seen = False
+                            continue
+                        if result.get('notMoving'):
+                            step = 80
+                            break
+                    if jumpOutCount >= 2000:
+                        return False
+                    jumpOutCount += 1
+                    time.sleep(0.02)
 
             case 80:
-                # 计算偏移并连续运动
+                # 计算偏移并连续运动（暂停后可从当前位重建剩余轨迹）
                 path_groups = OffsetEndpointCalculator.calc_xy_points(entities, pointOffset)
+                pts: list[dict[str, Any]] = list(path_groups[originalPointsNum])
+                isClosed = True if pts[0]['x'] - pts[-1]['x'] <= 0.001 and pts[0]['y'] - pts[-1]['y'] <= 0.001 else False
+                if isneedReceive and not isClosed:
+                    pts = list(reversed(pts))
+                originalPoints_run = list(pts)
                 if isPaddingFlag:
                     targetSpeed = runSpeed*edgeCuttingSpeedRate
                 else:
                     targetSpeed = runSpeed*middleCuttingSpeedRate
                 
-                result = controller.continuous_interpolation_move_adapter(path_groups[originalPointsNum],speed=targetSpeed)
+                result = controller.continuous_interpolation_move_adapter(originalPoints_run,speed=targetSpeed,wait_until_done=True)
                 if result.get('success') and result is not None:
                     step = 81
                 else:
@@ -902,7 +971,40 @@ def qiepianLoop(originalPointsNum: int,recipe_payload: dict[str, Any],controller
                     step = 80
                 else:
                     cutTime = 0
-                    step = 90 if not needJump else 100
+                    step = 82 if not needJump else 100
+            case 82:
+                # 判断 XY 是否结束（支持暂停后从当前位置接续）
+                jumpOutCount = 0
+                paused_seen = False
+                while True:
+                    if _abort_pending():
+                        _runtime_cleanup_outputs(controller)
+                        return "abort"
+                    if _skip_requested():
+                        _runtime_cleanup_outputs(controller)
+                        _clear_skip_request()
+                        return "skip"
+                    if _paused():
+                        paused_seen = True
+                        time.sleep(0.05)
+                        continue
+                    resultX = controller.get_notIsMoving(0)
+                    resultY = controller.get_notIsMoving(1)
+                    if resultX.get('success') and resultY.get('success'):
+                        if paused_seen:
+                            originalPoints_run = _rebuild_xy_path_from_current(originalPoints_run, controller)
+                            if len(originalPoints_run) < 2:
+                                step = 90 if not needJump else 100
+                                break
+                            step = 80
+                            break
+                        if resultX.get('notMoving') and resultY.get('notMoving'):
+                            step = 90 if not needJump else 100
+                            break
+                    if jumpOutCount >= 2000:
+                        return False
+                    jumpOutCount += 1
+                    time.sleep(0.01)
             case 90:
                 # 计算偏移值
                 pointOffset = pointOffset+offsetStep if minToMax else pointOffset-offsetStep
@@ -927,32 +1029,57 @@ def qiepianLoop(originalPointsNum: int,recipe_payload: dict[str, Any],controller
                 step = 80
 
             case 100:
+                if saoheiFlag:
+                    jindubaifenbi = (_depth+saoheishangtaigaodu)/(height)*100
+                else:
+                    jindubaifenbi = _depth/height*100
+
                 # 计算下一层的偏移开口
                 current_increments = int(jindubaifenbi // decreasingRate)
                 delta = current_increments - previous_increments
                 depthStep -= delta * decreasingRateReduce
                 previous_increments = current_increments
                 _depth += round(depthStep,4)
+
+                # 我将其移动到下面是为了防止_depth
+                if jindubaifenbi > (decreasingRate)/2 and saoheiFlag:
+                    saoheiFlag = False
+                    controller.open_output(2, 0)#关闭激光
+                    openLaser = False
+                    _depth = 0
+
                 # 下降一层计算新开口 = 初始上开口 - tan（角度） *累计下降量um * 2 //单位um
-                newScanLength = upperOpening - tana * _depth * 2 * 1000
-                minOffset = tana * _depth * 2 * 1000
-                maxOffset = tana * _depth * 2 * 1000 + upperOpening
-                print("minOffset,maxOffset",minOffset,maxOffset)
+                if openingShape == "V型":
+                    newScanLength = upperOpening - tana * _depth * 2 * 1000
+                    scanLengthChaZhi = (upperOpening - newScanLength)/2
+                    minOffset = round(scanLengthChaZhi, 4)
+                    maxOffset = round(upperOpening - scanLengthChaZhi, 4)
+                if openingShape == "//型":
+                    minOffset = tana * _depth * 2 * 1000
+                    maxOffset = tana * _depth * 2 * 1000 + upperOpening
+
+
+                # 写入然后回传给前端的进度
+                task_jindubaifenbi =jindubaifenbi
+                _update_program_task_progress(current_task_jindubaifenbi=task_jindubaifenbi)
                 # scanLengthChaZhi = (upperOpening - newScanLength)/2
                 # minOffset = round(scanLengthChaZhi, 4)
                 # maxOffset = round(upperOpening - scanLengthChaZhi, 4)
                 needJump = False
-                step=50
+                if not saoheiFlag and not openLaser:
+                    step = 30
+                else:
+                    step = 50
             case 110:
                 step=150
             case 150:
                 controller.stop_axis_motion([0, 1, 2])
                 controller.open_output(0, 0)#关闭吹风
                 controller.open_output(2, 0)#关闭激光
-                step=300
+                step = 300
             case 300:
                 step = 999
             case 999:
-                step=9999
+                step = 9999
 
     return True

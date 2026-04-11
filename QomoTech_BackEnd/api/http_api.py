@@ -53,10 +53,7 @@ def _hardware_flags(motion_connected: bool) -> dict[str, bool]:
     }
 
 @http_router.post("/api/startProgram", response_model=ApiResponse)
-async def start_program(
-    payload: dict[str, Any] | None = None,
-    motion: ZMotionDriver = Depends(get_motion_driver),
-) -> ApiResponse:
+async def start_program(payload: dict[str, Any] | None = None,motion: ZMotionDriver = Depends(get_motion_driver),) -> ApiResponse:
     payload = payload or {}
     recipe_payload = payload.get("recipe_payload")
     entities = payload.get("entities")

@@ -94,7 +94,7 @@ class ZMotionAdapter:
         y = float(st["1"]["mpos"])
         return x, y
 
-    def get_z_dpos_mm(self) -> float:
+    def get_z_mpos_mm(self) -> float:
         st = self._motion.get_axes_status()
         z = float(st["2"]["mpos"])
         return z

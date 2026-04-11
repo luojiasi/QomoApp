@@ -12,7 +12,8 @@ from drivers.base_driver import BaseDriver
 
 @dataclass
 class _AxisState:
-    pos_mm: float = 0.0
+    dpos_mm: float = 0.0
+    mpos_mm: float = 0.0
     units: float = 1000.0
     lspeed: float = 20.0
     speed: float = 20.0
@@ -385,7 +386,8 @@ class ZMotionDriver(BaseDriver):
             return False
         if not self._call_zaux("ZAux_Direct_SetMpos", int(axis_no), 0.0):
             return False
-        axis.pos_mm = 0.0
+        axis.dpos_mm = 0.0
+        axis.mpos_mm = 0.0
         axis.moving = False
         self._clear_error()
         return True
@@ -399,7 +401,7 @@ class ZMotionDriver(BaseDriver):
             axis.last_error = self._last_error
             return False
         axis.moving = True
-        axis.pos_mm = float(target_mm)
+        axis.dpos_mm = float(target_mm)
         axis.moving = False
         self._clear_error()
         return True
@@ -413,7 +415,7 @@ class ZMotionDriver(BaseDriver):
             axis.last_error = self._last_error
             return False
         axis.moving = True
-        axis.pos_mm += float(delta_mm)
+        axis.dpos_mm += float(delta_mm)
         axis.moving = False
         self._clear_error()
         return True
@@ -438,9 +440,12 @@ class ZMotionDriver(BaseDriver):
                 "move_buffered": 0,
             }
             if self._using_dll():
+                mpos = self._read_zaux_value("ZAux_Direct_GetMpos", axis_no, cast=float)
+                if mpos is not None:
+                    axis.mpos_mm = mpos
                 dpos = self._read_zaux_value("ZAux_Direct_GetDpos", axis_no, cast=float)
                 if dpos is not None:
-                    axis.pos_mm = dpos
+                    axis.dpos_mm = dpos
                 axis_status_val = self._read_zaux_value("ZAux_Direct_GetAxisStatus", axis_no, cast=int)
                 if axis_status_val is not None:
                     axis.axis_status = axis_status_val
@@ -476,9 +481,9 @@ class ZMotionDriver(BaseDriver):
             status[str(axis_no)] = {
                 "axis_no": axis_no,
                 "idle": int(axis.moving),
-                "dpos": float(axis.pos_mm),
-                "mpos": float(axis.pos_mm),
-                "endmove": float(axis.pos_mm),
+                "dpos": float(axis.dpos_mm),
+                "mpos": float(axis.mpos_mm),
+                "endmove": float(axis.mpos_mm),
                 "units": float(axis.units),
                 "lspeed": float(axis.lspeed),
                 "speed": float(axis.speed),
@@ -660,7 +665,7 @@ class ZMotionDriver(BaseDriver):
         # 缓存下发完成，更新本地目标位置（真实设备最终位置由 status 回读修正）
         final_coords, _ = segments[-1]
         for i, axis_no in enumerate(axis_ids):
-            self._axis[axis_no].pos_mm = float(final_coords[i])
+            self._axis[axis_no].mpos_mm = float(final_coords[i])
             self._axis[axis_no].moving = True
 
         if wait_until_done:
