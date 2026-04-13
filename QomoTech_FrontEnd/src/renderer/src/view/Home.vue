@@ -17,6 +17,10 @@ import ControllerSettings from './ControllerSettings.vue'
 import { parseRs232SessionFromLocalStorage } from '../stores/rs232WorkbenchStore'
 import { syncRs232Workbench } from '../utils/rs232Api'
 
+// 新添加的用于创建图形的方法
+import ShowAndDrawInHome_new from '../components/showAndDrawInHome_new.vue'
+import HomeOperationHelp_new from '../components/HomeOperationHelp_new.vue'
+const newWayToCreateGraphic = ref(true)
 
 
 
@@ -440,6 +444,8 @@ async function onRunClick(): Promise<void> {
       recipe_payload: currentRunRecipePayload.value,
       entities: entities
     }
+
+    // 在这一步我希望就是通过获取点位之后开始运行
     const result = await startProgram(payload)
     if (!result?.success) {
       error(result?.message || '运行失败：后端未接受配方。')
@@ -865,7 +871,9 @@ onMounted(async () => {
         class="absolute left-1/2 top-16 bottom-8 z-20 flex min-h-0 w-120 max-w-[calc(100vw-2rem)] flex-col p-3"
         aria-label="操作帮助区域"
       >
-        <HomeOperationHelp />
+      <!-- 方便进行测试新添加的创建图形的方法 -->
+        <HomeOperationHelp v-if="!newWayToCreateGraphic"/>
+        <HomeOperationHelp_new v-else />
       </aside>
     </div>
     
@@ -875,7 +883,10 @@ onMounted(async () => {
         class="relative h-full w-full overflow-hidden rounded-2xl border border-(--app-border) bg-transparent shadow-[0_6px_14px_-6px_rgba(15,23,42,0.14)] dark:shadow-[0_6px_16px_-6px_rgba(0,0,0,0.42)]"
       >
         <CameraPic object-fit="cover" />
-        <ShowAndDrawInHome :scale="1" :upper-opening-mm="recipeUpperOpeningMm" />
+
+        <!-- 方便进行测试新添加的创建图形的方法 -->
+        <ShowAndDrawInHome :scale="1" :upper-opening-mm="recipeUpperOpeningMm"  v-if="!newWayToCreateGraphic"/>
+        <ShowAndDrawInHome_new v-else :scale="1" :upper-opening-mm="recipeUpperOpeningMm" />
       </div>
     </main>
     <div class="flex items-center gap-2 absolute left-8 bottom-4 w-[940px]">
