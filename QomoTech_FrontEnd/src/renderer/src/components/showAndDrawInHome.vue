@@ -220,9 +220,12 @@ import type { OpenDirectionType, Point, QomoEntityWithSurface } from '@renderer/
 import {
   computeOpenEntityOffsetPathsForCanvas,
   createBezierPoints,
+  createCushionPoints,
   createHeartPoints,
   createMarquisePoints,
-  createPearPoints
+  createOctagonPoints,
+  createPearPoints,
+  createSquarePoints
 } from '@renderer/utils/Qomo5P/threeGeometry'
 
 const props = withDefaults(
@@ -444,6 +447,9 @@ const isEllipseLikeIrregularEntity = (
 ): entity is Extract<QomoEntityWithSurface, { type: 'IRREGULAR' }> =>
   entity.type === 'IRREGULAR' &&
   (entity.shape === 'oval' ||
+    entity.shape === 'square' ||
+    entity.shape === 'cushion' ||
+    entity.shape === 'octagon' ||
     entity.shape === 'marquise' ||
     entity.shape === 'pear' ||
     entity.shape === 'heart')
@@ -467,11 +473,28 @@ const isHeartEntity = (
   entity: QomoEntityWithSurface
 ): entity is Extract<QomoEntityWithSurface, { type: 'IRREGULAR' }> =>
   isEllipseLikeIrregularEntity(entity) && entity.shape === 'heart'
+const isSquareEntity = (
+  entity: QomoEntityWithSurface
+): entity is Extract<QomoEntityWithSurface, { type: 'IRREGULAR' }> =>
+  isEllipseLikeIrregularEntity(entity) && entity.shape === 'square'
+const isCushionEntity = (
+  entity: QomoEntityWithSurface
+): entity is Extract<QomoEntityWithSurface, { type: 'IRREGULAR' }> =>
+  isEllipseLikeIrregularEntity(entity) && entity.shape === 'cushion'
+const isOctagonEntity = (
+  entity: QomoEntityWithSurface
+): entity is Extract<QomoEntityWithSurface, { type: 'IRREGULAR' }> =>
+  isEllipseLikeIrregularEntity(entity) && entity.shape === 'octagon'
 
 const isPathIrregularEntity = (
   entity: QomoEntityWithSurface
 ): entity is Extract<QomoEntityWithSurface, { type: 'IRREGULAR' }> =>
-  isMarquiseEntity(entity) || isPearEntity(entity) || isHeartEntity(entity)
+  isMarquiseEntity(entity) ||
+  isPearEntity(entity) ||
+  isHeartEntity(entity) ||
+  isSquareEntity(entity) ||
+  isCushionEntity(entity) ||
+  isOctagonEntity(entity)
 
 const getIrregularPathD = (entity: Extract<QomoEntityWithSurface, { type: 'IRREGULAR' }>) =>
   pointsToPathD(
@@ -479,6 +502,12 @@ const getIrregularPathD = (entity: Extract<QomoEntityWithSurface, { type: 'IRREG
       ? createHeartPoints(entity.center, entity.radiusX, entity.radiusY, entity.rotationDeg, 96)
       : entity.shape === 'pear'
         ? createPearPoints(entity.center, entity.radiusX, entity.radiusY, entity.rotationDeg, 96)
+        : entity.shape === 'square'
+          ? createSquarePoints(entity.center, entity.radiusX, entity.radiusY, entity.rotationDeg)
+        : entity.shape === 'cushion'
+          ? createCushionPoints(entity.center, entity.radiusX, entity.radiusY, entity.rotationDeg, 96)
+        : entity.shape === 'octagon'
+          ? createOctagonPoints(entity.center, entity.radiusX, entity.radiusY, entity.rotationDeg)
         : createMarquisePoints(entity.center, entity.radiusX, entity.radiusY, entity.rotationDeg, 96)
   )
 </script>

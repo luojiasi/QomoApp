@@ -19,7 +19,14 @@ export type DrawingCircleType =
 
 export type DrawingBezierType = 'cubic_bezier'
 
-export type DrawingIrregularType = 'oval' | 'heart' | 'pear' | 'square' | 'marquise'
+export type DrawingIrregularType =
+  | 'oval'
+  | 'heart'
+  | 'pear'
+  | 'square'
+  | 'marquise'
+  | 'cushion'
+  | 'octagon'
 
 export type DrawingShapeTools =
   | DrawingArcType

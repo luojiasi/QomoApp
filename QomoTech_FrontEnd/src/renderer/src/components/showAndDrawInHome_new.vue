@@ -228,7 +228,7 @@
               :stroke-width="entityStrokeWidth"
               vector-effect="non-scaling-stroke"
               stroke-linecap="round"
-              stroke-dasharray="5 4"
+              :stroke-dasharray="offsetStrokeDashArray"
             />
             <path
               v-else
@@ -239,7 +239,7 @@
               vector-effect="non-scaling-stroke"
               stroke-linecap="round"
               stroke-linejoin="round"
-              stroke-dasharray="5 4"
+              :stroke-dasharray="offsetStrokeDashArray"
             />
           </template>
         </g>
@@ -255,7 +255,7 @@ import { useControllerSettingsStore } from '@renderer/stores/controllerSettingsS
 import { storeToRefs } from 'pinia'
 import { useQomo5PStore } from '@renderer/stores/qomo5pEditor'
 import type { OpenDirectionType, Point, QomoEntityWithSurface } from '@renderer/types/Qomo5P'
-import {computeOpenEntityOffsetPathsForCanvas,createBezierPoints,createHeartPoints,createMarquisePoints,createPearPoints} from '@renderer/utils/Qomo5P/threeGeometry'
+import {computeOpenEntityOffsetPathsForCanvas,createBezierPoints,createCushionPoints,createHeartPoints,createMarquisePoints,createOctagonPoints,createPearPoints,createSquarePoints} from '@renderer/utils/Qomo5P/threeGeometry'
 
 const props = withDefaults(
   defineProps<{
@@ -431,6 +431,12 @@ const worldStrokeWidth = computed(() => Math.max(1 / Math.max(effectiveZoomX.val
 const crosshairStrokeWidth = computed(() => worldStrokeWidth.value * coerceFinitePositive(scaleSettings.crosshairStrokeMul, 1))
 // 实体的宽度
 const entityStrokeWidth = computed(() => worldStrokeWidth.value * coerceFinitePositive(scaleSettings.entityStrokeMul, 1))
+/** 偏移实体虚线：按当前显示线宽自适应，避免缩放后看起来像实线 */
+const offsetStrokeDashArray = computed(() => {
+  const dash = Math.max(entityStrokeWidth.value * 3.5, 2)
+  const gap = Math.max(entityStrokeWidth.value * 2.5, 1.5)
+  return `${dash} ${gap}`
+})
 const selectedEntityIdSet = computed(() => new Set(selectedEntityIds.value))
 // 选择高亮实体的颜色和宽度
 const getEntityStrokeColor = (entityId: string) =>selectedEntityIdSet.value.has(entityId) ? '#facc15' : scaleSettings.entityStrokeColor
@@ -512,7 +518,14 @@ const getBezierCurvePathD = (points: Point[]) => {
 }
 
 const isEllipseLikeIrregularEntity = (entity: QomoEntityWithSurface): entity is Extract<QomoEntityWithSurface, { type: 'IRREGULAR' }> =>
-  entity.type === 'IRREGULAR' && (entity.shape === 'oval' ||entity.shape === 'marquise' ||entity.shape === 'pear' ||entity.shape === 'heart')
+  entity.type === 'IRREGULAR' &&
+  (entity.shape === 'oval' ||
+    entity.shape === 'square' ||
+    entity.shape === 'cushion' ||
+    entity.shape === 'octagon' ||
+    entity.shape === 'marquise' ||
+    entity.shape === 'pear' ||
+    entity.shape === 'heart')
 
 const isOvalEntity = (entity: QomoEntityWithSurface): entity is Extract<QomoEntityWithSurface, { type: 'IRREGULAR' }> =>
   isEllipseLikeIrregularEntity(entity) && entity.shape === 'oval'
@@ -525,9 +538,20 @@ const isPearEntity = (entity: QomoEntityWithSurface): entity is Extract<QomoEnti
 
 const isHeartEntity = (entity: QomoEntityWithSurface): entity is Extract<QomoEntityWithSurface, { type: 'IRREGULAR' }> =>
   isEllipseLikeIrregularEntity(entity) && entity.shape === 'heart'
+const isSquareEntity = (entity: QomoEntityWithSurface): entity is Extract<QomoEntityWithSurface, { type: 'IRREGULAR' }> =>
+  isEllipseLikeIrregularEntity(entity) && entity.shape === 'square'
+const isCushionEntity = (entity: QomoEntityWithSurface): entity is Extract<QomoEntityWithSurface, { type: 'IRREGULAR' }> =>
+  isEllipseLikeIrregularEntity(entity) && entity.shape === 'cushion'
+const isOctagonEntity = (entity: QomoEntityWithSurface): entity is Extract<QomoEntityWithSurface, { type: 'IRREGULAR' }> =>
+  isEllipseLikeIrregularEntity(entity) && entity.shape === 'octagon'
 
 const isPathIrregularEntity = (entity: QomoEntityWithSurface): entity is Extract<QomoEntityWithSurface, { type: 'IRREGULAR' }> =>
-  isMarquiseEntity(entity) || isPearEntity(entity) || isHeartEntity(entity)
+  isMarquiseEntity(entity) ||
+  isPearEntity(entity) ||
+  isHeartEntity(entity) ||
+  isSquareEntity(entity) ||
+  isCushionEntity(entity) ||
+  isOctagonEntity(entity)
 const getEntityId = (entity: QomoEntityWithSurface) => entity.id
 const getEntityIdUnsafe = (entity: unknown): string => {
   if (entity && typeof entity === 'object' && 'id' in entity && typeof (entity as { id?: unknown }).id === 'string') return (entity as { id: string }).id
@@ -540,6 +564,12 @@ const getIrregularPathD = (entity: Extract<QomoEntityWithSurface, { type: 'IRREG
       ? createHeartPoints(entity.center, entity.radiusX, entity.radiusY, entity.rotationDeg, 96)
       : entity.shape === 'pear'
         ? createPearPoints(entity.center, entity.radiusX, entity.radiusY, entity.rotationDeg, 96)
+        : entity.shape === 'square'
+          ? createSquarePoints(entity.center, entity.radiusX, entity.radiusY, entity.rotationDeg)
+        : entity.shape === 'cushion'
+          ? createCushionPoints(entity.center, entity.radiusX, entity.radiusY, entity.rotationDeg, 96)
+        : entity.shape === 'octagon'
+          ? createOctagonPoints(entity.center, entity.radiusX, entity.radiusY, entity.rotationDeg)
         : createMarquisePoints(entity.center, entity.radiusX, entity.radiusY, entity.rotationDeg, 96)
   )
 </script>

@@ -1,6 +1,13 @@
 export type EntityType = 'LINE' | 'ARC' | 'NONE' | 'CIRCLE' | 'IRREGULAR' | 'BEZIER'
 export type OpenDirectionType = 'LEFT' | 'RIGHT'
-export type IrregularShapeType = 'oval' | 'heart' | 'pear' | 'square' | 'marquise'
+export type IrregularShapeType =
+  | 'oval'
+  | 'heart'
+  | 'pear'
+  | 'square'
+  | 'marquise'
+  | 'cushion'
+  | 'octagon'
 
 export interface QomoWeldingBase {
   id: string

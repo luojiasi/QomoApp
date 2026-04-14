@@ -700,9 +700,12 @@ import type { DrawingShapeTools } from '@renderer/utils/Qomo5P/QomoToCanvas'
 
 import {
   createBezierPoints,
+  createCushionPoints,
   createHeartPoints,
   createMarquisePoints,
-  createPearPoints
+  createOctagonPoints,
+  createPearPoints,
+  createSquarePoints
 } from '@renderer/utils/Qomo5P/threeGeometry'
 
 const props = withDefaults(
@@ -783,6 +786,9 @@ const isEllipseLikeIrregularEntity = (
 ): entity is Extract<QomoEntityWithSurface, { type: 'IRREGULAR' }> =>
   entity.type === 'IRREGULAR' &&
   (entity.shape === 'oval' ||
+    entity.shape === 'square' ||
+    entity.shape === 'cushion' ||
+    entity.shape === 'octagon' ||
     entity.shape === 'marquise' ||
     entity.shape === 'pear' ||
     entity.shape === 'heart')
@@ -802,10 +808,27 @@ const isHeartEntity = (
   entity: QomoEntityWithSurface
 ): entity is Extract<QomoEntityWithSurface, { type: 'IRREGULAR' }> =>
   isEllipseLikeIrregularEntity(entity) && entity.shape === 'heart'
+const isSquareEntity = (
+  entity: QomoEntityWithSurface
+): entity is Extract<QomoEntityWithSurface, { type: 'IRREGULAR' }> =>
+  isEllipseLikeIrregularEntity(entity) && entity.shape === 'square'
+const isCushionEntity = (
+  entity: QomoEntityWithSurface
+): entity is Extract<QomoEntityWithSurface, { type: 'IRREGULAR' }> =>
+  isEllipseLikeIrregularEntity(entity) && entity.shape === 'cushion'
+const isOctagonEntity = (
+  entity: QomoEntityWithSurface
+): entity is Extract<QomoEntityWithSurface, { type: 'IRREGULAR' }> =>
+  isEllipseLikeIrregularEntity(entity) && entity.shape === 'octagon'
 const isPathIrregularEntity = (
   entity: QomoEntityWithSurface
 ): entity is Extract<QomoEntityWithSurface, { type: 'IRREGULAR' }> =>
-  isMarquiseEntity(entity) || isPearEntity(entity) || isHeartEntity(entity)
+  isMarquiseEntity(entity) ||
+  isPearEntity(entity) ||
+  isHeartEntity(entity) ||
+  isSquareEntity(entity) ||
+  isCushionEntity(entity) ||
+  isOctagonEntity(entity)
 const pointsToPathD = (points: Point[], closed = true) => {
   if (points.length === 0) return ''
   const commands = [`M ${points[0].x} ${points[0].y}`]
@@ -821,6 +844,12 @@ const getIrregularPathD = (entity: Extract<QomoEntityWithSurface, { type: 'IRREG
       ? createHeartPoints(entity.center, entity.radiusX, entity.radiusY, entity.rotationDeg, 96)
       : entity.shape === 'pear'
         ? createPearPoints(entity.center, entity.radiusX, entity.radiusY, entity.rotationDeg, 96)
+        : entity.shape === 'square'
+          ? createSquarePoints(entity.center, entity.radiusX, entity.radiusY, entity.rotationDeg)
+        : entity.shape === 'cushion'
+          ? createCushionPoints(entity.center, entity.radiusX, entity.radiusY, entity.rotationDeg, 96)
+        : entity.shape === 'octagon'
+          ? createOctagonPoints(entity.center, entity.radiusX, entity.radiusY, entity.rotationDeg)
         : createMarquisePoints(
             entity.center,
             entity.radiusX,
@@ -978,6 +1007,9 @@ const currentIrregularShape = computed(() => {
   if (drawingShapeTool.value === 'marquise') return 'marquise'
   if (drawingShapeTool.value === 'heart') return 'heart'
   if (drawingShapeTool.value === 'pear') return 'pear'
+  if (drawingShapeTool.value === 'square') return 'square'
+  if (drawingShapeTool.value === 'cushion') return 'cushion'
+  if (drawingShapeTool.value === 'octagon') return 'octagon'
   return 'oval'
 })
 
@@ -994,7 +1026,10 @@ const ellipseDraftPreview = computed(() => {
   if (
     currentIrregularShape.value === 'marquise' ||
     currentIrregularShape.value === 'pear' ||
-    currentIrregularShape.value === 'heart'
+    currentIrregularShape.value === 'heart' ||
+    currentIrregularShape.value === 'square' ||
+    currentIrregularShape.value === 'cushion' ||
+    currentIrregularShape.value === 'octagon'
   ) {
     return {
       mode: 'path' as const,
@@ -1003,6 +1038,12 @@ const ellipseDraftPreview = computed(() => {
           ? createHeartPoints(p.center, p.radiusX, p.radiusY, p.rotationDeg, 96)
           : currentIrregularShape.value === 'pear'
             ? createPearPoints(p.center, p.radiusX, p.radiusY, p.rotationDeg, 96)
+            : currentIrregularShape.value === 'square'
+              ? createSquarePoints(p.center, p.radiusX, p.radiusY, p.rotationDeg)
+            : currentIrregularShape.value === 'cushion'
+              ? createCushionPoints(p.center, p.radiusX, p.radiusY, p.rotationDeg, 96)
+            : currentIrregularShape.value === 'octagon'
+              ? createOctagonPoints(p.center, p.radiusX, p.radiusY, p.rotationDeg)
             : createMarquisePoints(p.center, p.radiusX, p.radiusY, p.rotationDeg, 96)
       )
     }
@@ -2558,6 +2599,9 @@ onMounted(() => {
       if (
         action.entityType === 'IRREGULAR' &&
         (action.drawingShapeTool === 'oval' ||
+          action.drawingShapeTool === 'square' ||
+          action.drawingShapeTool === 'cushion' ||
+          action.drawingShapeTool === 'octagon' ||
           action.drawingShapeTool === 'marquise' ||
           action.drawingShapeTool === 'pear' ||
           action.drawingShapeTool === 'heart')

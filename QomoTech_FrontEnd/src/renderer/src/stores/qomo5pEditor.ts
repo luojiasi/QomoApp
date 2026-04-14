@@ -22,7 +22,10 @@ import {
   createEllipsePoints,
   createHeartPoints,
   createMarquisePoints,
-  createPearPoints
+  createOctagonPoints,
+  createPearPoints,
+  createSquarePoints,
+  createCushionPoints
 } from '@renderer/utils/Qomo5P/threeGeometry'
 import { parseDxfToQomoEntities } from '@renderer/utils/Qomo5P/QomoDxf'
 import { parseQomoProject, serializeQomoProject } from '@renderer/utils/Qomo5P/QomoProject'
@@ -103,6 +106,9 @@ const isEllipseLikeIrregularEntity = (
 ): entity is QomoIrregularSurfacesEntity =>
   entity.type === 'IRREGULAR' &&
   (entity.shape === 'oval' ||
+    entity.shape === 'square' ||
+    entity.shape === 'cushion' ||
+    entity.shape === 'octagon' ||
     entity.shape === 'marquise' ||
     entity.shape === 'pear' ||
     entity.shape === 'heart')
@@ -183,6 +189,28 @@ const getEntityBounds = (entity: QomoEntityWithSurface): QomoBounds => {
                 entity.rotationDeg,
                 64
               )
+            : entity.shape === 'square'
+              ? createSquarePoints(
+                  entity.center,
+                  entity.radiusX,
+                  entity.radiusY,
+                  entity.rotationDeg
+                )
+            : entity.shape === 'cushion'
+              ? createCushionPoints(
+                  entity.center,
+                  entity.radiusX,
+                  entity.radiusY,
+                  entity.rotationDeg,
+                  64
+                )
+            : entity.shape === 'octagon'
+              ? createOctagonPoints(
+                  entity.center,
+                  entity.radiusX,
+                  entity.radiusY,
+                  entity.rotationDeg
+                )
             : createEllipsePoints(
                 entity.center,
                 entity.radiusX,

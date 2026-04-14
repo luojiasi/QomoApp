@@ -655,7 +655,13 @@
                           ? '梨形'
                           : entity.shape === 'heart'
                             ? '心形'
-                            : '椭圆'
+                            : entity.shape === 'square'
+                              ? '方形'
+                              : entity.shape === 'cushion'
+                                ? '垫形'
+                                : entity.shape === 'octagon'
+                                  ? '祖母绿形'
+                                : '椭圆'
                     }}</span
                   >
                   <span>图层：{{ entity.layerName }}</span>
@@ -1144,6 +1150,9 @@ const isEllipseLikeIrregularEntity = (
 ): entity is Extract<QomoEntityWithSurface, { type: 'IRREGULAR' }> =>
   entity.type === 'IRREGULAR' &&
   (entity.shape === 'oval' ||
+    entity.shape === 'square' ||
+    entity.shape === 'cushion' ||
+    entity.shape === 'octagon' ||
     entity.shape === 'marquise' ||
     entity.shape === 'pear' ||
     entity.shape === 'heart')
@@ -1492,7 +1501,7 @@ const canvas2dTools = ref<{
         { kind: 'circle', cx: 12, cy: 20, r: 1.2, fill: true }, // 底部顶点
         { kind: 'circle', cx: 6, cy: 14, r: 1.2, fill: true } // 左侧顶点
       ],
-      DrawingShapeTools: ['oval', 'heart', 'pear', 'square', 'marquise']
+      DrawingShapeTools: ['oval', 'heart', 'pear', 'square', 'marquise', 'cushion', 'octagon']
     }
   ]
 })
@@ -1524,7 +1533,9 @@ const drawingShapeToolLabel = (tool: DrawingShapeTools) => {
     marquise: '马眼(中心-长-宽)',
     heart: '心形(中心-长-宽)',
     pear: '梨形(中心-长-宽)',
-    square: '方形(中心-边长)'
+    square: '方形(中心-边长)',
+    cushion: '垫形(中心-长-宽)',
+    octagon: '祖母(中心-长-宽)'
   }
   return map[tool] ?? tool
 }
@@ -1794,11 +1805,7 @@ const bezierPointIndexFromField = (field: AcEditField) => {
   return Number.isInteger(index) ? index : null
 }
 
-const openAcEdit = (
-  entityId: string,
-  field: AcEditField,
-  opts?: { pt?: { x: number; y: number }; scalar?: number }
-) => {
+const openAcEdit = (entityId: string,field: AcEditField,opts?: { pt?: { x: number; y: number }; scalar?: number }) => {
   if (opts?.pt) acPt.value = { x: opts.pt.x, y: opts.pt.y }
   if (typeof opts?.scalar === 'number') acScalar.value = opts.scalar
   acEdit.value = { entityId, field }

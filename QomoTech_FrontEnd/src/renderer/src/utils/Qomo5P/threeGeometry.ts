@@ -55,6 +55,9 @@ const toThreePosition = (point: Point, elevation = 0) =>
 const isEllipseLikeIrregularEntity = (entity: QomoEntityWithSurface): entity is QomoIrregularSurfacesEntity =>
   entity.type === 'IRREGULAR' &&
   (entity.shape === 'oval' ||
+    entity.shape === 'square' ||
+    entity.shape === 'cushion' ||
+    entity.shape === 'octagon' ||
     entity.shape === 'marquise' ||
     entity.shape === 'pear' ||
     entity.shape === 'heart')
@@ -358,7 +361,8 @@ export const computeOpenEntityOffsetPathsForCanvas = (entities: QomoEntityWithSu
       entity.type !== 'LINE' &&
       entity.type !== 'ARC' &&
       entity.type !== 'BEZIER' &&
-      entity.type !== 'CIRCLE'
+      entity.type !== 'CIRCLE' &&
+      entity.type !== 'IRREGULAR'
     ) {
       continue
     }
@@ -408,6 +412,33 @@ export const computeOpenEntityOffsetPathsForCanvas = (entities: QomoEntityWithSu
       const outerPts = computedOuterPts.map((point) => ({ ...point }))
       if (endpointOverride?.start) outerPts[0] = endpointOverride.start
       if (endpointOverride?.end) outerPts[outerPts.length - 1] = endpointOverride.end
+      out.push({ entityId: entity.id, points: outerPts })
+      continue
+    }
+
+    if (entity.type === 'IRREGULAR') {
+      const segments = 96
+      const rx = entity.radiusX
+      const ry = entity.radiusY
+      const rot = entity.rotationDeg
+      const delta = -openSize * getOpenDirectionSign(entity.openDirection)
+      const outerRx = Math.max(1e-6, rx + delta)
+      const outerRy = Math.max(1e-6, ry + delta)
+      const outerPts =
+        entity.shape === 'marquise'
+          ? createMarquisePoints(entity.center, outerRx, outerRy, rot, segments)
+          : entity.shape === 'pear'
+            ? createPearPoints(entity.center, outerRx, outerRy, rot, segments)
+            : entity.shape === 'heart'
+              ? createHeartPoints(entity.center, outerRx, outerRy, rot, segments)
+              : entity.shape === 'square'
+                ? createSquarePoints(entity.center, outerRx, outerRy, rot)
+                : entity.shape === 'cushion'
+                  ? createCushionPoints(entity.center, outerRx, outerRy, rot, segments)
+                : entity.shape === 'octagon'
+                  ? createOctagonPoints(entity.center, outerRx, outerRy, rot)
+                  : createEllipsePoints(entity.center, outerRx, outerRy, rot, 0, 360, segments)
+      if (outerPts.length < 2) continue
       out.push({ entityId: entity.id, points: outerPts })
       continue
     }
@@ -525,6 +556,96 @@ export const createEllipsePoints = (center: Point,radiusX: number,radiusY: numbe
     points.push({ x, y })
   }
   return points
+}
+
+/** 方形：以 center 为中心，radiusX/radiusY 为半宽半高，可旋转 */
+export const createSquarePoints = (center: Point,radiusX: number,radiusY: number,rotationDeg: number): Point[] => {
+  const rot = (rotationDeg * Math.PI) / 180
+  const ux = Math.cos(rot)
+  const uy = Math.sin(rot)
+  const vx = -uy
+  const vy = ux
+  const hx = Math.max(radiusX, 1e-6)
+  const hy = Math.max(radiusY, 1e-6)
+  const toWorld = (localX: number, localY: number): Point => ({
+    x: center.x + localX * ux + localY * vx,
+    y: center.y + localX * uy + localY * vy
+  })
+  return [
+    toWorld(-hx, -hy),
+    toWorld(hx, -hy),
+    toWorld(hx, hy),
+    toWorld(-hx, hy)
+  ]
+}
+
+/** 垫形：圆角方形（Cushion），边中部略鼓、四角圆滑 */
+export const createCushionPoints = (
+  center: Point,
+  radiusX: number,
+  radiusY: number,
+  rotationDeg: number,
+  segments = 96
+): Point[] => {
+  const rot = (rotationDeg * Math.PI) / 180
+  const ux = Math.cos(rot)
+  const uy = Math.sin(rot)
+  const vx = -uy
+  const vy = ux
+  const rx = Math.max(radiusX, 1e-6)
+  const ry = Math.max(radiusY, 1e-6)
+  const count = Math.max(segments, 32)
+  const superellipseN = 3.6
+  const bulge = 0.06
+  const points: Point[] = []
+  const toWorld = (localX: number, localY: number): Point => ({
+    x: center.x + localX * ux + localY * vx,
+    y: center.y + localX * uy + localY * vy
+  })
+  const spow = (value: number, power: number) => Math.sign(value) * Math.pow(Math.abs(value), power)
+
+  for (let index = 0; index <= count; index += 1) {
+    const t = (index / count) * Math.PI * 2
+    const ct = Math.cos(t)
+    const st = Math.sin(t)
+    const localX = rx * spow(ct, 2 / superellipseN) * (1 + bulge * Math.cos(4 * t))
+    const localY = ry * spow(st, 2 / superellipseN) * (1 + bulge * Math.cos(4 * t))
+    points.push(toWorld(localX, localY))
+  }
+  return points
+}
+
+/** 八边形（切角矩形）：以 center 为中心，radiusX/radiusY 控制外接矩形半宽半高 */
+export const createOctagonPoints = (
+  center: Point,
+  radiusX: number,
+  radiusY: number,
+  rotationDeg: number
+): Point[] => {
+  const rot = (rotationDeg * Math.PI) / 180
+  const ux = Math.cos(rot)
+  const uy = Math.sin(rot)
+  const vx = -uy
+  const vy = ux
+  const rx = Math.max(radiusX, 1e-6)
+  const ry = Math.max(radiusY, 1e-6)
+  const chamferRatio = 0.28
+  const cx = rx * chamferRatio
+  const cy = ry * chamferRatio
+  const toWorld = (localX: number, localY: number): Point => ({
+    x: center.x + localX * ux + localY * vx,
+    y: center.y + localX * uy + localY * vy
+  })
+  return [
+    toWorld(-rx + cx, -ry),
+    toWorld(rx - cx, -ry),
+    toWorld(rx, -ry + cy),
+    toWorld(rx, ry - cy),
+    toWorld(rx - cx, ry),
+    toWorld(-rx + cx, ry),
+    toWorld(-rx, ry - cy),
+    toWorld(-rx, -ry + cy)
+  ]
 }
 
 /** 宝石状马眼：两端更尖、肩部更饱满，避免旧贝塞尔轮廓偏叶片/椭圆感 */
@@ -1087,7 +1208,10 @@ const createEntityReferenceObject = (entity: QomoEntityWithSurface,selected: boo
         entity.shape !== 'oval' &&
         entity.shape !== 'marquise' &&
         entity.shape !== 'pear' &&
-        entity.shape !== 'heart'
+        entity.shape !== 'heart' &&
+        entity.shape !== 'square' &&
+        entity.shape !== 'cushion' &&
+        entity.shape !== 'octagon'
       )
         return undefined
       const segments = 96
@@ -1106,6 +1230,12 @@ const createEntityReferenceObject = (entity: QomoEntityWithSurface,selected: boo
             ? createPearPoints(entity.center, rx, ry, rot, segments)
             : entity.shape === 'heart'
               ? createHeartPoints(entity.center, rx, ry, rot, segments)
+              : entity.shape === 'square'
+                ? createSquarePoints(entity.center, rx, ry, rot)
+              : entity.shape === 'cushion'
+                ? createCushionPoints(entity.center, rx, ry, rot, segments)
+              : entity.shape === 'octagon'
+                ? createOctagonPoints(entity.center, rx, ry, rot)
               : createEllipsePoints(entity.center, rx, ry, rot, 0, 360, segments)
       const outerPts =
         entity.shape === 'marquise'
@@ -1114,6 +1244,12 @@ const createEntityReferenceObject = (entity: QomoEntityWithSurface,selected: boo
             ? createPearPoints(entity.center, outerRx, outerRy, rot, segments)
             : entity.shape === 'heart'
               ? createHeartPoints(entity.center, outerRx, outerRy, rot, segments)
+              : entity.shape === 'square'
+                ? createSquarePoints(entity.center, outerRx, outerRy, rot)
+              : entity.shape === 'cushion'
+                ? createCushionPoints(entity.center, outerRx, outerRy, rot, segments)
+              : entity.shape === 'octagon'
+                ? createOctagonPoints(entity.center, outerRx, outerRy, rot)
               : createEllipsePoints(entity.center, outerRx, outerRy, rot, 0, 360, segments)
       if (innerPts.length < 2 || outerPts.length < 2) return undefined
 
@@ -1573,6 +1709,28 @@ const buildProjectionToZ0ForEntity = (entity: QomoEntityWithSurface,selected: bo
                 entity.rotationDeg,
                 segments
               )
+            : entity.shape === 'square'
+              ? createSquarePoints(
+                  entity.center,
+                  entity.radiusX,
+                  entity.radiusY,
+                  entity.rotationDeg
+                )
+            : entity.shape === 'cushion'
+              ? createCushionPoints(
+                  entity.center,
+                  entity.radiusX,
+                  entity.radiusY,
+                  entity.rotationDeg,
+                  segments
+                )
+            : entity.shape === 'octagon'
+              ? createOctagonPoints(
+                  entity.center,
+                  entity.radiusX,
+                  entity.radiusY,
+                  entity.rotationDeg
+                )
             : createEllipsePoints(
                 entity.center,
                 entity.radiusX,

@@ -42,6 +42,7 @@ const tabs: { id: AuxiliaryTabId; label: string }[] = [
 
 const axisNameByNo: MotionAxis[] = ['X', 'Y', 'Z', 'R', 'U']
 const axisCenterCalibDisplayAxes: MotionAxis[] = ['X', 'Y', 'Z', 'R', 'U']
+const CENTER_ROTATION_STORAGE_KEY = 'qomotech-4p-center-rotation'
 
 function applyMotionStatusToAxes(statusData: Record<string, Record<string, unknown>>) {
   const axes = controllerStore.controllerSettings.axes
@@ -72,6 +73,7 @@ function applyMotionStatusToAxes(statusData: Record<string, Record<string, unkno
 let unsubscribeHardwareStatus: (() => void) | null = null
 
 onMounted(() => {
+  restoreAxisCenterCalibCenterBasedXYSum()
   unsubscribeHardwareStatus = subscribeHardwareStatus((res) => {
     if (!res?.success || !res.data || typeof res.data !== 'object') return
     const payload = res.data as HardwareStatusPayload
@@ -494,6 +496,31 @@ const handleQuickConcentric = async()=>{
 // ================================五轴校准================================================
 const axisCenterCalibCenterBasedXYSum = ref({Xoffset:0,Yoffset:0,Zoffset:0})
 
+function persistAxisCenterCalibCenterBasedXYSum(value: { Xoffset: number; Yoffset: number; Zoffset: number }): void {
+  if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') return
+  try {
+    window.localStorage.setItem(CENTER_ROTATION_STORAGE_KEY, JSON.stringify(value))
+  } catch (e) {
+    console.warn('[axis-center-calib] 写入 localStorage 失败', e)
+  }
+}
+
+function restoreAxisCenterCalibCenterBasedXYSum(): void {
+  if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') return
+  try {
+    const raw = window.localStorage.getItem(CENTER_ROTATION_STORAGE_KEY)
+    if (!raw) return
+    const parsed = JSON.parse(raw) as Partial<{ Xoffset: unknown; Yoffset: unknown; Zoffset: unknown }>
+    const Xoffset = Number(parsed.Xoffset)
+    const Yoffset = Number(parsed.Yoffset)
+    const Zoffset = Number(parsed.Zoffset)
+    if (!Number.isFinite(Xoffset) || !Number.isFinite(Yoffset) || !Number.isFinite(Zoffset)) return
+    axisCenterCalibCenterBasedXYSum.value = { Xoffset, Yoffset, Zoffset }
+  } catch (e) {
+    console.warn('[axis-center-calib] 读取 localStorage 失败', e)
+  }
+}
+
 const handleAxisCenterCalib = async()=>{
   if (isAxisCenterCalib.value) {
     error("正在五轴中心校准中")
@@ -600,6 +627,7 @@ const handleAxisCenterCalib = async()=>{
       Yoffset: axisCenterCalibY,
       Zoffset: axisCenterCalibZ,
     }
+    persistAxisCenterCalibCenterBasedXYSum(axisCenterCalibCenterBasedXYSum.value)
 
 
 
