@@ -52,7 +52,7 @@ const axisAlarmText = computed(() => {
       </div>
       <div class="shrink-0 text-right">
         <div class="mt-0.5 font-mono text-lg text-(--app-text-primary)">
-          {{ props.programRunning ? props.programElapsedText : '00:00:00' }}
+          {{ props.programElapsedText }}
         </div>
       </div>
     </div>

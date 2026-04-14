@@ -32,12 +32,12 @@ class MotionConfig(BaseModel):
     enable_axes: list[str] = ["X", "Y", "Z", "R", "U"]
     axis_count: Literal[3, 5] = 5
 
-    # 对齐前端 axes（0=X,1=Y,2=Z,3=R,4=U）
+    # 对齐前端 axes（0=X,1=Y,2=Z,3=U,4=R）
     x_axis: MotionAxisConfig = MotionAxisConfig(axis_no=0, axis_name="X 轴")
     y_axis: MotionAxisConfig = MotionAxisConfig(axis_no=1, axis_name="Y 轴")
     z_axis: MotionAxisConfig = MotionAxisConfig(axis_no=2, axis_name="Z 轴")
-    u_axis: MotionAxisConfig = MotionAxisConfig(axis_no=3, axis_name="R 轴")
-    v_axis: MotionAxisConfig = MotionAxisConfig(axis_no=4, axis_name="U 轴")
+    u_axis: MotionAxisConfig = MotionAxisConfig(axis_no=3, axis_name="U 轴")
+    v_axis: MotionAxisConfig = MotionAxisConfig(axis_no=4, axis_name="R 轴")
 
 
 motion_config = MotionConfig()

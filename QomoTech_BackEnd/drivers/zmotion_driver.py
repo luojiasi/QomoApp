@@ -202,8 +202,9 @@ class ZMotionDriver(BaseDriver):
         params_by_axis = params_by_axis or {}
         for axis_no in range(self.MAX_AXES):
             axis = self._axis[axis_no]
-            if axis_no in self._axis_units and self._axis_units[axis_no] > 0:
-                axis.units = float(self._axis_units[axis_no])
+            # 会将这个重置回默认值
+            # if axis_no in self._axis_units and self._axis_units[axis_no] > 0:
+            #     axis.units = float(self._axis_units[axis_no])
             custom = params_by_axis.get(axis_no, {})
             for field in self._AXIS_FLOAT_FIELDS:
                 if field in custom:

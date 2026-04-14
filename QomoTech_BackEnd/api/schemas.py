@@ -44,6 +44,20 @@ class MotionAxisMoveRelRequest(BaseModel):
     speed: float | None = Field(default=None, gt=0)
 
 
+class MotionUAxisRotateRequest(BaseModel):
+    旋转角度: float
+    旋转速度: float = Field(gt=0)
+    旋转方向: str = "顺时针"
+    运动模式: Literal["relative", "absolute"] = "relative"
+
+
+class MotionRAxisRotateRequest(BaseModel):
+    旋转圈数: float = Field(ge=0)
+    旋转速度: float = Field(gt=0)
+    旋转方向: str = "顺时针"
+    运动模式: Literal["relative", "absolute"] = "relative"
+
+
 class MotionAxisParamsPayload(BaseModel):
     units: float | None = Field(default=None, gt=0)
     lspeed: float | None = Field(default=None, ge=0)

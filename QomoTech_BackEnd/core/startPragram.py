@@ -20,6 +20,8 @@ _program_paused = False
 _program_abort_requested = False
 _program_skip_requested = False
 _current_motion_ref: ZMotionDriver | None = None
+# 暂停运动的激光状态
+_laser_resume_required = False
 _program_total_tasks = 0
 _program_current_task_index = 0
 _program_current_task_jindubaifenbi = 0.0
@@ -41,7 +43,7 @@ def get_program_status() -> dict[str, Any]:
 
 def _runtime_cleanup_outputs(controller: ZMotionAdapter) -> None:
     try:
-        controller.stop_axis_motion([0, 1, 2])
+        controller.stop_axis_motion([0, 1, 2, 3, 4 ,5 ])
         controller.open_output(0, 0)
         controller.open_output(2, 0)
     except Exception:
@@ -49,36 +51,47 @@ def _runtime_cleanup_outputs(controller: ZMotionAdapter) -> None:
 
 
 def program_request_pause(motion: ZMotionDriver | None = None) -> dict[str, Any]:
-    global _program_paused
+    global _program_paused, _laser_resume_required
     with _PROGRAM_CTRL_LOCK:
         if not _program_running:
             return {"success": False, "message": "当前没有运行中的程序"}
         _program_paused = True
     m = motion or _current_motion_ref
     if m and m.is_connected():
-        m.emergency_stop_all_axes([0, 1, 2])
+        # 记录暂停前激光状态：仅当暂停前激光已开，恢复时才重开，避免误触发。
+        laser_was_on = bool(m.get_output(2))
+        _laser_resume_required = laser_was_on
+        if laser_was_on:
+            m.set_output(2, False)
+        m.emergency_stop_all_axes([0, 1, 2, 3 , 4 , 5])
     notify_program_status_changed(force=True)
     return {"success": True, "message": "已暂停"}
 
 
 def program_request_resume() -> dict[str, Any]:
-    global _program_paused
+    global _program_paused, _laser_resume_required
     with _PROGRAM_CTRL_LOCK:
         if not _program_running:
             return {"success": False, "message": "当前没有运行中的程序"}
         _program_paused = False
+    m = _current_motion_ref
+    if m and m.is_connected() and _laser_resume_required:
+        m.set_output(2, True)
+        _laser_resume_required = False
     notify_program_status_changed(force=True)
     return {"success": True, "message": "已继续运行"}
 
 
 def program_request_estop(motion: ZMotionDriver | None = None) -> dict[str, Any]:
-    global _program_abort_requested, _program_paused
+    global _program_abort_requested, _program_paused, _laser_resume_required
     with _PROGRAM_CTRL_LOCK:
         _program_abort_requested = True
         _program_paused = False
+        _laser_resume_required = False
     m = motion or _current_motion_ref
     if m and m.is_connected():
-        m.emergency_stop_all_axes([0, 1, 2])
+        m.set_output(2, False)
+        m.emergency_stop_all_axes([0, 1, 2, 3 , 4 , 5])
     notify_program_status_changed(force=True)
     return {"success": True, "message": "已急停"}
 
@@ -91,7 +104,7 @@ def program_request_skip(motion: ZMotionDriver | None = None) -> dict[str, Any]:
         _program_skip_requested = True
     m = motion or _current_motion_ref
     if m and m.is_connected():
-        m.emergency_stop_all_axes([0, 1, 2])
+        m.emergency_stop_all_axes([0, 1, 2, 3 , 4 , 5])
     notify_program_status_changed(force=True)
     return {"success": True, "message": "已请求跳过当前任务"}
 
@@ -175,7 +188,7 @@ def _rebuild_xy_path_from_current(
         return head + [{"x": conv[best_i][0], "y": conv[best_i][1]}]
     return head + rest
 
-def searchIdInRecipe(recipe_payload: Any, id: Any) -> dict[str, Any] | None:
+def 在配方中查找ID的配方(recipe_payload: Any, id: Any) -> dict[str, Any] | None:
     """
     在 recipe_payload 中查找具有 `id == id` 的 dict。
     - recipe_payload 可以是 list[dict] / dict，且允许 dict 内嵌套 list/dict 继续递归查找
@@ -195,7 +208,7 @@ def searchIdInRecipe(recipe_payload: Any, id: Any) -> dict[str, Any] | None:
         for item in recipe_payload:
             if isinstance(item, dict) and _ids_equal(item.get("id"), id):
                 return item
-            found = searchIdInRecipe(item, id)
+            found = 在配方中查找ID的配方(item, id)
             if found is not None:
                 return found
         return None
@@ -205,7 +218,7 @@ def searchIdInRecipe(recipe_payload: Any, id: Any) -> dict[str, Any] | None:
         if _ids_equal(recipe_payload.get("id"), id):
             return recipe_payload
         for value in recipe_payload.values():
-            found = searchIdInRecipe(value, id)
+            found = 在配方中查找ID的配方(value, id)
             if found is not None:
                 return found
         return None
@@ -213,12 +226,32 @@ def searchIdInRecipe(recipe_payload: Any, id: Any) -> dict[str, Any] | None:
     return None
 
 
+def 判断是否都是圆或者圆弧(*, entities: Any) -> bool:
+    """
+    校验 entities 中每个实体的 type 是否都属于「圆 / 圆弧」。
+    只要有一个不是，立即返回 False。
+    """
+    if not isinstance(entities, (list, tuple)) or len(entities) == 0:
+        return False
+
+    allowed_types = {"CIRCLE", "ARC", "圆", "圆弧"}
+    for entity in entities:
+        if not isinstance(entity, dict):
+            return False
+        entity_type = str(entity.get("type", "")).strip()
+        if not entity_type:
+            return False
+        if entity_type.upper() not in {"CIRCLE", "ARC"} and entity_type not in allowed_types:
+            return False
+    return True
+
+
 
 def execute_start_program(*,motion: ZMotionDriver,recipe_payload: dict[str, Any],entities: list[dict[str, Any]],rs232: Rs232Driver | None = None,rs232_open: dict[str, Any] | None = None,) -> dict[str, Any]:
     """
     根据是否闭合来确定是往返运动？
     """
-    global _program_running, _current_motion_ref, _program_abort_requested, _program_skip_requested, _program_paused
+    global _program_running, _current_motion_ref, _program_abort_requested, _program_skip_requested, _program_paused, _laser_resume_required
     global _program_total_tasks, _program_current_task_index, _program_current_task_jindubaifenbi
     if not motion.is_connected():
         return {"success": False, "message": "motion 控制器未连接", "data": {"connected": False}}
@@ -239,6 +272,7 @@ def execute_start_program(*,motion: ZMotionDriver,recipe_payload: dict[str, Any]
             _program_paused = False
             _program_abort_requested = False
             _program_skip_requested = False
+            _laser_resume_required = False
             _current_motion_ref = motion
         _update_program_task_progress(
             total_tasks=len(tasks),
@@ -256,16 +290,24 @@ def execute_start_program(*,motion: ZMotionDriver,recipe_payload: dict[str, Any]
                 _runtime_cleanup_outputs(controller)
                 return {"success": False, "message": "程序已急停", "data": None}
             # 根据recip选择然后选择切的类型
-            mainRecipe = recipe_payload.get("selectedMainRecipe") or {}
-            machiningRecipe = searchIdInRecipe(recipe_payload.get("selectedMachiningRecipe"),mainRecipe.get("machiningRecipeId"),)
-            machiningHorizontalFormula = searchIdInRecipe(recipe_payload.get("selectedHorizontal"),machiningRecipe.get("horizontalFormulaId"))
-            # TODO：将//型和V型要进行合并
-            outcome = xiumianLoop(originalPointsNum=_i,recipe_payload=recipe_payload,controller=controller,entities=entities,rs232=rs232,rs232_open=rs232_open)
-            # if(machiningHorizontalFormula.get("formula").get("openingShape") == "//型"):
-            #     outcome = xiumianLoop(originalPointsNum=_i,recipe_payload=recipe_payload,controller=controller,entities=entities,rs232=rs232,rs232_open=rs232_open)
-            # elif(machiningHorizontalFormula.get("formula").get("openingShape") == "V型"):
-            #     outcome = wangFuLoop(originalPointsNum=_i,recipe_payload=recipe_payload,controller=controller,entities=entities,rs232=rs232,rs232_open=rs232_open,)
+            主配方 = recipe_payload.get("selectedMainRecipe") or {}
+            加工工艺配方 = 在配方中查找ID的配方(recipe_payload.get("selectedMachiningRecipe"),主配方.get("machiningRecipeId"),)
+            加工工艺配方中的水平配方 = 在配方中查找ID的配方(recipe_payload.get("selectedHorizontal"),加工工艺配方.get("horizontalFormulaId"))
+            加工工艺配方中的垂直配方 = 在配方中查找ID的配方(recipe_payload.get("selectedVertical"),加工工艺配方.get("verticalFormulaId"))
+            垂直配方中的加工轴 = 加工工艺配方中的垂直配方.get("formula").get("cuttingAxis")
+            # 首先获取实体中的所有type必须都是圆
+            allCorrect = 判断是否都是圆或者圆弧(entities = entities)
 
+            # 我的想法是将切割轴进行分类切割，然后进行不同的处理
+            # 现在只能一个一个切圆
+            if 垂直配方中的加工轴 == 'R' and allCorrect:
+                outcome =  用旋转轴去切圆(originalPointsNum=_i,recipe_payload=recipe_payload,controller=controller,entities=entities,rs232=rs232,rs232_open=rs232_open)
+            if 垂直配方中的加工轴 == 'XY':
+                outcome = 修面和切片的程序(originalPointsNum=_i,recipe_payload=recipe_payload,controller=controller,entities=entities,rs232=rs232,rs232_open=rs232_open)
+            
+            
+            
+            
             
             if outcome == "skip":
                 continue
@@ -287,6 +329,7 @@ def execute_start_program(*,motion: ZMotionDriver,recipe_payload: dict[str, Any]
             _program_paused = False
             _program_skip_requested = False
             _program_abort_requested = False
+            _laser_resume_required = False
             _program_total_tasks = 0
             _program_current_task_index = 0
             _program_current_task_jindubaifenbi = 0.0
@@ -353,7 +396,7 @@ def _ensure_rs232_before_laser(
     rs232.close()
     return True
 
-
+# 暂时弃用方法，因为和xiumianLoop功能重复
 def wangFuLoop(originalPointsNum: int,recipe_payload: dict[str, Any],controller: ZMotionAdapter,entities: list[dict[str, Any]],*,rs232: Rs232Driver | None = None,rs232_open: dict[str, Any] | None = None,) -> bool | str:  # True / False / "skip" / "abort"
     """
     这个目的是进行往复运动，而不是到下一个的起始点
@@ -362,21 +405,21 @@ def wangFuLoop(originalPointsNum: int,recipe_payload: dict[str, Any],controller:
     mainRecipe = recipe_payload.get("selectedMainRecipe") or {}
 
     # 子配方对象在前端 payload 中是“数组形式”（例如 selectedBlackeningRecipe: [blackening]）
-    blackeningRecipe = searchIdInRecipe(recipe_payload.get("selectedBlackeningRecipe"),mainRecipe.get("blackeningRecipeId"),)
-    machiningRecipe = searchIdInRecipe(recipe_payload.get("selectedMachiningRecipe"),mainRecipe.get("machiningRecipeId"),)
-    cleaningRecipe = searchIdInRecipe(recipe_payload.get("selectedCleaningRecipe"),mainRecipe.get("cleaningRecipeId"),)
+    blackeningRecipe = 在配方中查找ID的配方(recipe_payload.get("selectedBlackeningRecipe"),mainRecipe.get("blackeningRecipeId"),)
+    machiningRecipe = 在配方中查找ID的配方(recipe_payload.get("selectedMachiningRecipe"),mainRecipe.get("machiningRecipeId"),)
+    cleaningRecipe = 在配方中查找ID的配方(recipe_payload.get("selectedCleaningRecipe"),mainRecipe.get("cleaningRecipeId"),)
 
     if blackeningRecipe is None or machiningRecipe is None or cleaningRecipe is None:
         logger.warning("wangFuLoop: mainRecipe -> 子配方查找失败",extra={"mainRecipeId": mainRecipe.get("id"),"blackeningRecipeId": mainRecipe.get("blackeningRecipeId"),"machiningRecipeId": mainRecipe.get("machiningRecipeId"),"cleaningRecipeId": mainRecipe.get("cleaningRecipeId"),},)
         return False
     # 激光/公式对象在前端 payload 中是数组合并后的结果
-    blackeningLaserPowerRecipe = searchIdInRecipe(recipe_payload.get("selectedLaserRecipe"),blackeningRecipe.get("laserPowerRecipeId"),)
-    machiningLaserPowerRecipe = searchIdInRecipe(recipe_payload.get("selectedLaserRecipe"),machiningRecipe.get("laserPowerRecipeId"),)
+    blackeningLaserPowerRecipe = 在配方中查找ID的配方(recipe_payload.get("selectedLaserRecipe"),blackeningRecipe.get("laserPowerRecipeId"),)
+    machiningLaserPowerRecipe = 在配方中查找ID的配方(recipe_payload.get("selectedLaserRecipe"),machiningRecipe.get("laserPowerRecipeId"),)
 
-    machiningHorizontalFormula = searchIdInRecipe(recipe_payload.get("selectedHorizontal"),machiningRecipe.get("horizontalFormulaId"))
-    machiningVerticalFormula = searchIdInRecipe(recipe_payload.get("selectedVertical"),machiningRecipe.get("verticalFormulaId"))
-    cleaningHorizontalFormula = searchIdInRecipe(recipe_payload.get("selectedHorizontal"),cleaningRecipe.get("horizontalFormulaId"))
-    cleaningVerticalFormula = searchIdInRecipe(recipe_payload.get("selectedVertical"),cleaningRecipe.get("verticalFormulaId"))
+    machiningHorizontalFormula = 在配方中查找ID的配方(recipe_payload.get("selectedHorizontal"),machiningRecipe.get("horizontalFormulaId"))
+    machiningVerticalFormula = 在配方中查找ID的配方(recipe_payload.get("selectedVertical"),machiningRecipe.get("verticalFormulaId"))
+    cleaningHorizontalFormula = 在配方中查找ID的配方(recipe_payload.get("selectedHorizontal"),cleaningRecipe.get("horizontalFormulaId"))
+    cleaningVerticalFormula = 在配方中查找ID的配方(recipe_payload.get("selectedVertical"),cleaningRecipe.get("verticalFormulaId"))
 
     if ( blackeningLaserPowerRecipe is None or machiningLaserPowerRecipe is None or machiningHorizontalFormula is None or machiningVerticalFormula is None or cleaningHorizontalFormula is None or cleaningVerticalFormula is None ):
         logger.warning("wangFuLoop: 子配方 -> 公式/激光查找失败",extra={"blackeningRecipeId": blackeningRecipe.get("id"),"machiningRecipeId": machiningRecipe.get("id"),"cleaningRecipeId": cleaningRecipe.get("id"),},)
@@ -719,7 +762,7 @@ def wangFuLoop(originalPointsNum: int,recipe_payload: dict[str, Any],controller:
             case 150 :
                 step = 300
             case 300:
-                controller.stop_axis_motion([0, 1, 2])
+                controller.stop_axis_motion([0, 1, 2, 3, 4, 5])
                 controller.open_output(0, 0)#关闭吹风
                 controller.open_output(2, 0)#关闭激光
                 step = 999
@@ -727,7 +770,7 @@ def wangFuLoop(originalPointsNum: int,recipe_payload: dict[str, Any],controller:
                     return "abort"
     return True
 # 每条直线切两次
-def xiumianLoop(originalPointsNum: int,recipe_payload: dict[str, Any],controller: ZMotionAdapter,entities: list[dict[str, Any]],*,rs232: Rs232Driver | None = None,rs232_open: dict[str, Any] | None = None,) -> bool | str:  # True / False / "skip" / "abort"
+def 修面和切片的程序(originalPointsNum: int,recipe_payload: dict[str, Any],controller: ZMotionAdapter,entities: list[dict[str, Any]],*,rs232: Rs232Driver | None = None,rs232_open: dict[str, Any] | None = None,) -> bool | str:  # True / False / "skip" / "abort"
     """
     这个是单独拿出来的修面但是要和实际去相匹配
     """
@@ -735,21 +778,21 @@ def xiumianLoop(originalPointsNum: int,recipe_payload: dict[str, Any],controller
     mainRecipe = recipe_payload.get("selectedMainRecipe") or {}
 
     # 子配方对象在前端 payload 中是“数组形式”（例如 selectedBlackeningRecipe: [blackening]）
-    blackeningRecipe = searchIdInRecipe(recipe_payload.get("selectedBlackeningRecipe"),mainRecipe.get("blackeningRecipeId"),)
-    machiningRecipe = searchIdInRecipe(recipe_payload.get("selectedMachiningRecipe"),mainRecipe.get("machiningRecipeId"),)
-    cleaningRecipe = searchIdInRecipe(recipe_payload.get("selectedCleaningRecipe"),mainRecipe.get("cleaningRecipeId"),)
+    blackeningRecipe = 在配方中查找ID的配方(recipe_payload.get("selectedBlackeningRecipe"),mainRecipe.get("blackeningRecipeId"),)
+    machiningRecipe = 在配方中查找ID的配方(recipe_payload.get("selectedMachiningRecipe"),mainRecipe.get("machiningRecipeId"),)
+    cleaningRecipe = 在配方中查找ID的配方(recipe_payload.get("selectedCleaningRecipe"),mainRecipe.get("cleaningRecipeId"),)
 
     if blackeningRecipe is None or machiningRecipe is None or cleaningRecipe is None:
         logger.warning("wangFuLoop: mainRecipe -> 子配方查找失败",extra={"mainRecipeId": mainRecipe.get("id"),"blackeningRecipeId": mainRecipe.get("blackeningRecipeId"),"machiningRecipeId": mainRecipe.get("machiningRecipeId"),"cleaningRecipeId": mainRecipe.get("cleaningRecipeId"),},)
         return False
     # 激光/公式对象在前端 payload 中是数组合并后的结果
-    blackeningLaserPowerRecipe = searchIdInRecipe(recipe_payload.get("selectedLaserRecipe"),blackeningRecipe.get("laserPowerRecipeId"),)
-    machiningLaserPowerRecipe = searchIdInRecipe(recipe_payload.get("selectedLaserRecipe"),machiningRecipe.get("laserPowerRecipeId"),)
+    blackeningLaserPowerRecipe = 在配方中查找ID的配方(recipe_payload.get("selectedLaserRecipe"),blackeningRecipe.get("laserPowerRecipeId"),)
+    machiningLaserPowerRecipe = 在配方中查找ID的配方(recipe_payload.get("selectedLaserRecipe"),machiningRecipe.get("laserPowerRecipeId"),)
 
-    machiningHorizontalFormula = searchIdInRecipe(recipe_payload.get("selectedHorizontal"),machiningRecipe.get("horizontalFormulaId"))
-    machiningVerticalFormula = searchIdInRecipe(recipe_payload.get("selectedVertical"),machiningRecipe.get("verticalFormulaId"))
-    cleaningHorizontalFormula = searchIdInRecipe(recipe_payload.get("selectedHorizontal"),cleaningRecipe.get("horizontalFormulaId"))
-    cleaningVerticalFormula = searchIdInRecipe(recipe_payload.get("selectedVertical"),cleaningRecipe.get("verticalFormulaId"))
+    machiningHorizontalFormula = 在配方中查找ID的配方(recipe_payload.get("selectedHorizontal"),machiningRecipe.get("horizontalFormulaId"))
+    machiningVerticalFormula = 在配方中查找ID的配方(recipe_payload.get("selectedVertical"),machiningRecipe.get("verticalFormulaId"))
+    cleaningHorizontalFormula = 在配方中查找ID的配方(recipe_payload.get("selectedHorizontal"),cleaningRecipe.get("horizontalFormulaId"))
+    cleaningVerticalFormula = 在配方中查找ID的配方(recipe_payload.get("selectedVertical"),cleaningRecipe.get("verticalFormulaId"))
 
     if ( blackeningLaserPowerRecipe is None or machiningLaserPowerRecipe is None or machiningHorizontalFormula is None or machiningVerticalFormula is None or cleaningHorizontalFormula is None or cleaningVerticalFormula is None ):
         logger.warning("wangFuLoop: 子配方 -> 公式/激光查找失败",extra={"blackeningRecipeId": blackeningRecipe.get("id"),"machiningRecipeId": machiningRecipe.get("id"),"cleaningRecipeId": cleaningRecipe.get("id"),},)
@@ -823,7 +866,7 @@ def xiumianLoop(originalPointsNum: int,recipe_payload: dict[str, Any],controller
     isneedReceive = False
     originalPoints_receive = originalPoints.copy()
     z_original_position = controller.get_z_mpos_mm()
-
+    # TODO:有个问题就是在且边缘的时候会直接跳过去切
     while step <= 300:
         if _skip_requested():
             _runtime_cleanup_outputs(controller)
@@ -837,9 +880,10 @@ def xiumianLoop(originalPointsNum: int,recipe_payload: dict[str, Any],controller
                 # 判断控制器是否连上
                 result = controller.get_status()
                 if result.get('connected'):
+                    controller.open_output(0, 1)#打开吹风
                     step = 10
                 else:
-                    step = 999
+                    step = 300
             case 10:
                 # 首先移动到起点
                 startX = originalPoints[0].get('x')
@@ -850,7 +894,7 @@ def xiumianLoop(originalPointsNum: int,recipe_payload: dict[str, Any],controller
                 if resultX.get('success') and resultY.get('success') and resultX is not None and resultY is not None:
                     step = 20
                 else:
-                    step = 999
+                    step = 300
 
             case 20:
                 jumpOutCount = 0
@@ -906,14 +950,14 @@ def xiumianLoop(originalPointsNum: int,recipe_payload: dict[str, Any],controller
                 if  _depth <= depth:
                     step = 60
                 else:
-                    step = 999
+                    step = 300
             case 60:
                 targetDepth = -_depth + z_original_position
                 result= controller.absolute_move_speed({'axis':2,'moveDistance':targetDepth,'speed':runSpeed})
                 if result.get('success') and result is not None:
                     step = 70
                 else:
-                    step = 999
+                    step = 300
             case 70:
                 # 判断是否到达目标位置（支持暂停后重下发当前目标深度）
                 jumpOutCount = 0
@@ -950,7 +994,7 @@ def xiumianLoop(originalPointsNum: int,recipe_payload: dict[str, Any],controller
                 # 计算偏移并连续运动（暂停后可从当前位重建剩余轨迹）
                 path_groups = OffsetEndpointCalculator.calc_xy_points(entities, pointOffset)
                 pts: list[dict[str, Any]] = list(path_groups[originalPointsNum])
-                isClosed = True if pts[0]['x'] - pts[-1]['x'] <= 0.001 and pts[0]['y'] - pts[-1]['y'] <= 0.001 else False
+                isClosed = True if abs(pts[0]['x'] - pts[-1]['x']) <= 0.001 and abs(pts[0]['y'] - pts[-1]['y']) <= 0.001 else False
                 if isneedReceive and not isClosed:
                     pts = list(reversed(pts))
                 originalPoints_run = list(pts)
@@ -963,7 +1007,7 @@ def xiumianLoop(originalPointsNum: int,recipe_payload: dict[str, Any],controller
                 if result.get('success') and result is not None:
                     step = 81
                 else:
-                    step = 999
+                    step = 300
             case 81:
                 # 判断是否在边缘
                 if isPaddingFlag and (cutTime+1)<cutTimes:
@@ -1062,9 +1106,6 @@ def xiumianLoop(originalPointsNum: int,recipe_payload: dict[str, Any],controller
                 # 写入然后回传给前端的进度
                 task_jindubaifenbi =jindubaifenbi
                 _update_program_task_progress(current_task_jindubaifenbi=task_jindubaifenbi)
-                # scanLengthChaZhi = (upperOpening - newScanLength)/2
-                # minOffset = round(scanLengthChaZhi, 4)
-                # maxOffset = round(upperOpening - scanLengthChaZhi, 4)
                 needJump = False
                 if not saoheiFlag and not openLaser:
                     step = 30
@@ -1073,13 +1114,107 @@ def xiumianLoop(originalPointsNum: int,recipe_payload: dict[str, Any],controller
             case 110:
                 step=150
             case 150:
-                controller.stop_axis_motion([0, 1, 2])
-                controller.open_output(0, 0)#关闭吹风
-                controller.open_output(2, 0)#关闭激光
                 step = 300
             case 300:
+                controller.stop_axis_motion([0, 1, 2, 3 , 4 , 5])
+                controller.open_output(0, 0)#关闭吹风
+                controller.open_output(2, 0)#关闭激光
                 step = 999
             case 999:
                 step = 9999
+
+    return True
+
+def 用旋转轴去切圆(originalPointsNum: int,recipe_payload: dict[str, Any],controller: ZMotionAdapter,entities: list[dict[str, Any]],*,rs232: Rs232Driver | None = None,rs232_open: dict[str, Any] | None = None,) -> bool | str:  # True / False / "skip" / "abort"
+    """
+    这个是单独拿出来用作R轴切圆
+    """
+
+    主配方 = recipe_payload.get("selectedMainRecipe") or {}
+
+    # 子配方对象在前端 payload 中是“数组形式”（例如 selectedBlackeningRecipe: [blackening]）
+    主配方中的扫黑配方 = 在配方中查找ID的配方(recipe_payload.get("selectedBlackeningRecipe"),主配方.get("blackeningRecipeId"),)
+    主配方中的工作配方 = 在配方中查找ID的配方(recipe_payload.get("selectedMachiningRecipe"),主配方.get("machiningRecipeId"),)
+    主配方中的清洗配方 = 在配方中查找ID的配方(recipe_payload.get("selectedCleaningRecipe"),主配方.get("cleaningRecipeId"),)
+
+    if 主配方中的扫黑配方 is None or 主配方中的工作配方 is None or 主配方中的清洗配方 is None:
+        logger.warning("用旋转轴去切圆: mainRecipe -> 子配方查找失败",extra={"mainRecipeId": 主配方.get("id"),"blackeningRecipeId": 主配方.get("blackeningRecipeId"),"machiningRecipeId": 主配方.get("machiningRecipeId"),"cleaningRecipeId": 主配方.get("cleaningRecipeId"),},)
+        return False    
+    # 激光/公式对象在前端 payload 中是数组合并后的结果
+    扫黑配方中的激光配方 = 在配方中查找ID的配方(recipe_payload.get("selectedLaserRecipe"),主配方中的扫黑配方.get("laserPowerRecipeId"),)
+    工作配方中的激光配方 = 在配方中查找ID的配方(recipe_payload.get("selectedLaserRecipe"),主配方中的工作配方.get("laserPowerRecipeId"),)
+
+    工作配方中的水平配方 = 在配方中查找ID的配方(recipe_payload.get("selectedHorizontal"),主配方中的工作配方.get("horizontalFormulaId"))
+    工作配方中的垂直配方 = 在配方中查找ID的配方(recipe_payload.get("selectedVertical"),主配方中的工作配方.get("verticalFormulaId"))
+    清洗配方中的水平配方 = 在配方中查找ID的配方(recipe_payload.get("selectedHorizontal"),主配方中的清洗配方.get("horizontalFormulaId"))
+    清洗配方中的垂直配方 = 在配方中查找ID的配方(recipe_payload.get("selectedVertical"),主配方中的清洗配方.get("verticalFormulaId"))
+
+    if ( 扫黑配方中的激光配方 is None or 工作配方中的激光配方 is None or 工作配方中的水平配方 is None or 工作配方中的垂直配方 is None or 清洗配方中的水平配方 is None or 清洗配方中的垂直配方 is None ):
+        logger.warning("用旋转轴去切圆: 子配方 -> 公式/激光查找失败",extra={"主配方中的扫黑配方ID": 主配方中的扫黑配方.get("id"),"主配方中的工作配方ID": 主配方中的工作配方.get("id"),"主配方中的清洗配方ID": 主配方中的清洗配方.get("id"),},)
+        return False
+
+
+    # 配方中的详细参数
+    是否打开激光 = False
+    是否打开扫黑功能 = bool(主配方中的扫黑配方.get("enabled"))
+    扫黑上台阶高度 = float(主配方中的扫黑配方.get("jiaojubuchang"))/1000
+    扫黑功率 = 扫黑配方中的激光配方.get("laserPower")
+    扫黑频率 = 扫黑配方中的激光配方.get("laserFrequency")
+    扫黑电流 = 扫黑配方中的激光配方.get("laserCurrent")
+    工作功率 = 工作配方中的激光配方.get("laserPower")
+    工作频率 = 工作配方中的激光配方.get("laserFrequency")
+    工作电流 = 工作配方中的激光配方.get("laserCurrent")
+
+
+
+    角度K  = float(工作配方中的水平配方.get('formula').get('angleFormula').get('k'))
+    角度B = float(工作配方中的水平配方.get('formula').get('angleFormula').get('b'))
+    tan角度 = math.tan(math.radians(角度K))
+
+    下开口K = float(工作配方中的水平配方.get('formula').get('lowerOpeningFormula').get('k'))
+    下开口B = float(工作配方中的水平配方.get('formula').get('lowerOpeningFormula').get('b'))
+
+    深度补偿K = float(工作配方中的水平配方.get('formula').get('depthCompensationFormula').get('k'))
+    深度补偿B = float(工作配方中的水平配方.get('formula').get('depthCompensationFormula').get('b'))
+
+    补偿角度K = float(工作配方中的水平配方.get('formula').get('compensationAngleFormula').get('k'))
+    补偿角度B = float(工作配方中的水平配方.get('formula').get('compensationAngleFormula').get('b'))
+
+    # TODO: 后续根据这些 recipe 对应字段执行真实运动逻辑
+    当前步骤=0
+
+
+    是否需要跳转计算下一层开口 = False
+    进度百分比 = 0   #累计下降量/总下降量
+    上层量 =0
+    变化百分比 = float(工作配方中的垂直配方.get("formula").get("changePercent"))
+
+    
+
+    累计下降量 = 0
+    高度 = 总下降量 = float(recipe_payload.get('extraHeight'))
+    
+    
+    
+    当前开口值 = 0
+    是否是从小到大的开口偏移 = True
+    每次开口的偏移量 = float(工作配方中的垂直配方.get("formula").get("xFeed"))
+    每次下降步长量 = float(工作配方中的垂直配方.get("formula").get("descentCutting").get("speed"))
+    每次下降步长量减少量 = float(工作配方中的垂直配方.get("formula").get("descentCutting").get("zFeed"))
+    
+    当前切割次数=0
+    是否在边缘位置 = True
+    边缘切割次数 = float(工作配方中的垂直配方.get("formula").get("edgeCutting").get("cutTimes"))
+    中间切割次数 = float(工作配方中的垂直配方.get("formula").get("middleCutting").get("cutTimes"))
+
+    切割速度 = float(工作配方中的垂直配方.get("formula").get("xSpeed"))
+    边缘切割速度百分比 = float(工作配方中的垂直配方.get("formula").get("edgeCutting").get("speed"))/100
+    中间切割速度百分比 = float(工作配方中的垂直配方.get("formula").get("middleCutting").get("speed"))/100
+
+
+    开口形状 = 工作配方中的水平配方.get('formula').get('openingShape')
+    # 下开口============如果是修面就直接用B
+    最小的偏移 = 下开口值 = 下开口K * 高度 + 下开口B
+    最大的偏移 = 上开口值 = 深度补偿K * 1000 * (高度+深度补偿B) * tan角度 + 下开口值
 
     return True

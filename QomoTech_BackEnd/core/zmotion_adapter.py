@@ -2,6 +2,7 @@ from __future__ import annotations
 import time
 from typing import Any
 from core.state_manager import state_manager as _global_state
+from api.dependencies import motion_driver
 
 from drivers.zmotion_driver import ZMotionDriver
 
@@ -42,14 +43,207 @@ class ZMotionAdapter:
         prev_speed: float | None = None
         if key in st:
             prev_speed = float(st[key].get("speed", 20.0))
-        if not self._motion.set_all_axes_params({axis: {"speed": speed, "lspeed": speed}}):
+        if not self._motion.set_all_axes_params({axis: {"speed": speed}}):
             return {"success": False, "message": self._motion.last_error or "设置速度失败"}
         ok = self._motion.move_abs(axis, move_distance)
         if prev_speed is not None:
-            self._motion.set_all_axes_params({axis: {"speed": prev_speed, "lspeed": prev_speed}})
+            self._motion.set_all_axes_params({axis: {"speed": prev_speed}})
         if not ok:
             return {"success": False, "message": self._motion.last_error or "absolute_move_slice 失败"}
         return {"success": True}
+
+    # 这里是用来写U轴旋转角度
+    def U轴旋转的角度(self, 旋转参数: dict[str, Any]) -> dict[str, Any] | None:
+        if not self._motion.is_connected():
+            return {"success": False, "message": "控制器未连接"}
+        if not isinstance(旋转参数, dict):
+            return {"success": False, "message": "旋转参数必须是对象"}
+        try:
+            旋转角度 = float(旋转参数.get("旋转角度", 0))
+            旋转速度 = float(旋转参数.get("旋转速度", 0))
+        except (TypeError, ValueError):
+            return {"success": False, "message": "旋转圈数/旋转速度参数格式错误"}
+        if 旋转速度 <= 0:
+            return {"success": False, "message": "旋转速度必须大于0"}
+        方向原值 = str(旋转参数.get("旋转方向", "顺时针")).strip()
+        if 方向原值 in {"顺时针", "CW", "cw", "1", "+1"}:
+            旋转方向 = 1
+        elif 方向原值 in {"逆时针", "CCW", "ccw", "-1"}:
+            旋转方向 = -1
+        else:
+            return {"success": False, "message": "旋转方向仅支持 顺时针/逆时针"}
+        运动模式原值 = str(旋转参数.get("运动模式", 旋转参数.get("mode", "relative"))).strip().lower()
+        if 运动模式原值 in {"relative", "rel", "相对"}:
+            运动模式 = "relative"
+        elif 运动模式原值 in {"absolute", "abs", "绝对"}:
+            运动模式 = "absolute"
+        else:
+            return {"success": False, "message": "运动模式仅支持 relative/absolute"}
+        if not self._motion.set_all_axes_params({3: {"speed": float(旋转速度)}}):
+            return {"success": False, "message": self._motion.last_error or "设置U轴速度失败"}
+
+        # U 轴按“角度 -> 脉冲 -> 工程单位”换算：
+        # - 丝杆导程：5mm/圈
+        # - 电机每圈脉冲：10000 pulse/rev
+        # - 导程折算脉冲当量：10000 / 5 = 2000 pulse/mm（和常见 UNITS 配置一致）
+        每圈脉冲数 = 10000.0
+        丝杆导程_mm = 5.0
+        导程脉冲当量 = 每圈脉冲数 / 丝杆导程_mm
+
+        axes_status = self._motion.get_axes_status()
+        axis_units = float(axes_status.get("3", {}).get("units", 0.0))
+        if axis_units <= 0:
+            return {"success": False, "message": "U轴 units 未配置或非法"}
+
+        输入角度 = float(旋转角度) * float(旋转方向)
+        当前工程位移 = float(axes_status.get("3", {}).get("mpos", 0.0))
+        当前角度 = (当前工程位移 * axis_units / 每圈脉冲数) * 360.0
+        目标角度 = 当前角度 + 输入角度 if 运动模式 == "relative" else 输入角度
+        夹紧后目标角度 = max(-90.0, min(90.0, 目标角度))
+        实际增量角度 = 夹紧后目标角度 - 当前角度
+        if abs(实际增量角度) <= 1e-9:
+            return {
+                "success": True,
+                "message": "U轴已在角度边界，无需运动",
+                "data": {
+                    "axis": 3,
+                    "delta": 0.0,
+                    "mode": 运动模式,
+                    "current_angle": 当前角度,
+                    "requested_target_angle": 目标角度,
+                    "actual_target_angle": 夹紧后目标角度,
+                },
+            }
+        目标脉冲数 = (实际增量角度 / 360.0) * 每圈脉冲数
+        旋转位移 = 目标脉冲数 / axis_units
+
+        if not self._motion.move_rel(3, 旋转位移):
+            return {"success": False, "message": self._motion.last_error or "U轴旋转失败"}
+        return {
+            "success": True,
+            "data": {
+                "axis": 3,
+                "delta": 旋转位移,
+                "mode": 运动模式,
+                "current_angle": 当前角度,
+                "actual_increment_angle": 实际增量角度,
+                "requested_target_angle": 目标角度,
+                "actual_target_angle": 夹紧后目标角度,
+            },
+        }
+
+    # 这里是用来写R轴的旋转
+    def R轴旋转的圈数(self, 旋转参数: dict[str, Any]) -> dict[str, Any] | None:
+        if not self._motion.is_connected():
+            return {"success": False, "message": "控制器未连接"}
+        if not isinstance(旋转参数, dict):
+            return {"success": False, "message": "旋转参数必须是对象"}
+
+        try:
+            旋转圈数 = float(旋转参数.get("旋转圈数", 0))
+            旋转速度 = float(旋转参数.get("旋转速度", 0))
+        except (TypeError, ValueError):
+            return {"success": False, "message": "旋转圈数/旋转速度参数格式错误"}
+
+        if 旋转圈数 < 0:
+            return {"success": False, "message": "旋转圈数不能小于0"}
+        if 旋转速度 <= 0:
+            return {"success": False, "message": "旋转速度必须大于0"}
+
+        方向原值 = str(旋转参数.get("旋转方向", "顺时针")).strip()
+        if 方向原值 in {"顺时针", "CW", "cw", "1", "+1"}:
+            旋转方向 = 1
+        elif 方向原值 in {"逆时针", "CCW", "ccw", "-1"}:
+            旋转方向 = -1
+        else:
+            return {"success": False, "message": "旋转方向仅支持 顺时针/逆时针"}
+        运动模式原值 = str(旋转参数.get("运动模式", 旋转参数.get("mode", "relative"))).strip().lower()
+        if 运动模式原值 in {"relative", "rel", "相对"}:
+            运动模式 = "relative"
+        elif 运动模式原值 in {"absolute", "abs", "绝对"}:
+            运动模式 = "absolute"
+        else:
+            return {"success": False, "message": "运动模式仅支持 relative/absolute"}
+
+        if not self._motion.set_all_axes_params({4: {"speed": float(旋转速度)}}):
+            return {"success": False, "message": self._motion.last_error or "设置R轴速度失败"}
+
+        # 机械参数：200 步/圈(1.8°)；默认 32 细分；可选减速比(默认 1:1)。
+        # 支持通过 payload 覆盖：步进角度/细分数/减速比。
+        try:
+            步进角度 = float(旋转参数.get("步进角度", 1.8))
+            细分数 = float(旋转参数.get("细分数", 32))
+            减速比 = float(旋转参数.get("减速比", 1.0))
+        except (TypeError, ValueError):
+            return {"success": False, "message": "步进角度/细分数/减速比参数格式错误"}
+
+        if 步进角度 <= 0 or 细分数 <= 0 or 减速比 <= 0:
+            return {"success": False, "message": "步进角度/细分数/减速比必须大于0"}
+
+        电机每圈整步数 = 360.0 / 步进角度
+        每圈脉冲数 = 电机每圈整步数 * 细分数 * 减速比
+        # ZMotion MOVE 指令的位移单位是“工程单位”，UNITS 是“每工程单位对应脉冲数”。
+        # 所以：工程单位位移 = 脉冲数 / UNITS。
+        axes_status = self._motion.get_axes_status()
+        axis_units = float(axes_status.get("4", {}).get("units", 0.0))
+        if axis_units <= 0:
+            return {"success": False, "message": "R轴 units 未配置或非法"}
+
+        每圈距离 = 每圈脉冲数 / axis_units
+        输入圈数 = float(旋转圈数) * float(旋转方向)
+        当前工程位移 = float(axes_status.get("4", {}).get("mpos", 0.0))
+        当前圈数 = 当前工程位移 / 每圈距离
+        实际增量圈数 = 输入圈数 if 运动模式 == "relative" else (输入圈数 - 当前圈数)
+        if 运动模式 == "relative" and abs(实际增量圈数) <= 1e-12:
+            return {"success": False, "message": "相对模式下旋转圈数不能为0"}
+        if abs(实际增量圈数) <= 1e-12:
+            return {
+                "success": True,
+                "message": "R轴目标与当前位置一致，无需运动",
+                "data": {
+                    "axis": 4,
+                    "delta": 0.0,
+                    "mode": 运动模式,
+                    "current_turns": 当前圈数,
+                    "requested_target_turns": 输入圈数,
+                    "actual_target_turns": 当前圈数,
+                    "axis_units": axis_units,
+                    "pulses_per_rev": 每圈脉冲数,
+                },
+            }
+        旋转位移 = 实际增量圈数 * 每圈距离
+        if not self._motion.move_rel(4, 旋转位移):
+            return {"success": False, "message": self._motion.last_error or "R轴旋转失败"}
+        return {
+            "success": True,
+            "data": {
+                "axis": 4,
+                "delta": 旋转位移,
+                "mode": 运动模式,
+                "current_turns": 当前圈数,
+                "actual_increment_turns": 实际增量圈数,
+                "requested_target_turns": 输入圈数 if 运动模式 == "absolute" else (当前圈数 + 输入圈数),
+                "actual_target_turns": 当前圈数 + 实际增量圈数,
+                "axis_units": axis_units,
+                "pulses_per_rev": 每圈脉冲数,
+            },
+        }
+
+    def R轴一直进行旋转(self) -> dict[str, Any] | None:
+        if not self._motion.is_connected():
+            return {"success": False, "message": "控制器未连接"}
+
+        默认速度 = 20.0
+        if not self._motion.set_all_axes_params({4: {"speed": 默认速度}}):
+            return {"success": False, "message": self._motion.last_error or "设置R轴速度失败"}
+
+        # 底层驱动暂未提供独立 jog 接口：这里下发一个足够大的相对位移，
+        # 由外部通过急停/停止接口终止，可满足“持续旋转”诉求。
+        持续旋转位移 = 1_000_000.0
+        if not self._motion.move_rel(4, 持续旋转位移):
+            return {"success": False, "message": self._motion.last_error or "R轴持续旋转启动失败"}
+        return {"success": True, "message": "R轴已开始持续旋转", "data": {"axis": 4}}
+
 
     def get_notIsMoving(self, axis_no: int ,untilReturnTrue:bool=False ,countOut:float=2000.0,interruptTime:float=0.05) -> dict[str, Any]:
         snap = _global_state.snapshot()
@@ -98,6 +292,10 @@ class ZMotionAdapter:
         st = self._motion.get_axes_status()
         z = float(st["2"]["mpos"])
         return z
+    def 获取R轴的当前位置(self) -> float:
+        st = self._motion.get_axes_status()
+        r = float(st["4"]["mpos"])
+        return r
 
     def stop_axis_motion(self, axes: list[int]) -> None:
         self._motion.emergency_stop_all_axes(list(axes))
@@ -141,7 +339,7 @@ class ZMotionAdapter:
                     prev_speeds[key] = float(st[key].get("speed", 20.0))
             speed_val = float(speed)
             if not self._motion.set_all_axes_params(
-                {axis_list[0]: {"speed": speed_val, "lspeed": speed_val}, axis_list[1]: {"speed": speed_val, "lspeed": speed_val}}
+                {axis_list[0]: {"speed": speed_val}, axis_list[1]: {"speed": speed_val}}
             ):
                 return {"success": False, "message": self._motion.last_error or "设置速度失败"}
 
@@ -194,10 +392,14 @@ class ZMotionAdapter:
             for axis_no in axis_list:
                 key = str(axis_no)
                 if key in prev_speeds:
-                    restore_payload[axis_no] = {"speed": prev_speeds[key], "lspeed": prev_speeds[key]}
+                    restore_payload[axis_no] = {"speed": prev_speeds[key]}
             # 恢复失败不影响运动返回结果
             self._motion.set_all_axes_params(restore_payload)
 
         if not ok:
             return {"success": False, "message": self._motion.last_error or "continuous_interpolation_move 失败"}
         return {"success": True}
+
+
+# 兼容 api.driver_api 中的 `from core.zmotion_adapter import zmotion_adapter`
+zmotion_adapter = ZMotionAdapter(motion_driver)

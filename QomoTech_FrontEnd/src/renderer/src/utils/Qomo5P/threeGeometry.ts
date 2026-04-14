@@ -31,16 +31,26 @@ const ROCENTERPOS = { START: { x: 0, y: 10, z: 0 }, END: { x: 0, y: -10, z: 0 } 
 const DEFAULT_OPEN_SIZE = 1
 
 // 实体开口变量是否需要取反
-const OPEN_SIZE_NEED_REVERSE = false
+const OPEN_SIZE_NEED_REVERSE = true
+
+// 坐标轴是否需要取反（true 表示该轴值乘以 -1）
+const X_NEED_REVERSE = false
+const Y_NEED_REVERSE = false
+
+const applyAxisReverse = (value: number, needReverse: boolean) => (needReverse ? -value : value)
 
 const getOpenDirectionSign = (openDirection: OpenDirectionType) => {
   const baseSign = openDirection === 'RIGHT' ? -1 : 1
   return OPEN_SIZE_NEED_REVERSE ? baseSign : -baseSign
 }
 
-/** Canvas 世界坐标与 Three XY 同向：Three (x,y,z) = (canvas.x, canvas.y, 标高)，避免 3D 与 2D 左右/上下镜像不一致 */
+/** Canvas -> Three：可通过 X_NEED_REVERSE / Y_NEED_REVERSE 控制 x/y 是否取反 */
 const toThreePosition = (point: Point, elevation = 0) =>
-  new THREE.Vector3(point.x, point.y, elevation)
+  new THREE.Vector3(
+    applyAxisReverse(point.x, X_NEED_REVERSE),
+    applyAxisReverse(point.y, Y_NEED_REVERSE),
+    elevation
+  )
 
 const isEllipseLikeIrregularEntity = (entity: QomoEntityWithSurface): entity is QomoIrregularSurfacesEntity =>
   entity.type === 'IRREGULAR' &&
@@ -75,7 +85,7 @@ const toThreePositionWithAxisRotation = (point: Point,elevation = 0,rotation: Ax
 /**
  * 原始实体点先经 `surfaceAngle` 绕 ROCENTERPOS 轴旋转，再正交投影到 **z = 0** 平面。
  * 投影后保留旋转后的 x/y，仅把 z 置 0。
- * 坐标约定：Three Z-up，(canvas.x, canvas.y, 标高) → (x, y, z)。
+ * 坐标约定：Three Z-up，(canvas.x, canvas.y, 标高) 按轴取反配置映射到 (x, y, z)。
  */
 export const projectRotatedEntityPointToThreeZPlane = (point: Point,elevation: number,surfaceAngleDeg: number): THREE.Vector3 => {
   const rotation = makeSurfaceAngleRotation(surfaceAngleDeg)
@@ -83,8 +93,11 @@ export const projectRotatedEntityPointToThreeZPlane = (point: Point,elevation: n
   return new THREE.Vector3(v.x, v.y, 0)
 }
 
-/** z=0（XY 平面）投影后的 Three 向量转 Canvas：Three.y 与 canvas.y 一致 */
-export const canvasPointFromThreeZPlane = (v: THREE.Vector3): Point => ({ x: v.x, y: v.y })
+/** z=0（XY 平面）投影后的 Three 向量转 Canvas：按同一取反配置恢复 */
+export const canvasPointFromThreeZPlane = (v: THREE.Vector3): Point => ({
+  x: applyAxisReverse(v.x, X_NEED_REVERSE),
+  y: applyAxisReverse(v.y, Y_NEED_REVERSE)
+})
 
 const getReferenceDisplayColor = (selected: boolean) =>
   selected ? SELECTED_REFERENCE_COLOR : BASE_REFERENCE_COLOR
@@ -402,7 +415,7 @@ export const computeOpenEntityOffsetPathsForCanvas = (entities: QomoEntityWithSu
     // CIRCLE：与 3D 一致，整圆偏移；不参与开放线接缝表
     // 规则：LEFT 偏移在圆外侧（半径增大），RIGHT 偏移在圆内侧（半径减小）
     const r = entity.radius
-    const offsetRadius = Math.max(1e-6, r + openSize * getOpenDirectionSign(entity.openDirection))
+    const offsetRadius = Math.max(1e-6, r - openSize * getOpenDirectionSign(entity.openDirection))
     const outerPts = createArcPoints(entity.center, offsetRadius, 0, 360, 360)
     if (outerPts.length < 2) continue
     out.push({ entityId: entity.id, points: outerPts })
@@ -894,7 +907,7 @@ const createEntityReferenceObject = (entity: QomoEntityWithSurface,selected: boo
       const segments = 360
       const openSize = getEffectiveOpenSize(entity)
       const r = entity.radius
-      const offsetRadius = Math.max(1e-6, r + openSize * getOpenDirectionSign(entity.openDirection))
+      const offsetRadius = Math.max(1e-6, r - openSize * getOpenDirectionSign(entity.openDirection))
 
       const innerPts = createArcPoints(entity.center, r, 0, 360, segments)
       const outerPts = createArcPoints(entity.center, offsetRadius, 0, 360, segments)

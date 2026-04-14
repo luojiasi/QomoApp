@@ -61,7 +61,7 @@ let unsubscribeHardwareStatus: (() => void) | null = null
 // })
 
 const axisMposLabels = computed(() => {
-  const axisNames = ['X', 'Y', 'Z', 'R', 'U']
+  const axisNames = ['X', 'Y', 'Z', 'U', 'R']
   return axisNames.map((name, axisNo) => {
     const axis = controllerStore.controllerSettings.axes.find((a) => a.axisNo === axisNo)
     const mpos = axis ? Number(axis.mpos) : NaN

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted } from 'vue'
-import { storeToRefs } from 'pinia'
 import RouteTabs from '../components/RouteTabs.vue'
 import HomeUserBar from '../components/HomeUserBar.vue'
 import RecipeParameterPanel from '../components/HomeRecipeParameterPanel.vue'
@@ -39,7 +38,6 @@ const controllerSettingsStore = useControllerSettingsStore()
 // 5P参数
 import { useQomo5PStore } from '../stores/qomo5pEditor'
 const qomo5pStore = useQomo5PStore()
-const { entities } = storeToRefs(qomo5pStore)
 
 // 个人觉得只是用来初始化驱动器的参数
 import { bootstrapControllerOnce } from '../utils/backendBootstrap'
@@ -72,12 +70,16 @@ import { subscribeGlobalKeyboard } from '../utils/globalKeyboard'
 import {
   setMotionIoOutput,
   moveMotionAxisRel,
+  rotateRAxisByTurns,
+  rotateUAxisByAngle,
   startProgram,
   getStartProgramStatus,
   startProgramControl,
   moveMotionAxisAbs,
-  getHardwareStatus
+  getHardwareStatus,
+  zeroMotionAxis
 } from '../utils/motionApi'
+import type { QomoEntityWithSurface } from '../types/Qomo5P'
 import DetailedRs232Send from './DetailedRs232Send.vue'
 import SvgIcon from '@/components/SvgIcon.vue'
 
@@ -250,6 +252,14 @@ let programStatusWsReconnectTimer: ReturnType<typeof setTimeout> | null = null
 /** 为 false 时不再重连（例如页面已卸载） */
 let programStatusWsReconnectEnabled = true
 
+const U_AXIS_NO = 3
+const R_AXIS_NO = 4
+
+function getAxisSpeed(axisNo: number): number {
+  const value = Number(controllerSettingsStore.controllerSettings.axes[axisNo]?.speed)
+  return Number.isFinite(value) && value > 0 ? value : 20
+}
+
 const PROGRAM_STARTED_AT_STORAGE_KEY = 'qomo.startProgram.startedAtMs'
 const programStartedAtMs = ref<number | null>(null)
 const programElapsedMs = ref(0)
@@ -324,6 +334,60 @@ type StartProgramStatusPayload = {
   current_task_index?: number
   jindubaifenbi?: number
 }
+// 用于新的取图形的方式然后传递给后端
+type XYMotionOffset = { x: number; y: number }
+const homeXyOffset = ref<XYMotionOffset>({ x: 0, y: 0 })
+const runTrigger = ref(false)
+
+function resolveXYMotionOffsetFromHardwareStatus(result: Awaited<ReturnType<typeof getHardwareStatus>>): XYMotionOffset {
+  const positions = result?.data?.state?.motion_positions
+  const rawX = positions?.X ?? positions?.x ?? positions?.['0']
+  const rawY = positions?.Y ?? positions?.y ?? positions?.['1']
+  const x = Number(rawX)
+  const y = Number(rawY)
+  return {
+    x: Number.isFinite(x) ? x : 0,
+    y: Number.isFinite(y) ? y : 0
+  }
+}
+
+function offsetEntitiesByXYMpos(entities: QomoEntityWithSurface[], dx: number, dy: number): QomoEntityWithSurface[] {
+  return entities.map((entity) => {
+    if (entity.type === 'LINE') {
+      return {
+        ...entity,
+        start: { x: entity.start.x + dx, y: entity.start.y + dy },
+        end: { x: entity.end.x + dx, y: entity.end.y + dy }
+      }
+    }
+
+    if (entity.type === 'BEZIER') {
+      return {
+        ...entity,
+        points: entity.points.map((p) => ({ x: p.x + dx, y: p.y + dy }))
+      }
+    }
+
+    if (entity.type === 'ARC') {
+      return {
+        ...entity,
+        center: { x: entity.center.x + dx, y: entity.center.y + dy },
+        ...(entity.startPoint
+          ? { startPoint: { x: entity.startPoint.x + dx, y: entity.startPoint.y + dy } }
+          : {}),
+        ...(entity.endPoint
+          ? { endPoint: { x: entity.endPoint.x + dx, y: entity.endPoint.y + dy } }
+          : {})
+      }
+    }
+
+    return {
+      ...entity,
+      center: { x: entity.center.x + dx, y: entity.center.y + dy }
+    }
+  })
+}
+// 用于新的取图形的方式然后传递给后端END
 
 /** 与轮询时代逻辑一致：更新运行/暂停/任务与进度；running 为 false 时清理计时与本地存储 */
 function applyStartProgramStatusPayload(data: StartProgramStatusPayload | undefined): void {
@@ -341,8 +405,8 @@ function applyStartProgramStatusPayload(data: StartProgramStatusPayload | undefi
   if (data.running === false) {
     programPaused.value = false
     stopProgramElapsedTimer()
+    if (programStartedAtMs.value) programElapsedMs.value = Math.max(0, Date.now() - programStartedAtMs.value)
     programStartedAtMs.value = null
-    programElapsedMs.value = 0
     persistProgramStartedAtToStorage(null)
   }
 }
@@ -440,9 +504,20 @@ async function onRunClick(): Promise<void> {
 
   try {
     const entities = qomo5pStore.exportEntitiesToHomeVue()
+    // const payload = {
+    //   recipe_payload: currentRunRecipePayload.value,
+    //   entities: entities
+    // }
+    // 用于新的取图形的方式然后传递给后端
+    const hardwareStatus = await getHardwareStatus()
+    const xyOffset = resolveXYMotionOffsetFromHardwareStatus(hardwareStatus)
+    homeXyOffset.value = xyOffset
+    runTrigger.value =true 
+    const offsetEntities = offsetEntitiesByXYMpos(entities, xyOffset.x, xyOffset.y)
+    // 用于新的取图形的方式然后传递给后端
     const payload = {
       recipe_payload: currentRunRecipePayload.value,
-      entities: entities
+      entities: offsetEntities
     }
 
     // 在这一步我希望就是通过获取点位之后开始运行
@@ -496,13 +571,14 @@ async function onEstopClick(): Promise<void> {
     return
   }
   success(r?.message || '已急停。')
+  runTrigger.value = false
   programRunning.value = false
   programPaused.value = false
   currentTaskIndex.value = 0
   currentTaskJindubaifenbi.value = 0
   stopProgramElapsedTimer()
+  if (programStartedAtMs.value) programElapsedMs.value = Math.max(0, Date.now() - programStartedAtMs.value)
   programStartedAtMs.value = null
-  programElapsedMs.value = 0
   persistProgramStartedAtToStorage(null)
 }
 
@@ -530,57 +606,57 @@ const unsubscribeKeyboard = subscribeGlobalKeyboard((e) => {
 
   const keyword = e.key.toUpperCase() 
   const onlyctrlKey = e.ctrlKey && !e.shiftKey&&!e.altKey
-  const onlyshiftKey = e.shiftKey && !e.ctrlKey&&!e.altKey
+  // const onlyshiftKey = e.shiftKey && !e.ctrlKey&&!e.altKey
   const nokey = !e.ctrlKey && !e.shiftKey&&!e.altKey
   const altKey = e.altKey&&!e.ctrlKey&&!e.shiftKey
 
-  const isArrowKey = ['ARROWUP', 'ARROWDOWN', 'ARROWLEFT', 'ARROWRIGHT'].includes(keyword)
+  // const isArrowKey = ['ARROWUP', 'ARROWDOWN', 'ARROWLEFT', 'ARROWRIGHT'].includes(keyword)
 
-  // Shift + 方向键：仅平移全部实体数据，不触发 X/Y 轴点动
-  if (isArrowKey && onlyshiftKey) {
-    if (entities.value.length > 0) {
-      e.preventDefault()
-      if (e.repeat) return
-      const step = moveStep.value
-      if (Number.isFinite(step) && step !== 0) {
-        const dx =
-          keyword === 'ARROWLEFT'
-            ? step
-            : keyword === 'ARROWRIGHT'
-              ? -step
-              : 0
-        const dy =
-          keyword === 'ARROWDOWN'
-            ? step
-            : keyword === 'ARROWUP'
-              ? -step
-              : 0
-        if (dx !== 0 || dy !== 0) {
-          qomo5pStore.beginInteractiveTransform()
-          qomo5pStore.moveAllEntitiesInPlace(dx, dy)
-          qomo5pStore.endInteractiveTransform()
-        }
-      }
-    }
-    return
-  }
+  // // Shift + 方向键：仅平移全部实体数据，不触发 X/Y 轴点动
+  // if (isArrowKey && onlyshiftKey) {
+  //   if (entities.value.length > 0) {
+  //     e.preventDefault()
+  //     if (e.repeat) return
+  //     const step = moveStep.value
+  //     if (Number.isFinite(step) && step !== 0) {
+  //       const dx =
+  //         keyword === 'ARROWLEFT'
+  //           ? step
+  //           : keyword === 'ARROWRIGHT'
+  //             ? -step
+  //             : 0
+  //       const dy =
+  //         keyword === 'ARROWDOWN'
+  //           ? step
+  //           : keyword === 'ARROWUP'
+  //             ? -step
+  //             : 0
+  //       if (dx !== 0 || dy !== 0) {
+  //         qomo5pStore.beginInteractiveTransform()
+  //         qomo5pStore.moveAllEntitiesInPlace(dx, dy)
+  //         qomo5pStore.endInteractiveTransform()
+  //       }
+  //     }
+  //   }
+  //   return
+  // }
 
   if (keyword === 'ARROWUP' && altKey) {
     e.preventDefault()
     console.log('ARROWUP1')
-    void moveMotionAxisRel(1, moveStep.value, { controllerSettings: controllerSettingsStore.controllerSettings })
+    void moveMotionAxisRel(1, -moveStep.value, { controllerSettings: controllerSettingsStore.controllerSettings })
   }
   if (keyword === 'ARROWDOWN' && altKey) {
     e.preventDefault()
-    void moveMotionAxisRel(1, -moveStep.value, { controllerSettings: controllerSettingsStore.controllerSettings })
+    void moveMotionAxisRel(1, moveStep.value, { controllerSettings: controllerSettingsStore.controllerSettings })
   }
   if (keyword === 'ARROWLEFT' && altKey) {
     e.preventDefault()
-    void moveMotionAxisRel(0, -moveStep.value, { controllerSettings: controllerSettingsStore.controllerSettings })
+    void moveMotionAxisRel(0, moveStep.value, { controllerSettings: controllerSettingsStore.controllerSettings })
   }
   if (keyword === 'ARROWRIGHT' && altKey) {
     e.preventDefault()
-    void moveMotionAxisRel(0, moveStep.value, { controllerSettings: controllerSettingsStore.controllerSettings })
+    void moveMotionAxisRel(0, -moveStep.value, { controllerSettings: controllerSettingsStore.controllerSettings })
   }
   if (keyword === 'PAGEUP' && altKey) {
     e.preventDefault()
@@ -598,19 +674,19 @@ const unsubscribeKeyboard = subscribeGlobalKeyboard((e) => {
     e.preventDefault()
     void (async () => {
       try {
-        const zx = await moveMotionAxisAbs(0,0)
-        if (!zx?.success) {
-          error(zx?.message || 'X 轴回原失败')
+        const [zx, zy ,zr, zu] = await Promise.all([
+          moveMotionAxisAbs(0,homeXyOffset.value.x),
+          moveMotionAxisAbs(1,homeXyOffset.value.y),
+          moveMotionAxisAbs(3,0),
+          zeroMotionAxis(4)])
+        if (!zx?.success || !zy?.success || !zr?.success || !zu?.success) {
+          error('回到设定点失败')
           return
         }
-        const zy = await moveMotionAxisAbs(1,0)
-        if (!zy?.success) {
-          error(zy?.message || 'Y 轴回原失败')
-          return
-        }
-        success('已 X/Y 回原')
+        homeXyOffset.value = { x: 0, y: 0 }
+        success('已回到设定点')
       } catch {
-        error('X/Y 回原失败')
+        error('回到设定点失败')
       }
     })()
     return
@@ -639,19 +715,19 @@ const unsubscribeKeyboard = subscribeGlobalKeyboard((e) => {
   if (keyword === 'ARROWUP' && nokey) {
     e.preventDefault()
     console.log('ARROWUP2')
-    void moveMotionAxisRel(1, moveStep.value, { controllerSettings: controllerSettingsStore.controllerSettings })
+    void moveMotionAxisRel(1, -moveStep.value, { controllerSettings: controllerSettingsStore.controllerSettings })
   }
   if (keyword === 'ARROWDOWN' && nokey) {
     e.preventDefault()
-    void moveMotionAxisRel(1, -moveStep.value, { controllerSettings: controllerSettingsStore.controllerSettings })
+    void moveMotionAxisRel(1, moveStep.value, { controllerSettings: controllerSettingsStore.controllerSettings })
   }
   if (keyword === 'ARROWLEFT' && nokey) {
     e.preventDefault()
-    void moveMotionAxisRel(0, -moveStep.value, { controllerSettings: controllerSettingsStore.controllerSettings })
+    void moveMotionAxisRel(0, moveStep.value, { controllerSettings: controllerSettingsStore.controllerSettings })
   }
   if (keyword === 'ARROWRIGHT' && nokey) {
     e.preventDefault()
-    void moveMotionAxisRel(0, moveStep.value, { controllerSettings: controllerSettingsStore.controllerSettings })
+    void moveMotionAxisRel(0, -moveStep.value, { controllerSettings: controllerSettingsStore.controllerSettings })
   }
   if (keyword === 'PAGEUP' && nokey) {
     e.preventDefault()
@@ -666,19 +742,39 @@ const unsubscribeKeyboard = subscribeGlobalKeyboard((e) => {
 
   if (keyword === 'ARROWUP' && onlyctrlKey) {
     e.preventDefault()
-    void moveMotionAxisRel(3, moveStep.value, { controllerSettings: controllerSettingsStore.controllerSettings })
+    void rotateUAxisByAngle({
+      旋转角度: Math.abs(moveStep.value),
+      旋转速度: getAxisSpeed(U_AXIS_NO),
+      旋转方向: '顺时针',
+      运动模式: 'relative'
+    })
   }
   if (keyword === 'ARROWDOWN' && onlyctrlKey) {
     e.preventDefault()
-    void moveMotionAxisRel(3, -moveStep.value, { controllerSettings: controllerSettingsStore.controllerSettings })
+    void rotateUAxisByAngle({
+      旋转角度: Math.abs(moveStep.value),
+      旋转速度: getAxisSpeed(U_AXIS_NO),
+      旋转方向: '逆时针',
+      运动模式: 'relative'
+    })
   }
   if (keyword === 'ARROWLEFT' && onlyctrlKey) {
     e.preventDefault()
-    void moveMotionAxisRel(4, -moveStep.value, { controllerSettings: controllerSettingsStore.controllerSettings })
+    void rotateRAxisByTurns({
+      旋转圈数: Math.abs(moveStep.value/5),
+      旋转速度: getAxisSpeed(R_AXIS_NO),
+      旋转方向: '逆时针',
+      运动模式: 'relative'
+    })
   }
   if (keyword === 'ARROWRIGHT' && onlyctrlKey) {
     e.preventDefault()
-    void moveMotionAxisRel(4, moveStep.value, { controllerSettings: controllerSettingsStore.controllerSettings })
+    void rotateRAxisByTurns({
+      旋转圈数: Math.abs(moveStep.value/5),
+      旋转速度: getAxisSpeed(R_AXIS_NO),
+      旋转方向: '顺时针',
+      运动模式: 'relative'
+    })
   }
 
   if (keyword === 'Q'&& nokey) {
@@ -886,7 +982,13 @@ onMounted(async () => {
 
         <!-- 方便进行测试新添加的创建图形的方法 -->
         <ShowAndDrawInHome :scale="1" :upper-opening-mm="recipeUpperOpeningMm"  v-if="!newWayToCreateGraphic"/>
-        <ShowAndDrawInHome_new v-else :scale="1" :upper-opening-mm="recipeUpperOpeningMm" />
+        <ShowAndDrawInHome_new
+          v-else
+          :scale="1"
+          :upper-opening-mm="recipeUpperOpeningMm"
+          :xy-offset="homeXyOffset"
+          :run-trigger="runTrigger"
+        />
       </div>
     </main>
     <div class="flex items-center gap-2 absolute left-8 bottom-4 w-[940px]">

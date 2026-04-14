@@ -48,7 +48,7 @@ const defaultIoMapNineGroups: IOMapNineGroups = Array.from({ length: IO_MAP_GROU
 /** 轴切换按钮文案：三轴 XYZ，五轴 XYZRU */
 export const AXIS_TAB_LABELS: Record<ControllerAxisCount, readonly string[]> = {
   3: ['X', 'Y', 'Z'],
-  5: ['X', 'Y', 'Z', 'R', 'U']
+  5: ['X', 'Y', 'Z', 'U', 'R']
 } as const
 
 /**
@@ -72,7 +72,7 @@ export function applyControllerAxisCount(
   out.communication = {
     ...out.communication,
     axisCount: count,
-    enableAxes: count === 3 ? ['X', 'Y', 'Z'] : ['X', 'Y', 'Z', 'R', 'U']
+    enableAxes: count === 3 ? ['X', 'Y', 'Z'] : ['X', 'Y', 'Z', 'U', 'R']
   }
   return out
 }
@@ -83,7 +83,7 @@ export const defaultControllerParameters: ControllerParameters = {
     controllerModel: 'QomoTech406V2',
     transport: 'ethernet',
     ipAddress: '192.168.0.11',
-    enableAxes: ['X', 'Y', 'Z', 'R', 'U'],
+    enableAxes: ['X', 'Y', 'Z', 'U', 'R'],
     axisCount: 5
   },
   axes: [
@@ -146,7 +146,7 @@ export const defaultControllerParameters: ControllerParameters = {
     }),
     createAxis({
       axisNo: 3,
-      axisName: 'R 轴',
+      axisName: 'U 轴',
       axisType: 1,
       units: 2000,
       speed: 20,
@@ -165,7 +165,7 @@ export const defaultControllerParameters: ControllerParameters = {
     }),
     createAxis({
       axisNo: 4,
-      axisName: 'U 轴',
+      axisName: 'R 轴',
       axisType: 1,
       units: 2000,
       speed: 20,

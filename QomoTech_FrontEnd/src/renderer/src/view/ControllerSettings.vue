@@ -11,7 +11,14 @@ import type {
   ParameterSection
 } from '../types/settings'
 import { cloneSettings, formatSettingValue } from '../utils/settings'
-import { subscribeHardwareStatus, type HardwareStatusPayload } from '../utils/motionApi'
+import {
+  moveMotionAxisAbs,
+  moveMotionAxisRel,
+  rotateRAxisByTurns,
+  rotateUAxisByAngle,
+  subscribeHardwareStatus,
+  type HardwareStatusPayload
+} from '../utils/motionApi'
 
 const props = defineProps<{
   /**
@@ -106,6 +113,11 @@ const selectedAxisPair = computed(
 const axisIndices = computed(() =>
   Array.from({ length: axisCountValue.value }, (_, i) => i)
 )
+const U_AXIS_NO = 3
+const R_AXIS_NO = 4
+const axisRelativeInputs = ref<number[]>([])
+const axisAbsoluteInputs = ref<number[]>([])
+const axisMotionPending = ref<Record<number, boolean>>({})
 
 const writeFields = computed(() => selectedAxisPair.value?.write.fields ?? [])
 const readFields = computed(() => selectedAxisPair.value?.read.fields ?? [])
@@ -259,6 +271,179 @@ function normalizeAxisNumberInput(axisIdx: number, fieldKey: string): void {
   if (!Number.isFinite(v)) return
   ax[fieldKey] = roundToMaxDecimals(v)
 }
+
+watch(
+  axisIndices,
+  (indices) => {
+    const prevRel = axisRelativeInputs.value
+    const prevAbs = axisAbsoluteInputs.value
+    axisRelativeInputs.value = indices.map((axisNo) => {
+      const value = Number(prevRel[axisNo])
+      return Number.isFinite(value) ? value : 1
+    })
+    axisAbsoluteInputs.value = indices.map((axisNo) => {
+      const value = Number(prevAbs[axisNo])
+      return Number.isFinite(value) ? value : 0
+    })
+  },
+  { immediate: true }
+)
+
+function normalizeAxisManualInput(type: 'rel' | 'abs', axisNo: number): void {
+  const target = type === 'rel' ? axisRelativeInputs.value : axisAbsoluteInputs.value
+  const value = Number(target[axisNo])
+  if (!Number.isFinite(value)) return
+  target[axisNo] = roundToMaxDecimals(value)
+}
+
+function isAxisMotionBusy(axisNo: number): boolean {
+  return Boolean(axisMotionPending.value[axisNo])
+}
+
+function setAxisMotionBusy(axisNo: number, busy: boolean): void {
+  axisMotionPending.value = {
+    ...axisMotionPending.value,
+    [axisNo]: busy
+  }
+}
+
+function isUAxis(axisNo: number): boolean {return axisCountValue.value === 5 && axisNo === U_AXIS_NO}
+
+function isRAxis(axisNo: number): boolean {return axisCountValue.value === 5 && axisNo === R_AXIS_NO}
+
+function getManualRelativePlaceholder(axisNo: number): string {
+  if (isUAxis(axisNo)) return '旋转角度(°，正顺时针/负逆时针)'
+  if (isRAxis(axisNo)) return '旋转圈数(圈，正顺时针/负逆时针)'
+  return '相对位移(mm)'
+}
+
+function getRelativeActionLabel(axisNo: number): string {
+  if (isUAxis(axisNo)) return 'U轴旋转'
+  if (isRAxis(axisNo)) return 'R轴旋转'
+  return '相对运动'
+}
+
+function getManualAbsolutePlaceholder(axisNo: number): string {
+  if (isUAxis(axisNo)) return '旋转角度(°，正顺时针/负逆时针)'
+  if (isRAxis(axisNo)) return '旋转圈数(圈，正顺时针/负逆时针)'
+  return '绝对位置(mm)'
+}
+
+function getAbsoluteActionLabel(axisNo: number): string {
+  if (isUAxis(axisNo)) return 'U轴旋转'
+  if (isRAxis(axisNo)) return 'R轴旋转'
+  return '绝对运动'
+}
+
+function getAxisSpeed(axisNo: number): number {
+  const value = Number(controllerStore.controllerSettings.axes[axisNo]?.speed)
+  return Number.isFinite(value) && value > 0 ? value : 20
+}
+
+async function handleAxisRelativeMove(axisNo: number): Promise<void> {
+  const relativeValue = Number(axisRelativeInputs.value[axisNo])
+  if (!Number.isFinite(relativeValue) || relativeValue === 0) {
+    error(`轴 ${axisNo} 输入无效`, '请输入非 0 的数值')
+    return
+  }
+  setAxisMotionBusy(axisNo, true)
+  try {
+    const rotateDirection = relativeValue >= 0 ? '顺时针' : '逆时针'
+    const absValue = Math.abs(relativeValue)
+
+    if (isUAxis(axisNo)) {
+      const res = await rotateUAxisByAngle({
+        旋转角度: absValue,
+        旋转速度: getAxisSpeed(axisNo),
+        旋转方向: rotateDirection,
+        运动模式: 'relative'
+      })
+      if (!res?.success) {
+        error('U轴旋转失败', res?.message ?? '')
+        return
+      }
+      success('U轴旋转已下发', `角度: ${roundToMaxDecimals(absValue)}°，方向: ${rotateDirection}`)
+      return
+    }
+
+    if (isRAxis(axisNo)) {
+      const res = await rotateRAxisByTurns({
+        旋转圈数: absValue,
+        旋转速度: getAxisSpeed(axisNo),
+        旋转方向: rotateDirection,
+        运动模式: 'relative'
+      })
+      if (!res?.success) {
+        error('R轴旋转失败', res?.message ?? '')
+        return
+      }
+      success('R轴旋转已下发', `圈数: ${roundToMaxDecimals(absValue)} 圈，方向: ${rotateDirection}`)
+      return
+    }
+
+    const res = await moveMotionAxisRel(axisNo, relativeValue, {controllerSettings: controllerStore.controllerSettings})
+    if (!res?.success) {
+      error(`轴 ${axisNo} 相对运动失败`, res?.message ?? '')
+      return
+    }
+    success(`轴 ${axisNo} 相对运动已下发`, `位移: ${roundToMaxDecimals(relativeValue)} mm`)
+  } finally {
+    setAxisMotionBusy(axisNo, false)
+  }
+}
+
+async function handleAxisAbsoluteMove(axisNo: number): Promise<void> {
+  const inputValue = Number(axisAbsoluteInputs.value[axisNo])
+  if (!Number.isFinite(inputValue)) {
+    error(`轴 ${axisNo} 输入无效`, '请输入有效数值')
+    return
+  }
+  setAxisMotionBusy(axisNo, true)
+  try {
+    const rotateDirection = inputValue >= 0 ? '顺时针' : '逆时针'
+    const absValue = Math.abs(inputValue)
+
+    if (isUAxis(axisNo)) {
+      const res = await rotateUAxisByAngle({
+        旋转角度: absValue,
+        旋转速度: getAxisSpeed(axisNo),
+        旋转方向: rotateDirection,
+        运动模式: 'absolute'
+      })
+      if (!res?.success) {
+        error('U轴旋转失败', res?.message ?? '')
+        return
+      }
+      success('U轴旋转已下发', `角度: ${roundToMaxDecimals(absValue)}°，方向: ${rotateDirection}`)
+      return
+    }
+
+    if (isRAxis(axisNo)) {
+      const res = await rotateRAxisByTurns({
+        旋转圈数: absValue,
+        旋转速度: getAxisSpeed(axisNo),
+        旋转方向: rotateDirection,
+        运动模式: 'absolute'
+      })
+      if (!res?.success) {
+        error('R轴旋转失败', res?.message ?? '')
+        return
+      }
+      success('R轴旋转已下发', `圈数: ${roundToMaxDecimals(absValue)} 圈，方向: ${rotateDirection}`)
+      return
+    }
+
+    const targetMm = inputValue
+    const res = await moveMotionAxisAbs(axisNo, targetMm, {controllerSettings: controllerStore.controllerSettings})
+    if (!res?.success) {
+      error(`轴 ${axisNo} 绝对运动失败`, res?.message ?? '')
+      return
+    }
+    success(`轴 ${axisNo} 绝对运动已下发`, `目标: ${roundToMaxDecimals(targetMm)} mm`)
+  } finally {
+    setAxisMotionBusy(axisNo, false)
+  }
+}
 </script>
 
 <template>
@@ -305,7 +490,7 @@ function normalizeAxisNumberInput(axisIdx: number, fieldKey: string): void {
               "
               @click="handleAxisCountChange(n)"
             >
-              {{ n === 3 ? '3 轴（XYZ）' : '5 轴（XYZRU）' }}
+              {{ n === 3 ? '3 轴（XYZ）' : '5 轴（XYZUR）' }}
             </button>
           </div>
         </div>
@@ -440,6 +625,7 @@ function normalizeAxisNumberInput(axisIdx: number, fieldKey: string): void {
            </div>
 
 
+
           <div class="mt-5 grid gap-6 lg:hidden">
             <!-- 左：该轴可写入 -->
             <div
@@ -559,9 +745,6 @@ function normalizeAxisNumberInput(axisIdx: number, fieldKey: string): void {
             </div>
           </div>
 
-
-
-
           <div class="mt-5 gap-6 hidden lg:grid lg:grid-cols-2">
             <!-- 左：该轴可写入 -->
             <div
@@ -680,6 +863,59 @@ function normalizeAxisNumberInput(axisIdx: number, fieldKey: string): void {
               </div>
             </div>
           </div>
+
+          <div class="mt-5 rounded-xl border border-(--app-border) bg-(--app-card-soft) p-4">
+            <div class="flex items-baseline justify-between gap-2">
+              <h3 class="app-text-primary text-sm font-semibold">手动运动（相对/绝对）</h3>
+              <p class="app-text-muted text-xs">单位: X/Y/Z(mm) U(°) R(圈)</p>
+            </div>
+            <div class="mt-3 grid gap-3">
+              <div
+                v-for="axisIdx in axisIndices"
+                :key="`manual-move-${axisIdx}`"
+                class="grid gap-2 rounded-lg border border-(--app-border) p-3 md:grid-cols-[90px_1fr_120px_1fr_120px]"
+              >
+                <div class="app-text-primary text-sm font-medium">
+                  轴{{ axisIdx }} {{ axisTabLabels[axisIdx] }}
+                </div>
+                <input
+                  v-model.number="axisRelativeInputs[axisIdx]"
+                  type="number"
+                  :step="0.0001"
+                  :disabled="isAxisMotionBusy(axisIdx)"
+                  class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-2 py-1.5 text-xs outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2 disabled:opacity-60"
+                  :placeholder="getManualRelativePlaceholder(axisIdx)"
+                  @blur="normalizeAxisManualInput('rel', axisIdx)"
+                />
+                <button
+                  type="button"
+                  class="rounded-lg border border-blue-500/40 bg-blue-600/80 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-blue-600 disabled:opacity-50"
+                  :disabled="isAxisMotionBusy(axisIdx)"
+                  @click="handleAxisRelativeMove(axisIdx)"
+                >
+                  {{ getRelativeActionLabel(axisIdx) }}
+                </button>
+                <input
+                  v-model.number="axisAbsoluteInputs[axisIdx]"
+                  type="number"
+                  :step="0.0001"
+                  :disabled="isAxisMotionBusy(axisIdx)"
+                  class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-2 py-1.5 text-xs outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2 disabled:opacity-60"
+                  :placeholder="getManualAbsolutePlaceholder(axisIdx)"
+                  @blur="normalizeAxisManualInput('abs', axisIdx)"
+                />
+                <button
+                  type="button"
+                  class="rounded-lg border border-indigo-500/40 bg-indigo-600/85 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-indigo-600 disabled:opacity-50"
+                  :disabled="isAxisMotionBusy(axisIdx)"
+                  @click="handleAxisAbsoluteMove(axisIdx)"
+                >
+                  {{ getAbsoluteActionLabel(axisIdx) }}
+                </button>
+              </div>
+            </div>
+          </div>
+
         </section>
 
       </div>
@@ -768,7 +1004,6 @@ function normalizeAxisNumberInput(axisIdx: number, fieldKey: string): void {
               </div>
             </aside>
            </div>
-
 
           <div class="mt-5 grid gap-6 lg:hidden">
             <!-- 左：该轴可写入 -->

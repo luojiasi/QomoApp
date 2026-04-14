@@ -2,7 +2,7 @@ import { apiCall, type ApiCallResult } from './toBackendApiCall'
 import type { ControllerParameters } from '../types/settings'
 
 export type MotionAxis = 'X' | 'Y' | 'Z' | 'U' | 'R'
-const MAX_AXIS_NO = 4
+const MAX_AXIS_NO = 5
 const AXIS_NOS_3 = [0, 1, 2] as const
 const AXIS_NOS_5 = [0, 1, 2, 3, 4] as const
 
@@ -225,9 +225,7 @@ export const zeroMotionAxis = async (axisNo: number): Promise<ApiCallResult<Reco
 type MoveMotionAxisAbsOptions = { speed?: number; controllerSettings?: ControllerParameters }
 
 const pushAxisSpeed = async (axisNo: number, speed: number): Promise<ApiCallResult<Record<string, unknown>>> =>
-  setMotionAllAxesParams({
-    params_by_axis: {[axisNo]: {speed}}
-  })
+  setMotionAllAxesParams({params_by_axis: {[axisNo]: {speed}}})
 
 export const moveMotionAxisAbs = async (axisNo: number,targetMm: number,options?: MoveMotionAxisAbsOptions,): Promise<ApiCallResult<Record<string, unknown>>> => {
   const axisNoInt = Number(axisNo)
@@ -262,6 +260,30 @@ export const moveMotionAxisRel = async (axisNo: number,deltaMm: number,options?:
       : {}),
   } as unknown as Record<string, unknown>)
 }
+
+export interface UAxisRotateRequestPayload {
+  旋转角度: number
+  旋转速度: number
+  旋转方向?: string
+  运动模式?: 'relative' | 'absolute'
+}
+
+export interface RAxisRotateRequestPayload {
+  旋转圈数: number
+  旋转速度: number
+  旋转方向?: string
+  运动模式?: 'relative' | 'absolute'
+}
+
+export const rotateUAxisByAngle = async (
+  payload: UAxisRotateRequestPayload
+): Promise<ApiCallResult<Record<string, unknown>>> =>
+  apiCall('motion/axis/U轴旋转的角度', 'POST', payload as unknown as Record<string, unknown>)
+
+export const rotateRAxisByTurns = async (
+  payload: RAxisRotateRequestPayload
+): Promise<ApiCallResult<Record<string, unknown>>> =>
+  apiCall('motion/axis/R轴旋转的圈数', 'POST', payload as unknown as Record<string, unknown>)
 
 
 
