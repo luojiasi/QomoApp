@@ -143,7 +143,7 @@
         />
 
         <!-- 仅实体随机床平移显示，不改 Pinia 几何 -->
-        <g :transform="machineFollowTransform">h
+        <g :transform="machineFollowTransform">
           <template v-for="entity in visibleEntities" :key="entity.id">
           <line
             v-if="entity.type === 'LINE'"
@@ -419,7 +419,12 @@ onBeforeUnmount(() => {
 
 const effectiveZoomX = computed(() =>Math.max(viewport.value.zoom * (props.scale ?? 1) * coerceFinitePositive(scaleSettings.scaleX, 1), 1e-6))
 const effectiveZoomY = computed(() =>Math.max(viewport.value.zoom * (props.scale ?? 1) * coerceFinitePositive(scaleSettings.scaleY, 1), 1e-6))
-const worldTransform = computed(() => `translate(${viewport.value.panX} ${viewport.value.panY}) scale(${effectiveZoomX.value} ${-effectiveZoomY.value})`)
+const worldTransform = computed(() => {
+  // Home 叠加层固定使用“当前容器中心”作为世界原点，避免受 Create5P 页面的平移状态影响。
+  const centerX = viewport.value.width / 2
+  const centerY = viewport.value.height / 2
+  return `translate(${centerX} ${centerY}) scale(${effectiveZoomX.value} ${-effectiveZoomY.value})`
+})
 
 const worldStrokeWidth = computed(() => Math.max(1 / Math.max(effectiveZoomX.value, effectiveZoomY.value), 0.5))
 // 十字线的宽度

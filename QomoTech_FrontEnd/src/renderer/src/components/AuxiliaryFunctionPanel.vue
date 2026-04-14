@@ -5,6 +5,8 @@ import { useControllerSettingsStore } from '../stores/controllerSettingsStore'
 import {
   moveMotionAxisAbs,
   moveMotionAxisRel,
+  rotateRAxisByTurns,
+  rotateUAxisByAngle,
   setMotionIoOutput,
   subscribeHardwareStatus,
   type HardwareStatusPayload,
@@ -36,6 +38,8 @@ const tabs: { id: AuxiliaryTabId; label: string }[] = [
 
 
 // ================================五轴校准================================================
+
+
 const axisNameByNo: MotionAxis[] = ['X', 'Y', 'Z', 'R', 'U']
 const axisCenterCalibDisplayAxes: MotionAxis[] = ['X', 'Y', 'Z', 'R', 'U']
 
@@ -102,20 +106,26 @@ type AxisCenterCalibSample = {
 const isAxisCenterCalib = ref(false)
 const axisCenterCalibPhase = ref<AxisCenterCalibPhase>('idle')
 const axisCenterCalibErrorMessage = ref('')
-const perMMAngle = ref(5/360)
 const axisCenterCalibRotationAxisNo = ref<3 | 4>(3)
 const axisCenterCalibStartAngle = ref(-90)
 const axisCenterCalibAngleStep = ref(90)
 const axisCenterCalibSampleCount = ref(3)
 const axisCenterCalibSettleMs = ref(500)
 const axisCenterCalibLaserPulseMs = ref(200)
-const axisCenterCalibAutoPulse = ref(true)
+const axisCenterCalibAutoPulse = ref(false)
 const axisCenterCalibReturnToStart = ref(true)
 const axisCenterCalibSafetyConfirmed = ref(false)
 const axisCenterCalibSamples = ref<AxisCenterCalibSample[]>([])
 const axisCenterCalibLogs = ref<string[]>([])
 const axisCenterCalibPendingRecordSampleId = ref<number | null>(null)
 let axisCenterCalibRecordResolver: ((snapshot: Partial<Record<MotionAxis, number>>) => void) | null = null
+// 五轴校准的时候采样点数必须是>=3的奇数
+function normalizeAxisCenterCalibSampleCount(value: number): number {
+  const rounded = Math.floor(Number(value))
+  if (!Number.isFinite(rounded)) return 3
+  const atLeastThree = Math.max(3, rounded)
+  return atLeastThree % 2 === 0 ? atLeastThree + 1 : atLeastThree
+}
 
 const axisCenterCalibRotationAxisLabel = computed(() => axisNameByNo[axisCenterCalibRotationAxisNo.value] ?? `Axis ${axisCenterCalibRotationAxisNo.value}`)
 
@@ -175,8 +185,16 @@ const axisCenterCalibLivePositions = computed(() =>
 )
 
 const axisCenterCalibCurrentAngleText = computed(() => {
-  const value = axisCenterCalibLivePositions.value.find((item) => item.name === axisCenterCalibRotationAxisLabel.value)?.value
-  return (Number(value) / perMMAngle.value).toFixed(3) ?? '-'
+  const axisNo = axisCenterCalibRotationAxisNo.value
+  const axis = controllerStore.controllerSettings.axes.find((item) => item.axisNo === axisNo)
+  const mpos = Number(axis?.mpos)
+  const units = Number(axis?.units)
+  if (!Number.isFinite(mpos) || !Number.isFinite(units) || units <= 0) return '-'
+
+  // U 轴：10000 pulse/rev；R 轴：1.8°+32细分 => 6400 pulse/rev
+  const pulsesPerRev = axisNo === 3 ? 10000 : 6400
+  const angle = (mpos * units / pulsesPerRev) * 360
+  return `${angle.toFixed(3)}°`
 })
 
 // 计算偏差点位的位置
@@ -289,7 +307,7 @@ function handleManualRecordAxisCenterCalibSample(sampleId: number): void {
 }
 
 function rebuildAxisCenterCalibSamples(): void {
-  const count = Math.max(2, Math.floor(axisCenterCalibSampleCount.value))
+  const count = normalizeAxisCenterCalibSampleCount(axisCenterCalibSampleCount.value)
   axisCenterCalibSampleCount.value = count
   axisCenterCalibSamples.value = Array.from({ length: count }, (_, index) => ({
     id: index,
@@ -332,10 +350,31 @@ async function pulseCalibrationLaser(durationMs: number): Promise<void> {
 }
 
 async function moveAxisToAngle(axisNo: number, angle: number): Promise<void> {
-  const result = await moveMotionAxisAbs(axisNo, angle*perMMAngle.value, {controllerSettings: controllerStore.controllerSettings})
+  const axisSpeed = 10
+  const speed = Number.isFinite(axisSpeed) && axisSpeed > 0 ? axisSpeed : 20
+  const rotateDirection = angle >= 0 ? '顺时针' : '逆时针'
+  const absAngle = Math.abs(angle)
+  let result
+  if (axisNo === 3) {
+    result = await rotateUAxisByAngle({
+      旋转角度: absAngle,
+      旋转速度: speed,
+      旋转方向: rotateDirection,
+      运动模式: 'absolute',
+    })
+  } else if (axisNo === 4) {
+    result = await rotateRAxisByTurns({
+      旋转圈数: absAngle / 360,
+      旋转速度: speed,
+      旋转方向: rotateDirection,
+      运动模式: 'absolute',
+    })
+  } else {
+    result = await moveMotionAxisAbs(axisNo, angle, {controllerSettings: controllerStore.controllerSettings})
+  }
   if (!result?.success) throw new Error(result?.message || `${axisNameByNo[axisNo] ?? `Axis ${axisNo}`} 移动失败`)
 }
-// ================================五轴校准================================================
+// ================================五轴校准END================================================
 
 const isQuickFocusing = ref(false)
 /** XY 每边数量，形成 N×N 矩阵（对应 xCount / yCount） */
@@ -453,6 +492,8 @@ const handleQuickConcentric = async()=>{
   }
 }
 // ================================五轴校准================================================
+const axisCenterCalibCenterBasedXYSum = ref({Xoffset:0,Yoffset:0,Zoffset:0})
+
 const handleAxisCenterCalib = async()=>{
   if (isAxisCenterCalib.value) {
     error("正在五轴中心校准中")
@@ -515,10 +556,55 @@ const handleAxisCenterCalib = async()=>{
 
     if (axisCenterCalibReturnToStart.value) {
       axisCenterCalibPhase.value = 'returning'
-      logAxisCenterCalib(`返回起始角 ${axisCenterCalibStartAngle.value.toFixed(3)}`)
-      await moveAxisToAngle(axisCenterCalibRotationAxisNo.value, axisCenterCalibStartAngle.value)
+      logAxisCenterCalib(`返回起始角`)
+      await moveAxisToAngle(axisCenterCalibRotationAxisNo.value, 0)
       await sleep(axisCenterCalibSettleMs.value)
     }
+    const samples = axisCenterCalibSamples.value
+    const middleIndex = Math.floor(samples.length / 2)
+    const middleSample = samples[middleIndex]
+    // 中间的值
+    const middleX = middleSample.machinePositions.X as number
+    const middleY = middleSample.machinePositions.Y as number
+    const middleZ = middleSample.machinePositions.Z as number
+    // 中间之前的点
+    const beforeMiddleSamples = samples.slice(0, middleIndex)
+    // 中间之后的点
+    const afterMiddleSamples = samples.slice(middleIndex + 1)
+
+
+    // 中间之前的点的相加数
+    const beforeMiddleXSum = beforeMiddleSamples.reduce((sum, sample) => sum + (sample.machinePositions.X as number), 0)
+    const beforeMiddleYSum = beforeMiddleSamples.reduce((sum, sample) => sum + (sample.machinePositions.Y as number), 0)
+    const beforeMiddleZSum = beforeMiddleSamples.reduce((sum, sample) => sum + (sample.machinePositions.Z as number), 0)
+    console.log(beforeMiddleXSum+"beforeMiddleXSum")
+    console.log(beforeMiddleYSum+"beforeMiddleYSum")
+    console.log(beforeMiddleZSum+"beforeMiddleZSum")
+    // 中间之后的点的相加数
+    const afterMiddleXSum = afterMiddleSamples.reduce((sum, sample) => sum + (sample.machinePositions.X as number), 0)
+    const afterMiddleYSum = afterMiddleSamples.reduce((sum, sample) => sum + (sample.machinePositions.Y as number), 0)
+    const afterMiddleZSum = afterMiddleSamples.reduce((sum, sample) => sum + (sample.machinePositions.Z as number), 0)
+    console.log(afterMiddleXSum+"afterMiddleXSum")
+    console.log(afterMiddleYSum+"afterMiddleYSum")
+    console.log(afterMiddleZSum+"afterMiddleZSum")
+
+    const axisCenterCalibX = (middleX-beforeMiddleXSum+afterMiddleXSum)/2
+    const axisCenterCalibY = (middleY-afterMiddleYSum+afterMiddleYSum)/2
+    const axisCenterCalibZ = (middleZ-beforeMiddleZSum+afterMiddleZSum)/2
+    console.log(axisCenterCalibX+"axisCenterCalibX")
+    console.log(axisCenterCalibY+"axisCenterCalibY")
+    console.log(axisCenterCalibZ+"axisCenterCalibZ")
+
+    axisCenterCalibCenterBasedXYSum.value = {
+      Xoffset: axisCenterCalibX,
+      Yoffset: axisCenterCalibY,
+      Zoffset: axisCenterCalibZ,
+    }
+
+
+
+
+
 
     axisCenterCalibPhase.value = 'finished'
     logAxisCenterCalib('采样完成，请根据相机或打点结果录入人工偏差')
@@ -610,8 +696,8 @@ const handleAxisCenterCalib = async()=>{
                 :disabled="isAxisCenterCalib"
                 class="w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm text-(--app-text-primary) outline-none disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <option :value="3">R 轴</option>
-                <option :value="4">U 轴</option>
+                <option :value="3">U 轴</option>
+                <option :value="4">R 轴</option>
               </select>
             </label>
             <label class="flex flex-col gap-1 text-xs text-(--app-text-muted)">
@@ -639,8 +725,8 @@ const handleAxisCenterCalib = async()=>{
               <input
                 v-model.number="axisCenterCalibSampleCount"
                 type="number"
-                min="2"
-                step="1"
+                min="3"
+                step="2"
                 :disabled="isAxisCenterCalib"
                 class="w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm text-(--app-text-primary) outline-none disabled:cursor-not-allowed disabled:opacity-50"
               />
@@ -803,6 +889,24 @@ const handleAxisCenterCalib = async()=>{
                 </div>
               </div>
             </div>
+          </div>
+          <div class="rounded-xl border border-(--app-border) bg-(--app-input-bg) p-3">
+            <p class="text-xs text-(--app-text-muted)">中心点基准 XY 累加值</p>
+            <div v-if="axisCenterCalibCenterBasedXYSum" class="mt-2 grid grid-cols-2 gap-2 lg:grid-cols-4">
+              <div class="rounded-lg border border-(--app-border) bg-(--app-card) px-3 py-2">
+                <p class="text-xs text-(--app-text-muted)">X补偿值</p>
+                <p class="mt-1 text-sm text-(--app-text-primary)">{{ axisCenterCalibCenterBasedXYSum.Xoffset.toFixed(3) }}</p>
+              </div>
+              <div class="rounded-lg border border-(--app-border) bg-(--app-card) px-3 py-2">
+                <p class="text-xs text-(--app-text-muted)">Y补偿值</p>
+                <p class="mt-1 text-sm text-(--app-text-primary)">{{ axisCenterCalibCenterBasedXYSum.Yoffset.toFixed(3) }}</p>
+              </div>
+              <div class="rounded-lg border border-(--app-border) bg-(--app-card) px-3 py-2">
+                <p class="text-xs text-(--app-text-muted)">Z补偿值</p>
+                <p class="mt-1 text-sm text-(--app-text-primary)">{{ axisCenterCalibCenterBasedXYSum.Zoffset.toFixed(3) }}</p>
+              </div>
+            </div>
+            <p v-else class="mt-2 text-xs text-(--app-text-muted)">请先完成全部采样点的 XY 位置记录</p>
           </div>
           <div class="grid grid-cols-2 gap-2 lg:grid-cols-4">
             <div class="rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2">
