@@ -195,7 +195,7 @@ class ZMotionDriver(BaseDriver):
         return self._connected
 
     # 3. 设置所有轴参数
-    def set_all_axes_params(self, params_by_axis: dict[int, dict[str, float]] | None = None) -> bool:
+    def set_all_axes_params(self, params_by_axis: dict[int, dict[str, float | bool]] | None = None) -> bool:
         if not self._require_connected():
             return False
 
@@ -230,6 +230,30 @@ class ZMotionDriver(BaseDriver):
             ):
                 if custom_key in custom and not self._call_zaux(method_name, axis_no, int(custom[custom_key])):
                     return False
+            if "backlash_enable" in custom or "backlash" in custom:
+                backlash_enable = bool(custom.get("backlash_enable", False))
+                backlash_dist = float(custom.get("backlash", 0.0))
+                self.设置控制器反向间隙参数(axis_no, backlash_enable, backlash_dist)
+        self._clear_error()
+        return True
+    # 3.1 设置控制器反向间隙参数
+    def 设置控制器反向间隙参数(self, axis_no: int, backlash_enable: bool, backlash_dist: float, speed: float | None = None, accel: float | None = None) -> bool:
+        if not self._require_connected():
+            return False
+        反向间隙的距离需要转换为mm = backlash_dist/1000
+        是否打开反向间隙 = 1 if backlash_enable else 0
+        if backlash_enable and speed is not None and accel is not None:
+            command = f"BACKLASH({是否打开反向间隙},{反向间隙的距离需要转换为mm},{speed},{accel}) AXIS({axis_no})"
+        elif backlash_enable and speed is None and accel is None:
+            command = f"BACKLASH({是否打开反向间隙},{反向间隙的距离需要转换为mm},50,100) AXIS({axis_no})"
+        else:
+            command = f"BACKLASH({是否打开反向间隙}) AXIS({axis_no})"
+        fn = getattr(self._zaux, "ZAux_Execute", None)
+        with self._zaux_lock:
+            输出结果,输出信息 = fn(command)
+        if int(输出结果) != 0: 
+            self._set_error(f"设置控制器反向间隙参数失败: {输出信息}")
+            return False
         self._clear_error()
         return True
 

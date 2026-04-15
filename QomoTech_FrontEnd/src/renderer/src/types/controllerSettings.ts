@@ -38,6 +38,8 @@ export interface ControllerAxisUserInput {
   decel_angle: number
   stop_angle: number
   zxmooth: number
+  backlash: number
+  backlash_enable: boolean
 }
 
 /** 从驱动器读取的运行状态（界面只读展示，默认占位为 0） */

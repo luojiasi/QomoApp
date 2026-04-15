@@ -104,7 +104,9 @@ export const defaultControllerParameters: ControllerParameters = {
       corner_mode: 0,
       decel_angle: 15,
       stop_angle: 45,
-      zxmooth: 0
+      zxmooth: 0,
+      backlash: 5,
+      backlash_enable: false
     }),
     createAxis({
       axisNo: 1,
@@ -123,7 +125,9 @@ export const defaultControllerParameters: ControllerParameters = {
       corner_mode: 0,
       decel_angle: 15,
       stop_angle: 45,
-      zxmooth: 0
+      zxmooth: 0,
+      backlash: 5,
+      backlash_enable: false
     }),
     createAxis({
       axisNo: 2,
@@ -142,7 +146,9 @@ export const defaultControllerParameters: ControllerParameters = {
       corner_mode: 0,
       decel_angle: 15,
       stop_angle: 45,
-      zxmooth: 0
+      zxmooth: 0,
+      backlash: 5,
+      backlash_enable: false
     }),
     createAxis({
       axisNo: 3,
@@ -161,7 +167,9 @@ export const defaultControllerParameters: ControllerParameters = {
       corner_mode: 0,
       decel_angle: 15,
       stop_angle: 45,
-      zxmooth: 0
+      zxmooth: 0,
+      backlash: 10,
+      backlash_enable: false
     }),
     createAxis({
       axisNo: 4,
@@ -180,7 +188,9 @@ export const defaultControllerParameters: ControllerParameters = {
       corner_mode: 0,
       decel_angle: 15,
       stop_angle: 45,
-      zxmooth: 0
+      zxmooth: 0,
+      backlash: 5,
+      backlash_enable: false
     })
   ],
   ioMap: defaultIoMapNineGroups
@@ -203,7 +213,9 @@ const userInputFields = (axis: ControllerAxisSettings): ParameterSection['fields
   { key: 'corner_mode', label: '拐角模式', value: axis.corner_mode },
   { key: 'decel_angle', label: '拐角减速开始', value: axis.decel_angle },
   { key: 'stop_angle', label: '拐角减速结束', value: axis.stop_angle },
-  { key: 'zxmooth', label: '倒角半径', value: axis.zxmooth }
+  { key: 'zxmooth', label: '倒角半径', value: axis.zxmooth },
+  { key: 'backlash', label: '反向间隙补偿', value: axis.backlash },
+  { key: 'backlash_enable', label: '是否反向间隙', value: axis.backlash_enable }
 ]
 
 const driverReadFields = (axis: ControllerAxisSettings): ParameterSection['fields'] => [

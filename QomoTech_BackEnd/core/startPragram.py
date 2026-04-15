@@ -861,11 +861,13 @@ def 修面和切片的程序(originalPointsNum: int,recipe_payload: dict[str, An
     minOffset = 0
     # maxOffset = minOffset+lowerOpeningB
 
+    焦距补偿 = machiningHorizontalFormula.get('formula').get('focusCompensation')
+
     originalPoints = OffsetEndpointCalculator.calc_xy_points(entities,0)[originalPointsNum]
     originalPoints_run = originalPoints.copy()
     isneedReceive = False
     originalPoints_receive = originalPoints.copy()
-    z_original_position = controller.get_z_mpos_mm()
+    z_original_position = controller.get_z_mpos_mm() + float(焦距补偿)
     # TODO:有个问题就是在且边缘的时候会直接跳过去切
     while step <= 300:
         if _skip_requested():

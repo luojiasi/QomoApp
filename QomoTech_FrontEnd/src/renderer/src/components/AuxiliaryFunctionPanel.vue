@@ -617,7 +617,7 @@ const handleAxisCenterCalib = async()=>{
 
     const axisCenterCalibX = (middleX-beforeMiddleXSum+afterMiddleXSum)/2
     const axisCenterCalibY = (middleY-afterMiddleYSum+afterMiddleYSum)/2
-    const axisCenterCalibZ = (middleZ-beforeMiddleZSum+afterMiddleZSum)/2
+    const axisCenterCalibZ = (middleZ+beforeMiddleZSum+afterMiddleZSum)/2
     console.log(axisCenterCalibX+"axisCenterCalibX")
     console.log(axisCenterCalibY+"axisCenterCalibY")
     console.log(axisCenterCalibZ+"axisCenterCalibZ")

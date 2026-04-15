@@ -33,6 +33,8 @@ import { downloadTextFile } from '@renderer/utils/Qomo5P/QomoProject'
 
 const QOMO5P_DRAFT_KEY = 'qomo-5p-draft'
 const PROJECT_VERSION = '1.0.0'
+const CENTER_ROTATION_STORAGE_KEY = 'qomotech-4p-center-rotation'
+const DEFAULT_ENTITY_BASE_HEIGHT = 60
 
 const deepClone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T
 
@@ -65,6 +67,25 @@ const createDefaultWelding = (): QomoWeldingBase => ({
   openAngle: 0.54,
   openSize: 1
 })
+
+const getUnifiedBaseHeight = () => {
+  if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') return DEFAULT_ENTITY_BASE_HEIGHT
+  try {
+    const raw = window.localStorage.getItem(CENTER_ROTATION_STORAGE_KEY)
+    if (!raw) return DEFAULT_ENTITY_BASE_HEIGHT
+    const parsed = JSON.parse(raw) as Partial<{ Zoffset: unknown }>
+    const zoffset = Number(parsed.Zoffset)
+    if (!Number.isFinite(zoffset)) return DEFAULT_ENTITY_BASE_HEIGHT
+    return Math.abs(zoffset)
+  } catch {
+    return DEFAULT_ENTITY_BASE_HEIGHT
+  }
+}
+
+const normalizeEntitiesBaseHeight = (items: QomoEntityWithSurface[]): QomoEntityWithSurface[] => {
+  const baseHeight = getUnifiedBaseHeight()
+  return items.map((entity) => ({ ...entity, baseHeight }))
+}
 
 const MAX_BEZIER_POINTS = 128
 
@@ -542,9 +563,10 @@ export const useQomo5PStore = defineStore('qomo5p', () => {
   }
 
   const applySnapshot = (snapshot: QomoSnapshot, resetHistory = false) => {
+    const normalizedEntities = normalizeEntitiesBaseHeight(snapshot.entities)
     viewport.value = deepClone(snapshot.viewport)
-    layers.value = rebuildLayerCounts(snapshot.layers, snapshot.entities)
-    entities.value = applySelectionFlags(snapshot.entities, snapshot.selectedEntityIds)
+    layers.value = rebuildLayerCounts(snapshot.layers, normalizedEntities)
+    entities.value = applySelectionFlags(normalizedEntities, snapshot.selectedEntityIds)
     // 图层0的名称固定为 default，确保历史快照/加载后数据一致
     entities.value.forEach((e) => {
       if (e.layerId === '0') e.layerName = 'default'
@@ -553,7 +575,7 @@ export const useQomo5PStore = defineStore('qomo5p', () => {
     projectMeta.value = {
       ...snapshot.projectMeta,
       updatedAt: new Date().toISOString(),
-      entityCount: snapshot.entities.length
+      entityCount: normalizedEntities.length
     }
 
     if (resetHistory) {
@@ -839,6 +861,7 @@ export const useQomo5PStore = defineStore('qomo5p', () => {
     const before = captureSnapshot()
     const draft = captureSnapshot()
     mutator(draft)
+    draft.entities = normalizeEntitiesBaseHeight(draft.entities)
 
     // 重新计算层级和选中状态
     draft.layers = rebuildLayerCounts(draft.layers, draft.entities)
@@ -946,7 +969,7 @@ export const useQomo5PStore = defineStore('qomo5p', () => {
       selected: false,
       start,
       end,
-      baseHeight: 60,
+      baseHeight: getUnifiedBaseHeight(),
       extrudeHeight: 5,
       surfaceAngle: 0,
       welding: createDefaultWelding()
@@ -981,7 +1004,7 @@ export const useQomo5PStore = defineStore('qomo5p', () => {
       endAngle,
       startPoint,
       endPoint,
-      baseHeight: 60,
+      baseHeight: getUnifiedBaseHeight(),
       extrudeHeight: 5,
       surfaceAngle: 0,
       welding: createDefaultWelding()
@@ -1004,7 +1027,7 @@ export const useQomo5PStore = defineStore('qomo5p', () => {
       selected: false,
       center,
       radius,
-      baseHeight: 60,
+      baseHeight: getUnifiedBaseHeight(),
       extrudeHeight: 5,
       surfaceAngle: 0,
       welding: createDefaultWelding()
@@ -1034,7 +1057,7 @@ export const useQomo5PStore = defineStore('qomo5p', () => {
       openDirection: 'RIGHT',
       selected: false,
       points: normalizedPoints,
-      baseHeight: 60,
+      baseHeight: getUnifiedBaseHeight(),
       extrudeHeight: 5,
       surfaceAngle: 0,
       welding: createDefaultWelding()
@@ -1066,7 +1089,7 @@ export const useQomo5PStore = defineStore('qomo5p', () => {
       radiusX: Math.max(radiusX, 1e-6),
       radiusY: Math.max(radiusY, 1e-6),
       rotationDeg,
-      baseHeight: 60,
+      baseHeight: getUnifiedBaseHeight(),
       extrudeHeight: 5,
       surfaceAngle: 0,
       welding: createDefaultWelding()

@@ -28,11 +28,17 @@ def _apply_axis_speed_if_present(motion: ZMotionDriver, axis_no: int, speed: flo
 
 @router.post("/motion/connect", response_model=ApiResponse)
 def connect_motion(payload: MotionConnectRequest,motion: ZMotionDriver = Depends(get_motion_driver),) -> ApiResponse:
-    axis_params_by_axis: dict[int, dict[str, float]] = {}
+    axis_params_by_axis: dict[int, dict[str, float | bool]] = {}
     for axis in payload.axes:
         raw = axis.model_dump(exclude_none=True)
         axis_no = int(raw.pop("axisNo"))
-        axis_params_by_axis[axis_no] = {k: float(v) for k, v in raw.items()}
+        params: dict[str, float | bool] = {}
+        for k, v in raw.items():
+            if isinstance(v, bool):
+                params[k] = v
+            else:
+                params[k] = float(v)
+        axis_params_by_axis[axis_no] = params
 
     motion.disconnect()
     ok = motion.connect(payload.ipAddress)

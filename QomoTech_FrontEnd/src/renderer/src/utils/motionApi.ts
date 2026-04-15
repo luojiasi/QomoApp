@@ -46,6 +46,8 @@ export interface MotionAxisConnectPayload {
   rev_in?: number
   corner_mode?: number
   axisType?: number
+  backlash?: number
+  backlash_enable?: boolean
 }
 
 export interface MotionConnectRequestPayload {
@@ -75,7 +77,9 @@ export function buildMotionConnectRequestPayload(controllerSettings: ControllerP
       fwd_in: a.fwd_in,
       rev_in: a.rev_in,
       corner_mode: a.corner_mode,
-      axisType: a.axisType
+      axisType: a.axisType,
+      backlash: a.backlash,
+      backlash_enable: Boolean(a.backlash_enable)
     }))
 
   return {
@@ -102,6 +106,8 @@ export interface MotionAxisParamsPayload {
   sramp?: number
   fwd_in?: number
   rev_in?: number
+  backlash?: number
+  backlash_enable?: boolean
 }
 
 export interface MotionAllAxesParamsRequestPayload {
@@ -124,7 +130,9 @@ export function buildMotionAllAxesParamsRequestPayload(controllerSettings: Contr
         decel: a.decel,
         sramp: a.sramp,
         fwd_in: a.fwd_in,
-        rev_in: a.rev_in
+        rev_in: a.rev_in,
+        backlash: a.backlash,
+        backlash_enable: Boolean(a.backlash_enable)
       }
     })
 

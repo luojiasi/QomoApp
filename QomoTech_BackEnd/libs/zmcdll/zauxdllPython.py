@@ -3778,6 +3778,18 @@ class ZAUXDLL:
 
         ret = zauxdll.ZAux_Direct_Single_MoveAbs(self.handle, ctypes.c_int(iaxis), ctypes.c_float(fdistance))
         return ret
+    # def ZAux_Direct_Backlash(self, iaxis, enable , dist , speed , accel):
+    #     '''
+    #     :Description:设置轴的反向间隙，扩展轴无效。
+    #     :param iaxis:轴号。  type:int
+    #     :param enable:是否启用反向间隙。  type:bool true-启用,false-禁用
+    #     :param dist:反向间隙距离。  type:float
+    #     :param speed:反向间隙速度。  type:float
+    #     :param accel:反向间隙加速度。  type:float
+    #     :Return:错误码。type:int32
+    #     '''
+    #     ret  = zauxdll.ZAux_Direct_Backlash(self.handle, ctypes.c_int(iaxis), ctypes.c_bool(enable), ctypes.c_float(dist), ctypes.c_float(speed), ctypes.c_float(accel))
+    #     return ret
 
     def ZAux_Direct_SetVrf(self, vrstartnum, numes, pfValue):
         '''
@@ -5102,6 +5114,7 @@ class ZAUXDLL:
     #          ctypes.c_float(StartPos), ctypes.c_int(maxpoint), ctypes.c_float(DisOne),
     #          ctypes.c_int(TablNum), value, ctypes.c_int(RevTablNum), b)
     #     return ret
+    
 
 #''''''
 def ZAux_CycleUpEnable(self, cycleindex, fintervalms, psetesname):

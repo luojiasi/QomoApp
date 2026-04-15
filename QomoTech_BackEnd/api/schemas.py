@@ -68,18 +68,27 @@ class MotionAxisParamsPayload(BaseModel):
     # 正/负限位输入选择：允许 -1 表示未启用
     fwd_in: int | None = Field(default=None, ge=-1)
     rev_in: int | None = Field(default=None, ge=-1)
+    # 反向间隙补偿
+    backlash_enable: bool | None = None
+    backlash: float | None = Field(default=None, ge=0)
 
 
 class MotionAllAxesParamsRequest(BaseModel):
     params_by_axis: dict[int, MotionAxisParamsPayload] = Field(default_factory=dict)
 
-    def to_driver_dict(self) -> dict[int, dict[str, float]]:
-        result: dict[int, dict[str, float]] = {}
+    def to_driver_dict(self) -> dict[int, dict[str, float | bool]]:
+        result: dict[int, dict[str, float | bool]] = {}
         for axis_no, payload in self.params_by_axis.items():
             if axis_no < 0 or axis_no > 4:
                 continue
             raw = payload.model_dump(exclude_none=True)
-            result[int(axis_no)] = {str(k): float(v) for k, v in raw.items()}
+            converted: dict[str, float | bool] = {}
+            for k, v in raw.items():
+                if isinstance(v, bool):
+                    converted[str(k)] = v
+                else:
+                    converted[str(k)] = float(v)
+            result[int(axis_no)] = converted
         return result
 
 
@@ -150,6 +159,9 @@ class MotionAxisConnectRequest(BaseModel):
     corner_mode: int | None = Field(default=None, ge=0)
     # 轴类型：用于 ZAux_Direct_SetAtype
     axisType: int | None = Field(default=None, ge=0)
+    # 反向间隙补偿
+    backlash_enable: bool | None = None
+    backlash: float | None = Field(default=None, ge=0)
 
 
 class MotionConnectRequest(BaseModel):

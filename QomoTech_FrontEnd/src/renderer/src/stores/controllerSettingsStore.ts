@@ -121,7 +121,8 @@ export const useControllerSettingsStore = defineStore('controller-settings', () 
       decel: a.decel,
       sramp: a.sramp,
       fwd_in: a.fwd_in,
-      rev_in: a.rev_in
+      rev_in: a.rev_in,
+      backlash: a.backlash
     }))
   })
 

@@ -56,11 +56,17 @@ const USER_AXIS_KEYS = [
   'corner_mode',
   'decel_angle',
   'stop_angle',
-  'zxmooth'
+  'zxmooth',
+  'backlash',
+  'backlash_enable'
 ] as const satisfies readonly (keyof ControllerAxisUserInput)[]
 
 function userNumberKey(field: ParameterField): keyof Omit<ControllerAxisUserInput, 'axisName'> {
   return field.key as keyof Omit<ControllerAxisUserInput, 'axisName'>
+}
+
+function isBacklashEnableField(field: ParameterField): boolean {
+  return field.key === 'backlash_enable'
 }
 
 const axisCountValue = computed(() => controllerStore.controllerSettings.communication.axisCount)
@@ -239,7 +245,7 @@ function resetCurrentAxisUserInput(): void {
   const ax = controllerStore.controllerSettings.axes[idx]
   const def = defaultControllerParameters.axes[idx]
   for (const k of USER_AXIS_KEYS) {
-    ;(ax as Record<(typeof USER_AXIS_KEYS)[number], string | number>)[k] = def[k]
+    ;(ax as Record<string, unknown>)[k] = def[k]
   }
   success('已重置', `已恢复当前轴可配置项为默认值（轴 ${idx}）`)
 }
@@ -673,6 +679,14 @@ async function handleAxisAbsoluteMove(axisNo: number): Promise<void> {
                           type="text"
                           class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-2 py-1 text-xs outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
                         />
+                        <select
+                          v-else-if="isBacklashEnableField(field)"
+                          v-model="controllerStore.controllerSettings.axes[axisIdx].backlash_enable"
+                          class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-2 py-1 text-xs outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
+                        >
+                          <option :value="false">否</option>
+                          <option :value="true">是</option>
+                        </select>
                         <input
                           v-else
                           v-model.number="controllerStore.controllerSettings.axes[axisIdx][userNumberKey(field)]"
@@ -792,6 +806,14 @@ async function handleAxisAbsoluteMove(axisNo: number): Promise<void> {
                           type="text"
                           class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-2 py-1 text-xs outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
                         />
+                        <select
+                          v-else-if="isBacklashEnableField(field)"
+                          v-model="controllerStore.controllerSettings.axes[axisIdx].backlash_enable"
+                          class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-2 py-1 text-xs outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
+                        >
+                          <option :value="false">否</option>
+                          <option :value="true">是</option>
+                        </select>
                         <input
                           v-else
                           v-model.number="controllerStore.controllerSettings.axes[axisIdx][userNumberKey(field)]"
@@ -1049,6 +1071,14 @@ async function handleAxisAbsoluteMove(axisNo: number): Promise<void> {
                           type="text"
                           class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-2 py-1 text-xs outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
                         />
+                        <select
+                          v-else-if="isBacklashEnableField(field)"
+                          v-model="controllerStore.controllerSettings.axes[axisIdx].backlash_enable"
+                          class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-2 py-1 text-xs outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
+                        >
+                          <option :value="false">否</option>
+                          <option :value="true">是</option>
+                        </select>
                         <input
                           v-else
                           v-model.number="controllerStore.controllerSettings.axes[axisIdx][userNumberKey(field)]"
@@ -1114,6 +1144,14 @@ async function handleAxisAbsoluteMove(axisNo: number): Promise<void> {
                           type="text"
                           class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-2 py-1 text-xs outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
                         />
+                        <select
+                          v-else-if="isBacklashEnableField(field)"
+                          v-model="controllerStore.controllerSettings.axes[axisIdx].backlash_enable"
+                          class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-2 py-1 text-xs outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
+                        >
+                          <option :value="false">否</option>
+                          <option :value="true">是</option>
+                        </select>
                         <input
                           v-else
                           v-model.number="controllerStore.controllerSettings.axes[axisIdx][userNumberKey(field)]"
