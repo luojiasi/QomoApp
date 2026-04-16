@@ -403,6 +403,57 @@ const registerSaveJsonFileIpc = (): void => {
   )
 }
 
+type OpenDocumentResult = { ok: true } | { ok: false; error: string }
+
+const registerOpenDocumentIpc = (): void => {
+  ipcMain.handle('app:open-document', async (_, relativePath: string): Promise<OpenDocumentResult> => {
+    try {
+      const safeRelativePath = String(relativePath || '').replace(/^[/\\]+/, '')
+      if (!safeRelativePath) {
+        return { ok: false, error: '文档路径不能为空' }
+      }
+
+      const candidates = [
+        // 打包后 asar 解包目录（electron-builder asarUnpack）
+        join(process.resourcesPath, 'app.asar.unpacked', safeRelativePath),
+        // 打包后 resources 直出目录（某些构建/调试场景）
+        join(process.resourcesPath, safeRelativePath),
+        // 开发环境项目目录
+        join(app.getAppPath(), safeRelativePath),
+        join(app.getAppPath(), '..', safeRelativePath),
+        join(process.cwd(), safeRelativePath)
+      ]
+      let targetPath = candidates[0]
+      let found = false
+      for (const p of candidates) {
+        try {
+          await access(p, constants.F_OK)
+          targetPath = p
+          found = true
+          break
+        } catch {
+          // try next
+        }
+      }
+
+      if (!found) {
+        return { ok: false, error: `未找到文档: ${safeRelativePath}` }
+      }
+
+      const openError = await shell.openPath(targetPath)
+      if (openError) {
+        return { ok: false, error: openError }
+      }
+      return { ok: true }
+    } catch (e) {
+      return {
+        ok: false,
+        error: e instanceof Error ? e.message : String(e)
+      }
+    }
+  })
+}
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
@@ -421,6 +472,7 @@ app.whenReady().then(() => {
   registerLicenseIpc()
   registerBackendRuntimeStatusIpc()
   registerSaveJsonFileIpc()
+  registerOpenDocumentIpc()
   startLicenseMonitor()
   void tryStartPackagedBackend()
   createWindow()

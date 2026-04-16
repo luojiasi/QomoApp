@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import CollapsiblePanelHeader from './CollapsiblePanelHeader.vue'
 import { useControllerSettingsStore } from '../stores/controllerSettingsStore'
+import { useAuxiliaryFunctionPanelStore } from '../stores/auxiliaryFunctionPanelStore'
 import {
   moveMotionAxisAbs,
   moveMotionAxisRel,
@@ -15,12 +16,14 @@ import {
 import { useNotification } from '../composables/useNotification'
 const { error,success } = useNotification()
 const controllerStore = useControllerSettingsStore()
+const auxiliaryFunctionPanelStore = useAuxiliaryFunctionPanelStore()
 type AuxiliaryTabId =
   | 'axisCenterCalib'
   | 'quickDot'
   | 'quickFocus'
   | 'quickConcentric'
   | 'userCustom'
+  | 'quickMoveToPosition'
 
 const isPanelExpanded = ref(false)
 const activeTab = ref<AuxiliaryTabId>('axisCenterCalib')
@@ -30,10 +33,12 @@ type QuickFocusPoint = { id: number; state: QuickFocusPointState }
 
 const tabs: { id: AuxiliaryTabId; label: string }[] = [
   { id: 'axisCenterCalib', label: '五轴校准' },
+  { id: 'quickMoveToPosition', label: '确点移动' },
   { id: 'quickDot', label: '快速打点' },
   { id: 'quickFocus', label: '快速找焦' },
   { id: 'quickConcentric', label: '快速调同' },
   { id: 'userCustom', label: '自定功能' },
+
 ]
 
 
@@ -42,7 +47,6 @@ const tabs: { id: AuxiliaryTabId; label: string }[] = [
 
 const axisNameByNo: MotionAxis[] = ['X', 'Y', 'Z', 'R', 'U']
 const axisCenterCalibDisplayAxes: MotionAxis[] = ['X', 'Y', 'Z', 'R', 'U']
-const CENTER_ROTATION_STORAGE_KEY = 'qomotech-4p-center-rotation'
 
 function applyMotionStatusToAxes(statusData: Record<string, Record<string, unknown>>) {
   const axes = controllerStore.controllerSettings.axes
@@ -73,7 +77,7 @@ function applyMotionStatusToAxes(statusData: Record<string, Record<string, unkno
 let unsubscribeHardwareStatus: (() => void) | null = null
 
 onMounted(() => {
-  restoreAxisCenterCalibCenterBasedXYSum()
+  auxiliaryFunctionPanelStore.loadAxisCenterCalibCenterBasedXYSum()
   unsubscribeHardwareStatus = subscribeHardwareStatus((res) => {
     if (!res?.success || !res.data || typeof res.data !== 'object') return
     const payload = res.data as HardwareStatusPayload
@@ -494,32 +498,7 @@ const handleQuickConcentric = async()=>{
   }
 }
 // ================================五轴校准================================================
-const axisCenterCalibCenterBasedXYSum = ref({Xoffset:0,Yoffset:0,Zoffset:0})
-
-function persistAxisCenterCalibCenterBasedXYSum(value: { Xoffset: number; Yoffset: number; Zoffset: number }): void {
-  if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') return
-  try {
-    window.localStorage.setItem(CENTER_ROTATION_STORAGE_KEY, JSON.stringify(value))
-  } catch (e) {
-    console.warn('[axis-center-calib] 写入 localStorage 失败', e)
-  }
-}
-
-function restoreAxisCenterCalibCenterBasedXYSum(): void {
-  if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') return
-  try {
-    const raw = window.localStorage.getItem(CENTER_ROTATION_STORAGE_KEY)
-    if (!raw) return
-    const parsed = JSON.parse(raw) as Partial<{ Xoffset: unknown; Yoffset: unknown; Zoffset: unknown }>
-    const Xoffset = Number(parsed.Xoffset)
-    const Yoffset = Number(parsed.Yoffset)
-    const Zoffset = Number(parsed.Zoffset)
-    if (!Number.isFinite(Xoffset) || !Number.isFinite(Yoffset) || !Number.isFinite(Zoffset)) return
-    axisCenterCalibCenterBasedXYSum.value = { Xoffset, Yoffset, Zoffset }
-  } catch (e) {
-    console.warn('[axis-center-calib] 读取 localStorage 失败', e)
-  }
-}
+const axisCenterCalibCenterBasedXYSum = auxiliaryFunctionPanelStore.axisCenterCalibCenterBasedXYSum
 
 const handleAxisCenterCalib = async()=>{
   if (isAxisCenterCalib.value) {
@@ -622,12 +601,12 @@ const handleAxisCenterCalib = async()=>{
     console.log(axisCenterCalibY+"axisCenterCalibY")
     console.log(axisCenterCalibZ+"axisCenterCalibZ")
 
-    axisCenterCalibCenterBasedXYSum.value = {
+    const centerRotationResult = {
       Xoffset: axisCenterCalibX,
       Yoffset: axisCenterCalibY,
       Zoffset: axisCenterCalibZ,
     }
-    persistAxisCenterCalibCenterBasedXYSum(axisCenterCalibCenterBasedXYSum.value)
+    auxiliaryFunctionPanelStore.saveAxisCenterCalibCenterBasedXYSum(centerRotationResult)
 
 
 
@@ -658,6 +637,32 @@ const handleAxisCenterCalib = async()=>{
   }
 }
 // ================================五轴校准================================================
+
+// ================================快读移动至定位位置STR=======================================
+function displayQuickMoveAxis(axisName: 'X' | 'Y' | 'Z'): string {
+  const value = auxiliaryFunctionPanelStore.AuxiliaryFunctionPanel_quickMoveToPosition?.[axisName]
+  return typeof value === 'number' && Number.isFinite(value) ? value.toFixed(3) : '-'
+}
+
+function handleSaveQuickMoveToPosition(): void {
+  const X = getAxisPosition(0)
+  const Y = getAxisPosition(1)
+  const Z = getAxisPosition(2)
+  if (X === null || Y === null || Z === null) {
+    error('当前 XYZ 位置不可用，保存失败')
+    return
+  }
+
+  const value = {
+    X: Number(X.toFixed(3)),
+    Y: Number(Y.toFixed(3)),
+    Z: Number(Z.toFixed(3)),
+  }
+  auxiliaryFunctionPanelStore.saveAuxiliaryFunctionPanelQuickMoveToPosition(value)
+  success('已保存当前 XYZ 到确点位置')
+}
+// ================================快读移动至定位位置END=======================================
+
 </script>
 
 <template>
@@ -1053,6 +1058,30 @@ const handleAxisCenterCalib = async()=>{
           >
             用户自定义
           </button>
+        </div>
+        <div v-if="activeTab === 'quickMoveToPosition'" class="mt-2 space-y-3">
+          <button
+            type="button"
+            :disabled="isQuickFocusing"
+            @click="handleSaveQuickMoveToPosition"
+            class="w-full rounded-lg border border-sky-500/50 bg-sky-500/10 py-2 text-sm font-medium text-(--app-text-primary) transition hover:bg-sky-500/90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            获取并保存当前位置 XYZ
+          </button>
+          <div class="grid grid-cols-3 gap-2">
+            <div class="rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2">
+              <p class="text-xs text-(--app-text-muted)">X</p>
+              <p class="mt-1 text-sm text-(--app-text-primary)">{{ displayQuickMoveAxis('X') }}</p>
+            </div>
+            <div class="rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2">
+              <p class="text-xs text-(--app-text-muted)">Y</p>
+              <p class="mt-1 text-sm text-(--app-text-primary)">{{ displayQuickMoveAxis('Y') }}</p>
+            </div>
+            <div class="rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2">
+              <p class="text-xs text-(--app-text-muted)">Z</p>
+              <p class="mt-1 text-sm text-(--app-text-primary)">{{ displayQuickMoveAxis('Z') }}</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>

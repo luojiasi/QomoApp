@@ -60,18 +60,22 @@ class ZMotionAdapter:
             return {"success": False, "message": "旋转参数必须是对象"}
         try:
             旋转角度 = float(旋转参数.get("旋转角度", 0))
-            旋转速度 = float(旋转参数.get("旋转速度", 0))
-        except (TypeError, ValueError):
-            return {"success": False, "message": "旋转圈数/旋转速度参数格式错误"}
-        if 旋转速度 <= 0:
-            return {"success": False, "message": "旋转速度必须大于0"}
+            旋转速度 = float(旋转参数.get("旋转速度", 10))
+            每圈脉冲数 = float(旋转参数.get("每圈脉冲数", 10000.0))
+            电子齿轮比 = float(旋转参数.get("电子齿轮比", 1.0))
+            减速比 = float(旋转参数.get("减速比", 1.0))
+            角度下限原值 = 旋转参数.get("角度下限", -90)
+            角度上限原值 = 旋转参数.get("角度上限", 90)
+            角度下限 = float(角度下限原值) if 角度下限原值 is not None else None
+            角度上限 = float(角度上限原值) if 角度上限原值 is not None else None
+        except (TypeError, ValueError): return {"success": False, "message": "旋转参数格式错误（角度/速度/脉冲数/齿轮比/减速比/限位）"}
+        if 旋转速度 <= 0: return {"success": False, "message": "旋转速度必须大于0"}
+        if 每圈脉冲数 <= 0 or 电子齿轮比 <= 0 or 减速比 <= 0: return {"success": False, "message": "每圈脉冲数/电子齿轮比/减速比必须大于0"}
+        if 角度下限 is not None and 角度上限 is not None and 角度下限 > 角度上限: return {"success": False, "message": "角度下限不能大于角度上限"}
         方向原值 = str(旋转参数.get("旋转方向", "顺时针")).strip()
-        if 方向原值 in {"顺时针", "CW", "cw", "1", "+1"}:
-            旋转方向 = 1
-        elif 方向原值 in {"逆时针", "CCW", "ccw", "-1"}:
-            旋转方向 = -1
-        else:
-            return {"success": False, "message": "旋转方向仅支持 顺时针/逆时针"}
+        if 方向原值 in {"顺时针", "CW", "cw", "1", "+1"}:旋转方向 = 1
+        elif 方向原值 in {"逆时针", "CCW", "ccw", "-1"}:旋转方向 = -1
+        else: return {"success": False, "message": "旋转方向仅支持 顺时针/逆时针"}
         运动模式原值 = str(旋转参数.get("运动模式", 旋转参数.get("mode", "relative"))).strip().lower()
         if 运动模式原值 in {"relative", "rel", "相对"}:
             运动模式 = "relative"
@@ -82,43 +86,42 @@ class ZMotionAdapter:
         if not self._motion.set_all_axes_params({3: {"speed": float(旋转速度)}}):
             return {"success": False, "message": self._motion.last_error or "设置U轴速度失败"}
 
-        # U 轴按“角度 -> 脉冲 -> 工程单位”换算：
-        # - 丝杆导程：5mm/圈
-        # - 电机每圈脉冲：10000 pulse/rev
-        # - 导程折算脉冲当量：10000 / 5 = 2000 pulse/mm（和常见 UNITS 配置一致）
-        每圈脉冲数 = 10000.0
-        丝杆导程_mm = 5.0
-        导程脉冲当量 = 每圈脉冲数 / 丝杆导程_mm
+        # 角度 -> 脉冲 -> 工程单位：
+        # ZMotion MOVE 的单位是“工程单位”，UNITS 是“每工程单位对应脉冲数”。
+        # 有效每圈脉冲数 = 电机每圈脉冲数 * 电子齿轮比 * 减速比。
+        有效每圈脉冲数 = 每圈脉冲数 * 电子齿轮比 * 减速比
 
         axes_status = self._motion.get_axes_status()
         axis_units = float(axes_status.get("3", {}).get("units", 0.0))
-        if axis_units <= 0:
-            return {"success": False, "message": "U轴 units 未配置或非法"}
-
+        if axis_units <= 0:return {"success": False, "message": "U轴 units 未配置或非法"}
         输入角度 = float(旋转角度) * float(旋转方向)
+        
         当前工程位移 = float(axes_status.get("3", {}).get("mpos", 0.0))
-        当前角度 = (当前工程位移 * axis_units / 每圈脉冲数) * 360.0
+        当前角度 = (当前工程位移 * axis_units / 有效每圈脉冲数) * 360.0
         目标角度 = 当前角度 + 输入角度 if 运动模式 == "relative" else 输入角度
-        夹紧后目标角度 = max(-90.0, min(90.0, 目标角度))
-        实际增量角度 = 夹紧后目标角度 - 当前角度
+        if 角度下限 is not None and 角度上限 is not None:实际目标角度 = max(角度下限, min(角度上限, 目标角度))
+        elif 角度下限 is not None:实际目标角度 = max(角度下限, 目标角度)
+        elif 角度上限 is not None:实际目标角度 = min(角度上限, 目标角度)
+        else:实际目标角度 = 目标角度
+        实际增量角度 = 实际目标角度 - 当前角度
         if abs(实际增量角度) <= 1e-9:
             return {
                 "success": True,
-                "message": "U轴已在角度边界，无需运动",
+                "message": "U轴目标与当前位置一致，无需运动",
                 "data": {
                     "axis": 3,
                     "delta": 0.0,
                     "mode": 运动模式,
                     "current_angle": 当前角度,
                     "requested_target_angle": 目标角度,
-                    "actual_target_angle": 夹紧后目标角度,
+                    "actual_target_angle": 实际目标角度,
+                    "axis_units": axis_units,
+                    "effective_pulses_per_rev": 有效每圈脉冲数,
                 },
             }
-        目标脉冲数 = (实际增量角度 / 360.0) * 每圈脉冲数
+        目标脉冲数 = (实际增量角度 / 360.0) * 有效每圈脉冲数
         旋转位移 = 目标脉冲数 / axis_units
-
-        if not self._motion.move_rel(3, 旋转位移):
-            return {"success": False, "message": self._motion.last_error or "U轴旋转失败"}
+        if not self._motion.move_rel(3, 旋转位移):return {"success": False, "message": self._motion.last_error or "U轴旋转失败"}
         return {
             "success": True,
             "data": {
@@ -128,7 +131,9 @@ class ZMotionAdapter:
                 "current_angle": 当前角度,
                 "actual_increment_angle": 实际增量角度,
                 "requested_target_angle": 目标角度,
-                "actual_target_angle": 夹紧后目标角度,
+                "actual_target_angle": 实际目标角度,
+                "axis_units": axis_units,
+                "effective_pulses_per_rev": 有效每圈脉冲数,
             },
         }
 

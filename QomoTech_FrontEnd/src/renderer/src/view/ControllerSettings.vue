@@ -19,6 +19,7 @@ import {
   subscribeHardwareStatus,
   type HardwareStatusPayload
 } from '../utils/motionApi'
+import { useMotionExecute } from '../utils/motionExecute'
 
 const props = defineProps<{
   /**
@@ -450,6 +451,18 @@ async function handleAxisAbsoluteMove(axisNo: number): Promise<void> {
     setAxisMotionBusy(axisNo, false)
   }
 }
+
+
+const {
+  onlineCommandInput,
+  onlineCommandResult,
+  onlineCommandPending,
+  commonOnlineCommands,
+  selectedCommonOnlineCommand,
+  applyCommonOnlineCommand,
+  handleSendOnlineCommand,
+  handleOpenOnlineCommandDoc
+} = useMotionExecute({ success, error })
 </script>
 
 <template>
@@ -498,6 +511,80 @@ async function handleAxisAbsoluteMove(axisNo: number): Promise<void> {
             >
               {{ n === 3 ? '3 轴（XYZ）' : '5 轴（XYZUR）' }}
             </button>
+          </div>
+        </div>
+
+        <div class="app-card rounded-2xl p-5 shadow-sm md:col-span-2">
+          <div class="flex items-center justify-between gap-2">
+            <p class="app-text-primary text-sm font-semibold">在线命令</p>
+          </div>
+
+          <div class="mt-3 grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px]">
+            <div>
+              <div class="grid gap-3 md:grid-cols-[1fr_120px]">
+                <input
+                  v-model.trim="onlineCommandInput"
+                  type="text"
+                  class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-xs outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
+                  placeholder="请输入在线命令，例如：?*set"
+                />
+                <button
+                  type="button"
+                  class="rounded-lg border border-blue-500/40 bg-blue-600/85 px-3 py-2 text-xs font-medium text-white transition hover:bg-blue-600 disabled:opacity-50"
+                  :disabled="onlineCommandPending"
+                  @click="handleSendOnlineCommand"
+                >
+                  {{ onlineCommandPending ? '发送中...' : '发送命令' }}
+                </button>
+              </div>
+
+              <div class="mt-3">
+                <label class="app-text-secondary mb-1 block text-xs">返回结果（只读）</label>
+                <textarea
+                  :value="onlineCommandResult"
+                  readonly
+                  rows="8"
+                  class="app-text-primary w-full resize-none rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-xs opacity-90 outline-none"
+                  placeholder="命令返回信息"
+                />
+                <p class="app-text-muted mt-2 text-[13px] leading-5">
+                  {{
+                    selectedCommonOnlineCommand
+                      ? `${selectedCommonOnlineCommand.description}。${selectedCommonOnlineCommand.usage}`
+                      : '功能描述：在线命令用于调试控制器指令下发与回读结果。点击右侧任一常用命令后，此处将展示该命令对应的功能说明。'
+                  }}
+                </p>
+              </div>
+            </div>
+
+            <div class="rounded-lg border border-(--app-border) bg-(--app-card-soft) p-3">
+              <div class="flex items-center justify-between gap-2">
+                <p class="app-text-secondary text-xs font-medium">常用命令</p>
+                <button
+                  type="button"
+                  class="rounded-md border border-(--app-border) bg-(--app-input-bg) px-2 py-1 text-[11px] transition hover:border-blue-500/50 hover:bg-blue-500/10"
+                  @click="handleOpenOnlineCommandDoc"
+                >
+                  打开文档
+                </button>
+              </div>
+              <div class="mt-2 grid grid-cols-2 gap-2 lg:grid-cols-1">
+                <button
+                  v-for="cmd in commonOnlineCommands"
+                  :key="cmd.command"
+                  type="button"
+                  class="app-text-primary rounded-lg border px-2 py-1.5 text-left text-xs transition"
+                  :class="
+                    selectedCommonOnlineCommand?.command === cmd.command
+                      ? 'border-blue-500/60 bg-blue-500/15'
+                      : 'border-(--app-border) bg-(--app-input-bg) hover:border-blue-500/50 hover:bg-blue-500/10'
+                  "
+                  @click="applyCommonOnlineCommand(cmd)"
+                >
+                  <p class="font-medium">{{ cmd.description }}</p>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -937,6 +1024,8 @@ async function handleAxisAbsoluteMove(axisNo: number): Promise<void> {
               </div>
             </div>
           </div>
+
+          
 
         </section>
 

@@ -4,6 +4,9 @@ import SvgIcon from './SvgIcon.vue'
 import { setMotionIoOutput } from '../utils/motionApi'
 import { apiCall } from '../utils/toBackendApiCall'
 import { zeroMotionAxis,moveMotionAxisRel,getMotionIoInput, getHardwareStatus } from '../utils/motionApi'
+import { useAuxiliaryFunctionPanelStore } from '../stores/auxiliaryFunctionPanelStore'
+const auxiliaryFunctionPanelStore = useAuxiliaryFunctionPanelStore()
+
 import { useNotification } from '@renderer/composables/useNotification'
 import { useControllerSettingsStore } from '../stores/controllerSettingsStore'
 const { success, error } = useNotification()
@@ -131,7 +134,7 @@ const homeStatusClass = computed(() => {
 /**
  * 轮询读取轴 上限位输入：先确认曾离开限位（值为 true），再等到变为 false 视为到位。
  */
-const waitAxisUpperLimitInputFalse = async (AxisNum:number,fwd_in:boolean=false,timeoutMs = 10000) => {
+const waitAxisUpperLimitInputFalse = async (AxisNum:number,fwd_in:boolean=false,timeoutMs = 20000) => {
   const ioNo = getAxisLimitInputNo(AxisNum,fwd_in)
   if (ioNo === null) return false
   const startAt = Date.now()
@@ -164,9 +167,9 @@ const handleHome = async () => {
     const UP_TRAVEL_MM = 5000
     const [moveX, moveY, moveZ] = await Promise.all([
       // 除了x其他都往正方向走
-      moveMotionAxisRel(0, -UP_TRAVEL_MM, {speed: 10}),
-      moveMotionAxisRel(1, UP_TRAVEL_MM, {speed: 10}),
-      moveMotionAxisRel(2, UP_TRAVEL_MM, {speed: 10})
+      moveMotionAxisRel(0, -UP_TRAVEL_MM, {speed: 5}),
+      moveMotionAxisRel(1, UP_TRAVEL_MM, {speed: 5}),
+      moveMotionAxisRel(2, UP_TRAVEL_MM, {speed: 5})
     ])  
     if (!moveX?.success || !moveY?.success || !moveZ?.success){
       const message = [!moveX && 'X', !moveY && 'Y', !moveZ && 'Z'].filter(Boolean).join('/')
@@ -198,19 +201,38 @@ const handleHome = async () => {
       error("清零失败,请检查控制器设置",message)
       return
     }
-    const [moveX2, moveY2, moveZ2] = await Promise.all([
-      moveMotionAxisRel(0, 80, {controllerSettings: controllerStore.controllerSettings}),
-      moveMotionAxisRel(1, -80, {controllerSettings: controllerStore.controllerSettings}),
-      moveMotionAxisRel(2, -40, {controllerSettings: controllerStore.controllerSettings})
-    ])
-    if (!moveX2?.success || !moveY2?.success || !moveZ2?.success) {
-      const message = [!moveX2 && 'X', !moveY2 && 'Y', !moveZ2 && 'Z'].filter(Boolean).join('/')
-      isSetHome.value = '未回零'
-      error('回零运动失败',message)
-      return
+
+    // 这是获取辅助功能区的确点移动的位置，如果都为0则运动一小段距离，用于回零
+    const quickMoveToPosition = auxiliaryFunctionPanelStore.loadAuxiliaryFunctionPanelQuickMoveToPosition()
+    if (!quickMoveToPosition || (quickMoveToPosition.X === 0 && quickMoveToPosition.Y === 0 && quickMoveToPosition.Z === 0)) {
+      const [moveX2, moveY2, moveZ2] = await Promise.all([
+        moveMotionAxisRel(0, 80, {controllerSettings: controllerStore.controllerSettings}),
+        moveMotionAxisRel(1, -80, {controllerSettings: controllerStore.controllerSettings}),
+        moveMotionAxisRel(2, -40, {controllerSettings: controllerStore.controllerSettings})
+      ])
+      if (!moveX2?.success || !moveY2?.success || !moveZ2?.success) {
+        const message = [!moveX2 && 'X', !moveY2 && 'Y', !moveZ2 && 'Z'].filter(Boolean).join('/')
+        isSetHome.value = '未回零'
+        error('回零运动失败',message)
+        return
+      }
+      success('回零完成','建议前往辅助功能区添加确定点移动位置')
+    }else{
+      const [moveX2, moveY2, moveZ2] = await Promise.all([
+        moveMotionAxisRel(0, quickMoveToPosition.X, {controllerSettings: controllerStore.controllerSettings}),
+        moveMotionAxisRel(1, quickMoveToPosition.Y , {controllerSettings: controllerStore.controllerSettings}),
+        moveMotionAxisRel(2, quickMoveToPosition.Z, {controllerSettings: controllerStore.controllerSettings})
+      ])
+      if (!moveX2?.success || !moveY2?.success || !moveZ2?.success) {
+        const message = [!moveX2 && 'X', !moveY2 && 'Y', !moveZ2 && 'Z'].filter(Boolean).join('/')
+        isSetHome.value = '未回零'
+        error('回零运动失败',message)
+        return
+      }
+      success('回零完成')
     }
+    
     isSetHome.value = '回零完成'
-    success('回零运动完成')
   } finally {
     isMovingHome.value = false
   }

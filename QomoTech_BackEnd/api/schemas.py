@@ -170,6 +170,10 @@ class MotionConnectRequest(BaseModel):
     axes: list[MotionAxisConnectRequest] = Field(default_factory=list)
 
 
+class MotionOnlineCommandRequest(BaseModel):
+    command: str = Field(min_length=1)
+
+
 
 class LaserApplyRequest(BaseModel):
     laserManufacturer: str | None = None

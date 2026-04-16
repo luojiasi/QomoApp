@@ -21,6 +21,10 @@ import ShowAndDrawInHome_new from '../components/showAndDrawInHome_new.vue'
 import HomeOperationHelp_new from '../components/HomeOperationHelp_new.vue'
 const newWayToCreateGraphic = ref(true)
 
+// 用于获取读取保存的位置进行快速移动
+import { useAuxiliaryFunctionPanelStore } from '../stores/auxiliaryFunctionPanelStore'
+const auxiliaryFunctionPanelStore = useAuxiliaryFunctionPanelStore()
+
 
 
 // 需要用的时候添加的routers
@@ -674,15 +678,25 @@ const unsubscribeKeyboard = subscribeGlobalKeyboard((e) => {
     e.preventDefault()
     void (async () => {
       try {
+        const quickMoveToPosition = auxiliaryFunctionPanelStore.loadAuxiliaryFunctionPanelQuickMoveToPosition()
+        if (!quickMoveToPosition) {
+          error('未找到设定点')
+          return
+        }
+        if (quickMoveToPosition.X === 0 && quickMoveToPosition.Y === 0 && quickMoveToPosition.Z === 0) {
+          error('请设定位置点快捷移动到指定位置')
+          return
+        }
         const [zx, zy ,zr, zu] = await Promise.all([
-          moveMotionAxisAbs(0,homeXyOffset.value.x),
-          moveMotionAxisAbs(1,homeXyOffset.value.y),
-          moveMotionAxisAbs(3,0),
+          moveMotionAxisAbs(0,quickMoveToPosition.X),
+          moveMotionAxisAbs(1,quickMoveToPosition.Y),
+          moveMotionAxisAbs(3,quickMoveToPosition.Z),
           zeroMotionAxis(4)])
         if (!zx?.success || !zy?.success || !zr?.success || !zu?.success) {
           error('回到设定点失败')
           return
         }
+        // 思考要不要改
         homeXyOffset.value = { x: 0, y: 0 }
         success('已回到设定点')
       } catch {

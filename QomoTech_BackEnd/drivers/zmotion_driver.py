@@ -724,10 +724,39 @@ class ZMotionDriver(BaseDriver):
 
         self._clear_error()
         return True
+        
 
     def getAxisisMoving(self, axis_no: int) -> bool:
         idle_val = self._read_zaux_value("ZAux_Direct_GetIfIdle", axis_no, cast=int)
         return idle_val
+
+    def 控制器执行缓存在线命令(self, command: str) -> tuple[bool, str]:
+        cmd = str(command).strip()
+        if not cmd:
+            self._set_error("在线命令不能为空")
+            return False, ""
+        if not self._require_connected():
+            return False, ""
+
+        if not self._using_dll():
+            self._clear_error()
+            return True, f"[sim] {cmd}"
+
+        fn = getattr(self._zaux, "ZAux_Execute", None)
+        if fn is None:
+            self._set_error("ZAux_Execute 不存在")
+            return False, ""
+
+        with self._zaux_lock:
+            输出结果,输出信息 = fn(command)
+        if self._ret_ok(输出结果):
+            self._clear_error()
+            return True, str(输出信息 or "")
+
+        输出返回信息 = str(输出信息 or "")
+        self._set_error(输出返回信息 or "在线命令执行失败", int(输出结果))
+        return False, 输出返回信息
+
     @property
     def driver_mode(self) -> str:
         return self._driver_mode

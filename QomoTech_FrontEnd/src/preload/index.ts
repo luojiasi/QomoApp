@@ -6,6 +6,7 @@ type SaveJsonResult =
   | { ok: true; filePath: string }
   | { ok: false; canceled: true }
   | { ok: false; error: string }
+type OpenDocumentResult = { ok: true } | { ok: false; error: string }
 
 type BackendRuntimeState = 'running' | 'starting' | 'restarting' | 'error' | 'missing' | 'stopped'
 
@@ -31,6 +32,8 @@ type RendererApi = {
   getBackendRuntimeStatus: () => Promise<BackendRuntimeStatus>
   /** 保存 JSON 到本地文件（统一入口，由 preset 区分对话框/默认文件名） */
   saveJsonToFile: (preset: SaveJsonPreset, content: string) => Promise<SaveJsonResult>
+  /** 打开应用内文档（相对项目根目录） */
+  openDocument: (relativePath: string) => Promise<OpenDocumentResult>
 }
 
 const api: RendererApi = {
@@ -42,7 +45,8 @@ const api: RendererApi = {
   },
   getBackendRuntimeStatus: () => ipcRenderer.invoke('get-backend-runtime-status'),
   saveJsonToFile: (preset: SaveJsonPreset, content: string) =>
-    ipcRenderer.invoke('app:save-json-file', preset, content)
+    ipcRenderer.invoke('app:save-json-file', preset, content),
+  openDocument: (relativePath: string) => ipcRenderer.invoke('app:open-document', relativePath)
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

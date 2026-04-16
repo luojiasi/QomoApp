@@ -5,6 +5,7 @@ export type SaveJsonResult =
   | { ok: true; filePath: string }
   | { ok: false; canceled: true }
   | { ok: false; error: string }
+export type OpenDocumentResult = { ok: true } | { ok: false; error: string }
 
 export type SaveJsonPreset =
   | 'controller-settings'
@@ -28,6 +29,7 @@ export type RendererApi = {
   }
   getBackendRuntimeStatus: () => Promise<BackendRuntimeStatus>
   saveJsonToFile: (preset: SaveJsonPreset, content: string) => Promise<SaveJsonResult>
+  openDocument: (relativePath: string) => Promise<OpenDocumentResult>
 }
 
 declare global {

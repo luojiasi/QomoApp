@@ -9,6 +9,7 @@ from api.schemas import (
     MotionAxisMoveAbsRequest,
     MotionAxisMoveRelRequest,
     MotionAxisNoRequest,
+    MotionOnlineCommandRequest,
     MotionRAxisRotateRequest,
     MotionConnectRequest,
     MotionIoWriteRequest,
@@ -158,6 +159,14 @@ def emergency_stop(payload: MotionAxisNoRequest,motion: ZMotionDriver = Depends(
         success=ok,
         message="急停成功（已停止并清空该轴缓存）" if ok else "急停失败",
     )
+
+
+@router.post("/motion/online-command", response_model=ApiResponse)
+def online_command(payload: MotionOnlineCommandRequest,motion: ZMotionDriver = Depends(get_motion_driver),) -> ApiResponse:
+    ok, result_text = motion.控制器执行缓存在线命令(payload.command)
+    if ok:
+        return ApiResponse(success=True, message="在线命令执行成功", data={"result": result_text})
+    return ApiResponse(success=False,message=motion.last_error or "在线命令执行失败",data={"result": result_text},)
 
 
 
