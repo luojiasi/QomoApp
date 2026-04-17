@@ -356,7 +356,7 @@ async function pulseCalibrationLaser(durationMs: number): Promise<void> {
 }
 
 async function moveAxisToAngle(axisNo: number, angle: number): Promise<void> {
-  const axisSpeed = 10
+  const axisSpeed = 1
   const speed = Number.isFinite(axisSpeed) && axisSpeed > 0 ? axisSpeed : 20
   const rotateDirection = angle >= 0 ? '顺时针' : '逆时针'
   const absAngle = Math.abs(angle)

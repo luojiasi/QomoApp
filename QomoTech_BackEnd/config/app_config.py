@@ -26,11 +26,7 @@ class AppConfig(BaseSettings):
     log_dir: Path = DEFAULT_LOG_DIR
     log_level: str = "INFO"
 
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        env_prefix="QOMO_",
-    )
+    model_config = SettingsConfigDict(env_file=".env",env_file_encoding="utf-8",env_prefix="QOMO_",)
 
 
 app_config = AppConfig()

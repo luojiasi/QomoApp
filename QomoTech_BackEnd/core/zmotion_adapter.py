@@ -234,13 +234,16 @@ class ZMotionAdapter:
             },
         }
 
-    def R轴一直进行旋转(self) -> dict[str, Any] | None:
+    def R轴一直进行旋转(self, R轴旋转速度: float | None = None) -> dict[str, Any] | None:
         if not self._motion.is_connected():
             return {"success": False, "message": "控制器未连接"}
-
-        默认速度 = 20.0
-        if not self._motion.set_all_axes_params({4: {"speed": 默认速度}}):
-            return {"success": False, "message": self._motion.last_error or "设置R轴速度失败"}
+        if R轴旋转速度 is None:
+            轴状态 = self._motion.get_axes_status().get("4", {})
+            读取到的速度 = float(轴状态.get("speed", 0.0))
+            if 读取到的速度 is None: return {"success": False, "message": "未传R轴旋转速度，且无法从驱动器读取到有效运行速度"}
+            R轴旋转速度 = 读取到的速度
+        if R轴旋转速度 <= 0: return {"success": False, "message": "R轴旋转速度必须大于0"}
+        if not self._motion.set_all_axes_params({4: {"speed": R轴旋转速度}}): return {"success": False, "message": self._motion.last_error or "设置R轴速度失败"}
 
         # 底层驱动暂未提供独立 jog 接口：这里下发一个足够大的相对位移，
         # 由外部通过急停/停止接口终止，可满足“持续旋转”诉求。
@@ -299,8 +302,14 @@ class ZMotionAdapter:
         return z
     def 获取R轴的当前位置(self) -> float:
         st = self._motion.get_axes_status()
-        r = float(st["4"]["mpos"])
-        return r
+        当前工程位移 = float(st.get("4", {}).get("mpos", 0.0))
+        R轴设置的脉冲当量 = float(st.get("4", {}).get("units", 0.0))
+        if R轴设置的脉冲当量 <= 0:return 0.0
+
+        # 与 R轴旋转的圈数() 默认口径一致：1.8°步进角、32细分、减速比1:1
+        每圈脉冲数 = (360.0 / 1.8) * 32.0 * 1.0
+        当前圈数 = 当前工程位移 * R轴设置的脉冲当量 / 每圈脉冲数
+        return 当前圈数
 
     def stop_axis_motion(self, axes: list[int]) -> None:
         self._motion.emergency_stop_all_axes(list(axes))

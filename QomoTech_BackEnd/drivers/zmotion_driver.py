@@ -30,7 +30,7 @@ class _AxisState:
 class ZMotionDriver(BaseDriver):
     """极简版 ZMotion 驱动，仅保留 10 个核心方法。"""
 
-    MAX_AXES = 5
+    MAX_AXES = 6
     _AXIS_FLOAT_FIELDS = ("units", "lspeed", "speed", "accel", "decel", "sramp")
     _AXIS_NAME_BY_NO = {0: "x", 1: "y", 2: "z", 3: "r", 4: "u"}
 

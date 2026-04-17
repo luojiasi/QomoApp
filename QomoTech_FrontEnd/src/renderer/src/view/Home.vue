@@ -690,7 +690,7 @@ const unsubscribeKeyboard = subscribeGlobalKeyboard((e) => {
         const [zx, zy ,zr, zu] = await Promise.all([
           moveMotionAxisAbs(0,quickMoveToPosition.X),
           moveMotionAxisAbs(1,quickMoveToPosition.Y),
-          moveMotionAxisAbs(3,quickMoveToPosition.Z),
+          moveMotionAxisAbs(2,quickMoveToPosition.Z),
           zeroMotionAxis(4)])
         if (!zx?.success || !zy?.success || !zr?.success || !zu?.success) {
           error('回到设定点失败')
@@ -757,7 +757,7 @@ const unsubscribeKeyboard = subscribeGlobalKeyboard((e) => {
   if (keyword === 'ARROWUP' && onlyctrlKey) {
     e.preventDefault()
     void rotateUAxisByAngle({
-      旋转角度: Math.abs(moveStep.value),
+      旋转角度: Math.abs(moveStep.value*18),
       旋转速度: getAxisSpeed(U_AXIS_NO),
       旋转方向: '顺时针',
       运动模式: 'relative'
@@ -766,7 +766,7 @@ const unsubscribeKeyboard = subscribeGlobalKeyboard((e) => {
   if (keyword === 'ARROWDOWN' && onlyctrlKey) {
     e.preventDefault()
     void rotateUAxisByAngle({
-      旋转角度: Math.abs(moveStep.value),
+      旋转角度: Math.abs(moveStep.value*18),
       旋转速度: getAxisSpeed(U_AXIS_NO),
       旋转方向: '逆时针',
       运动模式: 'relative'
@@ -775,7 +775,7 @@ const unsubscribeKeyboard = subscribeGlobalKeyboard((e) => {
   if (keyword === 'ARROWLEFT' && onlyctrlKey) {
     e.preventDefault()
     void rotateRAxisByTurns({
-      旋转圈数: Math.abs(moveStep.value/5),
+      旋转圈数: Math.abs(moveStep.value),
       旋转速度: getAxisSpeed(R_AXIS_NO),
       旋转方向: '逆时针',
       运动模式: 'relative'
@@ -784,7 +784,7 @@ const unsubscribeKeyboard = subscribeGlobalKeyboard((e) => {
   if (keyword === 'ARROWRIGHT' && onlyctrlKey) {
     e.preventDefault()
     void rotateRAxisByTurns({
-      旋转圈数: Math.abs(moveStep.value/5),
+      旋转圈数: Math.abs(moveStep.value),
       旋转速度: getAxisSpeed(R_AXIS_NO),
       旋转方向: '顺时针',
       运动模式: 'relative'

@@ -27,11 +27,11 @@ from drivers.camera_driver import CameraDriver
 from core.startPragram import (
     execute_start_program,
     get_program_status,
-    program_request_estop,
-    program_request_pause,
-    program_request_reset_clear_alarms,
-    program_request_resume,
-    program_request_skip,
+    程序请求急停,
+    程序请求暂停,
+    程序请求复位,
+    程序请求恢复运行,
+    程序请求跳过任务,
 )
 from drivers.zmotion_driver import ZMotionDriver
 
@@ -104,15 +104,15 @@ def start_program_control(
 ) -> ApiResponse:
     act = body.action
     if act == "pause":
-        r = program_request_pause(motion)
+        r = 程序请求暂停(motion)
     elif act == "resume":
-        r = program_request_resume()
+        r = 程序请求恢复运行()
     elif act == "reset":
-        r = program_request_reset_clear_alarms(motion)
+        r = 程序请求复位(motion)
     elif act == "estop":
-        r = program_request_estop(motion)
+        r = 程序请求急停(motion)
     elif act == "skip":
-        r = program_request_skip(motion)
+        r = 程序请求跳过任务(motion)
     else:
         return ApiResponse(success=False, message="未知操作", data=None)
     return ApiResponse(success=bool(r.get("success")),message=str(r.get("message", "")),data=None,)
