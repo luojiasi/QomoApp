@@ -9,6 +9,8 @@ from typing import Any
 from core.calc_offset_ljs import OffsetEndpointCalculator
 from core.program_status_ws import notify_program_status_changed
 from core.zmotion_adapter import ZMotionAdapter
+from config.product4P_config import 读取存储的4P旋转中心补偿值
+from core.calc_rotation import 计算点绕坐标轴旋转,计算实体绕坐标轴旋转后的实体点
 from drivers.rs232_driver import Rs232Driver
 from drivers.zmotion_driver import ZMotionDriver
 
@@ -304,7 +306,7 @@ def execute_start_program(*,motion: ZMotionDriver,recipe_payload: dict[str, Any]
                 outcome =  用旋转轴去切圆(originalPointsNum=当前任务索引,recipe_payload=recipe_payload,controller=controller,entities=entities,rs232=rs232,rs232_open=rs232_open)
             if 垂直配方中的加工轴 == 'XY':
                 outcome = 修面和切片的程序(originalPointsNum=当前任务索引,recipe_payload=recipe_payload,controller=controller,entities=entities,rs232=rs232,rs232_open=rs232_open)
-            
+            # outcome = 进行4P切产品(originalPointsNum=当前任务索引,recipe_payload=recipe_payload,controller=controller,entities=entities,rs232=rs232,rs232_open=rs232_open)
             
             
             
@@ -1454,4 +1456,13 @@ def 进行4P切产品(originalPointsNum: int,recipe_payload: dict[str, Any],cont
     """
     这个是单独拿出来用作R轴切圆
     """
+    旋转中心补偿值 = 读取存储的4P旋转中心补偿值()
+    print(旋转中心补偿值.Xoffset,"旋转中心补偿值.Xoffset")
+    print(旋转中心补偿值.Yoffset,"旋转中心补偿值.Yoffset")
+    print(旋转中心补偿值.Zoffset,"旋转中心补偿值.Zoffset")
+    # 根据实体类型进行计算旋转后的偏移点
+    计算当前任务实体旋转后的点 = 计算实体绕坐标轴旋转后的实体点(所有实体数据 = entities,旋转轴 ="y")
+    print(计算当前任务实体旋转后的点,"计算当前任务实体旋转后的点")
     return True
+
+

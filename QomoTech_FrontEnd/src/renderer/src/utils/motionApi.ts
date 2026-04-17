@@ -167,6 +167,22 @@ export const reconnectHardware = async (payload?: Record<string, unknown> | null
 export const startProgram = async (payload: Record<string, unknown>): Promise<ApiCallResult<Record<string, unknown>>> =>
   apiCall('startProgram', 'POST', payload)
 
+
+// 用来下发4P旋转偏移的问题STR
+export interface Product4PCenterRotationPayload {
+  Xoffset: number
+  Yoffset: number
+  Zoffset: number
+}
+
+export const syncProduct4PCenterRotation = async (payload: Product4PCenterRotationPayload): Promise<ApiCallResult<Product4PCenterRotationPayload>> =>
+  apiCall<Product4PCenterRotationPayload>('product4p/center-rotation', 'POST', payload as unknown as Record<string, unknown>)
+
+export const getProduct4PCenterRotation = async (): Promise<ApiCallResult<Product4PCenterRotationPayload>> =>
+  apiCall<Product4PCenterRotationPayload>('product4p/center-rotation', 'GET')
+
+// 用来下发4P旋转偏移的问题END
+
 export interface StartProgramStatusData {running: boolean;paused: boolean}
 
 export const getStartProgramStatus = async (): Promise<ApiCallResult<{ running?: boolean; paused?: boolean } & Record<string, unknown>>> => apiCall('startProgram/status', 'GET')

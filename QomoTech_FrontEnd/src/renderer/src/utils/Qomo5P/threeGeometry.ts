@@ -25,6 +25,8 @@ const GRADIENT_LAYER_OPACITY_SCALE = 0.3
 const BRIGR_SELECT_OFFSET_COLOR = 0x8b5cf6
 const BRIDGE_LAYER_OPACITY_SCALE = 0.8
 
+// ==================== 1. 旋转核心常量 ====================
+/** 固定旋转轴端点（绕Y轴方向旋转，业务固定轴） */
 const ROCENTERPOS = { START: { x: 0, y: 10, z: 0 }, END: { x: 0, y: -10, z: 0 } }
 
 /** 与实体 welding.openSize 一致；未定义时用 1（后续可再接开口角/高度公式） */
@@ -46,11 +48,7 @@ const getOpenDirectionSign = (openDirection: OpenDirectionType) => {
 
 /** Canvas -> Three：可通过 X_NEED_REVERSE / Y_NEED_REVERSE 控制 x/y 是否取反 */
 const toThreePosition = (point: Point, elevation = 0) =>
-  new THREE.Vector3(
-    applyAxisReverse(point.x, X_NEED_REVERSE),
-    applyAxisReverse(point.y, Y_NEED_REVERSE),
-    elevation
-  )
+  new THREE.Vector3(applyAxisReverse(point.x, X_NEED_REVERSE),applyAxisReverse(point.y, Y_NEED_REVERSE),elevation)
 
 const isEllipseLikeIrregularEntity = (entity: QomoEntityWithSurface): entity is QomoIrregularSurfacesEntity =>
   entity.type === 'IRREGULAR' &&
@@ -62,26 +60,51 @@ const isEllipseLikeIrregularEntity = (entity: QomoEntityWithSurface): entity is 
     entity.shape === 'pear' ||
     entity.shape === 'heart')
 
+
+
+// ==================== 3. 旋转核心类型定义 ====================
+/** 旋转上下文：存储旋转轴 + 旋转矩阵 */
 type AxisRotationContext = {
-  axisStart: THREE.Vector3
-  rotationMatrix: THREE.Matrix4
+  axisStart: THREE.Vector3      // 旋转轴起点
+  rotationMatrix: THREE.Matrix4 // 旋转矩阵（数学核心）
 }
 
+// ==================== 4. 核心：创建绕任意轴旋转矩阵 ====================
+/**
+ * 创建绕轴旋转的上下文（旋转轴 + 旋转矩阵）
+ * @param axisStart 旋转轴起点
+ * @param axisEnd 旋转轴终点
+ * @param angleRad 旋转角度（弧度）
+ */
 const makeAxisRotationContext = (axisStart: THREE.Vector3,axisEnd: THREE.Vector3,angleRad: number): AxisRotationContext | null => {
+  // 角度无效/接近0，不旋转
   if (!Number.isFinite(angleRad) || Math.abs(angleRad) < 1e-9) return null
+  // 计算旋转轴方向向量
   const axisDir = axisEnd.clone().sub(axisStart)
+  // 轴长度为0，无效轴
   const axisLen = axisDir.length()
   if (axisLen < 1e-9) return null
+  // 轴向量归一化（必须单位向量才能用于旋转）
   axisDir.normalize()
+  // 返回：旋转轴起点 + 绕轴旋转矩阵
   return {
     axisStart: axisStart.clone(),
     rotationMatrix: new THREE.Matrix4().makeRotationAxis(axisDir, angleRad)
   }
 }
-
+// ==================== 5. 应用旋转到3D坐标点 ====================
+/**
+ * 对2D点执行「坐标转换 + 绕轴旋转」
+ * @param point 2D原始点
+ * @param elevation Z轴高度
+ * @param rotation 旋转上下文（轴+矩阵）
+ */
 const toThreePositionWithAxisRotation = (point: Point,elevation = 0,rotation: AxisRotationContext | null = null) => {
+  // 第一步：2D → 3D 基础坐标转换
   const v = toThreePosition(point, elevation)
+  // 无旋转 → 直接返回
   if (!rotation) return v
+  // 第二步：绕轴旋转（标准数学流程：平移→旋转→平移回去）
   return v.sub(rotation.axisStart).applyMatrix4(rotation.rotationMatrix).add(rotation.axisStart)
 }
 
@@ -92,7 +115,9 @@ const toThreePositionWithAxisRotation = (point: Point,elevation = 0,rotation: Ax
  */
 export const projectRotatedEntityPointToThreeZPlane = (point: Point,elevation: number,surfaceAngleDeg: number): THREE.Vector3 => {
   const rotation = makeSurfaceAngleRotation(surfaceAngleDeg)
+  console.log(rotation,"rotation======")
   const v = toThreePositionWithAxisRotation(point, elevation, rotation)
+  console.log(v,"v=====================")
   return new THREE.Vector3(v.x, v.y, 0)
 }
 
@@ -134,12 +159,7 @@ const getEffectiveOpenSize = (entity: QomoEntityWithSurface) => {
  * 在 2D 平面内，沿「起点→终点」前进方向的右侧法向为 (dy, -dx)/|L|；
  * RIGHT：沿该法向偏移；LEFT：反向。与 Canvas 点转 Three XY 一致。
  */
-const offsetSegmentByOpenDirection = (
-  start: Point,
-  end: Point,
-  openDirection: OpenDirectionType,
-  openSize: number
-): [Point, Point] => {
+const offsetSegmentByOpenDirection = (start: Point,end: Point,openDirection: OpenDirectionType,openSize: number): [Point, Point] => {
   const dx = end.x - start.x
   const dy = end.y - start.y
   const len = Math.hypot(dx, dy)
@@ -775,6 +795,7 @@ const makeSurfaceAngleRotation = (surfaceAngleDeg: number) => {
   const axisElevation = 0
   const axisStart = toThreePosition(ROCENTERPOS.START, axisElevation)
   const axisEnd = toThreePosition(ROCENTERPOS.END, axisElevation)
+  // 表示旋转方向与 surfaceAngleDeg 的符号按产品约定取反（与同文件里 createEntityReferenceObject 使用的表面倾角一致，避免和 UI/业务角度定义拧着）
   return makeAxisRotationContext(axisStart, axisEnd, (-surfaceAngleDeg * Math.PI) / 180)
 }
 
@@ -1638,17 +1659,11 @@ const buildProjectionToZ0ForEntity = (entity: QomoEntityWithSurface,selected: bo
   // 原始实体点先旋转，再投影到 z=0
   const surfaceAngleDeg = entity.surfaceAngle ?? 0
   const color = getReferenceDisplayColor(selected)
-  const material = new THREE.LineBasicMaterial({
-    color,
-    transparent: true,
-    opacity: selected ? 0.92 : 0.72,
-    depthWrite: false
-  })
+  const material = new THREE.LineBasicMaterial({color,transparent: true,opacity: selected ? 0.92 : 0.72,depthWrite: false})
   const buildProjectedLine = (points: Point[]) => {
     if (points.length < 2) return undefined
-    const projectedPts = points.map((p) =>
-      projectRotatedEntityPointToThreeZPlane(p, entity.baseHeight, surfaceAngleDeg)
-    )
+    // 本函数的核心依赖
+    const projectedPts = points.map((p) =>projectRotatedEntityPointToThreeZPlane(p, entity.baseHeight, surfaceAngleDeg))
     const geometry = new THREE.BufferGeometry().setFromPoints(projectedPts)
     const line = new THREE.Line(geometry, material)
     line.userData.entityId = entity.id
@@ -1660,13 +1675,7 @@ const buildProjectionToZ0ForEntity = (entity: QomoEntityWithSurface,selected: bo
 
   if (entity.type === 'ARC') {
     const segments = 96
-    const arcPts = createArcPoints(
-      entity.center,
-      entity.radius,
-      entity.startAngle,
-      entity.endAngle,
-      segments
-    )
+    const arcPts = createArcPoints(entity.center,entity.radius,entity.startAngle,entity.endAngle,segments)
     return buildProjectedLine(arcPts)
   }
 

@@ -16,11 +16,17 @@ from api.dependencies import get_camera_driver, get_motion_driver, get_rs232_dri
 from api.schemas import (
     ApiResponse,
     LaserApplyRequest,
+    Product4PCenterRotationRequest,
     Rs232SerialSessionRequest,
     StartProgramControlRequest,
 )
 from config.app_config import app_config
 from config.motion_config import motion_config
+from config.product4P_config import (
+    Product4PCenterRotation,
+    获取4P旋转中心的补偿值,
+    保存4P旋转中心的补偿值,
+)
 from core.calc_offset_ljs import OffsetEndpointCalculator
 from core.state_manager import StateManager
 from drivers.camera_driver import CameraDriver
@@ -147,6 +153,18 @@ def hardware_status(
         },
     )
 
+# 用来前端下发4P参数偏移的数据STR
+@http_router.get("/api/product4p/center-rotation", response_model=ApiResponse)
+def get_product4p_center_rotation_api() -> ApiResponse:
+    data = 获取4P旋转中心的补偿值().model_dump()
+    return ApiResponse(success=True, message="读取 4P 中心旋转参数成功", data=data)
+
+
+@http_router.post("/api/product4p/center-rotation", response_model=ApiResponse)
+def save_product4p_center_rotation_api(payload: Product4PCenterRotationRequest) -> ApiResponse:
+    saved = 保存4P旋转中心的补偿值(Product4PCenterRotation(Xoffset=payload.Xoffset,Yoffset=payload.Yoffset,Zoffset=payload.Zoffset))
+    return ApiResponse(success=True, message="保存 4P 中心旋转参数成功", data=saved.model_dump())
+# 用来前端下发4P参数偏移的数据END
 
 # 前端想知道“现在连接好了没有/当前运动位置，不是去问驱动器内部状态，而是问 StateManager 这份“汇总状态”
 @http_router.post("/api/hardware/connect", response_model=ApiResponse)

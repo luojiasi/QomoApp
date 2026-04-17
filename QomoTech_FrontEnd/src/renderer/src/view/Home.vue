@@ -81,7 +81,8 @@ import {
   startProgramControl,
   moveMotionAxisAbs,
   getHardwareStatus,
-  zeroMotionAxis
+  zeroMotionAxis,
+  syncProduct4PCenterRotation
 } from '../utils/motionApi'
 import type { QomoEntityWithSurface } from '../types/Qomo5P'
 import DetailedRs232Send from './DetailedRs232Send.vue'
@@ -170,6 +171,22 @@ const onRefreshClick = async (): Promise<void> => {
   await syncRs232Workbench(workbenchPayload)
   success('激光接口重连成功')
 
+}
+
+const syncLocalProduct4PCenterRotationOnStartup = async (): Promise<void> => {
+  const centerRotation = auxiliaryFunctionPanelStore.loadAxisCenterCalibCenterBasedXYSum()
+  const payload = {Xoffset: Number(centerRotation.Xoffset),Yoffset: Number(centerRotation.Yoffset),Zoffset: Number(centerRotation.Zoffset)}
+  if (
+    !Number.isFinite(payload.Xoffset) ||
+    !Number.isFinite(payload.Yoffset) ||
+    !Number.isFinite(payload.Zoffset)
+  ) {
+    return
+  }
+  const syncResult = await syncProduct4PCenterRotation(payload)
+  if (!syncResult?.success) {
+    console.warn('[product4p] 启动同步中心旋转参数失败', syncResult?.message)
+  }
 }
 
 
@@ -865,6 +882,11 @@ onMounted(async () => {
     }
   } catch {
     error('控制器初始化失败：无法连接后端或硬件未就绪。')
+  }
+  try {
+    await syncLocalProduct4PCenterRotationOnStartup()
+  } catch {
+    console.warn('[product4p] 启动同步中心旋转参数异常')
   }
 
   // 进入这个页面也下发一次Rs232的参数

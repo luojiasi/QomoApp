@@ -121,6 +121,12 @@ class StartProgramControlRequest(BaseModel):
     action: Literal["pause", "resume", "reset", "estop", "skip"]
 
 
+class Product4PCenterRotationRequest(BaseModel):
+    Xoffset: float = 0.0
+    Yoffset: float = 0.0
+    Zoffset: float = 0.0
+
+
 class MotionIoWriteRequest(BaseModel):
     io_no: int = Field(ge=0)
     value: bool
