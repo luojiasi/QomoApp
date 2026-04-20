@@ -254,16 +254,20 @@ class ZMotionAdapter:
 
 
     def get_notIsMoving(self, axis_no: int ,untilReturnTrue:bool=False ,countOut:float=2000.0,interruptTime:float=0.05) -> dict[str, Any]:
-        snap = _global_state.snapshot()
-        fb = snap.get("motion_axis_feedback", {}).get(str(axis_no), {})
-        idle = int(fb.get("idle", 0))
+        # snap = _global_state.snapshot()
+        # fb = snap.get("motion_axis_feedback", {}).get(str(axis_no), {})
+        # idle = int(fb.get("idle", 0))
+        st = self._motion.get_axes_status()
+        idle = st.get(str(axis_no)).get('idle')
         if untilReturnTrue:
             jumpoutCount = 0
             while jumpoutCount<=countOut:
                 time.sleep(interruptTime)
-                snap = _global_state.snapshot()
-                fb = snap.get("motion_axis_feedback", {}).get(str(axis_no), {})
-                idle = int(fb.get("idle", 0))
+                # snap = _global_state.snapshot()
+                # fb = snap.get("motion_axis_feedback", {}).get(str(axis_no), {})
+                # idle = int(fb.get("idle", 0))
+                st = self._motion.get_axes_status()
+                idle = st.get('axis_no').get('idle')
                 if idle == -1:
                     return {"success": True, "notMoving": True}
                 jumpoutCount+=1

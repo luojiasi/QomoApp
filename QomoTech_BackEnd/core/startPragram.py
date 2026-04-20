@@ -534,7 +534,7 @@ def wangFuLoop(originalPointsNum: int,recipe_payload: dict[str, Any],controller:
             _clear_skip_request()
             return "skip"
         if _abort_pending():
-            step = 300
+            step = 999
 
         match step:
             case 0:
@@ -908,7 +908,7 @@ def 修面和切片的程序(originalPointsNum: int,recipe_payload: dict[str, An
         if _skip_requested():
             return 跳过任务时处理并回到目标Z轴位置(controller,z_target=首次目标Z轴位置,speed=runSpeed,)
         if _abort_pending():
-            step = 300
+            step = 999
 
         match step:
             case 0:
@@ -1586,16 +1586,21 @@ def 进行4P切产品(originalPointsNum: int,recipe_payload: dict[str, Any],cont
     最大的偏移 = 上开口值 = 深度补偿K * 1000 * (高度+深度补偿B) * tan角度 + 下开口值
     最小的偏移 = 0
 
-    焦距补偿 = 工作配方中的水平配方.get('formula').get('focusCompensation')
-    Z轴原始初始位置 = controller.get_z_mpos_mm() + float(焦距补偿)
-    首次目标Z轴位置 =float(Z轴原始初始位置) - float(焦距补偿)
+
 
 
     计算当前任务实体旋转后的点 = 计算实体绕坐标轴旋转后的实体点(所有实体数据 = entities,旋转轴 ="y")
     计算当前任务实体旋转后偏移的点 = OffsetEndpointCalculator.计算绕坐标轴旋转后的偏移点位(计算当前任务实体旋转后的点,1)
     print(计算当前任务实体旋转后的点,"计算当前任务实体旋转后的点")
     print(计算当前任务实体旋转后偏移的点,"计算当前任务实体旋转后偏移的点")
-    
+    下降的高度 = float(float(旋转中心补偿值.Zoffset) + float(计算当前任务实体旋转后的点[originalPointsNum].get('points')[0].get('z')))
+
+
+    焦距补偿 = 工作配方中的水平配方.get('formula').get('focusCompensation')
+    Z轴原始初始位置 = controller.get_z_mpos_mm() + float(焦距补偿) + 下降的高度
+    首次目标Z轴位置 =float(Z轴原始初始位置) - float(焦距补偿) - 下降的高度
+
+
     当前没有偏移的点位 = 计算当前任务实体旋转后的点[originalPointsNum].get('points')
     原始点数据_插补数据 = 当前没有偏移的点位.copy()
     是否需要反转点位 = False
@@ -1605,7 +1610,7 @@ def 进行4P切产品(originalPointsNum: int,recipe_payload: dict[str, Any],cont
         if _skip_requested():
             return 跳过任务时处理并回到目标Z轴位置(controller,z_target=首次目标Z轴位置,speed=切割速度,)
         if _abort_pending():
-            当前步骤 = 300
+            当前步骤 = 999
 
         match 当前步骤:
             case 0:
@@ -1636,8 +1641,12 @@ def 进行4P切产品(originalPointsNum: int,recipe_payload: dict[str, Any],cont
                         paused_seen = True
                         time.sleep(0.05)
                         continue
+                    time.sleep(0.02)
                     X是否在移动 = controller.get_notIsMoving(0)
                     Y是否在移动 = controller.get_notIsMoving(1)
+                    # x,y = controller.get_xy_dpos_mm()
+                    # print(X是否在移动,"=================",x)
+                    # print(Y是否在移动,"=================",y)
                     if paused_seen:
                         # 从暂停恢复后重新走一次状态确认
                         当前步骤 = 20
@@ -1649,7 +1658,7 @@ def 进行4P切产品(originalPointsNum: int,recipe_payload: dict[str, Any],cont
                     if 跳出计数 >= 2000:
                         return False
                     跳出计数 += 1
-                    time.sleep(0.02)
+                    
             case 30:
                 # 判断是否打开扫黑功能
                 if 是否打开扫黑功能:
@@ -1708,6 +1717,7 @@ def 进行4P切产品(originalPointsNum: int,recipe_payload: dict[str, Any],cont
                     time.sleep(0.02)
 
             case 80:
+
                 # 计算偏移并连续运动（暂停后可从当前位重建剩余轨迹）
                 计算所有实体旋转后偏移的点 = OffsetEndpointCalculator.计算绕坐标轴旋转后的偏移点位(计算当前任务实体旋转后的点,当前开口值)
                 pts: list[dict[str, Any]] = list(计算所有实体旋转后偏移的点[originalPointsNum].get("points"))
@@ -1722,6 +1732,7 @@ def 进行4P切产品(originalPointsNum: int,recipe_payload: dict[str, Any],cont
                 运行结果 = controller.continuous_interpolation_move_adapter(原始点数据_插补数据,speed=目标速度,wait_until_done=True)
                 当前步骤 = 81 if 运行结果.get('success') and 运行结果 is not None else 300
             case 81:
+
                 # 判断是否在边缘
                 if 是否在边缘位置 and (当前切割次数+1)<边缘切割次数:
                     当前切割次数 += 1
@@ -1818,7 +1829,7 @@ def 进行4P切产品(originalPointsNum: int,recipe_payload: dict[str, Any],cont
                 当前步骤 = 300
             case 300:
                 返回最原始的Z轴焦距位置 = Z轴原始初始位置-float(焦距补偿)
-                controller.absolute_move_speed({'axis':2,'moveDistance':返回最原始的Z轴焦距位置,'speed':切割速度})
+                运行结果 = controller.absolute_move_speed({'axis':2,'moveDistance':返回最原始的Z轴焦距位置,'speed':切割速度})
                 if 运行结果.get('success') and 运行结果 is not None:
                     当前步骤 = 301
             case 301:
