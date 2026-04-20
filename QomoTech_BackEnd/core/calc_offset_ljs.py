@@ -2,7 +2,7 @@ import json
 import math
 from pathlib import Path
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Set, Tuple, TypedDict
+from typing import Any, Dict, List, NotRequired, Optional, Set, Tuple, TypedDict
 
 
 OPEN_PATH_SAMPLE_SEGMENTS = 96
@@ -16,6 +16,7 @@ MITER_LIMIT = 8
 class PointDict(TypedDict):
     x: float
     y: float
+    z: NotRequired[float]
 
 
 class EntityOffsetProfile(TypedDict):
@@ -30,6 +31,7 @@ def 安全转化点位(obj: Any) -> Optional[PointDict]:
     作用：把任意对象安全转换为 PointDict。
     逻辑：
         必须是 dict，且有 x/y，且为数值且有限（非 NaN/Inf）。
+        若传入 z，也必须为数值且有限（非 NaN/Inf）。
         合法则转为 float 返回；否则 None。
     用途：统一输入校验，避免后续几何计算崩溃。
     """
@@ -41,7 +43,13 @@ def 安全转化点位(obj: Any) -> Optional[PointDict]:
         return None
     if not math.isfinite(float(x)) or not math.isfinite(float(y)):
         return None
-    return {"x": float(x), "y": float(y)}
+    point: PointDict = {"x": float(x), "y": float(y)}
+    if "z" in obj:
+        z = obj.get("z")
+        if not isinstance(z, (int, float)) or not math.isfinite(float(z)):
+            return None
+        point["z"] = float(z)
+    return point
 
 
 def 规范开口方向(value: Any) -> str:
@@ -426,7 +434,7 @@ def 采样贝塞尔上的点(control_points: List[PointDict], segments: int = 64
     return 贝塞尔曲线采样点列
 
 
-def 根据开口方向偏移开放折线(points: List[PointDict], open_direction: str, open_size: float) -> List[PointDict]:
+def 根据开口方向偏移开放折线(points: List[PointDict], open_direction: str, open_size: float , 是否需要Z轴位置: bool = False) -> List[PointDict]:
     """
     作用：按开口方向偏移开放折线（用于贝塞尔采样后的点列）。
     规则：与前端 offsetOpenPolylineByOpenDirection 一致。
@@ -458,24 +466,42 @@ def 根据开口方向偏移开放折线(points: List[PointDict], open_direction
         nlen = math.hypot(nx, ny)
         if nlen < 1e-9:
             兜底法向 = 候选法向[0]
-            最终输出值.append(
-                {
-                    "x": point["x"] + 兜底法向["x"] * open_size,
-                    "y": point["y"] + 兜底法向["y"] * open_size,
-                }
-            )
+            if 是否需要Z轴位置:
+                最终输出值.append(
+                    {
+                        "x": point["x"] + 兜底法向["x"] * open_size,
+                        "y": point["y"] + 兜底法向["y"] * open_size,
+                        "z": point["z"]
+                    }
+                )
+            else:
+                最终输出值.append(
+                    {
+                        "x": point["x"] + 兜底法向["x"] * open_size,
+                        "y": point["y"] + 兜底法向["y"] * open_size,
+                    }
+                )
             continue
 
-        最终输出值.append(
-            {
-                "x": point["x"] + (nx / nlen) * open_size,
-                "y": point["y"] + (ny / nlen) * open_size,
-            }
-        )
+        if 是否需要Z轴位置:
+            最终输出值.append(
+                {
+                    "x": point["x"] + (nx / nlen) * open_size,
+                    "y": point["y"] + (ny / nlen) * open_size,
+                    "z": point["z"]
+                }
+            )
+        else:
+            最终输出值.append(
+                {
+                    "x": point["x"] + (nx / nlen) * open_size,
+                    "y": point["y"] + (ny / nlen) * open_size,
+                }
+            )
     return 最终输出值
 
 
-def 根据开口方向偏移线段(start: PointDict, end: PointDict, open_direction: str, open_size: float) -> List[PointDict]:
+def 根据开口方向偏移线段(start: PointDict, end: PointDict, open_direction: str, open_size: float,是否需要Z轴位置:bool = False) -> List[PointDict]:
     """
     作用：给线段做“左右法向”偏移。
     关键逻辑：
@@ -497,10 +523,10 @@ def 根据开口方向偏移线段(start: PointDict, end: PointDict, open_direct
     sign = -1.0 if open_direction == "RIGHT" else 1.0
     ox = rx * open_size * sign
     oy = ry * open_size * sign
-    return [
-        {"x": start["x"] + ox, "y": start["y"] + oy},
-        {"x": end["x"] + ox, "y": end["y"] + oy},
-    ]
+    if 是否需要Z轴位置:
+        
+        return [{"x": start["x"] + ox, "y": start["y"] + oy, "z": start["z"]},{"x": end["x"] + ox, "y": end["y"] + oy, "z": end["z"]}]
+    return [{"x": start["x"] + ox, "y": start["y"] + oy},{"x": end["x"] + ox, "y": end["y"] + oy}]
 
 
 def 计算圆弧偏移后半径(entity: Dict[str, Any], open_size: float) -> Optional[float]:
@@ -936,6 +962,30 @@ def 从LJS文件读取实体(path: Path) -> List[Dict[str, Any]]:
 
 
 class OffsetEndpointCalculator:
+    @staticmethod
+    def 计算绕坐标轴旋转后的偏移点位(旋转后的点: list[dict[str,Any]], 偏移值: Optional[float] = None) -> List[Dict[str, Any]]:
+        返回绕坐标轴旋转后的点位: List[Dict[str, Any]] = []
+        for 选择实体索引 in range(len(旋转后的点)):
+            当前实体 = 旋转后的点[选择实体索引]
+            当前实体类型 = 当前实体.get('type')
+            开口方向 = 当前实体.get('openDirection')
+            开口偏移值 = 偏移值
+            if 当前实体类型 == 'LINE':
+                直线的点列表 = 当前实体.get('points')
+                直线的起点 = 直线的点列表[0]
+                直线的终点 = 直线的点列表[-1]
+                if 开口方向 is not None and 开口偏移值 is not None:
+                    偏移后的旋转坐标值 = 根据开口方向偏移线段(直线的起点, 直线的终点, 开口方向, 开口偏移值,是否需要Z轴位置=True)
+            if 当前实体类型 == 'ARC':
+                圆弧的点列表 = 当前实体.get('points')
+                if 开口方向 is not None and 开口偏移值 is not None:
+                    偏移后的旋转坐标值 = 根据开口方向偏移开放折线(圆弧的点列表, 开口方向, 开口偏移值,是否需要Z轴位置=True)
+            
+            实体点数据字典 = {'type': 当前实体类型,'points': 偏移后的旋转坐标值}
+            返回绕坐标轴旋转后的点位.append(实体点数据字典)
+        return 返回绕坐标轴旋转后的点位
+
+
     @staticmethod
     def calc_xy_points( entities_or_ljs_path: Any, offset: Optional[float] = None, invert_open_direction: bool = False, ) -> List[List[PointDict]]:
         """

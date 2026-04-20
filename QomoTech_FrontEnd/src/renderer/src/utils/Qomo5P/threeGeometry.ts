@@ -115,9 +115,7 @@ const toThreePositionWithAxisRotation = (point: Point,elevation = 0,rotation: Ax
  */
 export const projectRotatedEntityPointToThreeZPlane = (point: Point,elevation: number,surfaceAngleDeg: number): THREE.Vector3 => {
   const rotation = makeSurfaceAngleRotation(surfaceAngleDeg)
-  console.log(rotation,"rotation======")
   const v = toThreePositionWithAxisRotation(point, elevation, rotation)
-  console.log(v,"v=====================")
   return new THREE.Vector3(v.x, v.y, 0)
 }
 
@@ -1660,15 +1658,39 @@ const buildProjectionToZ0ForEntity = (entity: QomoEntityWithSurface,selected: bo
   const surfaceAngleDeg = entity.surfaceAngle ?? 0
   const color = getReferenceDisplayColor(selected)
   const material = new THREE.LineBasicMaterial({color,transparent: true,opacity: selected ? 0.92 : 0.72,depthWrite: false})
+  const offsetColor = getOffsetReferenceDisplayColor(selected, entity.openDirection)
+  const offsetMaterial = new THREE.LineBasicMaterial({color: offsetColor,transparent: true,opacity: selected ? 0.95 : 0.76,depthWrite: false})
+  const openSize = getEffectiveOpenSize(entity)
   const buildProjectedLine = (points: Point[]) => {
     if (points.length < 2) return undefined
-    // 本函数的核心依赖
     const projectedPts = points.map((p) =>projectRotatedEntityPointToThreeZPlane(p, entity.baseHeight, surfaceAngleDeg))
-    const geometry = new THREE.BufferGeometry().setFromPoints(projectedPts)
-    const line = new THREE.Line(geometry, material)
-    line.userData.entityId = entity.id
-    line.userData.entityType = entity.type
-    return line
+    console.log(projectedPts,"projectedPts===============")
+    const projectedGeometry = new THREE.BufferGeometry().setFromPoints(projectedPts)
+    const projectedLine = new THREE.Line(projectedGeometry, material)
+    projectedLine.userData.entityId = entity.id
+    projectedLine.userData.entityType = entity.type
+
+    if (openSize < 1e-9) return projectedLine
+
+    // 以“投影到 z=0 的点”为基准做开口方向偏移，再映射回 Three 的 XY 平面展示
+    const projectedCanvasPts = projectedPts.map(canvasPointFromThreeZPlane)
+    console.log(entity.openDirection,openSize,"==========================")
+    // const offsetCanvasPts = offsetOpenPolylineByOpenDirection(projectedCanvasPts,entity.openDirection,openSize)
+    const offsetCanvasPts = offsetOpenPolylineByOpenDirection(projectedCanvasPts,entity.openDirection,1)
+    const offsetThreePts = offsetCanvasPts.map((p) => toThreePosition(p, 0))
+    console.log(offsetThreePts,"offsetThreePts===============")
+    const offsetGeometry = new THREE.BufferGeometry().setFromPoints(offsetThreePts)
+    const offsetLine = new THREE.Line(offsetGeometry, offsetMaterial)
+    offsetLine.userData.entityId = entity.id
+    offsetLine.userData.entityType = entity.type
+    offsetLine.userData.isOffsetProjection = true
+
+    const group = new THREE.Group()
+    group.add(projectedLine)
+    group.add(offsetLine)
+    group.userData.entityId = entity.id
+    group.userData.entityType = entity.type
+    return group
   }
 
   if (entity.type === 'LINE') return buildProjectedLine([entity.start, entity.end])

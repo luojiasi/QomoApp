@@ -37,8 +37,8 @@ const isLaserPanelExpanded = ref(false)
 
 const laserManufacturer = ref('科猛激光')
 const laserPower = ref<number | null>(930)
-const laserFrequency = ref<number | null>(8000)
-const laserCurrent = ref<number | null>(10)
+const laserFrequency = ref<number | null>(6000)
+const laserCurrent = ref<number | null>(80)
 const transmissionMode = ref<LaserTransmissionMode>('RS232')
 
 const baselineLoaded = ref(false)

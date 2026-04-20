@@ -117,19 +117,21 @@ def 计算实体绕坐标轴旋转后的实体点(所有实体数据:list[dict[s
         当前实体数据= 所有实体数据[实体索引]
         当前实体数据角度 = 当前实体数据.get('surfaceAngle')
         当前实体数据类型 = 当前实体数据.get('type')
+        当前实体开口方向 = 当前实体数据.get('openDirection')
         计算后的点: list[Point3DDict] = []
         if 当前实体数据类型 == 'LINE':
             计算后的点 = 计算点绕坐标轴旋转([当前实体数据.get('start'),当前实体数据.get('end')],当前实体数据角度,旋转轴)
         elif 当前实体数据类型 == 'ARC':
-            # 先计算点
+            # 先计算点3
             圆弧的点 = 采样圆弧上的点(center=当前实体数据.get('center'),radius=当前实体数据.get('radius'),start_angle=当前实体数据.get('startAngle'),end_angle=当前实体数据.get('endAngle'),segments=96)
             计算后的点 = 计算点绕坐标轴旋转(圆弧的点,当前实体数据角度,旋转轴)
-        实体点数据字典 = {
-            'type': 当前实体数据类型,
-            'points': 计算后的点,
-        }
-        返回实体数据点列表.append(实体点数据字典)
+            if len(计算后的点) > 0:
+                最大z值 = max(point.get('z', 0.0) for point in 计算后的点)
+                for point in 计算后的点:
+                    point['z'] = 最大z值
 
+        实体点数据字典 = {'type': 当前实体数据类型,'openDirection':当前实体开口方向,'points': 计算后的点}
+        返回实体数据点列表.append(实体点数据字典)
     return 返回实体数据点列表
 
 
