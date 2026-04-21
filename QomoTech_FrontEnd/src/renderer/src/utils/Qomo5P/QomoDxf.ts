@@ -37,6 +37,15 @@ const defaultWelding = (): QomoWeldingBase => ({
 const toNumber = (value: unknown, fallback = 0) =>
   typeof value === 'number' && Number.isFinite(value) ? value : fallback
 
+/** dxf-parser 将 LWPOLYLINE/POLYLINE 的组码 70 解析为布尔字段 `shape`；部分数据可能为数值标志位。 */
+const isPolylineClosed = (entity: DxfLikeEntity): boolean => {
+  const shape = entity.shape
+  if (typeof shape === 'boolean') return shape
+  if (typeof shape === 'number' && Number.isFinite(shape)) return (shape & 1) === 1
+  const closed = (entity as { closed?: unknown }).closed
+  return Boolean(closed)
+}
+
 const toPoint = (value: unknown): Point | null => {
   if (!value || typeof value !== 'object') return null
   const point = value as { x?: unknown; y?: unknown }
@@ -224,63 +233,133 @@ const tryEllipseEntity = (
   }
 }
 
-const verticesToPoints = (entity: DxfLikeEntity): Point[] => {
-  const vertices = Array.isArray(entity.vertices) ? entity.vertices : []
-  return vertices.map((v) => toPoint(v)).filter((v): v is Point => Boolean(v))
+type PolylineVertex = {
+  point: Point
+  bulge: number
 }
 
-const tryPolylineEntities = (
-  dxfEntity: DxfLikeEntity,
-  index: number,
-  layerMap: Map<string, { id: string; name: string; count: number }>
-): QomoLineSurfacesEntity[] => {
+const verticesToPolylineVertices = (entity: DxfLikeEntity): PolylineVertex[] => {
+  const vertices = Array.isArray(entity.vertices) ? entity.vertices : []
+  return vertices
+    .map((rawVertex) => {
+      const point = toPoint(rawVertex)
+      if (!point) return null
+      const vertex = rawVertex as { bulge?: unknown }
+      const bulge = toNumber(vertex.bulge, 0)
+      return { point, bulge }
+    })
+    .filter((vertex): vertex is PolylineVertex => Boolean(vertex))
+}
+
+const buildPolylineLineSegment = (
+  base: { layerId: string; layerName: string },
+  start: Point,
+  end: Point,
+  segmentId: string
+): QomoLineSurfacesEntity => ({
+  id: segmentId,
+  type: 'LINE',
+  layerId: base.layerId,
+  layerName: base.layerName,
+  openDirection: DEFAULT_OPEN_DIRECTION,
+  selected: false,
+  start,
+  end,
+  baseHeight: DEFAULT_BASE_HEIGHT,
+  extrudeHeight: DEFAULT_EXTRUDE_HEIGHT,
+  surfaceAngle: DEFAULT_SURFACE_ANGLE,
+  welding: defaultWelding()
+})
+
+const buildPolylineArcSegment = (
+  base: { layerId: string; layerName: string },
+  start: Point,
+  end: Point,
+  bulge: number,
+  segmentId: string
+): QomoArcSurfacesEntity | null => {
+  const chordX = end.x - start.x
+  const chordY = end.y - start.y
+  const chordLength = Math.hypot(chordX, chordY)
+  if (chordLength < 1e-9) return null
+  if (Math.abs(bulge) <= 1e-9) {
+    return null
+  }
+
+  const sweepRad = 4 * Math.atan(bulge)
+  if (Math.abs(sweepRad) <= 1e-9) return null
+
+  const absSweepHalf = Math.abs(sweepRad) / 2
+  const sinHalf = Math.sin(absSweepHalf)
+  if (Math.abs(sinHalf) <= 1e-12) return null
+
+  const radius = chordLength / (2 * sinHalf)
+  if (!Number.isFinite(radius) || radius <= 1e-9) return null
+
+  const halfChord = chordLength / 2
+  const centerOffset = Math.sqrt(Math.max(0, radius * radius - halfChord * halfChord))
+  const midX = (start.x + end.x) / 2
+  const midY = (start.y + end.y) / 2
+  const leftNormalX = -chordY / chordLength
+  const leftNormalY = chordX / chordLength
+  const side = sweepRad >= 0 ? 1 : -1
+  const center: Point = {
+    x: midX + leftNormalX * centerOffset * side,
+    y: midY + leftNormalY * centerOffset * side
+  }
+
+  const startAngle = (Math.atan2(start.y - center.y, start.x - center.x) * 180) / Math.PI
+  const endAngle = startAngle + (sweepRad * 180) / Math.PI
+
+  return {
+    id: segmentId,
+    type: 'ARC',
+    layerId: base.layerId,
+    layerName: base.layerName,
+    openDirection: DEFAULT_OPEN_DIRECTION,
+    selected: false,
+    center,
+    radius,
+    startAngle,
+    endAngle,
+    startPoint: start,
+    endPoint: end,
+    baseHeight: DEFAULT_BASE_HEIGHT,
+    extrudeHeight: DEFAULT_EXTRUDE_HEIGHT,
+    surfaceAngle: DEFAULT_SURFACE_ANGLE,
+    welding: defaultWelding()
+  }
+}
+
+const tryPolylineEntities = (dxfEntity: DxfLikeEntity,index: number,layerMap: Map<string, { id: string; name: string; count: number }>): QomoEntityWithSurface[] => {
   const base = buildEntityBase(dxfEntity, index, layerMap)
   if (!base) return []
-  const points = verticesToPoints(dxfEntity)
-  if (points.length < 2) return []
-  const shape = toNumber(dxfEntity.shape, 0)
-  const closed = shape === 1 || Boolean((dxfEntity as { closed?: unknown }).closed)
-  const lines: QomoLineSurfacesEntity[] = []
-  for (let i = 0; i < points.length - 1; i += 1) {
-    const start = points[i]
-    const end = points[i + 1]
-    if (Math.hypot(end.x - start.x, end.y - start.y) < 1e-9) continue
-    lines.push({
-      id: toId('QOMO-DXF-POLY', index * 1000 + i),
-      type: 'LINE',
-      layerId: base.layerId,
-      layerName: base.layerName,
-      openDirection: DEFAULT_OPEN_DIRECTION,
-      selected: false,
-      start,
-      end,
-      baseHeight: DEFAULT_BASE_HEIGHT,
-      extrudeHeight: DEFAULT_EXTRUDE_HEIGHT,
-      surfaceAngle: DEFAULT_SURFACE_ANGLE,
-      welding: defaultWelding()
-    })
-  }
-  if (closed && points.length > 2) {
-    const start = points[points.length - 1]
-    const end = points[0]
-    if (Math.hypot(end.x - start.x, end.y - start.y) >= 1e-9) {
-      lines.push({
-        id: toId('QOMO-DXF-POLY', index * 1000 + points.length),
-        type: 'LINE',
-        layerId: base.layerId,
-        layerName: base.layerName,
-        openDirection: DEFAULT_OPEN_DIRECTION,
-        selected: false,
-        start,
-        end,
-        baseHeight: DEFAULT_BASE_HEIGHT,
-        extrudeHeight: DEFAULT_EXTRUDE_HEIGHT,
-        surfaceAngle: DEFAULT_SURFACE_ANGLE,
-        welding: defaultWelding()
-      })
+  const vertices = verticesToPolylineVertices(dxfEntity)
+  if (vertices.length < 2) return []
+  const closed = isPolylineClosed(dxfEntity)
+  const entities: QomoEntityWithSurface[] = []
+
+  const pushSegment = (startVertex: PolylineVertex, endVertex: PolylineVertex, segmentIndex: number) => {
+    const start = startVertex.point
+    const end = endVertex.point
+    if (Math.hypot(end.x - start.x, end.y - start.y) < 1e-9) return
+    const segmentId = toId('QOMO-DXF-POLY', index * 1000 + segmentIndex)
+    const arcEntity = buildPolylineArcSegment(base, start, end, startVertex.bulge, segmentId)
+    if (arcEntity) {
+      entities.push(arcEntity)
+      return
     }
+    entities.push(buildPolylineLineSegment(base, start, end, segmentId))
   }
-  return lines
+
+  for (let i = 0; i < vertices.length - 1; i += 1) {
+    pushSegment(vertices[i], vertices[i + 1], i)
+  }
+
+  if (closed && vertices.length > 2) {
+    pushSegment(vertices[vertices.length - 1], vertices[0], vertices.length)
+  }
+  return entities
 }
 
 const trySplineEntity = (
@@ -311,7 +390,9 @@ const trySplineEntity = (
 export const parseDxfToQomoEntities = (text: string): DxfImportResult => {
   const parser = new DxfParser()
   const dxf = parser.parseSync(text) as unknown as DxfLikeDocument
+  console.log(dxf,"dxf=============")
   const sourceEntities = Array.isArray(dxf.entities) ? dxf.entities : []
+  console.log(sourceEntities,"sourceEntities=============")
   const layerMap = buildLayerMap(sourceEntities)
   const entities: QomoEntityWithSurface[] = []
   let unsupportedEntities = 0

@@ -10,9 +10,10 @@ import License from './view/License.vue'
 import Login from './view/Login.vue'
 import RecipeManagement from './view/RecipeManagement.vue'
 import DetailedRs232Send from './view/DetailedRs232Send.vue'
-import ReserveWorkbenchC from './view/ReserveWorkbenchC.vue'
+import Production from './view/Produciton.vue'
 import { getDesktopBackendRuntimeStatus } from './utils/desktopBridge'
 import Create5P from './view/Create5P.vue'
+import SelfProcess from './view/SelfProcess.vue'
 
 const router = createRouter({
   history: createWebHashHistory(),
@@ -78,10 +79,6 @@ const router = createRouter({
       }
     },
     {
-      path: '/reserve-workbench-b',
-      redirect: '/detailed-rs232-send'
-    },
-    {
       path: '/detailed-rs232-send',
       name: 'detailed-rs232-send',
       component: DetailedRs232Send,
@@ -97,9 +94,17 @@ const router = createRouter({
       }
     },
     {
-      path: '/reserve-workbench-c',
-      name: 'reserve-workbench-c',
-      component: ReserveWorkbenchC,
+      path: '/production',
+      name: 'production',
+      component: Production,
+      meta: {
+        requiresAuth: true
+      }
+    },
+    {
+      path: '/self-process',
+      name: 'self-process',
+      component: SelfProcess,
       meta: {
         requiresAuth: true
       }
