@@ -139,7 +139,7 @@ function onOpeningShapeChange(shape: OpeningShape): void {
 
 function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): string {
   if (!formula) return '-'
-  return `CHANGE = ${formula.k} * 计算 + ${formula.b}`
+  return `变化率 = ${formula.k} * 计算 + ${formula.b}`
 }
 </script>
 
@@ -214,7 +214,7 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
 
       <div class="mt-3 grid gap-2 lg:grid-cols-4">
         <label class="grid grid-cols-[6.5rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) px-3 py-2">
-          <span class="app-text-secondary text-xs">下降步长</span>
+          <span class="app-text-secondary text-xs">下降步长（mm）</span>
           <input
             v-model.number="(props.item as BlackeningProcessRecipe).descentStep"
             type="number"
@@ -224,7 +224,7 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
           />
         </label>
         <label class="grid grid-cols-[6.5rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) px-3 py-2">
-          <span class="app-text-secondary text-xs">下降次数</span>
+          <span class="app-text-secondary text-xs">下降次数（次）</span>
           <input
             v-model.number="(props.item as BlackeningProcessRecipe).descentCount"
             type="number"
@@ -234,7 +234,7 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
           />
         </label>
         <label class="grid grid-cols-[6.5rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) px-3 py-2">
-          <span class="app-text-secondary text-xs">扫黑速度</span>
+          <span class="app-text-secondary text-xs">扫黑速度（mm/s）</span>
           <input
             v-model.number="(props.item as BlackeningProcessRecipe).blackeningSpeed"
             type="number"
@@ -244,7 +244,7 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
           />
         </label>
         <label class="grid grid-cols-[6.5rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) px-3 py-2">
-          <span class="app-text-secondary text-xs">扫黑步进</span>
+          <span class="app-text-secondary text-xs">扫黑步进（mm）</span>
           <input
             v-model.number="(props.item as BlackeningProcessRecipe).blackeningStep"
             type="number"
@@ -256,7 +256,7 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
       </div>
       <div class="mt-3 grid gap-2 lg:grid-cols-4">
         <label class="grid grid-cols-[6.5rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) px-3 py-2">
-          <span class="app-text-secondary text-xs">焦距补偿</span>
+          <span class="app-text-secondary text-xs">焦距补偿（um）</span>
           <input
             v-model.number="(props.item as BlackeningProcessRecipe).jiaojubuchang"
             type="number"
@@ -526,7 +526,7 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
 
     <template v-else-if="props.type === 'laserPower'">
       <div class="mt-4 space-y-2">
-        <div class="grid gap-2 lg:grid-cols-2">
+        <div class="grid gap-2 lg:grid-cols-4">
           <label class="grid grid-cols-[6.5rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) px-3 py-2">
             <span class="app-text-secondary text-xs">配方名称</span>
             <input
@@ -545,9 +545,7 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
               @input="markUpdated"
             />
           </label>
-        </div>
-        <div class="grid gap-2 lg:grid-cols-2">
-          <label class="grid grid-cols-[6.5rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) px-3 py-2">
+          <!-- <label class="grid grid-cols-[6.5rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) px-3 py-2">
             <span class="app-text-secondary text-xs">激光厂家</span>
             <input
               v-model="(props.item as LaserPowerRecipe).laserManufacturer"
@@ -555,8 +553,8 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
               class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
               @input="markUpdated"
             />
-          </label>
-          <label class="grid grid-cols-[6.5rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) px-3 py-2">
+          </label> -->
+          <!-- <label class="grid grid-cols-[6.5rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) px-3 py-2">
             <span class="app-text-secondary text-xs">使用传输方式</span>
             <select
               v-model="(props.item as LaserPowerRecipe).transmissionMode"
@@ -567,7 +565,10 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
                 {{ mode }}
               </option>
             </select>
-          </label>
+          </label> -->
+        </div>
+        <div class="grid gap-2 lg:grid-cols-2">
+          
         </div>
         <div class="grid gap-2 lg:grid-cols-3">
           <label class="grid grid-cols-[6.5rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) px-3 py-2">
@@ -615,7 +616,7 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
 
     <template v-else-if="props.type === 'horizontalFormula'">
       <div class="mt-3 space-y-2">
-        <div class="grid gap-2 lg:grid-cols-3">
+        <div class="grid gap-2 lg:grid-cols-5">
           <label class="grid grid-cols-[6rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) bg-(--app-card) px-3 py-2">
             <span class="app-text-secondary text-xs">配方名称</span>
             <input
@@ -625,7 +626,7 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
               @input="markUpdated"
             />
           </label>
-          <label class="grid grid-cols-[6rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) bg-(--app-card) px-3 py-2">
+          <!-- <label class="grid grid-cols-[6rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) bg-(--app-card) px-3 py-2">
             <span class="app-text-secondary text-xs">配方编码</span>
             <input
               v-model="(props.item as SharedFormulaRecipe).code"
@@ -633,7 +634,7 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
               class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
               @input="markUpdated"
             />
-          </label>
+          </label> -->
           <label class="grid grid-cols-[6rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) bg-(--app-card) px-3 py-2">
             <span class="app-text-secondary text-xs">工艺名称</span>
             <input
@@ -643,9 +644,6 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
               @input="markUpdated"
             />
           </label>
-        </div>
-
-        <div class="grid gap-2 lg:grid-cols-3">
           <label class="grid grid-cols-[6rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) bg-(--app-card) px-3 py-2">
             <span class="app-text-secondary text-xs">开口形状</span>
             <select
@@ -748,9 +746,9 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
           </label>
         </div>
 
-        <div class="grid gap-2 lg:grid-cols-4">
+        <div class="grid gap-2 lg:grid-cols-3">
           <label class="grid grid-cols-[6rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) bg-(--app-card) px-3 py-2">
-            <span class="app-text-secondary text-xs">切割轴</span>
+            <span class="app-text-secondary text-xs">切割轴（XY/R）</span>
             <input
               v-model="(props.item as VerticalFormulaRecipe).formula.cuttingAxis"
               type="text"
@@ -758,20 +756,9 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
               @input="markUpdated"
             />
           </label>
+
           <label class="grid grid-cols-[6rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) bg-(--app-card) px-3 py-2">
-            <span class="app-text-secondary text-xs">变化百分比</span>
-            <input
-              v-model.number="(props.item as VerticalFormulaRecipe).formula.changePercent"
-              type="number"
-              min="5"
-              max="100"
-              step="1"
-              class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
-              @input="markUpdated"
-            />
-          </label>
-          <label class="grid grid-cols-[6rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) bg-(--app-card) px-3 py-2">
-            <span class="app-text-secondary text-xs">X-FEED</span>
+            <span class="app-text-secondary text-xs">X_偏移量（mm）</span>
             <input
               v-model.number="(props.item as VerticalFormulaRecipe).formula.xFeed"
               type="number"
@@ -781,7 +768,7 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
             />
           </label>
           <label class="grid grid-cols-[6rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) bg-(--app-card) px-3 py-2">
-            <span class="app-text-secondary text-xs">X-SPEED</span>
+            <span class="app-text-secondary text-xs">插补运行速度（mm/s）</span>
             <input
               v-model.number="(props.item as VerticalFormulaRecipe).formula.xSpeed"
               type="number"
@@ -799,7 +786,7 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
             <p class="app-text-primary text-sm font-medium">边缘切割</p>
             <div class="mt-2 space-y-2">
               <label class="grid grid-cols-[6rem_1fr] items-center gap-2">
-                <span class="app-text-secondary text-xs">SPEED</span>
+                <span class="app-text-secondary text-xs">速度百分比（%）</span>
                 <input
                   v-model.number="(props.item as VerticalFormulaRecipe).formula.edgeCutting.speed"
                   type="number"
@@ -809,7 +796,7 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
                 />
               </label>
               <label class="grid grid-cols-[6rem_1fr] items-center gap-2">
-                <span class="app-text-secondary text-xs">CUTTIMES</span>
+                <span class="app-text-secondary text-xs">切割次数（次）</span>
                 <input
                   v-model.number="(props.item as VerticalFormulaRecipe).formula.edgeCutting.cutTimes"
                   type="number"
@@ -854,7 +841,7 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
             <p class="app-text-primary text-sm font-medium">中间切割</p>
             <div class="mt-2 space-y-2">
               <label class="grid grid-cols-[6rem_1fr] items-center gap-2">
-                <span class="app-text-secondary text-xs">SPEED</span>
+                <span class="app-text-secondary text-xs">速度百分比（%）</span>
                 <input
                   v-model.number="(props.item as VerticalFormulaRecipe).formula.middleCutting.speed"
                   type="number"
@@ -864,7 +851,7 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
                 />
               </label>
               <label class="grid grid-cols-[6rem_1fr] items-center gap-2">
-                <span class="app-text-secondary text-xs">CUTTIMES</span>
+                <span class="app-text-secondary text-xs">切割次数（次）</span>
                 <input
                   v-model.number="(props.item as VerticalFormulaRecipe).formula.middleCutting.cutTimes"
                   type="number"
@@ -909,7 +896,7 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
             <p class="app-text-primary text-sm font-medium">下降切割</p>
             <div class="mt-2 space-y-2">
               <label class="grid grid-cols-[6rem_1fr] items-center gap-2">
-                <span class="app-text-secondary text-xs">SPEED</span>
+                <span class="app-text-secondary text-xs">下降量(mm/层)</span>
                 <input
                   v-model.number="(props.item as VerticalFormulaRecipe).formula.descentCutting.speed"
                   type="number"
@@ -919,11 +906,23 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
                 />
               </label>
               <label class="grid grid-cols-[6rem_1fr] items-center gap-2">
-                <span class="app-text-secondary text-xs">Z-FEED</span>
+                <span class="app-text-secondary text-xs">下降减少量(mm/{{(props.item as VerticalFormulaRecipe).formula.changePercent}}%)</span>
                 <input
                   v-model.number="(props.item as VerticalFormulaRecipe).formula.descentCutting.zFeed"
                   type="number"
                   step="0.001"
+                  class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
+                  @input="markUpdated"
+                />
+              </label>
+              <label class="grid grid-cols-[6rem_1fr] items-center gap-2">
+                <span class="app-text-secondary text-xs">变化百分比（%）</span>
+                <input
+                  v-model.number="(props.item as VerticalFormulaRecipe).formula.changePercent"
+                  type="number"
+                  min="5"
+                  max="100"
+                  step="1"
                   class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
                   @input="markUpdated"
                 />

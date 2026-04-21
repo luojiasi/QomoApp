@@ -59,12 +59,9 @@ const editableFormulaItems: Array<{
   { key: 'compensationAngleFormula', label: '补偿角度公式', symbol: 'CA', kLabel: 'K：', bLabel: 'B：' }
 ]
 
-const openingShapeFormulaPresets: Record<
-  OpeningShape,
-  Partial<Record<EditableFormulaKey, { k: number; b: number }>>
-> = {
+const openingShapeFormulaPresets: Record<OpeningShape,Partial<Record<EditableFormulaKey, { k: number; b: number }>>> = {
   'V型': {
-    angleFormula: { k: 0.54, b: -1.8 },
+    angleFormula: { k: 0, b: 0.54 },
     lowerOpeningFormula: { k: 5, b: 35 },
     depthCompensationFormula: { k: 2, b: 0.5 },
     compensationAngleFormula: { k: 0, b: 0 }
@@ -76,9 +73,9 @@ const openingShapeFormulaPresets: Record<
     compensationAngleFormula: { k: 0, b: 0 }
   },
   '//型': {
-    angleFormula: { k: 0.54, b: 0 },
+    angleFormula: { k: 0, b: 0.54 },
     lowerOpeningFormula: { k: 0, b: 50 },
-    depthCompensationFormula: { k: 2, b: 0.5 },
+    depthCompensationFormula: { k: 0, b: 0 },
     compensationAngleFormula: { k: 0, b: 0 }
   }
 }
@@ -111,10 +108,7 @@ const filteredMainRecipes = computed(() => {
   return next
 })
 
-function matchesRecipeRecordKeyword(
-  item: { name: string; code: string; notes: string },
-  kw: string
-): boolean {
+function matchesRecipeRecordKeyword(item: { name: string; code: string; notes: string },kw: string): boolean {
   const t = kw.trim().toLowerCase()
   if (!t) return true
   return [item.name, item.code, item.notes].some((s) => s.toLowerCase().includes(t))
@@ -341,11 +335,7 @@ function clearProcessDetailHideTimer(): void {
   }
 }
 
-function onProcessDetailRowEnter(
-  library: ProcessLibraryKind,
-  recipeId: string,
-  kind: ProcessDetailFieldKind
-): void {
+function onProcessDetailRowEnter(library: ProcessLibraryKind,recipeId: string,kind: ProcessDetailFieldKind): void {
   clearProcessDetailHideTimer()
   processDetailHover.value = { library, recipeId, kind }
 }
@@ -402,10 +392,7 @@ function markMainRecipeUpdated(): void {
   selectedMainRecipe.value.updatedAt = createTimestamp()
 }
 
-function formatLinearFormula(
-  symbol: 'A' | 'L' | 'D' | 'CA',
-  formula?: ProcessFormulaRecipe[EditableFormulaKey]
-) {
+function formatLinearFormula(symbol: 'A' | 'L' | 'D' | 'CA',formula?: ProcessFormulaRecipe[EditableFormulaKey]) {
   if (!formula) return '-'
   return `${symbol} = ${formula.k} * 深度 + ${formula.b}`
 }
@@ -435,31 +422,29 @@ function getFormulaFields(recipe?: ProcessFormulaRecipe) {
   ]
 }
 
-function formatChangeFormula(
-  formula?: VerticalProcessFormulaRecipe['edgeCutting']['change']
-): string {
+function formatChangeFormula(formula?: VerticalProcessFormulaRecipe['edgeCutting']['change']): string {
   if (!formula) return '-'
-  return `CHANGE = ${formula.k} * 深度 + ${formula.b}`
+  return `CHANGE = ${formula.k} * 距离(mm) + ${formula.b}`
 }
 
 function getVerticalFormulaFields(recipe?: VerticalProcessFormulaRecipe) {
   return [
-    { key: 'cuttingAxis', label: '切割轴', value: recipe?.cuttingAxis ?? '-' },
+    { key: 'cuttingAxis', label: '切割轴（XY/R）', value: recipe?.cuttingAxis ?? '-' },
     { key: 'changePercent', label: '变化百分比', value: recipe?.changePercent ?? '-' },
-    { key: 'xFeed', label: 'X-FEED', value: recipe?.xFeed ?? '-' },
-    { key: 'xSpeed', label: 'X-SPEED', value: recipe?.xSpeed ?? '-' },
-    { key: 'edgeSpeed', label: '边缘切割 SPEED', value: recipe?.edgeCutting.speed ?? '-' },
-    { key: 'edgeCutTimes', label: '边缘切割 CUTTIMES', value: recipe?.edgeCutting.cutTimes ?? '-' },
-    { key: 'edgeChange', label: '边缘切割 CHANGE', value: formatChangeFormula(recipe?.edgeCutting.change) },
-    { key: 'middleSpeed', label: '中间切割 SPEED', value: recipe?.middleCutting.speed ?? '-' },
-    { key: 'middleCutTimes', label: '中间切割 CUTTIMES', value: recipe?.middleCutting.cutTimes ?? '-' },
+    { key: 'xFeed', label: 'X_偏移量（mm）', value: recipe?.xFeed ?? '-' },
+    { key: 'xSpeed', label: '插补运行速度（mm/s）', value: recipe?.xSpeed ?? '-' },
+    { key: 'edgeSpeed', label: '边缘切割百分比（%）', value: recipe?.edgeCutting.speed ?? '-' },
+    { key: 'edgeCutTimes', label: '切割次数（次）', value: recipe?.edgeCutting.cutTimes ?? '-' },
+    { key: 'edgeChange', label: '边缘切割变化', value: formatChangeFormula(recipe?.edgeCutting.change) },
+    { key: 'middleSpeed', label: '中间切割百分比（%）', value: recipe?.middleCutting.speed ?? '-' },
+    { key: 'middleCutTimes', label: '中间切割次数（次）', value: recipe?.middleCutting.cutTimes ?? '-' },
     {
       key: 'middleChange',
       label: '中间切割 CHANGE',
       value: formatChangeFormula(recipe?.middleCutting.change)
     },
-    { key: 'descentSpeed', label: '下降切割 SPEED', value: recipe?.descentCutting.speed ?? '-' },
-    { key: 'descentZFeed', label: '下降切割 Z-FEED', value: recipe?.descentCutting.zFeed ?? '-' },
+    { key: 'descentSpeed', label: '下降量(mm/层)', value: recipe?.descentCutting.speed ?? '-' },
+    { key: 'descentZFeed', label: '下降减少量(mm/%)', value: recipe?.descentCutting.zFeed ?? '-' },
     {
       key: 'descentChange',
       label: '下降切割 CHANGE',
@@ -1406,7 +1391,7 @@ onMounted(async () => {
         </RecipeLibrarySection>
 
 
-
+        <!-- 主配方下子配方的悬停展示 -->
         <Teleport to="body">
           <div
             v-if="referencePopoverKind"
@@ -1438,7 +1423,7 @@ onMounted(async () => {
             </div>
           </div>
         </Teleport>
-
+        <!-- 非主配方其他的悬停展示 -->
         <Teleport to="body">
           <div
             v-if="processDetailHover"

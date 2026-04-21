@@ -1674,7 +1674,6 @@ const buildProjectionToZ0ForEntity = (entity: QomoEntityWithSurface,selected: bo
 
     // 以“投影到 z=0 的点”为基准做开口方向偏移，再映射回 Three 的 XY 平面展示
     const projectedCanvasPts = projectedPts.map(canvasPointFromThreeZPlane)
-    console.log(entity.openDirection,openSize,"==========================")
     // const offsetCanvasPts = offsetOpenPolylineByOpenDirection(projectedCanvasPts,entity.openDirection,openSize)
     const offsetCanvasPts = offsetOpenPolylineByOpenDirection(projectedCanvasPts,entity.openDirection,1)
     const offsetThreePts = offsetCanvasPts.map((p) => toThreePosition(p, 0))

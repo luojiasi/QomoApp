@@ -99,17 +99,17 @@ export function createDefaultVerticalProcessFormula(): VerticalProcessFormulaRec
     edgeCutting: {
       speed: 50,
       cutTimes: 2,
-      change: createLinearFormulaCoefficients(0, 0)
+      change: createLinearFormulaCoefficients(10, 50)
     },
     middleCutting: {
       speed: 100,
       cutTimes: 1,
-      change: createLinearFormulaCoefficients(0, 0)
+      change: createLinearFormulaCoefficients(0, 100)
     },
     descentCutting: {
-      speed: 0.15,
-      zFeed: 0.01,
-      change: createLinearFormulaCoefficients(0, 0)
+      speed: 0.075,
+      zFeed: 0.002,
+      change: createLinearFormulaCoefficients(10, 0.075)
     }
   }
 }
@@ -251,7 +251,7 @@ function createLaserPowerParameterFields(recipe?: LaserPowerRecipe | null): Para
     { key: 'laser-power', label: '激光功率', value: recipe?.laserPower ?? '-' },
     { key: 'laser-frequency', label: '激光频率', value: recipe?.laserFrequency ?? '-' },
     { key: 'laser-current', label: '激光电流', value: recipe?.laserCurrent ?? '-' },
-    { key: 'laser-transmission', label: '使用传输方式', value: recipe?.transmissionMode ?? '-' }
+    // { key: 'laser-transmission', label: '使用传输方式', value: recipe?.transmissionMode ?? '-' }
   ]
 }
 
@@ -259,6 +259,12 @@ function createFormulaFields(prefix: string, recipe?: ProcessFormulaRecipe): Par
   return [
     { key: `${prefix}-name`, label: '工艺名称', value: recipe?.name ?? '-' },
     { key: `${prefix}-shape`, label: '开口形状', value: recipe?.openingShape ?? '-' },
+    { key: `${prefix}-upper`, label: '上开口公式', value: recipe?.upperOpeningFormula ?? '-' },
+    {
+      key: `${prefix}-focus`,
+      label: '焦距补偿',
+      value: recipe?.focusCompensation ?? '-'
+    },
     { key: `${prefix}-angle`, label: '角度公式', value: formatLinearFormula('A', recipe?.angleFormula) },
     {
       key: `${prefix}-lower`,
@@ -270,57 +276,42 @@ function createFormulaFields(prefix: string, recipe?: ProcessFormulaRecipe): Par
       label: '深度补偿公式',
       value: formatLinearFormula('D', recipe?.depthCompensationFormula)
     },
-    { key: `${prefix}-upper`, label: '上开口公式', value: recipe?.upperOpeningFormula ?? '-' },
+
     {
       key: `${prefix}-compensation-angle`,
       label: '补偿角度公式',
       value: formatLinearFormula('CA', recipe?.compensationAngleFormula)
-    },
-    {
-      key: `${prefix}-focus`,
-      label: '焦距补偿',
-      value: recipe?.focusCompensation ?? '-'
     }
   ]
 }
 
-function createVerticalBaseFields(prefix: string, recipe?: VerticalProcessFormulaRecipe): ParameterField[] {
-  return [
-    { key: `${prefix}-cutting-axis`, label: '切割轴', value: recipe?.cuttingAxis ?? '-' },
-    { key: `${prefix}-change-percent`, label: '变化百分比', value: recipe?.changePercent ?? '-' },
-    { key: `${prefix}-x-feed`, label: 'X-FEED', value: recipe?.xFeed ?? '-' },
-    { key: `${prefix}-x-speed`, label: 'X-SPEED', value: recipe?.xSpeed ?? '-' }
-  ]
-}
 
-function formatDepthLinearFormula(
-  label: string,
-  formula?: VerticalProcessFormulaRecipe['edgeCutting']['change']
-): string {
+function formatDepthLinearFormula(label: string,formula?: VerticalProcessFormulaRecipe['edgeCutting']['change']): string {
   if (!formula) return '-'
-  return `${label} = ${formula.k} * 深度 + ${formula.b}`
+  return `${label} = ${formula.k}*距离+${formula.b} [增至100%]`
 }
 
-function createVerticalFormulaFieldGroups(
-  prefix: string,
-  recipe?: VerticalProcessFormulaRecipe
-): NonNullable<ParameterSection['fieldGroups']> {
+function createVerticalFormulaFieldGroups(prefix: string,recipe?: VerticalProcessFormulaRecipe): NonNullable<ParameterSection['fieldGroups']> {
   return [
     {
       id: `${prefix}-base`,
       title: '基础参数',
-      fields: createVerticalBaseFields(prefix, recipe)
+      fields: [
+        { key: `${prefix}-cutting-axis`, label: '切割轴(XY/R)', value: recipe?.cuttingAxis ?? '-' },
+        { key: `${prefix}-x-feed`, label: 'X_偏移量(mm)', value: recipe?.xFeed ?? '-' },
+        { key: `${prefix}-x-speed`, label: '插补运行速度(mm/s)', value: recipe?.xSpeed ?? '-' }
+      ]
     },
     {
       id: `${prefix}-edge-cutting`,
       title: '边缘切割',
       fields: [
-        { key: `${prefix}-edge-speed`, label: 'SPEED', value: recipe?.edgeCutting.speed ?? '-' },
-        { key: `${prefix}-edge-cut-times`, label: 'CUTTIMES', value: recipe?.edgeCutting.cutTimes ?? '-' },
+        { key: `${prefix}-edge-speed`, label: '切割速度百分比(%)', value: recipe?.edgeCutting.speed ?? '-' },
+        { key: `${prefix}-edge-cut-times`, label: '切割次数(次)', value: recipe?.edgeCutting.cutTimes ?? '-' },
         {
           key: `${prefix}-edge-change`,
-          label: 'CHANGE',
-          value: formatDepthLinearFormula('CHANGE', recipe?.edgeCutting.change)
+          label: '边缘切割变化率',
+          value: formatDepthLinearFormula('速度', recipe?.edgeCutting.change)
         }
       ]
     },
@@ -328,16 +319,16 @@ function createVerticalFormulaFieldGroups(
       id: `${prefix}-middle-cutting`,
       title: '中间切割',
       fields: [
-        { key: `${prefix}-middle-speed`, label: 'SPEED', value: recipe?.middleCutting.speed ?? '-' },
+        { key: `${prefix}-middle-speed`, label: '切割速度百分比(%)', value: recipe?.middleCutting.speed ?? '-' },
         {
           key: `${prefix}-middle-cut-times`,
-          label: 'CUTTIMES',
+          label: '切割次数(次)',
           value: recipe?.middleCutting.cutTimes ?? '-'
         },
         {
           key: `${prefix}-middle-change`,
-          label: 'CHANGE',
-          value: formatDepthLinearFormula('CHANGE', recipe?.middleCutting.change)
+          label: '中间切割变化率',
+          value: formatDepthLinearFormula('速度', recipe?.middleCutting.change)
         }
       ]
     },
@@ -345,12 +336,13 @@ function createVerticalFormulaFieldGroups(
       id: `${prefix}-descent-cutting`,
       title: '下降切割',
       fields: [
-        { key: `${prefix}-descent-speed`, label: 'SPEED', value: recipe?.descentCutting.speed ?? '-' },
-        { key: `${prefix}-descent-z-feed`, label: 'Z-FEED', value: recipe?.descentCutting.zFeed ?? '-' },
+        { key: `${prefix}-descent-speed`, label: '下降量(mm/层)', value: recipe?.descentCutting.speed ?? '-' },
+        { key: `${prefix}-descent-z-feed`, label: '下降减少量(mm/%)', value: recipe?.descentCutting.zFeed ?? '-' },
+        { key: `${prefix}-change-percent`, label: '变化百分比(%)', value: recipe?.changePercent ?? '-' },
         {
           key: `${prefix}-descent-change`,
-          label: 'CHANGE',
-          value: formatDepthLinearFormula('CHANGE', recipe?.descentCutting.change)
+          label: '下降切割变化率',
+          value:`下降量=${recipe?.descentCutting.speed}-${recipe?.descentCutting.zFeed}*进度//${recipe?.changePercent}%`
         }
       ]
     }

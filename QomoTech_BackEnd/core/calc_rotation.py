@@ -1,13 +1,14 @@
 import math
 from typing import Any, Dict, List, Optional, TypedDict, Union
 from core.calc_offset_ljs import 采样圆弧上的点
+from config.product4P_config import 读取存储的4P旋转中心补偿值
 
 
 class Point3DDict(TypedDict):
     x: float
     y: float
     z: float
-def 安全转化三维点(obj: Any) -> Optional[Point3DDict]:
+def 安全转化三维点(obj: Any,默认的Z轴高度:float = 37) -> Optional[Point3DDict]:
     """
     作用：把任意对象安全转换为三维点。
     规则：
@@ -19,7 +20,7 @@ def 安全转化三维点(obj: Any) -> Optional[Point3DDict]:
 
     x = obj.get("x")
     y = obj.get("y")
-    z = obj.get("z", 60.0)
+    z = obj.get("z", 默认的Z轴高度)
     if not isinstance(x, (int, float)) or not isinstance(y, (int, float)) or not isinstance(z, (int, float)):return None
 
     xf = float(x)
@@ -72,8 +73,8 @@ def 构建绕坐标轴旋转矩阵(rotation_axis: str, angle_deg: float) -> List
     ]
 
 
-def _旋转单个点(point: Dict[str, Any], matrix: List[List[float]]) -> Point3DDict:
-    normalized_point = 安全转化三维点(point)
+def _旋转单个点(point: Dict[str, Any], matrix: List[List[float]] , 默认的Z轴高度:float = 36.8) -> Point3DDict:
+    normalized_point = 安全转化三维点(point,默认的Z轴高度)
     if normalized_point is None:
         raise ValueError("point 非法：需为包含数值 x/y（可选 z）的字典")
 
@@ -104,9 +105,10 @@ def 计算点绕坐标轴旋转(
 
     axis = 规范旋转轴(rotation_axis)
     matrix = 构建绕坐标轴旋转矩阵(axis, float(angle_deg))
+    Z轴中心点的高度 = abs(读取存储的4P旋转中心补偿值().Zoffset)
 
     if isinstance(point_or_points, list):
-        return [_旋转单个点(item, matrix) for item in point_or_points]
+        return [_旋转单个点(item, matrix , Z轴中心点的高度) for item in point_or_points]
 
     return _旋转单个点(point_or_points, matrix)
 
@@ -115,7 +117,9 @@ def 计算实体绕坐标轴旋转后的实体点(所有实体数据:list[dict[s
     返回实体数据点列表:list[dict[str,Any]] = []
     for 实体索引 in range(len(所有实体数据)):
         当前实体数据= 所有实体数据[实体索引]
-        当前实体数据角度 = 当前实体数据.get('surfaceAngle')
+        # 与前端 threeGeometry.ts 的 makeSurfaceAngleRotation 保持一致：
+        # 前端按产品约定对 surfaceAngle 取反后再参与旋转
+        当前实体数据角度 = (当前实体数据.get('surfaceAngle') or 0.0)
         当前实体数据类型 = 当前实体数据.get('type')
         当前实体开口方向 = 当前实体数据.get('openDirection')
         计算后的点: list[Point3DDict] = []
