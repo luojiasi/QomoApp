@@ -299,14 +299,10 @@ export interface RAxisRotateRequestPayload {
   运动模式?: 'relative' | 'absolute'
 }
 
-export const rotateUAxisByAngle = async (
-  payload: UAxisRotateRequestPayload
-): Promise<ApiCallResult<Record<string, unknown>>> =>
+export const rotateUAxisByAngle = async (payload: UAxisRotateRequestPayload): Promise<ApiCallResult<Record<string, unknown>>> =>
   apiCall('motion/axis/U轴旋转的角度', 'POST', payload as unknown as Record<string, unknown>)
 
-export const rotateRAxisByTurns = async (
-  payload: RAxisRotateRequestPayload
-): Promise<ApiCallResult<Record<string, unknown>>> =>
+export const rotateRAxisByTurns = async (payload: RAxisRotateRequestPayload): Promise<ApiCallResult<Record<string, unknown>>> =>
   apiCall('motion/axis/R轴旋转的圈数', 'POST', payload as unknown as Record<string, unknown>)
 
 

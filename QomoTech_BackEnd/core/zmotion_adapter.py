@@ -60,7 +60,7 @@ class ZMotionAdapter:
             return {"success": False, "message": "旋转参数必须是对象"}
         try:
             旋转角度 = float(旋转参数.get("旋转角度", 0))
-            旋转速度 = float(旋转参数.get("旋转速度", 10))
+            旋转速度 = float(旋转参数.get("旋转速度", 0.1))
             每圈脉冲数 = float(旋转参数.get("每圈脉冲数", 10000.0))
             电子齿轮比 = float(旋转参数.get("电子齿轮比", 1.0))
             减速比 = float(旋转参数.get("减速比", 1.0))
@@ -136,6 +136,50 @@ class ZMotionAdapter:
                 "effective_pulses_per_rev": 有效每圈脉冲数,
             },
         }
+    
+    def U轴旋转角度(self, 旋转角度: float) -> dict[str, Any] | None:
+        """
+        简化版 U 轴旋转接口：直接传 float，正数顺时针、负数逆时针。
+        使用绝对位置模式（move_abs），传入角度即为目标绝对角度。
+        其余机械参数可按需覆盖，逻辑与 U轴旋转的角度(dict) 完全一致。
+        """
+        旋转方向 = "顺时针" if 旋转角度 >= 0 else "逆时针"
+        旋转参数 = {
+            "旋转角度": abs(旋转角度),
+            "旋转方向": 旋转方向,
+            "运动模式": "absolute",
+        }
+        return self.U轴旋转的角度(旋转参数)
+
+    def U轴是否到达旋转角度(self, 旋转角度: float, 容差: float = 0.001) -> bool:
+        """
+        判断 U 轴是否已到达目标旋转角度。
+        判定条件：轴处于静止（idle）且当前 mpos 与目标工程位移之差 ≤ 容差。
+        目标工程位移由传入的旋转角度（绝对角度，正顺时针/负逆时针）换算得到。
+        机械参数与 U轴旋转的角度() 默认值保持一致：
+            每圈脉冲数=10000、电子齿轮比=1.0、减速比=1.0。
+        容差单位为工程单位，默认 0.01。
+        """
+        if not self._motion.is_connected():return False
+
+        axes_status = self._motion.get_axes_status()
+        axis_info = axes_status.get("3", {})
+
+        # idle: ZAux_Direct_GetIfIdle 返回非零表示轴已静止
+        if int(axis_info.get("idle", 0)) == 0:return False
+
+        axis_units = float(axis_info.get("units", 0.0))
+        if axis_units <= 0:return False
+        # 与 U轴旋转的角度() 默认机械参数保持一致
+        有效每圈脉冲数 = 10000.0 * 1.0 * 1.0  # 每圈脉冲数 * 电子齿轮比 * 减速比
+        # 目标角度 → 目标工程位移
+        目标工程位移 = (旋转角度 / 360.0) * 有效每圈脉冲数 / axis_units
+
+        mpos = float(axis_info.get("mpos", 0.0))
+
+        return abs(mpos - 目标工程位移) <= 容差
+
+    
 
     # 这里是用来写R轴的旋转
     def R轴旋转的圈数(self, 旋转参数: dict[str, Any]) -> dict[str, Any] | None:

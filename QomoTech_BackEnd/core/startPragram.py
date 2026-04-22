@@ -126,6 +126,7 @@ def 程序请求急停(motion: ZMotionDriver | None = None) -> dict[str, Any]:
         _laser_resume_required = False
     m = motion or _current_motion_ref
     if m and m.is_connected():
+        m.set_output(0, False)
         m.set_output(2, False)
         m.emergency_stop_all_axes([0, 1, 2, 3 , 4 , 5])
     notify_program_status_changed(force=True)
@@ -334,11 +335,11 @@ def execute_start_program(*,motion: ZMotionDriver,recipe_payload: dict[str, Any]
             # outcome =  wangFuLoop(originalPointsNum=当前任务索引,recipe_payload=recipe_payload,controller=controller,entities=entities,rs232=rs232,rs232_open=rs232_open)
             # 我的想法是将切割轴进行分类切割，然后进行不同的处理
             # 现在只能一个一个切圆
-            if 垂直配方中的加工轴 == 'R' and 判断是否都是圆或者圆弧的结果:
-                outcome =  用旋转轴去切圆(originalPointsNum=当前任务索引,recipe_payload=recipe_payload,controller=controller,entities=entities,rs232=rs232,rs232_open=rs232_open)
-            if 垂直配方中的加工轴 == 'XY':
-                outcome = 修面和切片的程序(originalPointsNum=当前任务索引,recipe_payload=recipe_payload,controller=controller,entities=entities,rs232=rs232,rs232_open=rs232_open)
-            # outcome = 进行4P切产品(originalPointsNum=当前任务索引,recipe_payload=recipe_payload,controller=controller,entities=entities,rs232=rs232,rs232_open=rs232_open)
+            # if 垂直配方中的加工轴 == 'R' and 判断是否都是圆或者圆弧的结果:
+            #     outcome =  用旋转轴去切圆(originalPointsNum=当前任务索引,recipe_payload=recipe_payload,controller=controller,entities=entities,rs232=rs232,rs232_open=rs232_open)
+            # if 垂直配方中的加工轴 == 'XY':
+            #     outcome = 修面和切片的程序(originalPointsNum=当前任务索引,recipe_payload=recipe_payload,controller=controller,entities=entities,rs232=rs232,rs232_open=rs232_open)
+            outcome = 进行4P切产品(originalPointsNum=当前任务索引,recipe_payload=recipe_payload,controller=controller,entities=entities,rs232=rs232,rs232_open=rs232_open)
             
             
             
@@ -1615,8 +1616,8 @@ def 进行4P切产品(originalPointsNum: int,recipe_payload: dict[str, Any],cont
                 起始点Y = 当前没有偏移的点位[0].get('y')
                 X移动结果 = controller.absolute_move_speed({'axis':0,'moveDistance':起始点X,'speed':切割速度})
                 Y移动结果 = controller.absolute_move_speed({'axis':1,'moveDistance':起始点Y,'speed':切割速度})
-                当前步骤 = 20 if X移动结果.get('success') and Y移动结果.get('success') else 300
-            case 20:
+                当前步骤 = 11 if X移动结果.get('success') and Y移动结果.get('success') else 300
+            case 11:
                 跳出计数 = 0
                 paused_seen = False
                 while True:
@@ -1637,16 +1638,47 @@ def 进行4P切产品(originalPointsNum: int,recipe_payload: dict[str, Any],cont
                     # print(Y是否在移动,"=================",y)
                     if paused_seen:
                         # 从暂停恢复后重新走一次状态确认
-                        当前步骤 = 20
+                        当前步骤 = 11
                         break
                     if X是否在移动.get('success') and Y是否在移动.get('success'):
                         if X是否在移动.get('notMoving') and Y是否在移动.get('notMoving'):
-                            当前步骤 = 30
+                            当前步骤 = 12
                             break
                     if 跳出计数 >= 2000:
-                        return False
+                        当前步骤 = 300
                     跳出计数 += 1
-                    
+            case 12:
+                # 进行角度旋转
+                旋转角度 = entities[originalPointsNum].get("surfaceAngle")
+                旋转结果 = controller.U轴旋转角度(旋转角度 = 旋转角度)
+                if not 旋转结果.get('success'):当前步骤 = 300
+                当前步骤 = 13
+            case 13:
+                # 判断是否到达位置
+                跳出计数 = 0
+                paused_seen = False
+                while True:
+                    if _abort_pending():
+                        清除运行输出(controller)
+                        return "abort"
+                    if _skip_requested():
+                        return 跳过任务时处理并回到目标Z轴位置(controller,z_target=Z轴原始初始位置,speed=切割速度)
+                    if _paused():
+                        paused_seen = True
+                        time.sleep(0.05)
+                        continue
+                    time.sleep(0.02)
+                    是否到达旋转角度 = controller.U轴是否到达旋转角度(旋转角度 = 旋转角度)
+                    if paused_seen:
+                        # 从暂停恢复后重新走一次状态确认
+                        当前步骤 = 12
+                        break
+                    if 是否到达旋转角度:
+                        当前步骤 = 12
+                        break
+                    if 跳出计数 >= 2000:当前步骤 = 300
+                    跳出计数 += 1
+                当前步骤 = 30
             case 30:
                 # 判断是否打开扫黑功能
                 if 是否打开扫黑功能:
@@ -1699,13 +1731,11 @@ def 进行4P切产品(originalPointsNum: int,recipe_payload: dict[str, Any],cont
                         if 运行结果.get('notMoving'):
                             当前步骤 = 80
                             break
-                    if 跳出计数 >= 2000:
-                        return False
+                    if 跳出计数 >= 2000:当前步骤 = 300
                     跳出计数 += 1
                     time.sleep(0.02)
 
             case 80:
-
                 # 计算偏移并连续运动（暂停后可从当前位重建剩余轨迹）
                 计算所有实体旋转后偏移的点 = OffsetEndpointCalculator.计算绕坐标轴旋转后的偏移点位(计算当前任务实体旋转后的点,当前开口值)
                 当前运行点位: list[dict[str, Any]] = list(计算所有实体旋转后偏移的点[originalPointsNum].get("points"))
@@ -1720,7 +1750,6 @@ def 进行4P切产品(originalPointsNum: int,recipe_payload: dict[str, Any],cont
                 运行结果 = controller.continuous_interpolation_move_adapter(原始点数据_插补数据,speed=目标速度,wait_until_done=True)
                 当前步骤 = 81 if 运行结果.get('success') and 运行结果 is not None else 300
             case 81:
-
                 # 判断是否在边缘
                 if 是否在边缘位置 and (当前切割次数+1)<边缘切割次数:
                     当前切割次数 += 1
@@ -1755,8 +1784,7 @@ def 进行4P切产品(originalPointsNum: int,recipe_payload: dict[str, Any],cont
                         if X的运动结果.get('notMoving') and Y的运动结果.get('notMoving'):
                             当前步骤 = 90 if not 是否需要跳转计算下一层开口 else 100
                             break
-                    if 跳出计数 >= 2000:
-                        return False
+                    if 跳出计数 >= 2000:当前步骤 = 300
                     跳出计数 += 1
                     time.sleep(0.01)
             case 90:
@@ -1777,9 +1805,7 @@ def 进行4P切产品(originalPointsNum: int,recipe_payload: dict[str, Any],cont
                     是否在边缘位置 = True
                     是否是从小到大的开口偏移 = not 是否是从小到大的开口偏移
                     是否需要跳转计算下一层开口 = True
-
                 当前步骤 = 80
-
             case 100:
                 进度百分比 = (累计下降量+扫黑上台的高度)/(高度)*100 if 是否打开扫黑功能 else 累计下降量/高度*100
                 # 计算下一层的偏移开口
@@ -1795,7 +1821,6 @@ def 进行4P切产品(originalPointsNum: int,recipe_payload: dict[str, Any],cont
                     controller.open_output(2, 0)#关闭激光
                     是否打开激光 = False
                     累计下降量 = 0
-
                 # 下降一层计算新开口 = 初始上开口 - tan（角度） *累计下降量um * 2 //单位um
                 if 开口形状 == "V型":
                     新的开口值 = 上开口值 - tan角度 * 累计下降量 * 2 * 1000
@@ -1805,8 +1830,6 @@ def 进行4P切产品(originalPointsNum: int,recipe_payload: dict[str, Any],cont
                 if 开口形状 == "//型":
                     最小的偏移 = tan角度 * 累计下降量 * 2 * 1000
                     最大的偏移 = tan角度 * 累计下降量 * 2 * 1000 + 上开口值
-
-
                 # 写入然后回传给前端的进度
                 更新程序任务运行进程(current_task_jindubaifenbi=进度百分比)
                 是否需要跳转计算下一层开口 = False
@@ -1830,7 +1853,7 @@ def 进行4P切产品(originalPointsNum: int,recipe_payload: dict[str, Any],cont
                         break
                     跳转计数 += 1
                     print(跳转计数)
-                    if 跳转计数 >= 2000: return False
+                    if 跳转计数 >= 2000: 当前步骤 = 300
                     time.sleep(0.02)
             case 999:
                 controller.stop_axis_motion([0, 1, 2, 3 , 4 , 5])

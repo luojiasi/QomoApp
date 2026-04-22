@@ -704,12 +704,13 @@ const unsubscribeKeyboard = subscribeGlobalKeyboard((e) => {
           error('请设定位置点快捷移动到指定位置')
           return
         }
-        const [zx, zy ,zr, zu] = await Promise.all([
+        const [zx, zy , zz ,zu, zr ] = await Promise.all([
           moveMotionAxisAbs(0,quickMoveToPosition.X),
           moveMotionAxisAbs(1,quickMoveToPosition.Y),
           moveMotionAxisAbs(2,quickMoveToPosition.Z),
+          rotateUAxisByAngle({旋转角度: Math.abs(0),旋转速度: 0.1,旋转方向: '顺时针',运动模式: 'absolute'}),
           zeroMotionAxis(4)])
-        if (!zx?.success || !zy?.success || !zr?.success || !zu?.success) {
+        if (!zx?.success || !zy?.success || !zz?.success|| !zu?.success || !zr?.success) {
           error('回到设定点失败')
           return
         }
