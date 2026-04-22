@@ -353,7 +353,7 @@ type StartProgramStatusPayload = {
   paused?: boolean
   total_tasks?: number
   current_task_index?: number
-  jindubaifenbi?: number
+  进度百分比?: number
 }
 // 用于新的取图形的方式然后传递给后端
 type XYMotionOffset = { x: number; y: number }
@@ -421,7 +421,8 @@ function applyStartProgramStatusPayload(data: StartProgramStatusPayload | undefi
   if (typeof data.current_task_index === 'number') {
     currentTaskIndex.value = Math.max(0, Math.floor(data.current_task_index))
   }
-  if (typeof data.jindubaifenbi === 'number') currentTaskJindubaifenbi.value = Math.max(0, data.jindubaifenbi)
+  // console.log(data.进度百分比)
+  if (typeof data.进度百分比 === 'number') currentTaskJindubaifenbi.value = Math.max(0, data.进度百分比)
 
   if (data.running === false) {
     programPaused.value = false

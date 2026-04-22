@@ -335,11 +335,11 @@ def execute_start_program(*,motion: ZMotionDriver,recipe_payload: dict[str, Any]
             # outcome =  wangFuLoop(originalPointsNum=当前任务索引,recipe_payload=recipe_payload,controller=controller,entities=entities,rs232=rs232,rs232_open=rs232_open)
             # 我的想法是将切割轴进行分类切割，然后进行不同的处理
             # 现在只能一个一个切圆
-            # if 垂直配方中的加工轴 == 'R' and 判断是否都是圆或者圆弧的结果:
-            #     outcome =  用旋转轴去切圆(originalPointsNum=当前任务索引,recipe_payload=recipe_payload,controller=controller,entities=entities,rs232=rs232,rs232_open=rs232_open)
-            # if 垂直配方中的加工轴 == 'XY':
-            #     outcome = 修面和切片的程序(originalPointsNum=当前任务索引,recipe_payload=recipe_payload,controller=controller,entities=entities,rs232=rs232,rs232_open=rs232_open)
-            outcome = 进行4P切产品(originalPointsNum=当前任务索引,recipe_payload=recipe_payload,controller=controller,entities=entities,rs232=rs232,rs232_open=rs232_open)
+            if 垂直配方中的加工轴 == 'R' and 判断是否都是圆或者圆弧的结果:
+                outcome =  用旋转轴去切圆(originalPointsNum=当前任务索引,recipe_payload=recipe_payload,controller=controller,entities=entities,rs232=rs232,rs232_open=rs232_open)
+            if 垂直配方中的加工轴 == 'XY':
+                outcome = 修面和切片的程序(originalPointsNum=当前任务索引,recipe_payload=recipe_payload,controller=controller,entities=entities,rs232=rs232,rs232_open=rs232_open)
+            # outcome = 进行4P切产品(originalPointsNum=当前任务索引,recipe_payload=recipe_payload,controller=controller,entities=entities,rs232=rs232,rs232_open=rs232_open)
             
             
             

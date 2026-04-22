@@ -289,9 +289,9 @@ const machineMposXY = computed(() => {
 })
 const machineFollowTransform = computed(() => {
   if (!props.runTrigger) return 'translate(0 0)'
-  console.log("props.xyOffset",props.xyOffset)
-  console.log("machineMposXY.value.x",machineMposXY.value.x)
-  console.log("machineMposXY.value.y",machineMposXY.value.y)
+  // console.log("props.xyOffset",props.xyOffset)
+  // console.log("machineMposXY.value.x",machineMposXY.value.x)
+  // console.log("machineMposXY.value.y",machineMposXY.value.y)
   return `translate(${-machineMposXY.value.x + (props.xyOffset?.x ?? 0)} ${-machineMposXY.value.y + (props.xyOffset?.y ?? 0)})`
 })
 
