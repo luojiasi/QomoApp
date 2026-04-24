@@ -40,6 +40,7 @@ export interface SharedFormulaRecipe extends RecipeRecordBase {
 export interface VerticalEdgeOrMiddleCutting {
   speed: number
   cutTimes: number
+  cutSpeedNums?: number
   change: LinearFormulaCoefficients
 }
 

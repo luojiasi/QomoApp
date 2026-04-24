@@ -710,6 +710,18 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
                   @input="markUpdated"
                 />
               </label>
+              <label class="grid grid-cols-[6rem_1fr] items-center gap-2">
+                <span class="app-text-secondary text-xs">切割速量（次）</span>
+                <input
+                  v-model.number="(props.item as VerticalFormulaRecipe).formula.edgeCutting.cutSpeedNums"
+                  type="number"
+                  min="1"
+                  max="10"
+                  step="1"
+                  class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
+                  @input="markUpdated"
+                />
+              </label>
               <div class="rounded-lg border border-(--app-border) px-2 py-2">
                 <p class="app-text-secondary text-xs">
                   {{ formatVerticalChangeFormula((props.item as VerticalFormulaRecipe).formula.edgeCutting.change) }}

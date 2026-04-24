@@ -872,7 +872,7 @@ def 修面和切片的程序(originalPointsNum: int,recipe_payload: dict[str, An
     边缘切割次数 = float(工作配方中的垂直配方.get("formula").get("edgeCutting").get("cutTimes"))
     中间切割次数 = float(工作配方中的垂直配方.get("formula").get("middleCutting").get("cutTimes"))
 
-    每段子区间速度数量 = 5
+    每段子区间速度数量 = int(工作配方中的垂直配方.get("formula").get("edgeCutting").get("cutSpeedNums"))
     切割速度 = float(工作配方中的垂直配方.get("formula").get("xSpeed"))
     边缘切割速度百分比 = float(工作配方中的垂直配方.get("formula").get("edgeCutting").get("speed"))/100
     中间切割速度百分比 = float(工作配方中的垂直配方.get("formula").get("middleCutting").get("speed"))/100

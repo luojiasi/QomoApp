@@ -80,7 +80,7 @@ watch(
 
 
 // 计算开口
-function computeAngleValue(formula: ProcessFormulaRecipe['angleFormula']): number {return formula.k }
+function computeAngleValue(formula: ProcessFormulaRecipe['angleFormula'],height: number): number {return formula.b + formula.k*height }
 function computeLowerOpeningValue(formula: ProcessFormulaRecipe['lowerOpeningFormula'], height: number): number {return formula.k * height + formula.b}
 function computeDepthCompensationValue(formula: ProcessFormulaRecipe['depthCompensationFormula'], height: number,angle: number,lowerOpening: number): number {return formula.k * (height+formula.b) * Math.tan(angle * Math.PI / 180)*1000 + lowerOpening }
 // function computeCompensationAngleValue(formula: ProcessFormulaRecipe['compensationAngleFormula'], height: number): number {return formula.k * height + formula.b}
@@ -91,14 +91,9 @@ function calculateUpperOpening(height: number): number | null {
   if (!Number.isFinite(height)) return null
   const formula = selectedHorizontalFormula.value?.formula
   if (!formula) return null
-  const angle = computeAngleValue(formula.angleFormula)
+  const angle = computeAngleValue(formula.angleFormula,height)
   const lowerOpening = computeLowerOpeningValue(formula.lowerOpeningFormula, height)
-  const depthCompensation = computeDepthCompensationValue(
-    formula.depthCompensationFormula,
-    height,
-    angle,
-    lowerOpening
-  )
+  const depthCompensation = computeDepthCompensationValue(formula.depthCompensationFormula,height,angle,lowerOpening)
   return Number.isFinite(depthCompensation) ? depthCompensation : null
 }
 

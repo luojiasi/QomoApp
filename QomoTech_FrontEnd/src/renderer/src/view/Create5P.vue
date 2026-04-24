@@ -191,6 +191,8 @@
           </div>
         </div>
 
+
+        
         <!-- 参数信息面板（与绘图工具同级展示，无滚动条） -->
         <div
           v-else-if="toolButtons.find((b) => b.selected)?.id === 2"

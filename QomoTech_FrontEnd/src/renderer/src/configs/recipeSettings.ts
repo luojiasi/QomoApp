@@ -33,12 +33,12 @@ function createDefaultSharedProcessFormula(processLineName: string): ProcessForm
   return {
     name: processLineName,
     openingShape: 'V型',
-    angleFormula: createLinearFormulaCoefficients(0.54, 0),
+    angleFormula: createLinearFormulaCoefficients(0, 0.54),
     lowerOpeningFormula: createLinearFormulaCoefficients(5, 35),
     depthCompensationFormula: createLinearFormulaCoefficients(2, 0.5),
     upperOpeningFormula: '由系统自动计算',
     compensationAngleFormula: createLinearFormulaCoefficients(0, 0),
-    focusCompensation: 0.12
+    focusCompensation: 0.08
   }
 }
 
@@ -98,6 +98,7 @@ export function createDefaultVerticalProcessFormula(): VerticalProcessFormulaRec
     edgeCutting: {
       speed: 50,
       cutTimes: 2,
+      cutSpeedNums:5,
       change: createLinearFormulaCoefficients(10, 50)
     },
     middleCutting: {
@@ -274,11 +275,8 @@ function createVerticalFormulaFieldGroups(prefix: string,recipe?: VerticalProces
       fields: [
         { key: `${prefix}-edge-speed`, label: '切割速度百分比(%)', value: recipe?.edgeCutting.speed ?? '-' },
         { key: `${prefix}-edge-cut-times`, label: '切割次数(次)', value: recipe?.edgeCutting.cutTimes ?? '-' },
-        {
-          key: `${prefix}-edge-change`,
-          label: '边缘切割变化率',
-          value: formatDepthLinearFormula('速度', recipe?.edgeCutting.change)
-        }
+        { key: `${prefix}-edge-cut-speed-nums`, label: '切割速量(次)', value: recipe?.edgeCutting.cutSpeedNums ?? '-' },
+        {key: `${prefix}-edge-change`,label: '边缘切割变化率',value: formatDepthLinearFormula('速度', recipe?.edgeCutting.change)}
       ]
     },
     {

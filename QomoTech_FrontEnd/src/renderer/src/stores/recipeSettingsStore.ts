@@ -213,6 +213,7 @@ function isVerticalEdgeOrMiddleCutting(value: unknown): value is VerticalProcess
   return (
     typeof value.speed === 'number' &&
     typeof value.cutTimes === 'number' &&
+    typeof value.cutSpeedNums === 'number' &&
     isLinearFormulaCoefficients(value.change)
   )
 }

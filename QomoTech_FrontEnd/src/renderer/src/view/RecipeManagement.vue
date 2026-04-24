@@ -394,21 +394,14 @@ function getVerticalFormulaFields(recipe?: VerticalProcessFormulaRecipe) {
     { key: 'xSpeed', label: '插补运行速度（mm/s）', value: recipe?.xSpeed ?? '-' },
     { key: 'edgeSpeed', label: '边缘切割百分比（%）', value: recipe?.edgeCutting.speed ?? '-' },
     { key: 'edgeCutTimes', label: '切割次数（次）', value: recipe?.edgeCutting.cutTimes ?? '-' },
+    { key: 'cutSpeedNums', label: '切割速量(次)', value: recipe?.edgeCutting.cutSpeedNums ?? '-' },
     { key: 'edgeChange', label: '边缘切割变化', value: formatChangeFormula(recipe?.edgeCutting.change) },
     { key: 'middleSpeed', label: '中间切割百分比（%）', value: recipe?.middleCutting.speed ?? '-' },
     { key: 'middleCutTimes', label: '中间切割次数（次）', value: recipe?.middleCutting.cutTimes ?? '-' },
-    {
-      key: 'middleChange',
-      label: '中间切割 CHANGE',
-      value: formatChangeFormula(recipe?.middleCutting.change)
-    },
+    {key: 'middleChange',label: '中间切割 CHANGE',value: formatChangeFormula(recipe?.middleCutting.change)},
     { key: 'descentSpeed', label: '下降量(mm/层)', value: recipe?.descentCutting.speed ?? '-' },
     { key: 'descentZFeed', label: '下降减少量(mm/%)', value: recipe?.descentCutting.zFeed ?? '-' },
-    {
-      key: 'descentChange',
-      label: '下降切割 CHANGE',
-      value: formatChangeFormula(recipe?.descentCutting.change)
-    }
+    {key: 'descentChange',label: '下降切割 CHANGE',value: formatChangeFormula(recipe?.descentCutting.change)}
   ]
 }
 
