@@ -25,7 +25,7 @@ async def camera_stream_ws( websocket: WebSocket, timeout_ms: int = 1000, qualit
                 jpeg = await asyncio.to_thread(camera_driver.get_jpeg_bytes,timeout_ms=safe_timeout,quality=safe_quality,)
             except Exception as exc:  # noqa: BLE001
                 await websocket.send_json({"type": "error", "message": str(exc)})
-                # await asyncio.sleep(0.05)
+                await asyncio.sleep(0.05)
                 continue
 
             await websocket.send_bytes(jpeg)

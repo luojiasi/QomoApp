@@ -139,6 +139,36 @@
           </div>
         </div>
 
+        <div
+          v-if="toolButtons.find((b) => b.selected)?.id === 1"
+          class="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900/60 px-2 py-2 shadow-sm shadow-black/20"
+          @click="toggleQuickAddExpanded"
+        >
+          <div
+            class="cursor-pointer text-xs font-medium text-slate-200 [writing-mode:vertical-rl] [text-orientation:mixed] tracking-wide"
+          >
+            快捷添加
+          </div>
+          <div class="mx-1 h-10 w-px bg-slate-700/70"></div>
+
+          <div v-show="quickAddExpanded" class="flex items-center gap-3">
+            <button
+              v-for="diamond in canvas2dTools.addDiamondQucikFunction"
+              :key="diamond.id"
+              type="button"
+              class="group relative flex h-12 w-16 flex-col items-center justify-center rounded-md border text-slate-200 transition-colors hover:bg-slate-800/60"
+              :class="
+                selectedQuickAddDiamondId === diamond.id
+                  ? 'border-white bg-slate-800/80'
+                  : 'border-transparent hover:border-slate-600'
+              "
+              @click.stop="openDiamondParamsDetails(diamond)"
+            >
+              <div class="mt-1 text-[11px] text-slate-200">{{ diamond.name }}</div>
+            </button>
+          </div>
+        </div>
+
         <!-- 2D复杂图形运算 -->
         <div
           v-if="toolButtons.find((b) => b.selected)?.id === 1"
@@ -192,7 +222,8 @@
         </div>
 
 
-        
+
+
         <!-- 参数信息面板（与绘图工具同级展示，无滚动条） -->
         <div
           v-else-if="toolButtons.find((b) => b.selected)?.id === 2"
@@ -1124,6 +1155,12 @@
         </div>
       </div>
     </Teleport>
+
+    <CreateDiamondParamsDetails
+      :visible="diamondParamsModalOpen"
+      :diamond-detail="selectedQuickAddDiamond"
+      @close="closeDiamondParamsDetails"
+    />
   </div>
 </template>
 
@@ -1133,6 +1170,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useNotification } from '@renderer/composables/useNotification'
 import QomoCanvas from '@renderer/components/Qomo5P/QomoCanvas.vue'
 import Qomo3DPreview from '@renderer/components/Qomo5P/Qomo3DPreview.vue'
+import CreateDiamondParamsDetails from '@renderer/components/CreateDiamondParamsDetails.vue'
 import { dispatchQomoTo5PAction } from '@renderer/utils/Qomo5P/QomoTo5P'
 import { dispatchQomoToCanvasAction, DrawingShapeTools } from '@renderer/utils/Qomo5P/QomoToCanvas'
 import {
@@ -1144,6 +1182,8 @@ import {
 } from '@renderer/types/Qomo5P'
 import { useQomo5PStore } from '../stores/qomo5pEditor'
 import { storeToRefs } from 'pinia'
+import type { DiamondDetailParameters } from '@renderer/types/diamondTypes'
+import { diamondQuickAddConfigs } from '@renderer/configs/diamondConfigs'
 const store = useQomo5PStore()
 const { viewport, layers, entities, selectedEntityIds } = storeToRefs(store)
 const { success, error } = useNotification()
@@ -1404,12 +1444,14 @@ interface Canvas2DFunctionComplexTool {
   name: string
 }
 
+
 const canvas2dActiveToolId = ref<Canvas2DToolId>('fn-select')
 
 const canvas2dTools = ref<{
   function: Canvas2DFunctionTool[]
   drawing: DrawingTool2D[]
   complexfunction: Canvas2DFunctionComplexTool[]
+  addDiamondQucikFunction: DiamondDetailParameters[]
 }>({
   function: [
     { id: 'fn-select', name: '选择' },
@@ -1417,7 +1459,7 @@ const canvas2dTools = ref<{
     { id: 'fn-delete', name: '删除' }
   ],
   complexfunction: [
-    { id: 'complex_offset', name: '偏移' },
+    { id: 'complex_offset', name: '偏移图形' },
     { id: 'complex_boolean', name: '布尔运算' }
   ],
   drawing: [
@@ -1465,15 +1507,7 @@ const canvas2dTools = ref<{
         { kind: 'circle', cx: 6, cy: 16, r: 1.2, fill: true },
         { kind: 'circle', cx: 18, cy: 8, r: 1.2, fill: true }
       ],
-      DrawingShapeTools: [
-        'three_points_arc',
-        'start_center_end',
-        'start_center_angle',
-        'start_center_length',
-        'center_start_end',
-        'center_start_angle',
-        'center_start_length'
-      ]
+      DrawingShapeTools: ['three_points_arc','start_center_end','start_center_angle','start_center_length','center_start_end','center_start_angle','center_start_length']
     },
     {
       id: 'draw-bezier',
@@ -1505,7 +1539,8 @@ const canvas2dTools = ref<{
       ],
       DrawingShapeTools: ['oval', 'heart', 'pear', 'square', 'marquise', 'cushion', 'octagon']
     }
-  ]
+  ],
+  addDiamondQucikFunction: diamondQuickAddConfigs
 })
 
 const drawingShapeToolsMenuItems = computed(() => {
@@ -1513,6 +1548,24 @@ const drawingShapeToolsMenuItems = computed(() => {
   const tool = canvas2dTools.value.drawing.find((t) => t.id === drawingShapeToolsMenuToolId.value)
   return tool?.DrawingShapeTools ?? []
 })
+
+const quickAddExpanded = ref(true)
+const selectedQuickAddDiamond = ref<DiamondDetailParameters | null>(null)
+const diamondParamsModalOpen = ref(false)
+const selectedQuickAddDiamondId = computed(() => selectedQuickAddDiamond.value?.id ?? null)
+
+const toggleQuickAddExpanded = () => {
+  quickAddExpanded.value = !quickAddExpanded.value
+}
+
+const openDiamondParamsDetails = (diamond: DiamondDetailParameters) => {
+  selectedQuickAddDiamond.value = diamond
+  diamondParamsModalOpen.value = true
+}
+
+const closeDiamondParamsDetails = () => {
+  diamondParamsModalOpen.value = false
+}
 
 // 添加对应的名字
 const drawingShapeToolLabel = (tool: DrawingShapeTools) => {

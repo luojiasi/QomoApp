@@ -33,6 +33,18 @@ class ZMotionDriver(BaseDriver):
     MAX_AXES = 6
     _AXIS_FLOAT_FIELDS = ("units", "lspeed", "speed", "accel", "decel", "sramp")
     _AXIS_NAME_BY_NO = {0: "x", 1: "y", 2: "z", 3: "r", 4: "u"}
+    _STATIC_INT_FIELDS: dict[str, str] = {
+        "axis_type": "ZAux_Direct_GetAtype",
+        "merge": "ZAux_Direct_GetMerge",
+        "fwd_in": "ZAux_Direct_GetFwdIn",
+        "rev_in": "ZAux_Direct_GetRevIn",
+        "corner_mode": "ZAux_Direct_GetCornerMode",
+    }
+    _STATIC_FLOAT_FIELDS: dict[str, str] = {
+        "decel_angle": "ZAux_Direct_GetDecelAngle",
+        "stop_angle": "ZAux_Direct_GetStopAngle",
+        "zsmooth": "ZAux_Direct_GetZsmooth",
+    }
 
     def __init__(self, controller_ip: str, axis_units: dict[int, float] | None = None) -> None:
         self.instance_id = id(self)
@@ -50,6 +62,7 @@ class ZMotionDriver(BaseDriver):
         self._driver_mode = "sim"
         self._zaux: Any | None = None
         self._zaux_lock = Lock()
+        self._axis_static_cache: dict[int, dict[str, Any]] = {}
         self._logger = logging.getLogger("qomotech.zmotion")
         self._last_error: str | None = None
         self._last_error_code: int | None = None
@@ -103,13 +116,26 @@ class ZMotionDriver(BaseDriver):
     def _using_dll(self) -> bool:
         return self._zaux is not None and self._driver_mode == "zauxdll" and self._connected
 
+    def _refresh_axis_static_cache(self) -> None:
+        cache: dict[int, dict[str, Any]] = {}
+        for axis_no in range(self.MAX_AXES):
+            entry: dict[str, Any] = {}
+            for field, method in self._STATIC_INT_FIELDS.items():
+                val = self._read_zaux_value(method, axis_no, cast=int)
+                entry[field] = val if val is not None else 0
+            for field, method in self._STATIC_FLOAT_FIELDS.items():
+                val = self._read_zaux_value(method, axis_no, cast=float)
+                entry[field] = val if val is not None else 0.0
+            cache[axis_no] = entry
+        self._axis_static_cache = cache
+
     def _read_zaux_raw(self, method_name: str, *args: Any) -> tuple[int, Any] | None:
-        if not self._using_dll():
-            return None
-        fn = getattr(self._zaux, method_name, None)
-        if fn is None:
-            return None
         with self._zaux_lock:
+            if not self._using_dll():
+                return None
+            fn = getattr(self._zaux, method_name, None)
+            if fn is None:
+                return None
             return fn(*args)
 
     def _read_zaux_value(self, method_name: str, *args: Any, cast: type) -> Any | None:
@@ -166,7 +192,10 @@ class ZMotionDriver(BaseDriver):
             if self._ret_ok(ret):
                 self._driver_mode = "zauxdll"
                 self._connected = True
-                return self.set_all_axes_params()
+                ok = self.set_all_axes_params()
+                if ok:
+                    self._refresh_axis_static_cache()
+                return ok
             self._set_error("ZAux_OpenEth 连接失败", int(ret))
             self._logger.warning("ZAux_OpenEth failed ret=%s", ret)
             return False
@@ -180,15 +209,17 @@ class ZMotionDriver(BaseDriver):
 
     # 2. 断开控制器连接
     def disconnect(self) -> bool:
-        if self._zaux is not None and self._driver_mode == "zauxdll":
-            try:
-                self._zaux.ZAux_Close()
-            except Exception as exc:
-                self._set_error(f"ZAux_Close 失败: {exc}")
-                return False
-        self._zaux = None
-        self._connected = False
-        self._driver_mode = "sim"
+        with self._zaux_lock:
+            if self._zaux is not None and self._driver_mode == "zauxdll":
+                try:
+                    self._zaux.ZAux_Close()
+                except Exception as exc:
+                    self._set_error(f"ZAux_Close 失败: {exc}")
+                    return False
+            self._zaux = None
+            self._connected = False
+            self._driver_mode = "sim"
+            self._axis_static_cache = {}
         return True
 
     def is_connected(self) -> bool:
@@ -450,15 +481,16 @@ class ZMotionDriver(BaseDriver):
         status: dict[str, dict[str, Any]] = {}
         for axis_no in range(self.MAX_AXES):
             axis = self._axis[axis_no]
+            static = self._axis_static_cache.get(axis_no, {})
             runtime: dict[str, Any] = {
-                "axis_type": 0,
-                "merge": 0,
-                "fwd_in": -1,
-                "rev_in": -1,
-                "corner_mode": 0,
-                "decel_angle": 0.0,
-                "stop_angle": 0.0,
-                "zsmooth": 0.0,
+                "axis_type": static.get("axis_type", 0),
+                "merge": static.get("merge", 0),
+                "fwd_in": static.get("fwd_in", -1),
+                "rev_in": static.get("rev_in", -1),
+                "corner_mode": static.get("corner_mode", 0),
+                "decel_angle": static.get("decel_angle", 0.0),
+                "stop_angle": static.get("stop_angle", 0.0),
+                "zsmooth": static.get("zsmooth", 0.0),
                 "mspeed": float(axis.speed),
                 "vp_speed": float(axis.speed),
                 "mtype": 0,
@@ -478,27 +510,19 @@ class ZMotionDriver(BaseDriver):
                 if idle_val is not None:
                     axis.moving = idle_val
 
-                int_fields = {
-                    "axis_type": "ZAux_Direct_GetAtype",
-                    "merge": "ZAux_Direct_GetMerge",
-                    "fwd_in": "ZAux_Direct_GetFwdIn",
-                    "rev_in": "ZAux_Direct_GetRevIn",
-                    "corner_mode": "ZAux_Direct_GetCornerMode",
+                dynamic_int_fields = {
                     "mtype": "ZAux_Direct_GetMtype",
                     "move_buffered": "ZAux_Direct_GetMovesBuffered",
                 }
-                float_fields = {
-                    "decel_angle": "ZAux_Direct_GetDecelAngle",
-                    "stop_angle": "ZAux_Direct_GetStopAngle",
-                    "zsmooth": "ZAux_Direct_GetZsmooth",
+                dynamic_float_fields = {
                     "mspeed": "ZAux_Direct_GetMspeed",
                     "vp_speed": "ZAux_Direct_GetVpSpeed",
                 }
-                for field, method in int_fields.items():
+                for field, method in dynamic_int_fields.items():
                     val = self._read_zaux_value(method, axis_no, cast=int)
                     if val is not None:
                         runtime[field] = val
-                for field, method in float_fields.items():
+                for field, method in dynamic_float_fields.items():
                     val = self._read_zaux_value(method, axis_no, cast=float)
                     if val is not None:
                         runtime[field] = val

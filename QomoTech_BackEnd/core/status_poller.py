@@ -66,6 +66,7 @@ class HardwareStatusPoller:
 
     def _run(self) -> None:
         while not self._stop_event.is_set():
+            motion_ok = False
             try:
                 motion_ok = self._motion.is_connected()
                 driver_status = self._build_driver_status()
@@ -78,5 +79,6 @@ class HardwareStatusPoller:
             except Exception as exc:
                 self._logger.exception("poll hardware status failed: %s", exc)
 
-            self._stop_event.wait(self._interval_s)
+            wait = self._interval_s if motion_ok else 0.5
+            self._stop_event.wait(wait)
 
