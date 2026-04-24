@@ -13,10 +13,15 @@ QomoTech_BackEnd/build/run/
 QomoTech_BackEnd/dist/
 QomoTech_BackEnd/logs/
 
+# QomoTech_BackEnd: Python 缓存（不提交）
+QomoTech_BackEnd/**/__pycache__/
+QomoTech_BackEnd/**/*.pyc
+
 # Node/Electron/Vite/Vue
 node_modules/
 dist/
 out/
+scripts/
 *.local
 npm-debug.log*
 yarn-debug.log*

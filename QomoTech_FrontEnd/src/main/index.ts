@@ -82,8 +82,24 @@ const killBackendByPid = async (pid: number): Promise<void> => {
   await execAsync(`taskkill /PID ${pid} /F /T`)
 }
 
+const gracefulShutdownBackend = async (): Promise<void> => {
+  // 先通过 HTTP 接口通知后端优雅关闭，让 Python 有机会刷日志、执行 cleanup。
+  try {
+    await fetch(`http://${BACKEND_HOST}:${BACKEND_PORT}/api/shutdown`, {method: 'POST',signal: AbortSignal.timeout(3000)})
+  } catch {
+    // 后端已经挂了或者超时，继续走强杀兜底
+  }
+}
+
 const stopPackagedBackend = async (): Promise<void> => {
-  // 1) Prefer killing the spawned process handle (best-effort).
+  // 1) 先发优雅关闭请求，给后端 3s 写完日志的时间。
+  await gracefulShutdownBackend()
+
+  // 2) 等最多 4s 看后端是否自行退出，退出了就不用强杀。
+  const selfExited = await waitForBackendStop(4000)
+  if (selfExited) return
+
+  // 3) 后端仍在运行，走强杀兜底。
   try {
     if (backendProcess && typeof backendProcess.pid === 'number') {
       if (backendProcess.exitCode == null) {
@@ -94,8 +110,7 @@ const stopPackagedBackend = async (): Promise<void> => {
     // ignore
   }
 
-  // 2) Fallback: if something still listens on BACKEND_PORT, kill by the PID found from netstat.
-  //    This avoids the situation where the backend was started before we had a handle.
+  // 4) 最后兜底：按端口找 PID 再强杀。
   try {
     const out = await execAsync(`netstat -ano | findstr :${BACKEND_PORT}`)
     // Example line:

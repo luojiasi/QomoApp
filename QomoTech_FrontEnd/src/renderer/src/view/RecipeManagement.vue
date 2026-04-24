@@ -18,12 +18,11 @@ import type {
 } from '../types/settings'
 import { cloneSettings, formatSettingValue } from '../utils/settings'
 
-type ChildRecipeType = 'blackening' | 'machining' | 'cleaning'
+type ChildRecipeType = 'blackening' | 'machining'
 type EditorPanel =
   | 'main'
   | 'blackening'
   | 'machining'
-  | 'cleaning'
   | 'laserPower'
   | 'horizontal'
   | 'vertical'
@@ -88,8 +87,7 @@ const childRecipeCount = computed(
   () =>
     recipeState.value.laserPowerRecipes.length +
     recipeState.value.blackeningRecipes.length +
-    recipeState.value.machiningRecipes.length +
-    recipeState.value.cleaningRecipes.length
+    recipeState.value.machiningRecipes.length
 )
 
 /** 主配方列表：备注匹配关键词 + 状态筛选（草稿 / 生效 / 归档） */
@@ -131,11 +129,6 @@ const filteredMachiningRecipes = computed(() => {
   return recipeState.value.machiningRecipes.filter((r) => matchesRecipeRecordKeyword(r, kw))
 })
 
-const filteredCleaningRecipes = computed(() => {
-  const kw = recipeState.value.filter.libraryKeywords.cleaning
-  return recipeState.value.cleaningRecipes.filter((r) => matchesRecipeRecordKeyword(r, kw))
-})
-
 const filteredLaserPowerRecipes = computed(() => {
   const kw = recipeState.value.filter.libraryKeywords.laserPower
   return recipeState.value.laserPowerRecipes.filter((r) => matchesLaserPowerKeyword(r, kw))
@@ -172,13 +165,6 @@ const selectedMachiningRecipe = computed(
     ) ?? null
 )
 
-const selectedCleaningRecipe = computed(
-  () =>
-    recipeState.value.cleaningRecipes.find(
-      (recipe) => recipe.id === selectedMainRecipe.value?.cleaningRecipeId
-    ) ?? null
-)
-
 const horizontalFormulaMap = computed(() =>
   new Map(recipeState.value.horizontalFormulaRecipes.map((recipe) => [recipe.id, recipe]))
 )
@@ -194,7 +180,7 @@ const laserPowerMap = computed(
 const activeEditorPanel = ref<EditorPanel>('main')
 const savingMainRecipeFile = ref(false)
 
-type ReferencePopoverKind = 'blackening' | 'machining' | 'cleaning'
+type ReferencePopoverKind = 'blackening' | 'machining'
 const referencePopoverKind = ref<ReferencePopoverKind | null>(null)
 
 const referenceCards = computed(() => [
@@ -207,11 +193,6 @@ const referenceCards = computed(() => [
     kind: 'machining' as const,
     summaryLabel: '已选加工工艺配方',
     name: selectedMachiningRecipe.value?.name ?? '未选择'
-  },
-  {
-    kind: 'cleaning' as const,
-    summaryLabel: '已选清洗工艺配方',
-    name: selectedCleaningRecipe.value?.name ?? '未选择'
   }
 ])
 
@@ -219,8 +200,7 @@ const referenceDetailSectionByKind = computed(() => {
   const list = childRecipeDetailSections.value
   return {
     blackening: list.find((s) => s.id === 'recipe-blackening-detail') ?? null,
-    machining: list.find((s) => s.id === 'recipe-machining-detail') ?? null,
-    cleaning: list.find((s) => s.id === 'recipe-cleaning-detail') ?? null
+    machining: list.find((s) => s.id === 'recipe-machining-detail') ?? null
   }
 })
 
@@ -266,7 +246,7 @@ function closeReferenceCenterPanel(): void {
   referencePopoverKind.value = null
 }
 
-type ProcessLibraryKind = 'machining' | 'cleaning'
+type ProcessLibraryKind = 'machining'
 type ProcessDetailFieldKind = 'laserPower' | 'horizontal' | 'vertical'
 
 const processDetailHover = ref<{
@@ -279,45 +259,25 @@ const activeProcessDetailPopover = computed(() => {
   const h = processDetailHover.value
   if (!h) return null
 
-  if (h.library === 'machining') {
-    const mr = recipeState.value.machiningRecipes.find((r) => r.id === h.recipeId)
-    if (!mr) return null
-    if (h.kind === 'laserPower') {
-      const lp = laserPowerMap.value.get(mr.laserPowerRecipeId)
-      return {
-        title: '激光功率配方',
-        description: lp ? `${lp.name}（${lp.code}）` : '当前未关联有效配方',
-        fields: getLaserPowerFields(lp)
-      }
-    }
-    if (h.kind === 'horizontal') {
-      const shared = getHorizontalFormulaById(mr.horizontalFormulaId)
-      return {
-        title: '水平工艺配方',
-        description: shared ? `${shared.name}（${shared.code}）` : '当前未选择',
-        fields: getFormulaFields(shared?.formula)
-      }
-    }
-    const shared = getVerticalFormulaById(mr.verticalFormulaId)
+  const mr = recipeState.value.machiningRecipes.find((r) => r.id === h.recipeId)
+  if (!mr) return null
+  if (h.kind === 'laserPower') {
+    const lp = laserPowerMap.value.get(mr.laserPowerRecipeId)
     return {
-      title: '垂直工艺配方',
-      description: shared ? `${shared.name}（${shared.code}）` : '当前未选择',
-      fields: getVerticalFormulaFields(shared?.formula)
+      title: '激光功率配方',
+      description: lp ? `${lp.name}（${lp.code}）` : '当前未关联有效配方',
+      fields: getLaserPowerFields(lp)
     }
   }
-
-  const cr = recipeState.value.cleaningRecipes.find((r) => r.id === h.recipeId)
-  if (!cr) return null
-  if (h.kind === 'laserPower') return null
   if (h.kind === 'horizontal') {
-    const shared = getHorizontalFormulaById(cr.horizontalFormulaId)
+    const shared = getHorizontalFormulaById(mr.horizontalFormulaId)
     return {
       title: '水平工艺配方',
       description: shared ? `${shared.name}（${shared.code}）` : '当前未选择',
       fields: getFormulaFields(shared?.formula)
     }
   }
-  const shared = getVerticalFormulaById(cr.verticalFormulaId)
+  const shared = getVerticalFormulaById(mr.verticalFormulaId)
   return {
     title: '垂直工艺配方',
     description: shared ? `${shared.name}（${shared.code}）` : '当前未选择',
@@ -369,7 +329,6 @@ const editorPanelOptions: { key: EditorPanel; label: string }[] = [
   { key: 'main', label: '主配方' },
   { key: 'blackening', label: '扫黑工艺配方' },
   { key: 'machining', label: '加工工艺配方' },
-  { key: 'cleaning', label: '清洗工艺配方' },
   { key: 'laserPower', label: '激光功率配方' },
   { key: 'horizontal', label: '水平工艺配方' },
   { key: 'vertical', label: '垂直工艺配方' }
@@ -504,25 +463,12 @@ function buildSelectedMainRecipeDetails() {
       }
     : null
 
-  const cleaningRecipe = selectedCleaningRecipe.value
-    ? {
-        ...cloneSettings(selectedCleaningRecipe.value),
-        horizontalFormulaRecipe: cloneSettings(
-          getHorizontalFormulaById(selectedCleaningRecipe.value.horizontalFormulaId)
-        ),
-        verticalFormulaRecipe: cloneSettings(
-          getVerticalFormulaById(selectedCleaningRecipe.value.verticalFormulaId)
-        )
-      }
-    : null
-
   return {
     selectedMainRecipeId: recipeState.value.selectedMainRecipeId,
     savedAt: new Date().toISOString(),
     mainRecipe,
     blackeningRecipe,
-    machiningRecipe,
-    cleaningRecipe
+    machiningRecipe
   }
 }
 
@@ -535,19 +481,11 @@ function markSharedFormulaUpdated(recipe: { updatedAt: string }): void {
 }
 
 function getFormulaLinkedProcessNames(type: FormulaType, id: string): string[] {
-  const linkedMachining = recipeState.value.machiningRecipes
+  return recipeState.value.machiningRecipes
     .filter((recipe) =>
       type === 'horizontal' ? recipe.horizontalFormulaId === id : recipe.verticalFormulaId === id
     )
     .map((recipe) => `加工：${recipe.name}`)
-
-  const linkedCleaning = recipeState.value.cleaningRecipes
-    .filter((recipe) =>
-      type === 'horizontal' ? recipe.horizontalFormulaId === id : recipe.verticalFormulaId === id
-    )
-    .map((recipe) => `清洗：${recipe.name}`)
-
-  return [...linkedMachining, ...linkedCleaning]
 }
 
 function isFormulaLinked(type: FormulaType, id: string): boolean {
@@ -574,8 +512,7 @@ function getLinkedMainRecipeNames(type: ChildRecipeType, id: string): string[] {
   return recipeState.value.mainRecipes
     .filter((recipe) => {
       if (type === 'blackening') return recipe.blackeningRecipeId === id
-      if (type === 'machining') return recipe.machiningRecipeId === id
-      return recipe.cleaningRecipeId === id
+      return recipe.machiningRecipeId === id
     })
     .map((recipe) => recipe.name)
 }
@@ -596,17 +533,16 @@ function addMainRecipe(): void {
   if (
     !recipeState.value.laserPowerRecipes.length ||
     !recipeState.value.blackeningRecipes.length ||
-    !recipeState.value.machiningRecipes.length ||
-    !recipeState.value.cleaningRecipes.length
+    !recipeState.value.machiningRecipes.length
   ) {
     warning(
       '无法新增主配方',
-      '请先保证激光功率、扫黑、加工、清洗等子配方已就绪（至少各有一个可用的工艺子配方）。'
+      '请先保证激光功率、扫黑、加工等子配方已就绪（至少各有一个可用的工艺子配方）。'
     )
     return
   }
   recipeStore.addMainRecipe()
-  success('已新增主配方', '新主配方已自动绑定三类工艺配方。')
+  success('已新增主配方', '新主配方已自动绑定两类工艺配方。')
 }
 
 function removeMainRecipe(id: string): void {
@@ -658,28 +594,6 @@ function removeMachiningRecipe(id: string): void {
   }
   recipeStore.removeMachiningRecipe(id)
   success('已删除加工工艺配方')
-}
-
-function addCleaningRecipe(): void {
-  if (
-    !recipeState.value.horizontalFormulaRecipes.length ||
-    !recipeState.value.verticalFormulaRecipes.length
-  ) {
-    warning('无法新增清洗工艺配方', '请先至少创建一个水平工艺配方和一个垂直工艺配方。')
-    return
-  }
-  recipeStore.addCleaningRecipe()
-  success('已新增清洗工艺配方')
-}
-
-function removeCleaningRecipe(id: string): void {
-  const linkedNames = getLinkedMainRecipeNames('cleaning', id)
-  if (linkedNames.length) {
-    warning('无法删除清洗工艺配方', `已被主配方引用：${linkedNames.join('、')}`)
-    return
-  }
-  recipeStore.removeCleaningRecipe(id)
-  success('已删除清洗工艺配方')
 }
 
 function addHorizontalFormulaRecipe(): void {
@@ -816,7 +730,7 @@ onMounted(async () => {
           <div>
             <h2 class="app-text-primary text-lg font-semibold">主配方列表</h2>
             <p class="app-text-secondary mt-1 text-xs leading-snug">
-              先选中主配方，再在下方编辑它所绑定的三个工艺子配方。可通过关键词（备注）与状态（草稿/生效/归档）缩小列表。
+              先选中主配方，再在下方编辑它所绑定的两个工艺子配方。可通过关键词（备注）与状态（草稿/生效/归档）缩小列表。
             </p>
           </div>
           <button
@@ -894,11 +808,6 @@ onMounted(async () => {
                     recipeState.machiningRecipes.find((item) => item.id === recipe.machiningRecipeId)
                       ?.name ?? '-'
                   }}
-                  <span class="text-slate-400 dark:text-slate-500"> · </span>
-                  清洗：{{
-                    recipeState.cleaningRecipes.find((item) => item.id === recipe.cleaningRecipeId)
-                      ?.name ?? '-'
-                  }}
                 </p>
               </div>
 
@@ -929,7 +838,7 @@ onMounted(async () => {
           <div>
             <h2 class="app-text-primary text-lg font-semibold">当前主配方编辑</h2>
             <p class="app-text-secondary mt-1 text-xs leading-snug">
-              当前主配方必须同时选择一个扫黑工艺配方、一个加工工艺配方和一个清洗工艺配方。
+              当前主配方必须同时选择一个扫黑工艺配方和一个加工工艺配方。
             </p>
           </div>
           <button
@@ -1018,24 +927,6 @@ onMounted(async () => {
             >
               <option
                 v-for="recipe in recipeState.machiningRecipes"
-                :key="recipe.id"
-                :value="recipe.id"
-                class="text-slate-900"
-              >
-                {{ recipe.name }}
-              </option>
-            </select>
-          </label>
-
-          <label class="grid grid-cols-[minmax(5.25rem,auto)_1fr] items-center gap-2">
-            <span class="app-text-secondary shrink-0 text-xs leading-tight">清洗工艺配方</span>
-            <select
-              v-model="selectedMainRecipe.cleaningRecipeId"
-              class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2.5 py-1.5 text-sm outline-none"
-              @change="markMainRecipeUpdated"
-            >
-              <option
-                v-for="recipe in recipeState.cleaningRecipes"
                 :key="recipe.id"
                 :value="recipe.id"
                 class="text-slate-900"
@@ -1211,52 +1102,6 @@ onMounted(async () => {
         </RecipeLibrarySection>
 
         <RecipeLibrarySection
-          v-if="activeEditorPanel === 'cleaning'"
-          title="清洗工艺配方库"
-          description="每个清洗工艺配方包含水平工艺配方和直工艺配方。"
-          add-button-text="新增清洗工艺配方"
-          @add="addCleaningRecipe"
-        >
-          <div class="mt-3 flex gap-4 sm:flex-row sm:items-end">
-            <label class="flex min-w-0 flex-1 gap-2">
-              <SvgIcon icon-name="icon-sousuo" class-name="text-1xl" />
-              <input
-                v-model="recipeState.filter.libraryKeywords.cleaning"
-                type="search"
-                placeholder="按名称、编码、备注筛选（清洗工艺）"
-                class="min-w-0 flex-1 rounded-lg border border-(--app-border) bg-transparent px-2.5 py-1.5 text-sm outline-none"
-              />
-            </label>
-          </div>
-          <p
-            v-if="!filteredCleaningRecipes.length"
-            class="app-text-secondary mt-3 rounded-lg border border-dashed border-(--app-border) px-3 py-4 text-center text-sm"
-          >
-            当前筛选条件下没有清洗工艺配方，请调整关键词。
-          </p>
-          <div v-else class="mt-5 space-y-4">
-            <RecipeEditorCard
-              v-for="recipe in filteredCleaningRecipes"
-              :key="recipe.id"
-              type="cleaning"
-              :item="recipe"
-              :delete-disabled="isChildRecipeLinked('cleaning', recipe.id)"
-              :warning-text="
-                isChildRecipeLinked('cleaning', recipe.id)
-                  ? `已被主配方引用：${getLinkedMainRecipeNames('cleaning', recipe.id).join('、')}`
-                  : ''
-              "
-              :horizontal-formula-options="recipeState.horizontalFormulaRecipes"
-              :vertical-formula-options="recipeState.verticalFormulaRecipes"
-              :on-updated="markProcessRecipeUpdated"
-              :on-hover-enter="(id, kind) => onProcessDetailRowEnter('cleaning', id, kind)"
-              :on-hover-leave="onProcessDetailRowLeave"
-              @delete="removeCleaningRecipe(recipe.id)"
-            />
-          </div>
-        </RecipeLibrarySection>
-
-        <RecipeLibrarySection
           v-if="activeEditorPanel === 'laserPower'"
           title="激光功率配方库"
           description="激光功率配方包含激光厂家、激光功率、激光频率、激光电流与使用传输方式，可被扫黑工艺配方与加工工艺配方引用。"
@@ -1303,7 +1148,7 @@ onMounted(async () => {
         <RecipeLibrarySection
           v-if="activeEditorPanel === 'horizontal'"
           title="水平工艺配方"
-          description="水平工艺配方是共享配方库，可同时被加工工艺配方与清洗工艺配方引用。"
+          description="水平工艺配方是共享配方库，可被加工工艺配方引用。"
           add-button-text="新增水平工艺配方"
           @add="addHorizontalFormulaRecipe"
         >
@@ -1350,7 +1195,7 @@ onMounted(async () => {
         <RecipeLibrarySection
           v-if="activeEditorPanel === 'vertical'"
           title="垂直工艺配方"
-          description="垂直工艺配方是共享配方库，可同时被加工工艺配方与清洗工艺配方引用。"
+          description="垂直工艺配方是共享配方库，可被加工工艺配方引用。"
           add-button-text="新增垂直工艺配方"
           @add="addVerticalFormulaRecipe"
         >

@@ -2,7 +2,6 @@ import { ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 import {
   createBlackeningRecipe,
-  createCleaningRecipe,
   createDefaultVerticalProcessFormula,
   createHorizontalFormulaRecipe,
   createLaserPowerRecipe,
@@ -12,7 +11,6 @@ import {
   defaultRecipeManagerState
 } from '../configs/settings'
 import type {
-  CleaningProcessRecipe,
   LaserPowerRecipe,
   MachiningProcessRecipe,
   ProcessFormulaRecipe,
@@ -45,13 +43,12 @@ const RECIPE_STORAGE_KEYS = {
   horizontalFormulaRecipes: 'qomotech.recipe.horizontal-formula-recipes',
   verticalFormulaRecipes: 'qomotech.recipe.vertical-formula-recipes',
   machiningRecipes: 'qomotech.recipe.machining-recipes',
-  cleaningRecipes: 'qomotech.recipe.cleaning-recipes',
   mainRecipeDetails: 'qomotech.recipe.main-recipe-details',
   selectedMainRecipeId: 'qomotech.recipe.selected-main-recipe-id',
   filter: 'qomotech.recipe.filter'
 } as const
 
-type ProcessRecipeWithFormulaDetails<T extends MachiningProcessRecipe | CleaningProcessRecipe> = T & {
+type ProcessRecipeWithFormulaDetails<T extends MachiningProcessRecipe> = T & {
   horizontalFormulaRecipe: SharedFormulaRecipe | null
   verticalFormulaRecipe: VerticalFormulaRecipe | null
 }
@@ -62,7 +59,6 @@ interface MainRecipeDetailsStorage {
   mainRecipe: RecipeManagerState['mainRecipes'][number] | null
   blackeningRecipe: RecipeManagerState['blackeningRecipes'][number] | null
   machiningRecipe: ProcessRecipeWithFormulaDetails<MachiningProcessRecipe> | null
-  cleaningRecipe: ProcessRecipeWithFormulaDetails<CleaningProcessRecipe> | null
 }
 
 function canUseLocalStorage(): boolean {
@@ -95,8 +91,7 @@ function hasSplitStorageData(): boolean {
     window.localStorage.getItem(RECIPE_STORAGE_KEYS.blackeningRecipes) !== null ||
     window.localStorage.getItem(RECIPE_STORAGE_KEYS.horizontalFormulaRecipes) !== null ||
     window.localStorage.getItem(RECIPE_STORAGE_KEYS.verticalFormulaRecipes) !== null ||
-    window.localStorage.getItem(RECIPE_STORAGE_KEYS.machiningRecipes) !== null ||
-    window.localStorage.getItem(RECIPE_STORAGE_KEYS.cleaningRecipes) !== null
+    window.localStorage.getItem(RECIPE_STORAGE_KEYS.machiningRecipes) !== null
   )
 }
 
@@ -129,9 +124,6 @@ function readStateFromLocalStorage(): RecipeManagerState | null {
       readLocalStorageJson<RecipeManagerState['machiningRecipes']>(
         RECIPE_STORAGE_KEYS.machiningRecipes
       ) ?? defaultRecipeManagerState.machiningRecipes,
-    cleaningRecipes:
-      readLocalStorageJson<RecipeManagerState['cleaningRecipes']>(RECIPE_STORAGE_KEYS.cleaningRecipes) ??
-      defaultRecipeManagerState.cleaningRecipes,
     selectedMainRecipeId:
       readLocalStorageJson<RecipeManagerState['selectedMainRecipeId']>(
         RECIPE_STORAGE_KEYS.selectedMainRecipeId
@@ -151,7 +143,6 @@ function persistStateToLocalStorage(state: RecipeManagerState): void {
   writeLocalStorageJson(RECIPE_STORAGE_KEYS.horizontalFormulaRecipes, state.horizontalFormulaRecipes)
   writeLocalStorageJson(RECIPE_STORAGE_KEYS.verticalFormulaRecipes, state.verticalFormulaRecipes)
   writeLocalStorageJson(RECIPE_STORAGE_KEYS.machiningRecipes, state.machiningRecipes)
-  writeLocalStorageJson(RECIPE_STORAGE_KEYS.cleaningRecipes, state.cleaningRecipes)
   writeLocalStorageJson(RECIPE_STORAGE_KEYS.mainRecipeDetails, buildMainRecipeDetailsStorage(state))
   writeLocalStorageJson(RECIPE_STORAGE_KEYS.selectedMainRecipeId, state.selectedMainRecipeId)
   writeLocalStorageJson(RECIPE_STORAGE_KEYS.filter, state.filter)
@@ -166,7 +157,6 @@ function buildMainRecipeDetailsStorage(state: RecipeManagerState): MainRecipeDet
   const blackeningRecipe =
     state.blackeningRecipes.find((recipe) => recipe.id === mainRecipe?.blackeningRecipeId) ?? null
   const machiningRecipe = state.machiningRecipes.find((recipe) => recipe.id === mainRecipe?.machiningRecipeId)
-  const cleaningRecipe = state.cleaningRecipes.find((recipe) => recipe.id === mainRecipe?.cleaningRecipeId)
 
   const machiningDetails = machiningRecipe
     ? {
@@ -181,25 +171,12 @@ function buildMainRecipeDetailsStorage(state: RecipeManagerState): MainRecipeDet
       }
     : null
 
-  const cleaningDetails = cleaningRecipe
-    ? {
-        ...cleaningRecipe,
-        horizontalFormulaRecipe:
-          state.horizontalFormulaRecipes.find((recipe) => recipe.id === cleaningRecipe.horizontalFormulaId) ??
-          null,
-        verticalFormulaRecipe:
-          state.verticalFormulaRecipes.find((recipe) => recipe.id === cleaningRecipe.verticalFormulaId) ??
-          null
-      }
-    : null
-
   return {
     selectedMainRecipeId: state.selectedMainRecipeId,
     savedAt: new Date().toISOString(),
     mainRecipe,
     blackeningRecipe,
-    machiningRecipe: machiningDetails,
-    cleaningRecipe: cleaningDetails
+    machiningRecipe: machiningDetails
   }
 }
 
@@ -296,8 +273,7 @@ function normalizeRecipeState(raw: unknown): RecipeManagerState | null {
     !Array.isArray(p.blackeningRecipes) ||
     !Array.isArray(p.horizontalFormulaRecipes) ||
     !Array.isArray(p.verticalFormulaRecipes) ||
-    !Array.isArray(p.machiningRecipes) ||
-    !Array.isArray(p.cleaningRecipes)
+    !Array.isArray(p.machiningRecipes)
   ) {
     return null
   }
@@ -362,14 +338,6 @@ function normalizeRecipeState(raw: unknown): RecipeManagerState | null {
     if (typeof m.laserPowerRecipeId !== 'string') return null
   }
 
-  for (const r of p.cleaningRecipes) {
-    if (!isObject(r)) return null
-    const c = r as Partial<CleaningProcessRecipe>
-    if (typeof c.horizontalFormulaId !== 'string') return null
-    if (typeof c.verticalFormulaId !== 'string') return null
-    if (typeof c.enabled !== 'boolean') return null
-  }
-
   return cloneSettings(p as RecipeManagerState)
 }
 
@@ -401,20 +369,18 @@ export const useRecipeSettingsStore = defineStore('recipe-settings', () => {
   }
 
   const addMainRecipe = (): void => {
-    const { blackeningRecipes, machiningRecipes, cleaningRecipes, mainRecipes } = recipeState.value
+    const { blackeningRecipes, machiningRecipes, mainRecipes } = recipeState.value
     const blackeningRecipeId = blackeningRecipes[0]?.id
     const machiningRecipeId = machiningRecipes[0]?.id
-    const cleaningRecipeId = cleaningRecipes[0]?.id
 
-    if (!blackeningRecipeId || !machiningRecipeId || !cleaningRecipeId) {
+    if (!blackeningRecipeId || !machiningRecipeId) {
       return
     }
 
     const sequence = getNextSequence(mainRecipes, 'main')
     const recipe = createMainRecipe(sequence, {
       blackeningRecipeId,
-      machiningRecipeId,
-      cleaningRecipeId
+      machiningRecipeId
     })
     recipeState.value.mainRecipes.push(recipe)
     recipeState.value.selectedMainRecipeId = recipe.id
@@ -477,28 +443,6 @@ export const useRecipeSettingsStore = defineStore('recipe-settings', () => {
     )
   }
 
-  const addCleaningRecipe = (): void => {
-    if (
-      !recipeState.value.horizontalFormulaRecipes.length ||
-      !recipeState.value.verticalFormulaRecipes.length
-    ) {
-      return
-    }
-    const sequence = getNextSequence(recipeState.value.cleaningRecipes, 'cleaning')
-    recipeState.value.cleaningRecipes.push(
-      createCleaningRecipe(sequence, {
-        horizontalFormulaId: recipeState.value.horizontalFormulaRecipes[0].id,
-        verticalFormulaId: recipeState.value.verticalFormulaRecipes[0].id
-      })
-    )
-  }
-
-  const removeCleaningRecipe = (id: string): void => {
-    recipeState.value.cleaningRecipes = recipeState.value.cleaningRecipes.filter(
-      (recipe) => recipe.id !== id
-    )
-  }
-
   const addHorizontalFormulaRecipe = (): void => {
     const sequence = getNextSequence(recipeState.value.horizontalFormulaRecipes, 'horizontal-formula')
     recipeState.value.horizontalFormulaRecipes.push(createHorizontalFormulaRecipe(sequence))
@@ -542,8 +486,6 @@ export const useRecipeSettingsStore = defineStore('recipe-settings', () => {
     removeBlackeningRecipe,
     addMachiningRecipe,
     removeMachiningRecipe,
-    addCleaningRecipe,
-    removeCleaningRecipe,
     addHorizontalFormulaRecipe,
     removeHorizontalFormulaRecipe,
     addVerticalFormulaRecipe,

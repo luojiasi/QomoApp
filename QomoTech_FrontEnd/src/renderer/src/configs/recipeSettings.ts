@@ -1,6 +1,5 @@
 import type {
   BlackeningProcessRecipe,
-  CleaningProcessRecipe,
   LaserPowerRecipe,
   MachiningProcessRecipe,
   ParameterField,
@@ -143,30 +142,11 @@ export function createMachiningRecipe(
   }
 }
 
-export function createCleaningRecipe(
-  sequence: number,
-  requiredFormulas: {
-    horizontalFormulaId: string
-    verticalFormulaId: string
-  }
-): CleaningProcessRecipe {
-  return {
-    id: `cleaning-${sequence}`,
-    code: `QX-${String(sequence).padStart(3, '0')}`,
-    name: `清洗工艺配方 ${sequence}`,
-    notes: '可选择共享的水平工艺配方与垂直（直）工艺配方。',
-    updatedAt: createTimestamp(),
-    enabled: true,
-    ...requiredFormulas
-  }
-}
-
 export function createMainRecipe(
   sequence: number,
   requiredChildren: {
     blackeningRecipeId: string
     machiningRecipeId: string
-    cleaningRecipeId: string
   }
 ) {
   return {
@@ -176,7 +156,7 @@ export function createMainRecipe(
     version: 'v1.0.0',
     productModel: `QMT-${String(sequence).padStart(2, '0')}`,
     status: sequence === 1 ? 'active' : 'draft',
-    notes: '主配方必须同时选择扫黑、加工、清洗三个工艺配方。',
+    notes: '主配方必须同时选择扫黑、加工两个工艺配方。',
     updatedAt: createTimestamp(),
     ...requiredChildren
   } satisfies RecipeManagerState['mainRecipes'][number]
@@ -201,17 +181,6 @@ const defaultMachiningRecipes = [
     laserPowerRecipeId: defaultLaserPowerRecipes[1].id
   })
 ]
-const defaultCleaningRecipes = [
-  createCleaningRecipe(1, {
-    horizontalFormulaId: defaultHorizontalFormulaRecipes[0].id,
-    verticalFormulaId: defaultVerticalFormulaRecipes[0].id
-  }),
-  createCleaningRecipe(2, {
-    horizontalFormulaId: defaultHorizontalFormulaRecipes[1].id,
-    verticalFormulaId: defaultVerticalFormulaRecipes[1].id
-  })
-]
-
 export const defaultRecipeManagerState: RecipeManagerState = {
   selectedMainRecipeId: 'main-1',
   filter: {
@@ -222,21 +191,18 @@ export const defaultRecipeManagerState: RecipeManagerState = {
   mainRecipes: [
     createMainRecipe(1, {
       blackeningRecipeId: defaultBlackeningRecipes[0].id,
-      machiningRecipeId: defaultMachiningRecipes[0].id,
-      cleaningRecipeId: defaultCleaningRecipes[0].id
+      machiningRecipeId: defaultMachiningRecipes[0].id
     }),
     createMainRecipe(2, {
       blackeningRecipeId: defaultBlackeningRecipes[1].id,
-      machiningRecipeId: defaultMachiningRecipes[1].id,
-      cleaningRecipeId: defaultCleaningRecipes[1].id
+      machiningRecipeId: defaultMachiningRecipes[1].id
     })
   ],
   laserPowerRecipes: defaultLaserPowerRecipes,
   blackeningRecipes: defaultBlackeningRecipes,
   horizontalFormulaRecipes: defaultHorizontalFormulaRecipes,
   verticalFormulaRecipes: defaultVerticalFormulaRecipes,
-  machiningRecipes: defaultMachiningRecipes,
-  cleaningRecipes: defaultCleaningRecipes
+  machiningRecipes: defaultMachiningRecipes
 }
 
 function getSelectedMainRecipe(state: RecipeManagerState) {
@@ -357,20 +323,11 @@ export const createRecipeSections = (state: RecipeManagerState): ParameterSectio
   const selectedMachining = state.machiningRecipes.find(
     (recipe) => recipe.id === selectedRecipe?.machiningRecipeId
   )
-  const selectedCleaning = state.cleaningRecipes.find(
-    (recipe) => recipe.id === selectedRecipe?.cleaningRecipeId
-  )
   const selectedMachiningHorizontal = state.horizontalFormulaRecipes.find(
     (recipe) => recipe.id === selectedMachining?.horizontalFormulaId
   )
   const selectedMachiningVertical = state.verticalFormulaRecipes.find(
     (recipe) => recipe.id === selectedMachining?.verticalFormulaId
-  )
-  const selectedCleaningHorizontal = state.horizontalFormulaRecipes.find(
-    (recipe) => recipe.id === selectedCleaning?.horizontalFormulaId
-  )
-  const selectedCleaningVertical = state.verticalFormulaRecipes.find(
-    (recipe) => recipe.id === selectedCleaning?.verticalFormulaId
   )
   const selectedBlackeningLaser = state.laserPowerRecipes.find(
     (recipe) => recipe.id === selectedBlackening?.laserPowerRecipeId
@@ -418,23 +375,6 @@ export const createRecipeSections = (state: RecipeManagerState): ParameterSectio
         ...createVerticalFormulaFieldGroups(
           'machining-vertical',
           selectedMachiningVertical?.formula
-        )
-      ]
-    },
-    {
-      id: 'recipe-cleaning-detail',
-      title: '清洗工艺配方详情',
-      description: '清洗工艺配方可选择共享的水平工艺配方与垂直（直）工艺配方。',
-      fields: [{ key: 'cleaning-enabled', label: '是否启用该配方', value: selectedCleaning?.enabled ?? false }],
-      fieldGroups: [
-        {
-          id: 'cleaning-horizontal',
-          title: '水平工艺参数',
-          fields: createFormulaFields('cleaning-horizontal', selectedCleaningHorizontal?.formula)
-        },
-        ...createVerticalFormulaFieldGroups(
-          'cleaning-vertical',
-          selectedCleaningVertical?.formula
         )
       ]
     }

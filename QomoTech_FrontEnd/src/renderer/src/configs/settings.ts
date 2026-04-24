@@ -35,7 +35,6 @@ export {
 
 export {
   createBlackeningRecipe,
-  createCleaningRecipe,
   createDefaultVerticalProcessFormula,
   createHorizontalFormulaRecipe,
   createLaserPowerRecipe,

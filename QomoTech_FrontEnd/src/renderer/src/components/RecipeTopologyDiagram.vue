@@ -10,7 +10,6 @@ type NodeKind =
   | 'main'
   | 'blackening'
   | 'machining'
-  | 'cleaning'
   | 'laserPower'
   | 'horizontalFormula'
   | 'verticalFormula'
@@ -40,7 +39,6 @@ const kindMeta: Record<NodeKind, { stroke: string; tag: string }> = {
   main: { stroke: '#2563eb', tag: '主配方' },
   blackening: { stroke: '#7c3aed', tag: '扫黑' },
   machining: { stroke: '#059669', tag: '加工' },
-  cleaning: { stroke: '#0891b2', tag: '清洗' },
   laserPower: { stroke: '#ea580c', tag: '激光功率' },
   horizontalFormula: { stroke: '#ca8a04', tag: '水平工艺' },
   verticalFormula: { stroke: '#db2777', tag: '垂直工艺' },
@@ -95,15 +93,13 @@ const diagram = computed(() => {
   })
 
   const procY = 124
-  const procCenters = [200, VIEW_W / 2, VIEW_W - 200]
+  const procCenters = [VIEW_W / 2 - 200, VIEW_W / 2 + 200]
 
   const b = state.blackeningRecipes.find((r) => r.id === main.blackeningRecipeId)
   const m = state.machiningRecipes.find((r) => r.id === main.machiningRecipeId)
-  const c = state.cleaningRecipes.find((r) => r.id === main.cleaningRecipeId)
 
   const bKey = b ? `blackening:${b.id}` : 'blackening:missing'
   const mKey = m ? `machining:${m.id}` : 'machining:missing'
-  const cKey = c ? `cleaning:${c.id}` : 'cleaning:missing'
 
   addNode({
     id: bKey,
@@ -125,20 +121,9 @@ const diagram = computed(() => {
     w: 172,
     h: 44
   })
-  addNode({
-    id: cKey,
-    kind: c ? 'cleaning' : 'missing',
-    label: c?.name ?? '清洗（未绑定）',
-    sub: c?.code,
-    cx: procCenters[2],
-    cy: procY,
-    w: 172,
-    h: 44
-  })
 
   pushEdge(mainId, bKey)
   pushEdge(mainId, mKey)
-  pushEdge(mainId, cKey)
 
   function laserNode(lpId: string): string {
     const lp = state.laserPowerRecipes.find((r) => r.id === lpId)
@@ -205,17 +190,6 @@ const diagram = computed(() => {
     if (m.verticalFormulaId) {
       const tid = verticalNode(m.verticalFormulaId)
       pushEdge(mKey, tid)
-    }
-  }
-
-  if (c) {
-    if (c.horizontalFormulaId) {
-      const tid = horizontalNode(c.horizontalFormulaId)
-      pushEdge(cKey, tid)
-    }
-    if (c.verticalFormulaId) {
-      const tid = verticalNode(c.verticalFormulaId)
-      pushEdge(cKey, tid)
     }
   }
 

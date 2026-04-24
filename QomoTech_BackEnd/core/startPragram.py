@@ -334,7 +334,7 @@ def execute_start_program(*,motion: ZMotionDriver,recipe_payload: dict[str, Any]
 
             # outcome =  wangFuLoop(originalPointsNum=当前任务索引,recipe_payload=recipe_payload,controller=controller,entities=entities,rs232=rs232,rs232_open=rs232_open)
             # 我的想法是将切割轴进行分类切割，然后进行不同的处理
-            # 现在只能一个一个切圆
+            # # 现在只能一个一个切圆
             if 垂直配方中的加工轴 == 'R' and 判断是否都是圆或者圆弧的结果:
                 outcome =  用旋转轴去切圆(originalPointsNum=当前任务索引,recipe_payload=recipe_payload,controller=controller,entities=entities,rs232=rs232,rs232_open=rs232_open)
             if 垂直配方中的加工轴 == 'XY':
@@ -442,10 +442,9 @@ def wangFuLoop(originalPointsNum: int,recipe_payload: dict[str, Any],controller:
     # 子配方对象在前端 payload 中是“数组形式”（例如 selectedBlackeningRecipe: [blackening]）
     主配方中的扫黑配方 = 在配方中查找ID的配方(recipe_payload.get("selectedBlackeningRecipe"),主配方.get("blackeningRecipeId"),)
     主配方中的工作配方 = 在配方中查找ID的配方(recipe_payload.get("selectedMachiningRecipe"),主配方.get("machiningRecipeId"),)
-    主配方中的清洗配方 = 在配方中查找ID的配方(recipe_payload.get("selectedCleaningRecipe"),主配方.get("cleaningRecipeId"),)
 
-    if 主配方中的扫黑配方 is None or 主配方中的工作配方 is None or 主配方中的清洗配方 is None:
-        logger.warning("wangFuLoop: 主配方 -> 子配方查找失败",extra={"mainRecipeId": 主配方.get("id"),"blackeningRecipeId": 主配方.get("blackeningRecipeId"),"machiningRecipeId": 主配方.get("machiningRecipeId"),"cleaningRecipeId": 主配方.get("cleaningRecipeId"),},)
+    if 主配方中的扫黑配方 is None or 主配方中的工作配方 is None:
+        logger.warning("wangFuLoop: 主配方 -> 子配方查找失败",extra={"mainRecipeId": 主配方.get("id"),"blackeningRecipeId": 主配方.get("blackeningRecipeId"),"machiningRecipeId": 主配方.get("machiningRecipeId"),},)
         return False
     # 激光/公式对象在前端 payload 中是数组合并后的结果
     扫黑配方中的激光配方 = 在配方中查找ID的配方(recipe_payload.get("selectedLaserRecipe"),主配方中的扫黑配方.get("laserPowerRecipeId"),)
@@ -453,11 +452,9 @@ def wangFuLoop(originalPointsNum: int,recipe_payload: dict[str, Any],controller:
 
     工作配方中的水平配方 = 在配方中查找ID的配方(recipe_payload.get("selectedHorizontal"),主配方中的工作配方.get("horizontalFormulaId"))
     工作配方中的垂直配方 = 在配方中查找ID的配方(recipe_payload.get("selectedVertical"),主配方中的工作配方.get("verticalFormulaId"))
-    清洗配方中的水平配方 = 在配方中查找ID的配方(recipe_payload.get("selectedHorizontal"),主配方中的清洗配方.get("horizontalFormulaId"))
-    清洗配方中的垂直配方 = 在配方中查找ID的配方(recipe_payload.get("selectedVertical"),主配方中的清洗配方.get("verticalFormulaId"))
 
-    if ( 扫黑配方中的激光配方 is None or 工作配方中的激光配方 is None or 工作配方中的水平配方 is None or 工作配方中的垂直配方 is None or 清洗配方中的水平配方 is None or 清洗配方中的垂直配方 is None ):
-        logger.warning("wangFuLoop: 子配方 -> 公式/激光查找失败",extra={"blackeningRecipeId": 主配方中的扫黑配方.get("id"),"machiningRecipeId": 主配方中的工作配方.get("id"),"cleaningRecipeId": 主配方中的清洗配方.get("id"),},)
+    if ( 扫黑配方中的激光配方 is None or 工作配方中的激光配方 is None or 工作配方中的水平配方 is None or 工作配方中的垂直配方 is None ):
+        logger.warning("wangFuLoop: 子配方 -> 公式/激光查找失败",extra={"blackeningRecipeId": 主配方中的扫黑配方.get("id"),"machiningRecipeId": 主配方中的工作配方.get("id"),},)
         return False
 
     扫黑功率 = 扫黑配方中的激光配方.get("laserPower")
@@ -813,10 +810,9 @@ def 修面和切片的程序(originalPointsNum: int,recipe_payload: dict[str, An
     # 子配方对象在前端 payload 中是“数组形式”（例如 selectedBlackeningRecipe: [blackening]）
     主配方中的扫黑配方 = 在配方中查找ID的配方(recipe_payload.get("selectedBlackeningRecipe"),主配方.get("blackeningRecipeId"),)
     主配方中的工作配方 = 在配方中查找ID的配方(recipe_payload.get("selectedMachiningRecipe"),主配方.get("machiningRecipeId"),)
-    主配方中的清洗配方 = 在配方中查找ID的配方(recipe_payload.get("selectedCleaningRecipe"),主配方.get("cleaningRecipeId"),)
 
-    if 主配方中的扫黑配方 is None or 主配方中的工作配方 is None or 主配方中的清洗配方 is None:
-        logger.warning("wangFuLoop: 主配方 -> 子配方查找失败",extra={"mainRecipeId": 主配方.get("id"),"blackeningRecipeId": 主配方.get("blackeningRecipeId"),"machiningRecipeId": 主配方.get("machiningRecipeId"),"cleaningRecipeId": 主配方.get("cleaningRecipeId"),},)
+    if 主配方中的扫黑配方 is None or 主配方中的工作配方 is None:
+        logger.warning("wangFuLoop: 主配方 -> 子配方查找失败",extra={"mainRecipeId": 主配方.get("id"),"blackeningRecipeId": 主配方.get("blackeningRecipeId"),"machiningRecipeId": 主配方.get("machiningRecipeId"),},)
         return False
     # 激光/公式对象在前端 payload 中是数组合并后的结果
     扫黑配方中的激光配方 = 在配方中查找ID的配方(recipe_payload.get("selectedLaserRecipe"),主配方中的扫黑配方.get("laserPowerRecipeId"),)
@@ -824,11 +820,9 @@ def 修面和切片的程序(originalPointsNum: int,recipe_payload: dict[str, An
 
     工作配方中的水平配方 = 在配方中查找ID的配方(recipe_payload.get("selectedHorizontal"),主配方中的工作配方.get("horizontalFormulaId"))
     工作配方中的垂直配方 = 在配方中查找ID的配方(recipe_payload.get("selectedVertical"),主配方中的工作配方.get("verticalFormulaId"))
-    清洗配方中的水平配方 = 在配方中查找ID的配方(recipe_payload.get("selectedHorizontal"),主配方中的清洗配方.get("horizontalFormulaId"))
-    清洗配方中的垂直配方 = 在配方中查找ID的配方(recipe_payload.get("selectedVertical"),主配方中的清洗配方.get("verticalFormulaId"))
 
-    if ( 扫黑配方中的激光配方 is None or 工作配方中的激光配方 is None or 工作配方中的水平配方 is None or 工作配方中的垂直配方 is None or 清洗配方中的水平配方 is None or 清洗配方中的垂直配方 is None ):
-        logger.warning("wangFuLoop: 子配方 -> 公式/激光查找失败",extra={"blackeningRecipeId": 主配方中的扫黑配方.get("id"),"machiningRecipeId": 主配方中的工作配方.get("id"),"cleaningRecipeId": 主配方中的清洗配方.get("id"),},)
+    if ( 扫黑配方中的激光配方 is None or 工作配方中的激光配方 is None or 工作配方中的水平配方 is None or 工作配方中的垂直配方 is None ):
+        logger.warning("wangFuLoop: 子配方 -> 公式/激光查找失败",extra={"blackeningRecipeId": 主配方中的扫黑配方.get("id"),"machiningRecipeId": 主配方中的工作配方.get("id"),},)
         return False
 
 
@@ -1170,10 +1164,9 @@ def 用旋转轴去切圆(originalPointsNum: int,recipe_payload: dict[str, Any],
     # 子配方对象在前端 payload 中是“数组形式”（例如 selectedBlackeningRecipe: [blackening]）
     主配方中的扫黑配方 = 在配方中查找ID的配方(recipe_payload.get("selectedBlackeningRecipe"),主配方.get("blackeningRecipeId"),)
     主配方中的工作配方 = 在配方中查找ID的配方(recipe_payload.get("selectedMachiningRecipe"),主配方.get("machiningRecipeId"),)
-    主配方中的清洗配方 = 在配方中查找ID的配方(recipe_payload.get("selectedCleaningRecipe"),主配方.get("cleaningRecipeId"),)
 
-    if 主配方中的扫黑配方 is None or 主配方中的工作配方 is None or 主配方中的清洗配方 is None:
-        logger.warning("用旋转轴去切圆: 主配方 -> 子配方查找失败",extra={"mainRecipeId": 主配方.get("id"),"blackeningRecipeId": 主配方.get("blackeningRecipeId"),"machiningRecipeId": 主配方.get("machiningRecipeId"),"cleaningRecipeId": 主配方.get("cleaningRecipeId"),},)
+    if 主配方中的扫黑配方 is None or 主配方中的工作配方 is None:
+        logger.warning("用旋转轴去切圆: 主配方 -> 子配方查找失败",extra={"mainRecipeId": 主配方.get("id"),"blackeningRecipeId": 主配方.get("blackeningRecipeId"),"machiningRecipeId": 主配方.get("machiningRecipeId"),},)
         return False    
     # 激光/公式对象在前端 payload 中是数组合并后的结果
     扫黑配方中的激光配方 = 在配方中查找ID的配方(recipe_payload.get("selectedLaserRecipe"),主配方中的扫黑配方.get("laserPowerRecipeId"),)
@@ -1181,11 +1174,9 @@ def 用旋转轴去切圆(originalPointsNum: int,recipe_payload: dict[str, Any],
 
     工作配方中的水平配方 = 在配方中查找ID的配方(recipe_payload.get("selectedHorizontal"),主配方中的工作配方.get("horizontalFormulaId"))
     工作配方中的垂直配方 = 在配方中查找ID的配方(recipe_payload.get("selectedVertical"),主配方中的工作配方.get("verticalFormulaId"))
-    清洗配方中的水平配方 = 在配方中查找ID的配方(recipe_payload.get("selectedHorizontal"),主配方中的清洗配方.get("horizontalFormulaId"))
-    清洗配方中的垂直配方 = 在配方中查找ID的配方(recipe_payload.get("selectedVertical"),主配方中的清洗配方.get("verticalFormulaId"))
 
-    if ( 扫黑配方中的激光配方 is None or 工作配方中的激光配方 is None or 工作配方中的水平配方 is None or 工作配方中的垂直配方 is None or 清洗配方中的水平配方 is None or 清洗配方中的垂直配方 is None ):
-        logger.warning("用旋转轴去切圆: 子配方 -> 公式/激光查找失败",extra={"主配方中的扫黑配方ID": 主配方中的扫黑配方.get("id"),"主配方中的工作配方ID": 主配方中的工作配方.get("id"),"主配方中的清洗配方ID": 主配方中的清洗配方.get("id"),},)
+    if ( 扫黑配方中的激光配方 is None or 工作配方中的激光配方 is None or 工作配方中的水平配方 is None or 工作配方中的垂直配方 is None ):
+        logger.warning("用旋转轴去切圆: 子配方 -> 公式/激光查找失败",extra={"主配方中的扫黑配方ID": 主配方中的扫黑配方.get("id"),"主配方中的工作配方ID": 主配方中的工作配方.get("id"),},)
         return False
 
 
@@ -1499,18 +1490,15 @@ def 进行4P切产品(originalPointsNum: int,recipe_payload: dict[str, Any],cont
     主配方 = recipe_payload.get("selectedMainRecipe") or {}
     主配方中的扫黑配方 = 在配方中查找ID的配方(recipe_payload.get("selectedBlackeningRecipe"),主配方.get("blackeningRecipeId"),)
     主配方中的工作配方 = 在配方中查找ID的配方(recipe_payload.get("selectedMachiningRecipe"),主配方.get("machiningRecipeId"),)
-    主配方中的清洗配方 = 在配方中查找ID的配方(recipe_payload.get("selectedCleaningRecipe"),主配方.get("cleaningRecipeId"),)
-    if 主配方中的扫黑配方 is None or 主配方中的工作配方 is None or 主配方中的清洗配方 is None:
-        logger.warning("用旋转轴去切圆: 主配方 -> 子配方查找失败",extra={"mainRecipeId": 主配方.get("id"),"blackeningRecipeId": 主配方.get("blackeningRecipeId"),"machiningRecipeId": 主配方.get("machiningRecipeId"),"cleaningRecipeId": 主配方.get("cleaningRecipeId"),},)
+    if 主配方中的扫黑配方 is None or 主配方中的工作配方 is None:
+        logger.warning("用旋转轴去切圆: 主配方 -> 子配方查找失败",extra={"mainRecipeId": 主配方.get("id"),"blackeningRecipeId": 主配方.get("blackeningRecipeId"),"machiningRecipeId": 主配方.get("machiningRecipeId"),},)
         return False    
     扫黑配方中的激光配方 = 在配方中查找ID的配方(recipe_payload.get("selectedLaserRecipe"),主配方中的扫黑配方.get("laserPowerRecipeId"),)
     工作配方中的激光配方 = 在配方中查找ID的配方(recipe_payload.get("selectedLaserRecipe"),主配方中的工作配方.get("laserPowerRecipeId"),)
     工作配方中的水平配方 = 在配方中查找ID的配方(recipe_payload.get("selectedHorizontal"),主配方中的工作配方.get("horizontalFormulaId"))
     工作配方中的垂直配方 = 在配方中查找ID的配方(recipe_payload.get("selectedVertical"),主配方中的工作配方.get("verticalFormulaId"))
-    清洗配方中的水平配方 = 在配方中查找ID的配方(recipe_payload.get("selectedHorizontal"),主配方中的清洗配方.get("horizontalFormulaId"))
-    清洗配方中的垂直配方 = 在配方中查找ID的配方(recipe_payload.get("selectedVertical"),主配方中的清洗配方.get("verticalFormulaId"))
-    if ( 扫黑配方中的激光配方 is None or 工作配方中的激光配方 is None or 工作配方中的水平配方 is None or 工作配方中的垂直配方 is None or 清洗配方中的水平配方 is None or 清洗配方中的垂直配方 is None ):
-        logger.warning("用旋转轴去切圆: 子配方 -> 公式/激光查找失败",extra={"主配方中的扫黑配方ID": 主配方中的扫黑配方.get("id"),"主配方中的工作配方ID": 主配方中的工作配方.get("id"),"主配方中的清洗配方ID": 主配方中的清洗配方.get("id"),},)
+    if ( 扫黑配方中的激光配方 is None or 工作配方中的激光配方 is None or 工作配方中的水平配方 is None or 工作配方中的垂直配方 is None ):
+        logger.warning("用旋转轴去切圆: 子配方 -> 公式/激光查找失败",extra={"主配方中的扫黑配方ID": 主配方中的扫黑配方.get("id"),"主配方中的工作配方ID": 主配方中的工作配方.get("id"),},)
         return False
 
     是否打开激光 = False

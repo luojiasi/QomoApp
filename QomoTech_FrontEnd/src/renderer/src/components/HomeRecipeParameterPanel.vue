@@ -37,12 +37,6 @@ const selectedBlackeningRecipe = computed(() => {
   )
 })
 
-const selectedCleaningRecipe = computed(() => {
-  const main = selectedActiveMainRecipe.value
-  if (!main) return null
-  return recipeStore.recipeState.cleaningRecipes.find((recipe) => recipe.id === main.cleaningRecipeId) ?? null
-})
-
 const selectedVerticalFormula = computed(() => {
   const machining = selectedMachiningRecipe.value
   if (!machining) return null
@@ -65,18 +59,6 @@ const selectedMachiningLaserRecipe = computed(() => {
   const machining = selectedMachiningRecipe.value
   if (!machining) return null
   return (recipeStore.recipeState.laserPowerRecipes.find((recipe) => recipe.id === machining.laserPowerRecipeId) ?? null)
-})
-
-const selectedCleaningHorizontalFormula = computed(() => {
-  const cleaning = selectedCleaningRecipe.value
-  if (!cleaning) return null
-  return (recipeStore.recipeState.horizontalFormulaRecipes.find((recipe) => recipe.id === cleaning.horizontalFormulaId) ?? null)
-})
-
-const selectedCleaningVerticalFormula = computed(() => {
-  const cleaning = selectedCleaningRecipe.value
-  if (!cleaning) return null
-  return (recipeStore.recipeState.verticalFormulaRecipes.find((recipe) => recipe.id === cleaning.verticalFormulaId) ?? null)
 })
 
 watch(
@@ -177,46 +159,38 @@ const runRecipePayload = computed<Record<string, unknown> | null>(() => {
   const main = selectedActiveMainRecipe.value
   const blackening = selectedBlackeningRecipe.value
   const machining = selectedMachiningRecipe.value
-  const cleaning = selectedCleaningRecipe.value
   const blackeningLaser = selectedBlackeningLaserRecipe.value
   const machiningLaser = selectedMachiningLaserRecipe.value
   const vertical = selectedVerticalFormula.value
   const horizontal = selectedHorizontalFormula.value
-  const cleaningHorizontal = selectedCleaningHorizontalFormula.value
-  const cleaningVertical = selectedCleaningVerticalFormula.value
   if (
     !main ||
     !blackening ||
     !machining ||
-    !cleaning ||
     !blackeningLaser ||
     !machiningLaser ||
     !vertical ||
-    !horizontal ||
-    !cleaningHorizontal ||
-    !cleaningVertical
+    !horizontal
   ) {
     return null
   }
 
   const selectedLaserRecipe = uniqueById([blackeningLaser, machiningLaser])
-  const selectedHorizontal = uniqueById([horizontal, cleaningHorizontal])
-  const selectedVertical = uniqueById([vertical, cleaningVertical])
+  const selectedHorizontal = uniqueById([horizontal])
+  const selectedVertical = uniqueById([vertical])
 
   return {
     selectedMainRecipe: main,
     selectedBlackeningRecipe: [blackening],
     selectedMachiningRecipe: [machining],
-    selectedCleaningRecipe: [cleaning],
     selectedLaserRecipe,
     selectedHorizontal,
     selectedVertical,
     // 配方下发时附带的“高度”。后端目前仅回显 payload，但预留字段用于真正执行。
     extraHeight: workpieceHeight.value,
-    MainRecipeChild: [main.blackeningRecipeId, main.machiningRecipeId, main.cleaningRecipeId],
+    MainRecipeChild: [main.blackeningRecipeId, main.machiningRecipeId],
     BlackeningRecipeChild: [blackening.laserPowerRecipeId],
-    MachiningRecipeChild: [machining.laserPowerRecipeId, machining.horizontalFormulaId, machining.verticalFormulaId],
-    CleaningRecipeChild: [cleaning.horizontalFormulaId, cleaning.verticalFormulaId]
+    MachiningRecipeChild: [machining.laserPowerRecipeId, machining.horizontalFormulaId, machining.verticalFormulaId]
   }
 })
 

@@ -62,7 +62,6 @@ export { IO_MAP_GROUP_COUNT } from './controllerSettings'
 
 export type {
   BlackeningProcessRecipe,
-  CleaningProcessRecipe,
   LaserPowerRecipe,
   LaserTransmissionMode,
   LinearFormulaCoefficients,

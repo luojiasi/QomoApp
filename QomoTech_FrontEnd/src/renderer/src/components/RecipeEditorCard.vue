@@ -2,7 +2,6 @@
 import { computed } from 'vue'
 import type {
   BlackeningProcessRecipe,
-  CleaningProcessRecipe,
   LaserPowerRecipe,
   LaserTransmissionMode,
   LinearFormulaCoefficients,
@@ -16,7 +15,6 @@ import type {
 type RecipeCardType =
   | 'blackening'
   | 'machining'
-  | 'cleaning'
   | 'laserPower'
   | 'horizontalFormula'
   | 'verticalFormula'
@@ -41,7 +39,6 @@ interface EditableFormulaItem {
 type CardRecipeItem =
   | BlackeningProcessRecipe
   | MachiningProcessRecipe
-  | CleaningProcessRecipe
   | LaserPowerRecipe
   | SharedFormulaRecipe
   | VerticalFormulaRecipe
@@ -423,100 +420,6 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
         <span class="app-text-secondary mt-1 text-xs">备注</span>
         <textarea
           v-model="(props.item as MachiningProcessRecipe).notes"
-          rows="2"
-          class="min-h-10 min-w-0 w-full resize-y rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
-          @input="markUpdated"
-        />
-      </label>
-    </template>
-
-    <template v-else-if="props.type === 'cleaning'">
-      <label class="mt-3 grid grid-cols-[6.5rem_1fr] items-center gap-2">
-        <span class="app-text-secondary text-xs">是否启用该配方</span>
-        <select
-          v-model="(props.item as CleaningProcessRecipe).enabled"
-          class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2.5 py-1.5 text-sm outline-none"
-          @change="markUpdated"
-        >
-          <option :value="true" class="text-slate-900">启用</option>
-          <option :value="false" class="text-slate-900">禁用</option>
-        </select>
-      </label>
-
-      <div class="mt-3 grid gap-2 lg:grid-cols-2">
-        <label class="grid grid-cols-[6.5rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) px-3 py-2">
-          <span class="app-text-secondary text-xs">配方名称</span>
-          <input
-            v-model="(props.item as CleaningProcessRecipe).name"
-            type="text"
-            class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
-            @input="markUpdated"
-          />
-        </label>
-        <label class="grid grid-cols-[6.5rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) px-3 py-2">
-          <span class="app-text-secondary text-xs">配方编码</span>
-          <input
-            v-model="(props.item as CleaningProcessRecipe).code"
-            type="text"
-            class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
-            @input="markUpdated"
-          />
-        </label>
-      </div>
-
-      <div class="mt-4 grid min-w-0 gap-2 lg:grid-cols-2">
-        
-        <div class="min-w-0" @mouseenter="onRowHoverEnter('horizontal')" @mouseleave="onRowHoverLeave">
-          <label class="grid grid-cols-[6.5rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) px-3 py-2">
-            <span class="app-text-secondary text-xs">水平工艺配方</span>
-            <select
-              v-model="(props.item as CleaningProcessRecipe).horizontalFormulaId"
-              class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2.5 py-1.5 text-sm outline-none"
-              @change="markUpdated"
-            >
-            <option
-                v-for="formula in props.horizontalFormulaOptions"
-                :key="formula.id"
-                :value="formula.id"
-                class="text-slate-900"
-              >
-                {{ formula.name }} ({{ formula.code }})
-              </option>
-            </select>
-          </label>
-          <p class="app-text-secondary mt-1.5 text-[11px] leading-snug">
-            悬停本区域在屏幕右侧查看水平工艺详细参数
-          </p>
-        </div>
-
-        <div class="min-w-0" @mouseenter="onRowHoverEnter('vertical')" @mouseleave="onRowHoverLeave">
-          <label class="grid grid-cols-[6.5rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) px-3 py-2">
-            <span class="app-text-secondary text-xs">直工艺配方</span>
-            <select
-              v-model="(props.item as CleaningProcessRecipe).verticalFormulaId"
-              class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2.5 py-1.5 text-sm outline-none"
-              @change="markUpdated"
-            >
-            <option
-                v-for="formula in props.verticalFormulaOptions"
-                :key="formula.id"
-                :value="formula.id"
-                class="text-slate-900"
-              >
-                {{ formula.name }} ({{ formula.code }})
-              </option>
-            </select>
-          </label>
-          <p class="app-text-secondary mt-1.5 text-[11px] leading-snug">
-            悬停本区域在屏幕右侧查看垂直工艺详细参数
-          </p>
-        </div>
-      </div>
-
-      <label class="mt-4 grid grid-cols-[6.5rem_1fr] items-start gap-2 rounded-xl border border-(--app-border) px-3 py-2">
-        <span class="app-text-secondary mt-1 text-xs">备注</span>
-        <textarea
-          v-model="(props.item as CleaningProcessRecipe).notes"
           rows="2"
           class="min-h-10 min-w-0 w-full resize-y rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
           @input="markUpdated"

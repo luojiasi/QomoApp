@@ -52,13 +52,9 @@ export interface VerticalDescentCutting {
 export type cuttingAxis = 'XY'|'R'
 /** 垂直工艺配方参数（与水平工艺的开口/公式结构不同） */
 export interface VerticalProcessFormulaRecipe {
-  /** 切割轴 */
   cuttingAxis: cuttingAxis
-  /** 变化百分比 */
   changePercent: number
-  /** X-FEED */
   xFeed: number
-  /** X-SEPPD */
   xSpeed: number
   edgeCutting: VerticalEdgeOrMiddleCutting
   middleCutting: VerticalEdgeOrMiddleCutting
@@ -103,26 +99,18 @@ export interface MachiningProcessRecipe extends RecipeRecordBase {
   laserPowerRecipeId: string
 }
 
-export interface CleaningProcessRecipe extends RecipeRecordBase {
-  enabled: boolean
-  horizontalFormulaId: string
-  verticalFormulaId: string
-}
-
 export interface MainRecipeDefinition extends RecipeRecordBase {
   version: string
   productModel: string
   status: RecipeStatus
   blackeningRecipeId: string
   machiningRecipeId: string
-  cleaningRecipeId: string
 }
 
 /** 与 `RecipeEditorCard` 的 `type` 一致，用于各子配方库列表的关键词筛选 */
 export const RECIPE_LIBRARY_CARD_TYPE_KEYS = [
   'blackening',
   'machining',
-  'cleaning',
   'laserPower',
   'horizontalFormula',
   'verticalFormula'
@@ -134,7 +122,6 @@ export function createDefaultLibraryKeywords(): Record<RecipeLibraryCardType, st
   return {
     blackening: '',
     machining: '',
-    cleaning: '',
     laserPower: '',
     horizontalFormula: '',
     verticalFormula: ''
@@ -157,7 +144,6 @@ export interface RecipeManagerState {
   horizontalFormulaRecipes: SharedFormulaRecipe[]
   verticalFormulaRecipes: VerticalFormulaRecipe[]
   machiningRecipes: MachiningProcessRecipe[]
-  cleaningRecipes: CleaningProcessRecipe[]
   selectedMainRecipeId: string
   filter: RecipeFilter
 }

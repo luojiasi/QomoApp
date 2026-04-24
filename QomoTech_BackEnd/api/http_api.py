@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import logging
+import os
+import signal
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -228,6 +231,28 @@ def download_logs() -> FileResponse:
     if not log_file.exists():
         raise HTTPException(status_code=404, detail="日志文件不存在")
     return FileResponse(path=log_file, filename=log_file.name, media_type="text/plain")
+
+
+@http_router.post("/api/shutdown", response_model=ApiResponse)
+def shutdown() -> ApiResponse:
+    """前端关闭时调用，记录日志后优雅退出，确保所有日志落盘。"""
+    logger.info("收到前端关闭信号，准备优雅退出...")
+
+    def 优雅退出() -> None:
+        # 延迟 500ms，让 HTTP 响应先发回前端
+        import time
+        time.sleep(0.5)
+        logging.shutdown()
+        # Windows 下 SIGTERM 等同于 TerminateProcess 无法捕获，用 SIGBREAK 触发 KeyboardInterrupt
+        # 在 uvicorn 进程内自发送 CTRL_BREAK_EVENT 可以让 uvicorn 走正常 shutdown 流程
+        try:
+            os.kill(os.getpid(), signal.SIGBREAK)
+        except (AttributeError, OSError):
+            # 非 Windows 或权限问题，回退到 SIGINT
+            os.kill(os.getpid(), signal.SIGINT)
+
+    threading.Thread(target=优雅退出, daemon=True).start()
+    return ApiResponse(success=True, message="正在关闭后端服务")
 
 
 router.include_router(http_router)
