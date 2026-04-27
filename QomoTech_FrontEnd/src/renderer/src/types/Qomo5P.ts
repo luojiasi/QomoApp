@@ -1,3 +1,5 @@
+import type { DiamondDetailParameters } from './diamondTypes'
+
 export type EntityType = 'LINE' | 'ARC' | 'NONE' | 'CIRCLE' | 'IRREGULAR' | 'BEZIER'
 export type OpenDirectionType = 'LEFT' | 'RIGHT'
 export type IrregularShapeType =
@@ -62,11 +64,12 @@ export interface QomoArcEntity extends QomonBaseEntity {
 }
 export type QomoArcSurfacesEntity = WithSurface<QomoArcEntity>
 
-// 圆
+// 圆（可携带钻石参数，用于 3D 钻石预览）
 export interface QomoCircleEntity extends QomonBaseEntity {
   type: 'CIRCLE'
   center: Point
   radius: number
+  diamondData?: DiamondDetailParameters
 }
 export type QomoCircleSurfacesEntity = WithSurface<QomoCircleEntity>
 

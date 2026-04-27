@@ -27,6 +27,7 @@ import {
   createSquarePoints,
   createCushionPoints
 } from '@renderer/utils/Qomo5P/threeGeometry'
+import type { DiamondDetailParameters } from '@renderer/types/diamondTypes'
 import { parseDxfToQomoEntities } from '@renderer/utils/Qomo5P/QomoDxf'
 import { parseQomoProject, serializeQomoProject } from '@renderer/utils/Qomo5P/QomoProject'
 import { downloadTextFile } from '@renderer/utils/Qomo5P/QomoProject'
@@ -1039,6 +1040,30 @@ export const useQomo5PStore = defineStore('qomo5p', () => {
     })
   }
 
+  const addDiamondEntity = (center: Point, radius: number, diamondData: DiamondDetailParameters) => {
+    const targetLayer = layers.value[0] || createDefaultLayer()
+    const nextEntity: QomoCircleSurfacesEntity = {
+      id: createUserEntityId('QOMO-DMD'),
+      type: 'CIRCLE',
+      layerId: targetLayer.id,
+      layerName: targetLayer.name,
+      openDirection: 'RIGHT',
+      selected: false,
+      center,
+      radius,
+      diamondData: deepClone(diamondData),
+      baseHeight: getUnifiedBaseHeight(),
+      extrudeHeight: 5,
+      surfaceAngle: 0,
+      welding: createDefaultWelding()
+    }
+
+    applyMutation((draft) => {
+      draft.entities.push(nextEntity)
+      draft.selectedEntityIds = [nextEntity.id]
+    })
+  }
+
   const addBezierEntity = (points: Point[]) => {
     const normalizedPoints = points
       .filter(
@@ -1251,6 +1276,8 @@ export const useQomo5PStore = defineStore('qomo5p', () => {
       arcStartPoint?: Point
       /** ARC 终点 */
       arcEndPoint?: Point
+      /** 钻石参数 */
+      diamondData?: DiamondDetailParameters
     }
   ) => {
     applyMutation((draft) => {
@@ -1388,6 +1415,9 @@ export const useQomo5PStore = defineStore('qomo5p', () => {
         if (typeof updates.radius === 'number' && Number.isFinite(updates.radius)) {
           entity.radius = Math.max(1e-6, updates.radius)
         }
+        if (updates.diamondData) {
+          entity.diamondData = updates.diamondData
+        }
       }
 
       if (isEllipseLikeIrregularEntity(entity)) {
@@ -1519,6 +1549,7 @@ export const useQomo5PStore = defineStore('qomo5p', () => {
     addLineEntity,
     addArcEntity,
     addCircleEntity,
+    addDiamondEntity,
     addBezierEntity,
     addIrregularEntity,
     // moveSelectedEntitiesBy,

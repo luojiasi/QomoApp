@@ -89,5 +89,5 @@ def 保存4P旋转中心的补偿值(payload: Product4PCenterRotation) -> Produc
 
 
 # >>> PRODUCT4P_CENTER_ROTATION >>>
-product4p_center_rotation = Product4PCenterRotation(Xoffset=0.000, Yoffset=0.000, Zoffset=-90.000)
+product4p_center_rotation = Product4PCenterRotation(Xoffset=0.000, Yoffset=0.000, Zoffset=0.000)
 # <<< PRODUCT4P_CENTER_ROTATION <<<

@@ -1160,6 +1160,7 @@
       :visible="diamondParamsModalOpen"
       :diamond-detail="selectedQuickAddDiamond"
       @close="closeDiamondParamsDetails"
+      @save="handleDiamondSave"
     />
   </div>
 </template>
@@ -1567,6 +1568,13 @@ const closeDiamondParamsDetails = () => {
   diamondParamsModalOpen.value = false
 }
 
+const handleDiamondSave = (diamond: DiamondDetailParameters) => {
+  // 在 entities 中创建带钻石参数的 CIRCLE 实体（自动保存到 qomo-5p-draft）
+  const diameter = (diamond.L + diamond.W) / 2
+  const center = {x: 0,y: 0}
+  store.addDiamondEntity(center, diameter / 2, diamond)
+}
+
 // 添加对应的名字
 const drawingShapeToolLabel = (tool: DrawingShapeTools) => {
   const map: Partial<Record<DrawingShapeTools, string>> = {
@@ -1867,17 +1875,10 @@ const openAcEdit = (entityId: string,field: AcEditField,opts?: { pt?: { x: numbe
   nextTick(() => acFirstInputRef.value?.focus())
 }
 
-const saveAcEdit = (entity: { id: string; type: string }, field: AcEditField) => {
+const saveAcEdit = (entity: { id: string; type: string; diamondData?: { L: number; W: number } }, field: AcEditField) => {
   const id = entity.id
   const bezierPointIndex = bezierPointIndexFromField(field)
-  if (
-    field === 'arcStart' ||
-    field === 'arcEnd' ||
-    field === 'arcCenter' ||
-    field === 'circleCenter' ||
-    bezierPointIndex !== null ||
-    field === 'ellipseCenter'
-  ) {
+  if (field === 'arcStart' ||field === 'arcEnd' ||field === 'arcCenter' ||field === 'circleCenter' ||bezierPointIndex !== null ||field === 'ellipseCenter') {
     const x = Number(acPt.value.x)
     const y = Number(acPt.value.y)
     if (!Number.isFinite(x) || !Number.isFinite(y)) {
@@ -1897,8 +1898,12 @@ const saveAcEdit = (entity: { id: string; type: string }, field: AcEditField) =>
       cancelAcEdit()
       return
     }
-    if (field === 'arcRadius' || field === 'circleRadius')
+    if (field === 'arcRadius' || field === 'circleRadius'){
       store.updateEntityParams(id, { radius: v })
+      if (entity.type === 'CIRCLE' && entity.diamondData) {
+        store.updateEntityParams(id, { diamondData: { ...entity.diamondData, L: v * 2, W: v * 2 } as DiamondDetailParameters })
+      }
+    }
     else if (field === 'arcStartAngle') store.updateEntityParams(id, { startAngle: v })
     else if (field === 'arcEndAngle') store.updateEntityParams(id, { endAngle: v })
     else if (field === 'ellipseRadiusX') store.updateEntityParams(id, { radiusX: v })
