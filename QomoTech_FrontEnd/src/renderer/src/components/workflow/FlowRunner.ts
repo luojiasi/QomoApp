@@ -1,4 +1,4 @@
-import { ref, type Ref } from 'vue'
+import { ref } from 'vue'
 import { useSelfProcessStore } from '../../stores/selfProcessStores'
 import type { WorkflowLog } from '../../types/selfProcessTypes'
 

@@ -10,6 +10,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   add: [condition: Omit<SkipCondition, 'id'>]
   remove: [conditionId: string]
+  change: []
 }>()
 
 const otherNodes = props.nodes.filter((n) => n.id !== props.nodeId)
@@ -20,95 +21,80 @@ function addCondition(): void {
     when: 'on_success',
     targetNodeId: otherNodes[0]?.id ?? ''
   })
+  emit('change')
 }
 </script>
 
 <template>
-  <div class="skip-condition">
-    <div v-if="conditions.length === 0" class="condition-empty">
+  <div class="flex flex-col gap-2">
+    <div v-if="conditions.length === 0" class="p-2 text-center text-xs text-(--app-text-muted)">
       暂未配置跳转条件
     </div>
-    <div v-for="cond in conditions" :key="cond.id" class="condition-item">
-      <div class="condition-row">
-        <label class="condition-field">
-          <span class="condition-label">标签</span>
-          <input v-model="cond.label" class="condition-input" placeholder="如: 成功时跳转" />
+    <div
+      v-for="cond in conditions"
+      :key="cond.id"
+      class="relative flex flex-col gap-1.5 rounded-lg border-l-[3px] border-l-violet-600 bg-(--app-card-soft) p-2.5"
+    >
+      <div class="flex gap-2">
+        <label class="flex flex-1 flex-col gap-0.5">
+          <span class="text-[10px] text-(--app-text-muted)">标签</span>
+          <input
+            v-model="cond.label"
+            class="rounded border border-(--app-border) bg-(--app-input-bg) px-2 py-1 text-xs text-(--app-text-primary) outline-none"
+            placeholder="如: 成功时跳转"
+            @input="emit('change')"
+          />
         </label>
       </div>
-      <div class="condition-row">
-        <label class="condition-field">
-          <span class="condition-label">触发条件</span>
-          <select v-model="cond.when" class="condition-input">
+      <div class="flex gap-2">
+        <label class="flex flex-1 flex-col gap-0.5">
+          <span class="text-[10px] text-(--app-text-muted)">触发条件</span>
+          <select
+            v-model="cond.when"
+            class="rounded border border-(--app-border) bg-(--app-input-bg) px-2 py-1 text-xs text-(--app-text-primary) outline-none"
+            @change="emit('change')"
+          >
             <option value="always">始终跳转</option>
             <option value="on_success">执行成功时</option>
             <option value="on_failure">执行失败时</option>
             <option value="expression">表达式为真时</option>
           </select>
         </label>
-        <label class="condition-field">
-          <span class="condition-label">跳转到</span>
-          <select v-model="cond.targetNodeId" class="condition-input">
+        <label class="flex flex-1 flex-col gap-0.5">
+          <span class="text-[10px] text-(--app-text-muted)">跳转到</span>
+          <select
+            v-model="cond.targetNodeId"
+            class="rounded border border-(--app-border) bg-(--app-input-bg) px-2 py-1 text-xs text-(--app-text-primary) outline-none"
+            @change="emit('change')"
+          >
             <option v-for="n in otherNodes" :key="n.id" :value="n.id">
               {{ n.label }}
             </option>
           </select>
         </label>
       </div>
-      <div v-if="cond.when === 'expression'" class="condition-row">
-        <label class="condition-field">
-          <span class="condition-label">表达式</span>
-          <input v-model="cond.expression" class="condition-input" placeholder="{{ $self.output.matched }} === true" />
+      <div v-if="cond.when === 'expression'" class="flex gap-2">
+        <label class="flex flex-1 flex-col gap-0.5">
+          <span class="text-[10px] text-(--app-text-muted)">表达式</span>
+          <input
+            v-model="cond.expression"
+            class="rounded border border-(--app-border) bg-(--app-input-bg) px-2 py-1 text-xs text-(--app-text-primary) outline-none"
+            placeholder="success == true"
+            @input="emit('change')"
+          />
         </label>
       </div>
-      <button class="condition-remove" @click="emit('remove', cond.id)" title="删除条件">×</button>
+      <button
+        class="absolute right-1 top-1 h-5 w-5 cursor-pointer rounded border-0 bg-transparent text-base leading-none text-(--app-text-muted) hover:bg-red-600/10 hover:text-red-600"
+        @click="emit('remove', cond.id)"
+        title="删除条件"
+      >×</button>
     </div>
-    <button class="condition-add" @click="addCondition">+ 添加跳转条件</button>
+    <button
+      class="cursor-pointer rounded-md border border-dashed border-(--app-border) bg-transparent p-1.5 text-xs text-(--app-text-muted) hover:border-violet-600 hover:text-violet-600"
+      @click="addCondition"
+    >
+      + 添加跳转条件
+    </button>
   </div>
 </template>
-
-<style scoped>
-.skip-condition { display: flex; flex-direction: column; gap: 8px; }
-.condition-empty {
-  font-size: 12px; color: var(--app-text-muted);
-  padding: 8px; text-align: center;
-}
-.condition-item {
-  position: relative;
-  padding: 10px;
-  background: var(--app-card-soft);
-  border-radius: 8px;
-  display: flex; flex-direction: column; gap: 6px;
-  border-left: 3px solid #7c3aed;
-}
-.condition-row { display: flex; gap: 8px; }
-.condition-field { display: flex; flex-direction: column; gap: 2px; flex: 1; }
-.condition-label { font-size: 10px; color: var(--app-text-muted); }
-.condition-input {
-  padding: 4px 8px;
-  border: 1px solid var(--app-border);
-  border-radius: 4px;
-  background: var(--app-input-bg);
-  color: var(--app-text-primary);
-  font-size: 12px;
-  outline: none;
-}
-.condition-remove {
-  position: absolute; top: 4px; right: 4px;
-  width: 20px; height: 20px;
-  border: none; background: transparent;
-  color: var(--app-text-muted); cursor: pointer;
-  font-size: 16px; line-height: 1;
-  border-radius: 4px;
-}
-.condition-remove:hover { color: #dc2626; background: rgba(220,38,38,0.1); }
-.condition-add {
-  padding: 6px;
-  border: 1px dashed var(--app-border);
-  border-radius: 6px;
-  background: transparent;
-  color: var(--app-text-muted);
-  font-size: 12px;
-  cursor: pointer;
-}
-.condition-add:hover { color: #7c3aed; border-color: #7c3aed; }
-</style>

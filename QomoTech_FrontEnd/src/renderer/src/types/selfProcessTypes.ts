@@ -38,6 +38,7 @@ export interface NodeIOField {
   type: 'string' | 'number' | 'boolean' | 'object' | 'array' | 'any'
   required: boolean
   defaultValue?: unknown
+  description?: string
 }
 
 /** 节点 IO schema */

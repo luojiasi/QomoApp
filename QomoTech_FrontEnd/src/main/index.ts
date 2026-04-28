@@ -2,7 +2,7 @@ import { type ChildProcess, exec, spawn } from 'node:child_process'
 import { constants } from 'node:fs'
 import { access, readFile, readdir, mkdir, rm, writeFile } from 'node:fs/promises'
 import net from 'node:net'
-import { dirname, join, basename } from 'node:path'
+import { dirname, join } from 'node:path'
 import { app, shell, BrowserWindow, dialog, ipcMain } from 'electron'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -477,7 +477,7 @@ type WorkflowFileResult =
 
 const getWorkflowsBasePath = (): string => {
   if (app.isPackaged) {
-    return join(dirname(process.execPath), 'workflows')
+    return join(app.getPath('userData'), 'workflows')
   }
   return join(app.getAppPath(), 'src', 'renderer', 'workflows')
 }

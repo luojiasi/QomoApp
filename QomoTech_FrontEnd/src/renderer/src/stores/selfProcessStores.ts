@@ -8,8 +8,6 @@ import type {
   NodeType,
   DataMapping,
   SkipCondition,
-  NodeRunStatus,
-  NodeOutput,
   WorkflowIndexEntry
 } from '../types/selfProcessTypes'
 import {
@@ -24,11 +22,29 @@ import {
   buildWorkflowDirPath,
   buildWorkflowFilePath,
   buildIndexFilePath,
-  nowLocale,
   nowISO
 } from '../utils/selfProcessUtils'
 
-const getApi = () => (window as unknown as { api: Record<string, (...args: unknown[]) => Promise<unknown>> }).api
+type WorkflowFileResult<T = unknown> =
+  | { ok: true; data?: T }
+  | { ok: false; error: string }
+
+type WorkflowApi = {
+  getWorkflowsPath: () => Promise<string>
+  readFile: (path: string) => Promise<WorkflowFileResult<string>>
+  writeFile: (path: string, content: string) => Promise<WorkflowFileResult<null>>
+  deleteFile: (path: string) => Promise<WorkflowFileResult<null>>
+}
+
+const getApi = (): WorkflowApi | null =>
+  ((window as unknown as { api?: WorkflowApi }).api ?? null)
+
+class WorkflowStoppedError extends Error {
+  constructor() {
+    super('流程已停止')
+    this.name = 'WorkflowStoppedError'
+  }
+}
 
 export const useSelfProcessStore = defineStore('selfProcess', () => {
   // ──── State ────────────────────────────────────────────────
@@ -40,6 +56,8 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
   const isRunning = ref(false)
   const isSaving = ref(false)
   const workflowsBasePath = ref('')
+  let stopRequested = false
+  let activeAbortController: AbortController | null = null
 
   // ──── Computed ────────────────────────────────────────────
   const currentWorkflow = computed(() =>
@@ -58,74 +76,117 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
   // ──── 初始化 ──────────────────────────────────────────────
   async function init(): Promise<void> {
     const api = getApi()
-    const pathResult = await (api.getWorkflowsPath as () => Promise<string>)()
-    workflowsBasePath.value = pathResult
-    await loadWorkflows()
+    if (!api) {
+      addLog('error', '当前环境未注入文件 API，无法使用自定流程')
+      return
+    }
+
+    try {
+      workflowsBasePath.value = await api.getWorkflowsPath()
+      await loadWorkflows()
+    } catch (e) {
+      addLog('error', `初始化流程目录失败: ${getErrorMessage(e)}`)
+    }
   }
 
   // ──── 流程文件读写 ─────────────────────────────────────────
   async function loadWorkflows(): Promise<void> {
     const api = getApi()
     const basePath = workflowsBasePath.value
-    if (!basePath) return
+    if (!api || !basePath) return
 
-    const indexResult = await (api.readFile as (p: string) => Promise<{ ok: boolean; data?: string; error?: string }>)(
-      buildIndexFilePath(basePath)
-    )
+    const indexPath = buildIndexFilePath(basePath)
+    const indexResult = await api.readFile(indexPath)
+    if (!indexResult.ok) {
+      addLog('warn', `未读取到流程索引，将从空列表开始: ${indexResult.error}`)
+      workflows.value = []
+      currentWorkflowId.value = null
+      return
+    }
 
-    if (indexResult.ok && indexResult.data) {
-      try {
-        const entries: WorkflowIndexEntry[] = JSON.parse(indexResult.data as string)
-        const loaded: Workflow[] = []
-        for (const entry of entries) {
-          const wfPath = buildWorkflowFilePath(basePath, entry.id)
-          const wfResult = await (api.readFile as (p: string) => Promise<{ ok: boolean; data?: string; error?: string }>)(wfPath)
-          if (wfResult.ok && wfResult.data) {
-            loaded.push(JSON.parse(wfResult.data as string))
-          }
+    if (!indexResult.data) {
+      workflows.value = []
+      currentWorkflowId.value = null
+      return
+    }
+
+    try {
+      const entries = JSON.parse(indexResult.data) as WorkflowIndexEntry[]
+      const loaded: Workflow[] = []
+
+      for (const entry of entries) {
+        const wfPath = buildWorkflowFilePath(basePath, entry.id)
+        const wfResult = await api.readFile(wfPath)
+        if (!wfResult.ok) {
+          addLog('warn', `流程「${entry.name}」读取失败: ${wfResult.error}`)
+          continue
         }
-        workflows.value = loaded
-      } catch { /* ignore corrupt index */ }
+        if (!wfResult.data) continue
+        loaded.push(JSON.parse(wfResult.data) as Workflow)
+      }
+
+      workflows.value = loaded
+      currentWorkflowId.value = loaded[0]?.id ?? null
+    } catch (e) {
+      workflows.value = []
+      currentWorkflowId.value = null
+      addLog('error', `流程索引解析失败: ${getErrorMessage(e)}`)
     }
   }
 
-  async function saveWorkflow(workflowId?: string): Promise<void> {
+  async function saveWorkflow(workflowId?: string): Promise<boolean> {
     const api = getApi()
     const basePath = workflowsBasePath.value
     const wf = workflowId
       ? workflows.value.find((w) => w.id === workflowId)
       : currentWorkflow.value
-    if (!wf || !basePath) return
+    if (!wf || !basePath || !api) return false
 
     isSaving.value = true
     try {
       wf.updatedAt = nowISO()
       const wfPath = buildWorkflowFilePath(basePath, wf.id)
-      await (api.writeFile as (p: string, c: string) => Promise<{ ok: boolean }>)(
+      const workflowResult = await api.writeFile(
         wfPath,
         JSON.stringify(wf, null, 2)
       )
+      if (!workflowResult.ok) {
+        addLog('error', `流程「${wf.name}」保存失败: ${workflowResult.error}`)
+        return false
+      }
 
       const indexPath = buildIndexFilePath(basePath)
-      await (api.writeFile as (p: string, c: string) => Promise<{ ok: boolean }>)(
+      const indexResult = await api.writeFile(
         indexPath,
         JSON.stringify(workflowIndexEntries.value, null, 2)
       )
+      if (!indexResult.ok) {
+        addLog('error', `流程索引保存失败: ${indexResult.error}`)
+        return false
+      }
 
       addLog('info', `流程「${wf.name}」已保存`)
+      return true
+    } catch (e) {
+      addLog('error', `流程「${wf.name}」保存异常: ${getErrorMessage(e)}`)
+      return false
     } finally {
       isSaving.value = false
     }
   }
 
-  async function deleteWorkflow(workflowId: string): Promise<void> {
+  async function deleteWorkflow(workflowId: string): Promise<boolean> {
     const api = getApi()
     const basePath = workflowsBasePath.value
     const wf = workflows.value.find((w) => w.id === workflowId)
-    if (!wf || !basePath) return
+    if (!wf || !basePath || !api) return false
 
     const dirPath = buildWorkflowDirPath(basePath, workflowId)
-    await (api.deleteFile as (p: string) => Promise<{ ok: boolean }>)(dirPath)
+    const deleteResult = await api.deleteFile(dirPath)
+    if (!deleteResult.ok) {
+      addLog('error', `流程「${wf.name}」删除失败: ${deleteResult.error}`)
+      return false
+    }
 
     workflows.value = workflows.value.filter((w) => w.id !== workflowId)
     if (currentWorkflowId.value === workflowId) {
@@ -133,12 +194,17 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
     }
 
     const indexPath = buildIndexFilePath(basePath)
-    await (api.writeFile as (p: string, c: string) => Promise<{ ok: boolean }>)(
+    const indexResult = await api.writeFile(
       indexPath,
       JSON.stringify(workflowIndexEntries.value, null, 2)
     )
+    if (!indexResult.ok) {
+      addLog('error', `删除后流程索引保存失败: ${indexResult.error}`)
+      return false
+    }
 
     addLog('info', `流程「${wf.name}」已删除`)
+    return true
   }
 
   // ──── 流程操作 ────────────────────────────────────────────
@@ -277,6 +343,7 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
     if (!wf || !wf.firstNodeId || isRunning.value) return
 
     isRunning.value = true
+    stopRequested = false
     wf.nodes = resetNodeRunStatus(wf.nodes)
 
     runContext.value = {
@@ -298,6 +365,7 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
       let loopGuard = 0
 
       while (currentNodeId && loopGuard < 100) {
+        ensureWorkflowRunning()
         loopGuard++
         if (visited.has(currentNodeId)) {
           addLog('warn', `检测到循环，跳出 (节点: ${currentNodeId})`, currentNodeId)
@@ -315,20 +383,34 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
 
         // 执行节点
         await executeNode(node)
+        ensureWorkflowRunning()
 
         // 检查条件跳转
         const nextId = evaluateSkipConditions(node)
+        if (node.runStatus === 'failed' && !nextId) {
+          addLog('error', `节点「${node.label}」执行失败且未配置失败跳转，流程停止`, node.id)
+          break
+        }
         currentNodeId = nextId ?? node.nextNodeId
       }
 
-      runContext.value.status = 'completed'
-      addLog('info', `流程「${wf.name}」运行完成`)
+      if (runContext.value.status === 'running') {
+        runContext.value.status = 'completed'
+        addLog('info', `流程「${wf.name}」运行完成`)
+      }
     } catch (e) {
-      runContext.value.status = 'failed'
-      addLog('error', `流程运行失败: ${e instanceof Error ? e.message : String(e)}`)
+      if (e instanceof WorkflowStoppedError) {
+        if (runContext.value) runContext.value.status = 'failed'
+        addLog('warn', '流程已停止')
+      } else {
+        if (runContext.value) runContext.value.status = 'failed'
+        addLog('error', `流程运行失败: ${getErrorMessage(e)}`)
+      }
     } finally {
       isRunning.value = false
-      runContext.value.currentNodeId = null
+      stopRequested = false
+      activeAbortController = null
+      if (runContext.value) runContext.value.currentNodeId = null
     }
   }
 
@@ -341,6 +423,7 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
 
     const startTime = nowISO()
     try {
+      ensureWorkflowRunning()
       // 解析数据映射
       const resolvedInput = resolveDataMappings(node.dataMappings, ctx)
 
@@ -362,16 +445,25 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
           break
       }
 
-      node.runStatus = 'success'
+      node.runStatus = output.success === false ? 'failed' : 'success'
       const endTime = nowISO()
       ctx.nodeOutputs[node.id] = {
-        status: 'success',
+        status: node.runStatus,
         data: output,
         startedAt: startTime,
         endedAt: endTime
       }
-      addLog('info', `节点「${node.label}」执行成功`, node.id)
+      if (node.runStatus === 'success') {
+        addLog('info', `节点「${node.label}」执行成功`, node.id)
+      } else {
+        addLog('error', `节点「${node.label}」执行失败`, node.id)
+      }
     } catch (e) {
+      if (e instanceof WorkflowStoppedError) {
+        node.runStatus = 'skipped'
+        throw e
+      }
+
       node.runStatus = 'failed'
       const endTime = nowISO()
       ctx.nodeOutputs[node.id] = {
@@ -381,8 +473,7 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
         endedAt: endTime,
         error: e instanceof Error ? e.message : String(e)
       }
-      addLog('error', `节点「${node.label}」执行失败: ${e instanceof Error ? e.message : String(e)}`, node.id)
-      throw e
+      addLog('error', `节点「${node.label}」执行失败: ${getErrorMessage(e)}`, node.id)
     }
   }
 
@@ -392,7 +483,7 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
     resolvedInput: Record<string, unknown>
   ): Promise<Record<string, unknown>> {
     const endpoint = (node.config.apiEndpoint ?? '') as string
-    const method = (node.config.apiMethod ?? 'POST') as string
+    const method = String(node.config.apiMethod ?? 'POST').toUpperCase()
     const timeout = (node.config.timeout ?? 30) as number
 
     if (!endpoint) {
@@ -400,30 +491,43 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
       return { success: true, result: { skipped: true } }
     }
 
+    let timeoutId: number | null = null
     try {
       const baseUrl = 'http://127.0.0.1:5000'
-      const url = `${baseUrl}${endpoint}`
+      const apiBody = (node.config.apiBody as Record<string, unknown> | undefined) ?? {}
+      const pathParams = (node.config.pathParams as Record<string, string> | undefined) ?? {}
+      const mergedInput = { ...apiBody, ...resolvedInput }
+      const endpointWithParams = replacePathParams(endpoint, { ...pathParams, ...mergedInput })
+      const url = buildRequestUrl(`${baseUrl}${endpointWithParams}`, method, mergedInput, pathParams)
+      const controller = new AbortController()
+      timeoutId = window.setTimeout(() => controller.abort(), timeout * 1000)
+      activeAbortController = controller
 
       const options: RequestInit = {
         method,
         headers: { 'Content-Type': 'application/json' },
-        signal: AbortSignal.timeout(timeout * 1000)
+        signal: controller.signal
       }
 
-      if (method === 'POST') {
-        const mergedBody = { ...(node.config.apiBody as Record<string, unknown> ?? {}), ...resolvedInput }
-        options.body = JSON.stringify(mergedBody)
+      if (!['GET', 'HEAD'].includes(method)) {
+        options.body = JSON.stringify(mergedInput)
       }
 
-      addLog('info', `调用 API: ${method} ${endpoint}`, node.id)
+      addLog('info', `调用 API: ${method} ${url.pathname}${url.search}`, node.id)
 
-      const response = await fetch(url, options)
-      const data = await response.json()
+      const response = await fetch(url.toString(), options)
+      const data = await parseResponseBody(response)
 
-      return { success: response.ok, result: data }
+      return { success: response.ok, status: response.status, result: data }
     } catch (e) {
-      addLog('error', `API 调用失败: ${e instanceof Error ? e.message : String(e)}`, node.id)
+      if (stopRequested || (e instanceof DOMException && e.name === 'AbortError')) {
+        ensureWorkflowRunning()
+      }
+      addLog('error', `API 调用失败: ${getErrorMessage(e)}`, node.id)
       return { success: false, result: null, error: String(e) }
+    } finally {
+      if (timeoutId !== null) window.clearTimeout(timeoutId)
+      activeAbortController = null
     }
   }
 
@@ -467,7 +571,7 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
   async function executeDelayNode(node: WorkflowNode): Promise<Record<string, unknown>> {
     const seconds = (node.config.fixedSeconds ?? 1) as number
     addLog('info', `等待 ${seconds} 秒...`, node.id)
-    await new Promise((resolve) => setTimeout(resolve, seconds * 1000))
+    await sleepWithStop(seconds * 1000)
     return { elapsed: seconds }
   }
 
@@ -498,7 +602,7 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
           break
         case 'expression':
           // 简单表达式解析
-          if (condition.expression && evaluateSimpleExpression(condition.expression)) {
+          if (condition.expression && evaluateSimpleExpression(condition.expression, node)) {
             addLog('info', `表达式跳转: "${condition.label}" → ${condition.targetNodeId}`, node.id)
             return condition.targetNodeId
           }
@@ -508,15 +612,26 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
     return null
   }
 
-  function evaluateSimpleExpression(_expr: string): boolean {
-    // 简化：直接返回 true，后续可以扩展
-    return true
+  function evaluateSimpleExpression(expr: string, node: WorkflowNode): boolean {
+    const normalized = expr.trim().replace(/^\{\{\s*/, '').replace(/\s*\}\}$/, '')
+    const match = normalized.match(/^(.+?)\s*(===|!==|==|!=|>=|<=|>|<|contains)\s*(.+)$/)
+    if (!match) {
+      addLog('warn', `表达式格式不支持: ${expr}`, node.id)
+      return false
+    }
+
+    const [, leftToken, operator, rightToken] = match
+    const left = resolveExpressionValue(leftToken, node)
+    const right = resolveExpressionValue(rightToken, node)
+    return compareExpressionValues(left, operator, right)
   }
 
   // ──── 停止运行 ────────────────────────────────────────────
   function stopWorkflow(): void {
     if (!isRunning.value) return
+    stopRequested = true
     isRunning.value = false
+    activeAbortController?.abort()
     if (runContext.value) {
       runContext.value.status = 'failed'
     }
@@ -538,6 +653,126 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
   }
 
   // ──── 辅助 ────────────────────────────────────────────────
+  function ensureWorkflowRunning(): void {
+    if (stopRequested || !isRunning.value) {
+      throw new WorkflowStoppedError()
+    }
+  }
+
+  async function sleepWithStop(ms: number): Promise<void> {
+    const stepMs = 100
+    let elapsed = 0
+    while (elapsed < ms) {
+      ensureWorkflowRunning()
+      const waitMs = Math.min(stepMs, ms - elapsed)
+      await new Promise((resolve) => window.setTimeout(resolve, waitMs))
+      elapsed += waitMs
+    }
+    ensureWorkflowRunning()
+  }
+
+  function replacePathParams(endpoint: string, values: Record<string, unknown>): string {
+    return endpoint.replace(/\{([^}]+)\}/g, (_match, key: string) => {
+      const value = values[key]
+      return encodeURIComponent(value === undefined || value === null ? '' : String(value))
+    })
+  }
+
+  function buildRequestUrl(
+    rawUrl: string,
+    method: string,
+    input: Record<string, unknown>,
+    pathParams: Record<string, string>
+  ): URL {
+    const url = new URL(rawUrl)
+    if (method === 'GET') {
+      for (const [key, value] of Object.entries(input)) {
+        if (key in pathParams || value === undefined || value === null) continue
+        url.searchParams.set(key, serializeQueryValue(value))
+      }
+    }
+    return url
+  }
+
+  function serializeQueryValue(value: unknown): string {
+    if (typeof value === 'object') return JSON.stringify(value)
+    return String(value)
+  }
+
+  async function parseResponseBody(response: Response): Promise<unknown> {
+    const text = await response.text()
+    if (!text) return null
+    try {
+      return JSON.parse(text)
+    } catch {
+      return text
+    }
+  }
+
+  function resolveExpressionValue(token: string, node: WorkflowNode): unknown {
+    const trimmed = token.trim()
+    if (/^(['"]).*\1$/.test(trimmed)) return trimmed.slice(1, -1)
+    if (trimmed === 'true') return true
+    if (trimmed === 'false') return false
+    if (trimmed === 'null') return null
+    if (/^-?\d+(\.\d+)?$/.test(trimmed)) return Number(trimmed)
+
+    const ctx = runContext.value
+    const output = ctx?.nodeOutputs[node.id]?.data ?? {}
+    const path = trimmed
+      .replace(/^\$self\./, '')
+      .replace(/^self\./, '')
+      .replace(/^output\./, '')
+
+    if (path === 'status') return node.runStatus
+    return getByPath(output, path)
+  }
+
+  function getByPath(source: unknown, path: string): unknown {
+    return path.split('.').reduce<unknown>((current, key) => {
+      if (current && typeof current === 'object' && key in current) {
+        return (current as Record<string, unknown>)[key]
+      }
+      return undefined
+    }, source)
+  }
+
+  function compareExpressionValues(left: unknown, operator: string, right: unknown): boolean {
+    switch (operator) {
+      case '==':
+      case '===':
+        return normalizeComparable(left) === normalizeComparable(right)
+      case '!=':
+      case '!==':
+        return normalizeComparable(left) !== normalizeComparable(right)
+      case '>':
+        return Number(left) > Number(right)
+      case '>=':
+        return Number(left) >= Number(right)
+      case '<':
+        return Number(left) < Number(right)
+      case '<=':
+        return Number(left) <= Number(right)
+      case 'contains':
+        return String(left).includes(String(right))
+      default:
+        return false
+    }
+  }
+
+  function normalizeComparable(value: unknown): string | number | boolean | null | undefined {
+    if (typeof value === 'string') {
+      if (value === 'true') return true
+      if (value === 'false') return false
+      if (/^-?\d+(\.\d+)?$/.test(value)) return Number(value)
+    }
+    return value as string | number | boolean | null | undefined
+  }
+
+  function getErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error)
+  }
+
   function calculateNextPosition(nodes: WorkflowNode[]): { x: number; y: number } {
     if (nodes.length === 0) return { x: 100, y: 100 }
     const maxY = Math.max(...nodes.map((n) => n.position.y))

@@ -18,7 +18,6 @@ function confirmNew(): void {
     return
   }
   store.createWorkflow(name)
-  store.saveWorkflow()
   showNewInput.value = false
 }
 
@@ -46,52 +45,70 @@ function formatDate(dateStr: string): string {
 </script>
 
 <template>
-  <div class="task-panel">
-    <div class="panel-header">
-      <h3 class="panel-title">流程列表</h3>
-      <button class="panel-add-btn" @click="startNew" :disabled="store.isSaving">
+  <div class="flex h-full flex-col overflow-hidden rounded-2xl border border-(--app-border) bg-(--app-card) shadow-[0_12px_32px_rgba(0,0,0,0.14)]">
+    <div class="flex items-center justify-between border-b border-(--app-border) px-4 py-3">
+      <div>
+        <h3 class="text-[15px] font-bold leading-tight text-(--app-text-primary)">流程列表</h3>
+        <p class="mt-0.5 text-[11px] text-(--app-text-muted)">管理并切换自定义流程</p>
+      </div>
+      <button
+        class="cursor-pointer rounded-lg border border-blue-500/30 bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white shadow-[0_8px_18px_rgba(37,99,235,0.2)] transition-all duration-100 hover:-translate-y-px hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+        @click="startNew"
+        :disabled="store.isSaving"
+      >
         + 新建
       </button>
     </div>
 
     <!-- 新建输入框 -->
-    <div v-if="showNewInput" class="new-input-area">
+    <div v-if="showNewInput" class="flex flex-col gap-2 border-b border-(--app-border) bg-(--app-card-soft) px-4 py-3">
       <input
         v-model="newName"
-        class="new-input"
+        class="rounded-md border border-blue-600 bg-(--app-input-bg) px-2.5 py-1.5 text-[13px] text-(--app-text-primary) outline-none"
         placeholder="输入流程名称"
         @keydown="onKeydown"
         ref="newInputRef"
         autofocus
       />
-      <div class="new-actions">
-        <button class="new-confirm" @click="confirmNew">确定</button>
-        <button class="new-cancel" @click="showNewInput = false">取消</button>
+      <div class="flex gap-1.5">
+        <button class="cursor-pointer rounded border-0 bg-blue-600 px-2.5 py-1 text-xs text-white" @click="confirmNew">
+          确定
+        </button>
+        <button
+          class="cursor-pointer rounded border-0 bg-(--app-card-soft) px-2.5 py-1 text-xs text-(--app-text-secondary)"
+          @click="showNewInput = false"
+        >
+          取消
+        </button>
       </div>
     </div>
 
     <!-- 流程列表 -->
-    <div class="workflow-list">
-      <div v-if="store.workflows.length === 0" class="list-empty">
-        <p>暂无流程</p>
-        <p class="list-empty-hint">点击「+ 新建」创建第一个流程</p>
+    <div
+      class="flex flex-1 flex-col gap-1.5 overflow-y-auto p-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+    >
+      <div v-if="store.workflows.length === 0" class="rounded-xl border border-dashed border-(--app-border) px-4 py-10 text-center text-[13px] text-(--app-text-muted)">
+        <p class="font-semibold text-(--app-text-secondary)">暂无流程</p>
+        <p class="mt-1 text-[11px]">点击「+ 新建」创建第一个流程</p>
       </div>
 
       <div
         v-for="wf in store.workflows"
         :key="wf.id"
-        class="workflow-item"
-        :class="{ 'is-active': wf.id === store.currentWorkflowId }"
+        class="flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2.5 transition-all duration-100 hover:bg-(--app-card-soft)"
+        :class="wf.id === store.currentWorkflowId ? 'border-blue-500/40 bg-blue-600/10 shadow-[inset_3px_0_0_#2563eb]' : 'border-transparent'"
         @click="onSelect(wf.id)"
       >
-        <div class="workflow-info">
-          <span class="workflow-name">{{ wf.name }}</span>
-          <span class="workflow-meta">
+        <div class="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span class="overflow-hidden text-ellipsis whitespace-nowrap text-[13px] font-semibold text-(--app-text-primary)">
+            {{ wf.name }}
+          </span>
+          <span class="text-[11px] text-(--app-text-muted)">
             {{ wf.nodes.length }} 个节点 · {{ formatDate(wf.updatedAt) }}
           </span>
         </div>
         <button
-          class="workflow-delete"
+          class="h-5 w-5 shrink-0 cursor-pointer rounded border-0 bg-transparent text-base leading-none text-(--app-text-muted) hover:bg-red-600/10 hover:text-red-600"
           @click.stop="onDelete(wf.id)"
           title="删除流程"
         >×</button>
@@ -99,132 +116,8 @@ function formatDate(dateStr: string): string {
     </div>
 
     <!-- 底部状态 -->
-    <div class="panel-footer">
-      <span class="footer-text">共 {{ store.workflows.length }} 个流程</span>
+    <div class="border-t border-(--app-border) px-3.5 py-2">
+      <span class="text-[11px] text-(--app-text-muted)">共 {{ store.workflows.length }} 个流程</span>
     </div>
   </div>
 </template>
-
-<style scoped>
-.task-panel {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  background: var(--app-card);
-  border: 1px solid var(--app-border);
-  border-radius: 12px;
-  overflow: hidden;
-}
-.panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 14px 10px;
-  border-bottom: 1px solid var(--app-border);
-}
-.panel-title {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--app-text-primary);
-}
-.panel-add-btn {
-  padding: 5px 12px;
-  border: none;
-  border-radius: 6px;
-  background: #2563eb;
-  color: #fff;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.1s;
-}
-.panel-add-btn:hover { background: #1d4ed8; }
-.panel-add-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-.new-input-area {
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--app-border);
-  display: flex; flex-direction: column; gap: 6px;
-}
-.new-input {
-  padding: 6px 10px;
-  border: 1px solid #2563eb;
-  border-radius: 6px;
-  background: var(--app-input-bg);
-  color: var(--app-text-primary);
-  font-size: 13px;
-  outline: none;
-}
-.new-actions { display: flex; gap: 6px; }
-.new-confirm, .new-cancel {
-  padding: 4px 10px;
-  border: none;
-  border-radius: 4px;
-  font-size: 12px;
-  cursor: pointer;
-}
-.new-confirm { background: #2563eb; color: #fff; }
-.new-cancel { background: var(--app-card-soft); color: var(--app-text-secondary); }
-
-.workflow-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: 8px;
-  display: flex; flex-direction: column; gap: 4px;
-}
-.list-empty {
-  padding: 32px 16px;
-  text-align: center;
-  font-size: 13px;
-  color: var(--app-text-muted);
-}
-.list-empty-hint { font-size: 11px; margin-top: 4px; }
-
-.workflow-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 0.1s;
-}
-.workflow-item:hover { background: var(--app-card-soft); }
-.workflow-item.is-active {
-  background: rgba(37,99,235,0.08);
-  border: 1px solid rgba(37,99,235,0.2);
-}
-.workflow-info {
-  flex: 1;
-  min-width: 0;
-  display: flex; flex-direction: column; gap: 2px;
-}
-.workflow-name {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--app-text-primary);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.workflow-meta {
-  font-size: 11px;
-  color: var(--app-text-muted);
-}
-.workflow-delete {
-  width: 20px; height: 20px;
-  border: none; background: transparent;
-  color: var(--app-text-muted);
-  font-size: 16px; line-height: 1;
-  cursor: pointer; border-radius: 4px;
-  flex-shrink: 0;
-}
-.workflow-delete:hover { color: #dc2626; background: rgba(220,38,38,0.1); }
-
-.panel-footer {
-  padding: 8px 14px;
-  border-top: 1px solid var(--app-border);
-}
-.footer-text {
-  font-size: 11px;
-  color: var(--app-text-muted);
-}
-</style>

@@ -11,6 +11,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   select: [id: string]
+  dragStart: [id: string, event: MouseEvent]
   startConnect: [id: string]
   remove: [id: string]
 }>()
@@ -36,6 +37,7 @@ const statusLabel: Record<string, string> = {
 function onMousedown(e: MouseEvent): void {
   if (props.isRunning) return
   emit('select', props.node.id)
+  emit('dragStart', props.node.id, e)
   e.stopPropagation()
 }
 
@@ -47,8 +49,11 @@ function onConnectClick(e: MouseEvent): void {
 
 <template>
   <div
-    class="flow-node"
-    :class="{ 'is-running': node.runStatus === 'running' }"
+    class="absolute z-10 select-none overflow-visible rounded-xl border-2 border-solid bg-(--app-card) transition-[box-shadow,border-color] duration-150 hover:shadow-[0_4px_12px_rgba(0,0,0,0.1)]"
+    :class="[
+      node.runStatus === 'running' ? 'animate-pulse' : '',
+      isRunning ? 'cursor-default' : 'cursor-pointer'
+    ]"
     :style="{
       left: node.position.x + 'px',
       top: node.position.y + 'px',
@@ -58,135 +63,50 @@ function onConnectClick(e: MouseEvent): void {
     }"
     @mousedown.prevent="onMousedown"
   >
-    <div class="flow-node-header" :style="{ background: meta.color + '18' }">
-      <span class="flow-node-icon">{{ meta.icon }}</span>
-      <span class="flow-node-type">{{ meta.label }}</span>
+    <div
+      class="flex items-center gap-1.5 rounded-t-[10px] px-3 py-1.5 text-xs font-semibold"
+      :style="{ background: meta.color + '18' }"
+    >
+      <span class="text-sm">{{ meta.icon }}</span>
+      <span class="flex-1">{{ meta.label }}</span>
       <button
         v-if="!isRunning"
-        class="flow-node-delete"
+        class="h-[18px] w-[18px] cursor-pointer rounded border-0 bg-transparent text-base leading-none text-(--app-text-muted) hover:bg-red-600/10 hover:text-red-600"
         @mousedown.stop
         @click="emit('remove', node.id)"
         title="删除节点"
       >×</button>
     </div>
 
-    <div class="flow-node-body">
-      <span class="flow-node-label">{{ node.label }}</span>
+    <div class="overflow-hidden text-ellipsis whitespace-nowrap px-3 py-1.5 text-[13px] text-(--app-text-primary)">
+      <span>{{ node.label }}</span>
     </div>
 
-    <div class="flow-node-footer">
-      <span class="flow-node-status" :style="{ color: statusColor }">
+    <div class="px-3 pb-1.5 pt-1 text-[11px]">
+      <span :style="{ color: statusColor }">
         ● {{ statusLabel[node.runStatus] ?? '空闲' }}
       </span>
     </div>
 
     <!-- 输出连接点 -->
     <div
-      class="flow-node-connector output"
-      :class="{ 'is-connecting': isRunning }"
+      class="absolute bottom-[-12px] left-1/2 z-20 flex -translate-x-1/2 items-center justify-center"
+      :class="isRunning ? 'cursor-default' : 'cursor-crosshair'"
       @mousedown="onConnectClick"
       title="拖拽连接下一个节点"
     >
-      <div class="connector-dot" :style="{ background: meta.color }"></div>
+      <div
+        class="h-2.5 w-2.5 rounded-full border-2 border-(--app-card) shadow-[0_0_0_1px_var(--app-border)]"
+        :style="{ background: meta.color }"
+      ></div>
     </div>
 
     <!-- 输入连接点 -->
-    <div class="flow-node-connector input">
-      <div class="connector-dot" :style="{ background: meta.color }"></div>
+    <div class="absolute left-1/2 top-[-12px] z-20 flex -translate-x-1/2 items-center justify-center">
+      <div
+        class="h-2.5 w-2.5 rounded-full border-2 border-(--app-card) shadow-[0_0_0_1px_var(--app-border)]"
+        :style="{ background: meta.color }"
+      ></div>
     </div>
   </div>
 </template>
-
-<style scoped>
-.flow-node {
-  position: absolute;
-  background: var(--app-card);
-  border: 2px solid;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: box-shadow 0.15s, border-color 0.15s;
-  user-select: none;
-  overflow: visible;
-  z-index: 10;
-}
-.flow-node:hover {
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
-.flow-node.is-running {
-  animation: node-pulse 1.5s ease-in-out infinite;
-}
-@keyframes node-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(37,99,235,0.3); }
-  50% { box-shadow: 0 0 0 8px rgba(37,99,235,0); }
-}
-
-.flow-node-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: 10px 10px 0 0;
-  font-size: 12px;
-  font-weight: 600;
-}
-.flow-node-icon { font-size: 14px; }
-.flow-node-type { flex: 1; }
-.flow-node-delete {
-  width: 18px;
-  height: 18px;
-  border: none;
-  background: transparent;
-  color: var(--app-text-muted);
-  cursor: pointer;
-  font-size: 16px;
-  line-height: 1;
-  border-radius: 4px;
-}
-.flow-node-delete:hover {
-  background: rgba(220,38,38,0.1);
-  color: #dc2626;
-}
-
-.flow-node-body {
-  padding: 6px 12px;
-  font-size: 13px;
-  color: var(--app-text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.flow-node-footer {
-  padding: 4px 12px 6px;
-  font-size: 11px;
-}
-
-.flow-node-connector {
-  position: absolute;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 20;
-}
-.flow-node-connector.output {
-  bottom: -12px;
-  left: 50%;
-  transform: translateX(-50%);
-  cursor: crosshair;
-}
-.flow-node-connector.input {
-  top: -12px;
-  left: 50%;
-  transform: translateX(-50%);
-}
-.connector-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  border: 2px solid var(--app-card);
-  box-shadow: 0 0 0 1px var(--app-border);
-}
-.flow-node-connector.is-connecting {
-  cursor: default;
-}
-</style>

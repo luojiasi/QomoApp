@@ -7,6 +7,9 @@ type SaveJsonResult =
   | { ok: false; canceled: true }
   | { ok: false; error: string }
 type OpenDocumentResult = { ok: true } | { ok: false; error: string }
+type WorkflowFileResult =
+  | { ok: true; data: unknown }
+  | { ok: false; error: string }
 
 type BackendRuntimeState = 'running' | 'starting' | 'restarting' | 'error' | 'missing' | 'stopped'
 
@@ -34,6 +37,12 @@ type RendererApi = {
   saveJsonToFile: (preset: SaveJsonPreset, content: string) => Promise<SaveJsonResult>
   /** 打开应用内文档（相对项目根目录） */
   openDocument: (relativePath: string) => Promise<OpenDocumentResult>
+  /** Workflow 文件操作 */
+  getWorkflowsPath: () => Promise<string>
+  readDirectory: (dirPath: string) => Promise<WorkflowFileResult>
+  readFile: (filePath: string) => Promise<WorkflowFileResult>
+  writeFile: (filePath: string, content: string) => Promise<WorkflowFileResult>
+  deleteFile: (targetPath: string) => Promise<WorkflowFileResult>
 }
 
 const api: RendererApi = {

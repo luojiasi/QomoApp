@@ -5,6 +5,7 @@ import FlowTaskPanel from '../components/workflow/FlowTaskPanel.vue'
 import FlowCanvas from '../components/workflow/FlowCanvas.vue'
 import FlowNodeConfig from '../components/workflow/FlowNodeConfig.vue'
 import FlowLogPanel from '../components/workflow/FlowLogPanel.vue'
+import HomeOperationHelp_new from '../components/HomeOperationHelp_new.vue'
 
 const store = useSelfProcessStore()
 
@@ -14,18 +15,18 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="app-page sp-page">
-    <!-- 顶部工具栏 -->
-    <div class="sp-toolbar">
-      <div class="toolbar-left">
-        <h1 class="toolbar-title">自定流程</h1>
-        <span v-if="store.currentWorkflow" class="toolbar-subtitle">
-          {{ store.currentWorkflow.name }}
+  <div
+      class="flex shrink-0 items-center gap-4 rounded-2xl border border-(--app-border) bg-(--app-card) px-6 py-3 shadow-[0_10px_30px_rgba(0,0,0,0.16)]"
+    >
+      <div class="flex min-w-[220px] flex-col gap-0.5">
+        <h1 class="text-lg font-bold leading-tight text-(--app-text-primary)">自定流程</h1>
+        <span class="text-xs text-(--app-text-muted)">
+          {{ store.currentWorkflow ? store.currentWorkflow.name : '创建流程后开始编排节点' }}
         </span>
       </div>
-      <div class="toolbar-center">
+      <div class="flex flex-1 justify-center gap-2">
         <button
-          class="tb-btn tb-primary"
+          class="cursor-pointer rounded-lg border border-blue-500/30 bg-blue-600 px-5 py-2 text-[13px] font-semibold text-white opacity-100 shadow-[0_8px_18px_rgba(37,99,235,0.2)] transition-all duration-100 enabled:hover:-translate-y-px enabled:hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
           :disabled="!store.currentWorkflow || store.isSaving"
           @click="store.saveWorkflow()"
         >
@@ -33,7 +34,7 @@ onMounted(async () => {
         </button>
         <button
           v-if="!store.isRunning"
-          class="tb-btn tb-success"
+          class="cursor-pointer rounded-lg border border-green-500/30 bg-green-600 px-5 py-2 text-[13px] font-semibold text-white opacity-100 shadow-[0_8px_18px_rgba(22,163,74,0.18)] transition-all duration-100 enabled:hover:-translate-y-px enabled:hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
           :disabled="!store.currentWorkflow || !store.currentWorkflow.firstNodeId"
           @click="store.runWorkflow()"
         >
@@ -41,150 +42,40 @@ onMounted(async () => {
         </button>
         <button
           v-else
-          class="tb-btn tb-danger"
+          class="cursor-pointer rounded-lg border border-red-500/30 bg-red-600 px-5 py-2 text-[13px] font-semibold text-white shadow-[0_8px_18px_rgba(220,38,38,0.2)] transition-all duration-100 hover:-translate-y-px hover:bg-red-700"
           @click="store.stopWorkflow()"
         >
           停止
         </button>
       </div>
-      <div class="toolbar-right">
-        <RouterLink to="/home" class="tb-link">返回首页</RouterLink>
+      <div class="flex items-center">
+        <RouterLink
+          to="/home"
+          class="rounded-lg border border-(--app-border) bg-(--app-card-soft) px-25 py-2 text-[13px] text-(--app-text-muted) no-underline transition-colors duration-100 hover:text-(--app-text-primary)"
+        >
+          返回首页
+        </RouterLink>
       </div>
     </div>
+  <div class="absolute top-1/16 bottom-4 z-20 flex min-h-0 w-full flex-row gap-3 overflow-y-auto p-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <aside class="h-full w-1/8 overflow-hidden">
+      <FlowTaskPanel />
+    </aside>
 
-    <!-- 三栏主体 -->
-    <div class="sp-body">
-      <!-- 左侧：任务区 -->
-      <aside class="sp-left">
-        <FlowTaskPanel />
-      </aside>
 
-      <!-- 中间：操作区 -->
-      <main class="sp-center">
-        <FlowCanvas />
-        <div class="sp-config-area">
+    <main class="h-full w-3/4 flex-col items-center overflow-hidden">
+        <div class="h-1/2 w-full shrink-0">
+          <FlowCanvas class="h-full w-full" />
+        </div>
+        <div class="w-full shrink-0 overflow-hidden">
           <FlowNodeConfig />
         </div>
       </main>
 
-      <!-- 右侧：日志区 -->
-      <aside class="sp-right">
-        <FlowLogPanel />
-      </aside>
-    </div>
+
+    <aside class="h-full w-2/9 overflow-hidden">
+      <FlowLogPanel />
+    </aside>
+
   </div>
 </template>
-
-<style scoped>
-.sp-page {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  overflow: hidden;
-}
-
-/* ──── 顶部工具栏 ──── */
-.sp-toolbar {
-  display: flex;
-  align-items: center;
-  padding: 10px 16px;
-  gap: 16px;
-  background: var(--app-card);
-  border-bottom: 1px solid var(--app-border);
-  flex-shrink: 0;
-}
-.toolbar-left {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-}
-.toolbar-title {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--app-text-primary);
-}
-.toolbar-subtitle {
-  font-size: 13px;
-  color: var(--app-text-muted);
-}
-.toolbar-center {
-  flex: 1;
-  display: flex;
-  justify-content: center;
-  gap: 8px;
-}
-.toolbar-right {
-  display: flex;
-  align-items: center;
-}
-
-.tb-btn {
-  padding: 7px 18px;
-  border: none;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.1s;
-}
-.tb-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-.tb-primary { background: #2563eb; color: #fff; }
-.tb-primary:hover:not(:disabled) { background: #1d4ed8; }
-.tb-success { background: #16a34a; color: #fff; }
-.tb-success:hover:not(:disabled) { background: #15803d; }
-.tb-danger { background: #dc2626; color: #fff; }
-.tb-danger:hover:not(:disabled) { background: #b91c1c; }
-
-.tb-link {
-  font-size: 13px;
-  color: var(--app-text-muted);
-  text-decoration: none;
-  padding: 6px 12px;
-  border-radius: 6px;
-  transition: background 0.1s;
-}
-.tb-link:hover {
-  background: var(--app-card-soft);
-  color: var(--app-text-primary);
-}
-
-/* ──── 三栏主体 ──── */
-.sp-body {
-  flex: 1;
-  display: flex;
-  gap: 8px;
-  padding: 8px;
-  overflow: hidden;
-  min-height: 0;
-}
-
-.sp-left {
-  width: 280px;
-  flex-shrink: 0;
-  min-height: 0;
-  overflow-y: auto;
-}
-
-.sp-center {
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  overflow: hidden;
-}
-
-.sp-config-area {
-  flex-shrink: 0;
-  max-height: 300px;
-  overflow-y: auto;
-}
-
-.sp-right {
-  width: 320px;
-  flex-shrink: 0;
-  min-height: 0;
-  overflow-y: auto;
-}
-</style>

@@ -1,0 +1,39 @@
+{
+  "id": "moi7tavbd46q",
+  "name": "123123",
+  "description": "",
+  "nodes": [
+    {
+      "id": "moi9585ziomp",
+      "type": "task",
+      "label": "执行任务",
+      "position": {
+        "x": 100,
+        "y": 100
+      },
+      "config": {
+        "apiEndpoint": "",
+        "apiMethod": "POST",
+        "apiBody": {},
+        "timeout": 30,
+        "retryCount": 0,
+        "retryDelay": 1
+      },
+      "dataMappings": [
+        {
+          "id": "moi95kb26u4x",
+          "sourceType": "fixed_value",
+          "fixedValue": "",
+          "targetField": "params"
+        }
+      ],
+      "nextNodeId": null,
+      "skipConditions": [],
+      "runStatus": "idle",
+      "description": ""
+    }
+  ],
+  "firstNodeId": "moi9585ziomp",
+  "createdAt": "2026-04-28T05:58:21.767Z",
+  "updatedAt": "2026-04-28T06:56:31.500Z"
+}
