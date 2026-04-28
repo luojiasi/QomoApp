@@ -1,8 +1,8 @@
 import { type ChildProcess, exec, spawn } from 'node:child_process'
 import { constants } from 'node:fs'
-import { access, writeFile } from 'node:fs/promises'
+import { access, readFile, readdir, mkdir, rm, writeFile } from 'node:fs/promises'
 import net from 'node:net'
-import { dirname, join } from 'node:path'
+import { dirname, join, basename } from 'node:path'
 import { app, shell, BrowserWindow, dialog, ipcMain } from 'electron'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -469,6 +469,66 @@ const registerOpenDocumentIpc = (): void => {
   })
 }
 
+// ──── Workflow 文件操作 IPC ─────────────────────────────────────
+
+type WorkflowFileResult =
+  | { ok: true; data: unknown }
+  | { ok: false; error: string }
+
+const getWorkflowsBasePath = (): string => {
+  if (app.isPackaged) {
+    return join(dirname(process.execPath), 'workflows')
+  }
+  return join(app.getAppPath(), 'src', 'renderer', 'workflows')
+}
+
+const registerWorkflowFileIpc = (): void => {
+  ipcMain.handle('app:get-workflows-path', (): string => getWorkflowsBasePath())
+
+  ipcMain.handle('app:read-directory', async (_, dirPath: string): Promise<WorkflowFileResult> => {
+    try {
+      const entries = await readdir(dirPath, { withFileTypes: true })
+      const items = entries.map((e) => ({
+        name: e.name,
+        isDirectory: e.isDirectory(),
+        isFile: e.isFile()
+      }))
+      return { ok: true, data: items }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  })
+
+  ipcMain.handle('app:read-file', async (_, filePath: string): Promise<WorkflowFileResult> => {
+    try {
+      const content = await readFile(filePath, 'utf-8')
+      return { ok: true, data: content }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  })
+
+  ipcMain.handle('app:write-file', async (_, filePath: string, content: string): Promise<WorkflowFileResult> => {
+    try {
+      const dir = dirname(filePath)
+      await mkdir(dir, { recursive: true })
+      await writeFile(filePath, content, 'utf-8')
+      return { ok: true, data: null }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  })
+
+  ipcMain.handle('app:delete-file', async (_, targetPath: string): Promise<WorkflowFileResult> => {
+    try {
+      await rm(targetPath, { recursive: true, force: true })
+      return { ok: true, data: null }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  })
+}
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
@@ -488,6 +548,7 @@ app.whenReady().then(() => {
   registerBackendRuntimeStatusIpc()
   registerSaveJsonFileIpc()
   registerOpenDocumentIpc()
+  registerWorkflowFileIpc()
   startLicenseMonitor()
   void tryStartPackagedBackend()
   createWindow()

@@ -46,7 +46,14 @@ const api: RendererApi = {
   getBackendRuntimeStatus: () => ipcRenderer.invoke('get-backend-runtime-status'),
   saveJsonToFile: (preset: SaveJsonPreset, content: string) =>
     ipcRenderer.invoke('app:save-json-file', preset, content),
-  openDocument: (relativePath: string) => ipcRenderer.invoke('app:open-document', relativePath)
+  openDocument: (relativePath: string) => ipcRenderer.invoke('app:open-document', relativePath),
+
+  // Workflow 文件操作
+  getWorkflowsPath: () => ipcRenderer.invoke('app:get-workflows-path'),
+  readDirectory: (dirPath: string) => ipcRenderer.invoke('app:read-directory', dirPath),
+  readFile: (filePath: string) => ipcRenderer.invoke('app:read-file', filePath),
+  writeFile: (filePath: string, content: string) => ipcRenderer.invoke('app:write-file', filePath, content),
+  deleteFile: (targetPath: string) => ipcRenderer.invoke('app:delete-file', targetPath)
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

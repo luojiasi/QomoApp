@@ -20,6 +20,18 @@ export type BackendRuntimeStatus = {
   message: string
 }
 
+/** 目录条目 */
+export type DirectoryEntry = {
+  name: string
+  isDirectory: boolean
+  isFile: boolean
+}
+
+/** 文件操作结果 */
+export type WorkflowFileResult =
+  | { ok: true; data: unknown }
+  | { ok: false; error: string }
+
 export type RendererApi = {
   license: {
     getStatus: () => Promise<LicenseStatus>
@@ -30,6 +42,13 @@ export type RendererApi = {
   getBackendRuntimeStatus: () => Promise<BackendRuntimeStatus>
   saveJsonToFile: (preset: SaveJsonPreset, content: string) => Promise<SaveJsonResult>
   openDocument: (relativePath: string) => Promise<OpenDocumentResult>
+
+  // Workflow 文件操作
+  getWorkflowsPath: () => Promise<string>
+  readDirectory: (dirPath: string) => Promise<WorkflowFileResult>
+  readFile: (filePath: string) => Promise<WorkflowFileResult>
+  writeFile: (filePath: string, content: string) => Promise<WorkflowFileResult>
+  deleteFile: (targetPath: string) => Promise<WorkflowFileResult>
 }
 
 declare global {

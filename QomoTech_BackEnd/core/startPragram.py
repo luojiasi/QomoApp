@@ -334,7 +334,7 @@ def execute_start_program(*,motion: ZMotionDriver,recipe_payload: dict[str, Any]
 
             # outcome =  wangFuLoop(originalPointsNum=当前任务索引,recipe_payload=recipe_payload,controller=controller,entities=entities,rs232=rs232,rs232_open=rs232_open)
             # 我的想法是将切割轴进行分类切割，然后进行不同的处理
-            # # 现在只能一个一个切圆
+            # # # 现在只能一个一个切圆
             if 垂直配方中的加工轴 == 'R' and 判断是否都是圆或者圆弧的结果:
                 outcome =  用旋转轴去切圆(originalPointsNum=当前任务索引,recipe_payload=recipe_payload,controller=controller,entities=entities,rs232=rs232,rs232_open=rs232_open)
             if 垂直配方中的加工轴 == 'XY':
@@ -874,14 +874,17 @@ def 修面和切片的程序(originalPointsNum: int,recipe_payload: dict[str, An
 
     每段子区间速度数量 = int(工作配方中的垂直配方.get("formula").get("edgeCutting").get("cutSpeedNums"))
     切割速度 = float(工作配方中的垂直配方.get("formula").get("xSpeed"))
-    边缘切割速度百分比 = float(工作配方中的垂直配方.get("formula").get("edgeCutting").get("speed"))/100
-    中间切割速度百分比 = float(工作配方中的垂直配方.get("formula").get("middleCutting").get("speed"))/100
+    # 保留原始百分比值（0-100 范围），后续动态计算要用
+    原始边缘切割速度百分比值 = float(工作配方中的垂直配方.get("formula").get("edgeCutting").get("speed"))
+    原始中间切割速度百分比值 = float(工作配方中的垂直配方.get("formula").get("middleCutting").get("speed"))
+    边缘切割速度百分比 = 原始边缘切割速度百分比值 / 100
+    中间切割速度百分比 = 原始中间切割速度百分比值 / 100
     边缘切割速度的变化K = float(工作配方中的垂直配方.get("formula").get("edgeCutting").get("change").get('k'))
     边缘切割速度的变化B = float(工作配方中的垂直配方.get("formula").get("edgeCutting").get("change").get('b'))
     中间切割速度的变化K =  float(工作配方中的垂直配方.get("formula").get("middleCutting").get("change").get('k'))
     中间切割速度的变化B = float(工作配方中的垂直配方.get("formula").get("middleCutting").get("change").get('b'))
-    
-    
+
+
     开口形状 = 工作配方中的水平配方.get('formula').get('openingShape')
     # 下开口============如果是修面就直接用B
     最小的偏移 = 下开口值 = 下开口K * 高度 + 下开口B
@@ -1015,7 +1018,9 @@ def 修面和切片的程序(originalPointsNum: int,recipe_payload: dict[str, An
                     当前运行点位 = list(reversed(当前运行点位))
                 原始点数据_插补数据 = list(当前运行点位)
 
-                目标运行速度 = 切割速度*边缘切割速度百分比 if 是否在边缘位置 else 切割速度*中间切割速度百分比
+                当前速度百分比 = 边缘切割速度百分比 if 是否在边缘位置 else 中间切割速度百分比
+                目标运行速度 = 切割速度 * 当前速度百分比
+
                 运行结果 = controller.continuous_interpolation_move_adapter(原始点数据_插补数据,speed=目标运行速度,wait_until_done=True)
                 当前步骤 =81 if 运行结果.get('success') and 运行结果 is not None else 300
             case 81:
@@ -1089,15 +1094,17 @@ def 修面和切片的程序(originalPointsNum: int,recipe_payload: dict[str, An
                 上层量 = 当前量
                 累计下降量 += round(每次下降步长量,6)
 
-                # 边缘切割速度按变化百分比周期切换：
-                # 每个 changePercent 区间都是独立循环，进入下一个区间后速度序号重新从 1 开始
-                每段子区间大小 = 变化百分比 / 每段子区间速度数量 if 变化百分比 > 0 else 0
-                段内进度百分比 = 进度百分比 % 变化百分比 if 变化百分比 > 0 else 0
-                子段索引上限 = max(0, int(每段子区间速度数量) - 1)
-                子段索引 = 0 if 每段子区间大小 <= 0 else min(子段索引上限, int(max(0.0, 段内进度百分比) // 每段子区间大小))
-                区间内变化序号 = 子段索引
-                动态边缘切割速度百分比_百分制 = 边缘切割速度的变化K * 区间内变化序号 + 边缘切割速度的变化B
-                边缘切割速度百分比 = min(1.0, max(0.0, 动态边缘切割速度百分比_百分制 / 100))
+                # 速度在 case 80 中已动态计算，此处不再重复计算
+
+
+                # ---- 基于当前进度动态计算目标运行速度 ----
+                当前大区间索引 = int(进度百分比 // 变化百分比) if 变化百分比 > 0 else 0
+                段内进度 = (进度百分比 % 变化百分比)//(变化百分比//每段子区间速度数量) if 变化百分比 > 0 else 0
+                中间切割速度百分比 = min(2.0,max(0.3,round((原始中间切割速度百分比值 + 中间切割速度的变化B/100 * (当前大区间索引 % (中间切割速度的变化K + 1))),4)))
+                边缘切割速度百分比 = min(1.0,max(0.3,round((原始边缘切割速度百分比值 + 边缘切割速度的变化B/100 * 段内进度 + 边缘切割速度的变化K/100 * 当前大区间索引),4)))
+                
+
+                
 
                 # 我将其移动到下面是为了防止_depth
                 if 进度百分比 > (变化百分比)/2 and 是否打开扫黑功能:
@@ -1630,7 +1637,7 @@ def 进行4P切产品(originalPointsNum: int,recipe_payload: dict[str, Any],cont
                         break
                     if X是否在移动.get('success') and Y是否在移动.get('success'):
                         if X是否在移动.get('notMoving') and Y是否在移动.get('notMoving'):
-                            当前步骤 = 12
+                            当前步骤 = 20
                             break
                     if 跳出计数 >= 2000:
                         当前步骤 = 300

@@ -99,12 +99,12 @@ export function createDefaultVerticalProcessFormula(): VerticalProcessFormulaRec
       speed: 50,
       cutTimes: 2,
       cutSpeedNums:5,
-      change: createLinearFormulaCoefficients(10, 50)
+      change: createLinearFormulaCoefficients(1, 5)
     },
     middleCutting: {
       speed: 100,
       cutTimes: 1,
-      change: createLinearFormulaCoefficients(0, 100)
+      change: createLinearFormulaCoefficients(0, 50)
     },
     descentCutting: {
       speed: 0.075,
