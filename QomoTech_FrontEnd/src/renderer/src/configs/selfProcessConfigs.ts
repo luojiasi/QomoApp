@@ -1,5 +1,12 @@
 import type { NodeTypeMeta, NodeType } from '../types/selfProcessTypes'
 
+type MotionApiEndpoint = {
+  label: string
+  endpoint: string
+  method: 'GET' | 'POST'
+  defaultBody?: Record<string, unknown>
+}
+
 /** 各节点类型元数据 */
 export const NODE_TYPE_META: Record<NodeType, NodeTypeMeta> = {
   task: {
@@ -66,15 +73,15 @@ export const NODE_TYPE_META: Record<NodeType, NodeTypeMeta> = {
 
 /** 节点运行状态颜色映射 */
 export const NODE_STATUS_COLOR: Record<string, string> = {
-  idle: '#94a3b8',
-  running: '#2563eb',
+  idle: '#7c3aed',
+  running: '#facc15',
   success: '#16a34a',
   failed: '#dc2626',
-  skipped: '#ca8a04'
+  skipped: '#94a3b8'
 }
 
 /** 节点尺寸 */
-export const NODE_WIDTH = 200
+export const NODE_WIDTH = 150
 export const NODE_HEIGHT = 80
 
 /** 日志级别颜色 */
@@ -94,21 +101,75 @@ export const LOG_LEVEL_LABEL: Record<string, string> = {
 }
 
 /** 可调用的后端运动控制 API 列表（用于 task 节点选择） */
-export const MOTION_API_ENDPOINTS = [
-  { label: '轴绝对移动', endpoint: '/api/motion/axis/move-abs', method: 'POST' },
-  { label: '轴相对移动', endpoint: '/api/motion/axis/move-rel', method: 'POST' },
-  { label: '轴归零', endpoint: '/api/motion/axis/zero', method: 'POST' },
-  { label: '轴急停', endpoint: '/api/motion/emergency-stop', method: 'POST' },
-  { label: '清除轴报警', endpoint: '/api/motion/axis/clear-error', method: 'POST' },
-  { label: 'U轴旋转角度', endpoint: '/api/motion/axis/U轴旋转的角度', method: 'POST' },
-  { label: 'R轴旋转圈数', endpoint: '/api/motion/axis/R轴旋转的圈数', method: 'POST' },
-  { label: '设置IO输出', endpoint: '/api/motion/io/output', method: 'POST' },
+export const MOTION_API_ENDPOINTS: readonly MotionApiEndpoint[] = [
+  {
+    label: '轴绝对移动',
+    endpoint: '/api/motion/axis/move-abs',
+    method: 'POST',
+    defaultBody: { axis_no: 0, target_mm: 0, speed: 10 }
+  },
+  {
+    label: '轴相对移动',
+    endpoint: '/api/motion/axis/move-rel',
+    method: 'POST',
+    defaultBody: { axis_no: 0, delta_mm: 0, speed: 10 }
+  },
+  {
+    label: '轴归零',
+    endpoint: '/api/motion/axis/zero',
+    method: 'POST',
+    defaultBody: { axis_no: 0 }
+  },
+  {
+    label: '轴急停',
+    endpoint: '/api/motion/emergency-stop',
+    method: 'POST',
+    defaultBody: { axis_no: 0 }
+  },
+  {
+    label: 'U轴旋转角度',
+    endpoint: '/api/motion/axis/U轴旋转的角度',
+    method: 'POST',
+    defaultBody: { 旋转角度: 0, 旋转速度: 10, 旋转方向: '顺时针', 运动模式: 'relative' }
+  },
+  {
+    label: 'R轴旋转圈数',
+    endpoint: '/api/motion/axis/R轴旋转的圈数',
+    method: 'POST',
+    defaultBody: { 旋转圈数: 1, 旋转速度: 10, 旋转方向: '顺时针', 运动模式: 'relative' }
+  },
+  {
+    label: '设置IO输出',
+    endpoint: '/api/motion/io/output',
+    method: 'POST',
+    defaultBody: { io_no: 0, value: true }
+  },
   { label: '读取IO输入', endpoint: '/api/motion/io/input/{io_no}', method: 'GET' },
   { label: '读取IO输出', endpoint: '/api/motion/io/output/{io_no}', method: 'GET' },
-  { label: '设置轴参数', endpoint: '/api/motion/axes/params', method: 'POST' },
-  { label: '设置轴软限位', endpoint: '/api/motion/axis/limit', method: 'POST' },
-  { label: '连接控制器', endpoint: '/api/motion/connect', method: 'POST' },
-  { label: '断开控制器', endpoint: '/api/motion/disconnect', method: 'POST' }
+  {
+    label: '设置轴参数',
+    endpoint: '/api/motion/axes/params',
+    method: 'POST',
+    defaultBody: {
+      params_by_axis: {
+        0: {
+          units: 1000,
+          lspeed: 0,
+          speed: 10,
+          accel: 100,
+          decel: 100,
+          sramp: 0
+        }
+      }
+    }
+  },
+  {
+    label: '连接控制器',
+    endpoint: '/api/motion/connect',
+    method: 'POST',
+    defaultBody: { ipAddress: '192.168.0.11', axes: [] }
+  },
+  { label: '断开控制器', endpoint: '/api/motion/disconnect', method: 'POST', defaultBody: {} }
 ] as const
 
 /** 画布配置 */

@@ -19,11 +19,8 @@ const emit = defineEmits<{
 const meta = computed(() => NODE_TYPE_META[props.node.type])
 const statusColor = computed(() => NODE_STATUS_COLOR[props.node.runStatus] ?? '#94a3b8')
 const borderColor = computed(() => {
-  if (props.isSelected) return '#2563eb'
-  if (props.node.runStatus === 'running') return '#2563eb'
-  if (props.node.runStatus === 'success') return '#16a34a'
-  if (props.node.runStatus === 'failed') return '#dc2626'
-  return meta.value.color
+  if (props.isSelected) return '#facc15'
+  return statusColor.value
 })
 
 const statusLabel: Record<string, string> = {
@@ -59,7 +56,7 @@ function onConnectClick(e: MouseEvent): void {
       top: node.position.y + 'px',
       width: NODE_WIDTH + 'px',
       borderColor: borderColor,
-      boxShadow: isSelected ? '0 0 0 2px rgba(37,99,235,0.3)' : undefined
+      boxShadow: isSelected ? '0 0 0 2px rgba(250,204,21,0.35)' : undefined
     }"
     @mousedown.prevent="onMousedown"
   >

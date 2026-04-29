@@ -35,7 +35,7 @@ function addCondition(): void {
       :key="cond.id"
       class="relative flex flex-col gap-1.5 rounded-lg border-l-[3px] border-l-violet-600 bg-(--app-card-soft) p-2.5"
     >
-      <div class="flex gap-2">
+      <!-- <div class="flex gap-2">
         <label class="flex flex-1 flex-col gap-0.5">
           <span class="text-[10px] text-(--app-text-muted)">标签</span>
           <input
@@ -45,7 +45,7 @@ function addCondition(): void {
             @input="emit('change')"
           />
         </label>
-      </div>
+      </div> -->
       <div class="flex gap-2">
         <label class="flex flex-1 flex-col gap-0.5">
           <span class="text-[10px] text-(--app-text-muted)">触发条件</span>

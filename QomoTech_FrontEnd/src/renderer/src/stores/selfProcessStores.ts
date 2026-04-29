@@ -355,7 +355,6 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
       status: 'running',
       startTime: nowISO()
     }
-
     workflowLogs.value = []
     addLog('info', `流程「${wf.name}」开始运行`)
 
@@ -426,7 +425,7 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
       ensureWorkflowRunning()
       // 解析数据映射
       const resolvedInput = resolveDataMappings(node.dataMappings, ctx)
-
+      console.log('resolvedInput', resolvedInput)
       // 根据节点类型执行
       let output: Record<string, unknown> = {}
 
@@ -444,8 +443,10 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
           output = executeLoopNode(node)
           break
       }
+      console.log('debug')
+      addLog('debug', `节点「${node.label}」执行结果: ${JSON.stringify(output)}`, node.id)
 
-      node.runStatus = output.success === false ? 'failed' : 'success'
+      node.runStatus = getNodeRunStatusFromOutput(output)
       const endTime = nowISO()
       ctx.nodeOutputs[node.id] = {
         status: node.runStatus,
@@ -477,11 +478,18 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
     }
   }
 
+  function getNodeRunStatusFromOutput(output: Record<string, unknown>): 'success' | 'failed' {
+    const result = output.result
+    if (result && typeof result === 'object' && !Array.isArray(result)) {
+      const resultSuccess = (result as Record<string, unknown>).success
+      if (typeof resultSuccess === 'boolean') return resultSuccess ? 'success' : 'failed'
+    }
+
+    return output.success === false ? 'failed' : 'success'
+  }
+
   // ──── 各节点类型执行逻辑 ──────────────────────────────────
-  async function executeTaskNode(
-    node: WorkflowNode,
-    resolvedInput: Record<string, unknown>
-  ): Promise<Record<string, unknown>> {
+  async function executeTaskNode(node: WorkflowNode,resolvedInput: Record<string, unknown>): Promise<Record<string, unknown>> {
     const endpoint = (node.config.apiEndpoint ?? '') as string
     const method = String(node.config.apiMethod ?? 'POST').toUpperCase()
     const timeout = (node.config.timeout ?? 30) as number
@@ -531,10 +539,7 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
     }
   }
 
-  function executeConditionNode(
-    node: WorkflowNode,
-    resolvedInput: Record<string, unknown>
-  ): Record<string, unknown> {
+  function executeConditionNode(node: WorkflowNode,resolvedInput: Record<string, unknown>): Record<string, unknown> {
     const operator = (node.config.operator ?? 'eq') as string
     const compareValue = (node.config.compareValue ?? '') as string
     const value = resolvedInput.value ?? resolvedInput['value']

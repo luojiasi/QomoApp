@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { useSelfProcessStore } from '../../stores/selfProcessStores'
 import { NODE_TYPE_META, MOTION_API_ENDPOINTS } from '../../configs/selfProcessConfigs'
 import type { DataMapping, SkipCondition } from '../../types/selfProcessTypes'
@@ -10,15 +10,14 @@ const store = useSelfProcessStore()
 
 const node = computed(() => store.selectedNode)
 const meta = computed(() => node.value ? NODE_TYPE_META[node.value.type] : null)
+const showApiBodyJson = ref(false)
 
 const skipConditionsVisible = computed(() =>
   node.value?.type === 'condition' || (node.value?.skipConditions.length ?? 0) > 0
 )
-
 const otherNodes = computed(() =>
   (store.currentWorkflow?.nodes ?? []).filter((n) => n.id !== node.value?.id)
 )
-
 const operators = [
   { value: 'eq', label: '等于 (==)' },
   { value: 'ne', label: '不等于 (!=)' },
@@ -34,13 +33,30 @@ const pathParams = computed(() => {
   return Array.from(endpoint.matchAll(/\{([^}]+)\}/g), (match) => match[1])
 })
 
+const apiBodyEntries = computed(() =>
+  Object.entries(getApiBody()).map(([key, value]) => ({
+    key,
+    value,
+    isBoolean: typeof value === 'boolean',
+    isNumber: typeof value === 'number',
+    isComplex: value !== null && typeof value === 'object',
+    hasObjectCards: getObjectCards(value).length > 0
+  }))
+)
+const apiBodyJsonText = computed(() => JSON.stringify(getApiBody(), null, 2))
+
 function onApiEndpointChange(): void {
   if (!node.value) return
 
   const endpoint = String(node.value.config.apiEndpoint ?? '')
   const option = MOTION_API_ENDPOINTS.find((ep) => ep.endpoint === endpoint)
   node.value.config.apiMethod = option?.method ?? 'POST'
+  node.value.config.apiBody = cloneDefaultBody(option?.defaultBody)
   node.value.config.pathParams ??= {}
+}
+
+function cloneDefaultBody(defaultBody?: Record<string, unknown>): Record<string, unknown> {
+  return JSON.parse(JSON.stringify(defaultBody ?? {})) as Record<string, unknown>
 }
 
 function updatePathParam(paramName: string, value: string): void {
@@ -56,6 +72,116 @@ function updatePathParam(paramName: string, value: string): void {
 function getPathParamValue(paramName: string): string {
   const params = node.value?.config.pathParams as Record<string, string> | undefined
   return params?.[paramName] ?? ''
+}
+
+function getApiBody(): Record<string, unknown> {
+  const apiBody = node.value?.config.apiBody
+  if (!apiBody || typeof apiBody !== 'object' || Array.isArray(apiBody)) return {}
+  return apiBody as Record<string, unknown>
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function getObjectCards(value: unknown): Array<{
+  key: string
+  fields: Array<{
+    key: string
+    value: unknown
+    isBoolean: boolean
+    isNumber: boolean
+    isComplex: boolean
+  }>
+}> {
+  if (!isRecord(value)) return []
+
+  const entries = Object.entries(value)
+  if (entries.length === 0) return []
+
+  const isNestedRecord = entries.every(([, childValue]) => isRecord(childValue))
+  if (isNestedRecord) {
+    return entries.map(([key, childValue]) => ({
+      key,
+      fields: getObjectFieldEntries(childValue as Record<string, unknown>)
+    }))
+  }
+
+  return [{ key: '', fields: getObjectFieldEntries(value) }]
+}
+
+function getObjectFieldEntries(value: Record<string, unknown>): Array<{
+  key: string
+  value: unknown
+  isBoolean: boolean
+  isNumber: boolean
+  isComplex: boolean
+}> {
+  return Object.entries(value).map(([key, fieldValue]) => ({
+    key,
+    value: fieldValue,
+    isBoolean: typeof fieldValue === 'boolean',
+    isNumber: typeof fieldValue === 'number',
+    isComplex: fieldValue !== null && typeof fieldValue === 'object'
+  }))
+}
+
+function formatApiBodyValue(value: unknown): string {
+  if (value === null || value === undefined) return ''
+  if (typeof value === 'object') return JSON.stringify(value, null, 2)
+  return String(value)
+}
+
+function updateApiBodyValue(key: string, value: string): void {
+  if (!node.value) return
+
+  const apiBody = { ...getApiBody() }
+  const previousValue = apiBody[key]
+  apiBody[key] = parseApiBodyValue(value, previousValue)
+  node.value.config.apiBody = apiBody
+}
+
+function updateApiBodyCardValue(parentKey: string, cardKey: string, fieldKey: string, value: string): void {
+  if (!node.value) return
+
+  const apiBody = { ...getApiBody() }
+  const parentValue = apiBody[parentKey]
+  if (!isRecord(parentValue)) return
+
+  if (cardKey) {
+    const parent = { ...parentValue }
+    const cardValue = parent[cardKey]
+    if (!isRecord(cardValue)) return
+
+    const card = { ...cardValue }
+    const previousValue = card[fieldKey]
+    card[fieldKey] = parseApiBodyValue(value, previousValue)
+    parent[cardKey] = card
+    apiBody[parentKey] = parent
+  } else {
+    const parent = { ...parentValue }
+    const previousValue = parent[fieldKey]
+    parent[fieldKey] = parseApiBodyValue(value, previousValue)
+    apiBody[parentKey] = parent
+  }
+
+  node.value.config.apiBody = apiBody
+}
+
+function parseApiBodyValue(value: string, previousValue: unknown): unknown {
+  if (typeof previousValue === 'number') {
+    const numberValue = Number(value)
+    return Number.isNaN(numberValue) ? previousValue : numberValue
+  }
+  if (typeof previousValue === 'boolean') return value === 'true'
+  if (previousValue !== null && typeof previousValue === 'object') {
+    try {
+      return JSON.parse(value)
+    } catch {
+      return previousValue
+    }
+  }
+  return value
 }
 
 function onAddDataMapping(mapping: Omit<DataMapping, 'id'>): void {
@@ -78,23 +204,6 @@ function onRemoveSkipCondition(conditionId: string): void {
   store.removeSkipCondition(node.value.id, conditionId)
 }
 
-// apiBody JSON 编辑：将 object <-> string 转换
-const apiBodyText = ref('')
-watch(
-  () => node.value?.config.apiBody,
-  (val) => {
-    apiBodyText.value = val ? JSON.stringify(val, null, 2) : '{}'
-  },
-  { immediate: true }
-)
-function onApiBodyInput(): void {
-  if (!node.value) return
-  try {
-    node.value.config.apiBody = JSON.parse(apiBodyText.value || '{}')
-  } catch {
-    // JSON 不完整时暂不更新
-  }
-}
 </script>
 
 <template>
@@ -122,13 +231,34 @@ function onApiBodyInput(): void {
             />
           </label>
           <label class="flex flex-col gap-1">
+            <span class="text-[11px] font-medium text-(--app-text-secondary)">后端 API</span>
+            <select
+              v-model="node.config.apiEndpoint"
+              class="rounded-md border border-(--app-border) bg-(--app-input-bg) px-2.5 py-1.5 text-[13px] text-(--app-text-primary) outline-none focus:border-blue-600"
+              @change="onApiEndpointChange"
+            >
+              <option value="">-- 选择 API --</option>
+              <option v-for="ep in MOTION_API_ENDPOINTS" :key="ep.endpoint" :value="ep.endpoint">
+                {{ ep.label }}
+              </option>
+            </select>
+          </label>
+          <label class="flex flex-col gap-1" v-if="node.config.apiEndpoint">
+              <span class="text-[11px] font-medium text-(--app-text-secondary)">请求方式</span>
+              <input
+                v-model="node.config.apiMethod"
+                class="rounded-md border border-(--app-border) bg-(--app-input-bg) px-2.5 py-1.5 text-[13px] text-(--app-text-primary) outline-none focus:border-blue-600"
+                readonly
+              />
+            </label>
+          <!-- <label class="flex flex-col gap-1">
             <span class="text-[11px] font-medium text-(--app-text-secondary)">描述</span>
             <input
               v-model="node.description"
               class="rounded-md border border-(--app-border) bg-(--app-input-bg) px-2.5 py-1.5 text-[13px] text-(--app-text-primary) outline-none focus:border-blue-600"
               placeholder="节点描述"
             />
-          </label>
+          </label> -->
         </div>
       </div>
 
@@ -138,29 +268,17 @@ function onApiBodyInput(): void {
 
         <!-- Task 节点配置 -->
         <template v-if="node.type === 'task'">
-          <div class="grid grid-cols-2 gap-2">
-            <label class="flex flex-col gap-1">
-              <span class="text-[11px] font-medium text-(--app-text-secondary)">后端 API</span>
-              <select
-                v-model="node.config.apiEndpoint"
-                class="rounded-md border border-(--app-border) bg-(--app-input-bg) px-2.5 py-1.5 text-[13px] text-(--app-text-primary) outline-none focus:border-blue-600"
-                @change="onApiEndpointChange"
-              >
-                <option value="">-- 选择 API --</option>
-                <option v-for="ep in MOTION_API_ENDPOINTS" :key="ep.endpoint" :value="ep.endpoint">
-                  {{ ep.label }}
-                </option>
-              </select>
-            </label>
-            <label class="flex flex-col gap-1" v-if="node.config.apiEndpoint">
-              <span class="text-[11px] font-medium text-(--app-text-secondary)">请求方式</span>
+          <div class="grid grid-cols-4 gap-2">
+            <label v-for="paramName in pathParams" :key="paramName" class="flex flex-col gap-1">
+              <span class="text-[11px] font-medium text-(--app-text-secondary)">路径参数 {{ paramName }}</span>
               <input
-                v-model="node.config.apiMethod"
                 class="rounded-md border border-(--app-border) bg-(--app-input-bg) px-2.5 py-1.5 text-[13px] text-(--app-text-primary) outline-none focus:border-blue-600"
-                readonly
+                :value="getPathParamValue(paramName)"
+                :placeholder="paramName"
+                @input="updatePathParam(paramName, ($event.target as HTMLInputElement).value)"
               />
             </label>
-            <label class="flex flex-col gap-1">
+            <!-- <label class="flex flex-col gap-1">
               <span class="text-[11px] font-medium text-(--app-text-secondary)">超时 (秒)</span>
               <input
                 v-model.number="node.config.timeout"
@@ -179,27 +297,118 @@ function onApiBodyInput(): void {
                 min="0"
                 max="10"
               />
-            </label>
-            <label v-for="paramName in pathParams" :key="paramName" class="flex flex-col gap-1">
-              <span class="text-[11px] font-medium text-(--app-text-secondary)">路径参数 {{ paramName }}</span>
-              <input
-                class="rounded-md border border-(--app-border) bg-(--app-input-bg) px-2.5 py-1.5 text-[13px] text-(--app-text-primary) outline-none focus:border-blue-600"
-                :value="getPathParamValue(paramName)"
-                :placeholder="paramName"
-                @input="updatePathParam(paramName, ($event.target as HTMLInputElement).value)"
+            </label> -->
+
+          </div>
+          <div
+            v-if="node.config.apiEndpoint && apiBodyEntries.length > 0"
+            class="col-span-full mt-2 flex flex-col gap-2"
+          >
+            <div class="flex items-center justify-between gap-2">
+              <div class="text-[11px] font-medium text-(--app-text-secondary)">请求参数</div>
+              <button
+                type="button"
+                class="cursor-pointer rounded-md border border-(--app-border) bg-transparent px-2 py-1 text-[11px] text-(--app-text-secondary) hover:border-blue-600 hover:text-blue-600"
+                @click="showApiBodyJson = !showApiBodyJson"
+              >
+                {{ showApiBodyJson ? '隐藏 JSON' : '显示 JSON' }}
+              </button>
+            </div>
+            <div class="grid grid-cols-4 gap-2">
+              <div
+                v-for="entry in apiBodyEntries"
+                :key="entry.key"
+                class="flex flex-col gap-1"
+                :class="entry.isComplex ? 'col-span-full' : ''"
+              >
+                <span class="text-[11px] font-medium text-(--app-text-secondary)">{{ entry.key }}</span>
+                <select
+                  v-if="entry.isBoolean"
+                  class="rounded-md border border-(--app-border) bg-(--app-input-bg) px-2.5 py-1.5 text-[13px] text-(--app-text-primary) outline-none focus:border-blue-600"
+                  :value="String(entry.value)"
+                  @change="updateApiBodyValue(entry.key, ($event.target as HTMLSelectElement).value)"
+                >
+                  <option value="true">true</option>
+                  <option value="false">false</option>
+                </select>
+                <div
+                  v-else-if="entry.hasObjectCards"
+                  class="flex flex-col gap-2 rounded-md border border-(--app-border) bg-(--app-card-soft) p-2"
+                >
+                  <div
+                    v-for="card in getObjectCards(entry.value)"
+                    :key="card.key || entry.key"
+                    class="rounded-md border border-(--app-border) bg-(--app-card) p-2"
+                  >
+                    <div
+                      v-if="card.key"
+                      class="mb-2 text-[11px] font-semibold text-(--app-text-primary)"
+                    >
+                      {{ card.key }}
+                    </div>
+                    <div class="grid grid-cols-4 gap-2">
+                      <label
+                        v-for="field in card.fields"
+                        :key="field.key"
+                        class="flex flex-col gap-1"
+                        :class="field.isComplex ? 'col-span-full' : ''"
+                      >
+                        <span class="text-[11px] font-medium text-(--app-text-secondary)">
+                          {{ field.key }}
+                        </span>
+                        <select
+                          v-if="field.isBoolean"
+                          class="rounded-md border border-(--app-border) bg-(--app-input-bg) px-2.5 py-1.5 text-[13px] text-(--app-text-primary) outline-none focus:border-blue-600"
+                          :value="String(field.value)"
+                          @change="updateApiBodyCardValue(entry.key, card.key, field.key, ($event.target as HTMLSelectElement).value)"
+                        >
+                          <option value="true">true</option>
+                          <option value="false">false</option>
+                        </select>
+                        <textarea
+                          v-else-if="field.isComplex"
+                          class="resize-y rounded-md border border-(--app-border) bg-(--app-input-bg) px-2.5 py-1.5 font-mono text-[13px] text-(--app-text-primary) outline-none focus:border-blue-600"
+                          rows="3"
+                          :value="formatApiBodyValue(field.value)"
+                          @input="updateApiBodyCardValue(entry.key, card.key, field.key, ($event.target as HTMLTextAreaElement).value)"
+                        />
+                        <input
+                          v-else
+                          class="rounded-md border border-(--app-border) bg-(--app-input-bg) px-2.5 py-1.5 text-[13px] text-(--app-text-primary) outline-none focus:border-blue-600"
+                          :type="field.isNumber ? 'number' : 'text'"
+                          :value="formatApiBodyValue(field.value)"
+                          @input="updateApiBodyCardValue(entry.key, card.key, field.key, ($event.target as HTMLInputElement).value)"
+                        />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                <textarea
+                  v-else-if="entry.isComplex"
+                  class="resize-y rounded-md border border-(--app-border) bg-(--app-input-bg) px-2.5 py-1.5 font-mono text-[13px] text-(--app-text-primary) outline-none focus:border-blue-600"
+                  rows="3"
+                  :value="formatApiBodyValue(entry.value)"
+                  @input="updateApiBodyValue(entry.key, ($event.target as HTMLTextAreaElement).value)"
+                />
+                <input
+                  v-else
+                  class="rounded-md border border-(--app-border) bg-(--app-input-bg) px-2.5 py-1.5 text-[13px] text-(--app-text-primary) outline-none focus:border-blue-600"
+                  :type="entry.isNumber ? 'number' : 'text'"
+                  :value="formatApiBodyValue(entry.value)"
+                  @input="updateApiBodyValue(entry.key, ($event.target as HTMLInputElement).value)"
+                />
+              </div>
+            </div>
+            <label v-if="showApiBodyJson" class="flex flex-col gap-1">
+              <span class="text-[11px] font-medium text-(--app-text-secondary)">JSON 格式</span>
+              <textarea
+                class="resize-y rounded-md border border-(--app-border) bg-(--app-input-bg) px-2.5 py-1.5 font-mono text-[13px] text-(--app-text-primary) outline-none"
+                rows="6"
+                readonly
+                :value="apiBodyJsonText"
               />
             </label>
           </div>
-          <label class="col-span-full flex flex-col gap-1" v-if="node.config.apiEndpoint">
-            <span class="text-[11px] font-medium text-(--app-text-secondary)">请求体 (JSON)</span>
-            <textarea
-              v-model="apiBodyText"
-              class="resize-y rounded-md border border-(--app-border) bg-(--app-input-bg) px-2.5 py-1.5 font-mono text-[13px] text-(--app-text-primary) outline-none"
-              rows="4"
-              placeholder='{"key": "value"}'
-              @input="onApiBodyInput"
-            />
-          </label>
         </template>
 
         <!-- Condition 节点配置 -->

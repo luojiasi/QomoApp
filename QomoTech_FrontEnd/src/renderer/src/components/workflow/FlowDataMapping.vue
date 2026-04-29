@@ -64,10 +64,8 @@ function addMapping(): void {
             <option value="context_variable">上下文变量</option>
           </select>
         </label>
-      </div>
 
-      <div v-if="mapping.sourceType === 'fixed_value'" class="flex gap-2">
-        <label class="flex flex-1 flex-col gap-0.5">
+        <label v-if="mapping.sourceType === 'fixed_value'"  class="flex flex-1 flex-col gap-0.5">
           <span class="text-[10px] text-(--app-text-muted)">固定值</span>
           <input
             v-model="mapping.fixedValue"
@@ -76,9 +74,7 @@ function addMapping(): void {
             @input="emit('change')"
           />
         </label>
-      </div>
-
-      <div v-if="mapping.sourceType === 'previous_output'" class="flex gap-2">
+        <div v-if="mapping.sourceType === 'previous_output'" class="flex flex-1">
         <label class="flex flex-1 flex-col gap-0.5">
           <span class="text-[10px] text-(--app-text-muted)">来源节点</span>
           <select
@@ -106,9 +102,7 @@ function addMapping(): void {
           </select>
         </label>
       </div>
-
-      <div v-if="mapping.sourceType === 'context_variable'" class="flex gap-2">
-        <label class="flex flex-1 flex-col gap-0.5">
+      <label v-if="mapping.sourceType === 'context_variable'" class="flex flex-1 flex-col gap-0.5">
           <span class="text-[10px] text-(--app-text-muted)">变量名</span>
           <input
             v-model="mapping.sourceField"
