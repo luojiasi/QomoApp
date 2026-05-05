@@ -4,23 +4,11 @@ export type NodeRunStatus = 'idle' | 'running' | 'success' | 'failed' | 'skipped
 
 export type NodeRunStatusColor = 'idle' | 'running' | 'success' | 'failed' | 'skipped'
 
-export type DataMappingSourceType = 'previous_output' | 'fixed_value' | 'context_variable'
-
 export type SkipConditionWhen = 'always' | 'on_success' | 'on_failure' | 'expression'
 
 export type LogLevel = 'info' | 'warn' | 'error' | 'debug'
 
 export type WorkflowRunStatus = 'running' | 'paused' | 'completed' | 'failed' | 'idle'
-
-/** 数据映射：一个输入字段的配置 */
-export interface DataMapping {
-  id: string
-  sourceType: DataMappingSourceType
-  sourceNodeId?: string
-  sourceField?: string
-  fixedValue?: unknown
-  targetField: string
-}
 
 /** 条件跳转规则 */
 export interface SkipCondition {
@@ -54,7 +42,6 @@ export interface WorkflowNode {
   label: string
   position: { x: number; y: number }
   config: Record<string, unknown>
-  dataMappings: DataMapping[]
   nextNodeId: string | null
   skipConditions: SkipCondition[]
   runStatus: NodeRunStatus

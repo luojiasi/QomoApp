@@ -2,7 +2,6 @@ import type {
   WorkflowNode,
   Workflow,
   NodeType,
-  DataMapping,
   SkipCondition,
   WorkflowLog,
   LogLevel,
@@ -60,7 +59,6 @@ export function createDefaultNode(type: NodeType, label?: string): WorkflowNode 
     label: label ?? getDefaultNodeLabel(type),
     position: { x: 100, y: 100 },
     config: configs[type],
-    dataMappings: [],
     nextNodeId: null,
     skipConditions: [],
     runStatus: 'idle',
@@ -109,24 +107,6 @@ export function createLog(
   }
 }
 
-/** 创建数据映射 */
-export function createDataMapping(
-  sourceType: DataMapping['sourceType'],
-  targetField: string,
-  sourceNodeId?: string,
-  sourceField?: string,
-  fixedValue?: unknown
-): DataMapping {
-  return {
-    id: generateId(),
-    sourceType,
-    sourceNodeId,
-    sourceField,
-    fixedValue,
-    targetField
-  }
-}
-
 /** 创建跳转条件 */
 export function createSkipCondition(
   label: string,
@@ -168,32 +148,6 @@ export function resolveTemplate(
     const value = context.variables[key]
     return value !== undefined ? String(value) : `{{undefined:var.${key}}}`
   })
-}
-
-/** 解析数据映射：将 mapping 列表转换为节点可用的输入参数字典 */
-export function resolveDataMappings(
-  mappings: DataMapping[],
-  context: { nodeOutputs: Record<string, { data: Record<string, unknown> }>; variables: Record<string, unknown> }
-): Record<string, unknown> {
-  const result: Record<string, unknown> = {}
-  for (const mapping of mappings) {
-    switch (mapping.sourceType) {
-      case 'fixed_value':
-        result[mapping.targetField] = mapping.fixedValue
-        break
-      case 'previous_output':
-        result[mapping.targetField] = getNodeOutputFromContext(
-          context,
-          mapping.sourceNodeId ?? '',
-          mapping.sourceField
-        )
-        break
-      case 'context_variable':
-        result[mapping.targetField] = context.variables[mapping.sourceField ?? '']
-        break
-    }
-  }
-  return result
 }
 
 /** 重置所有节点的运行状态为 idle */

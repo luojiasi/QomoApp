@@ -6,7 +6,6 @@ import type {
   WorkflowLog,
   WorkflowContext,
   NodeType,
-  DataMapping,
   SkipCondition,
   WorkflowIndexEntry
 } from '../types/selfProcessTypes'
@@ -15,9 +14,7 @@ import {
   createNewWorkflow,
   createDefaultNode,
   createLog,
-  createDataMapping,
   createSkipCondition,
-  resolveDataMappings,
   resetNodeRunStatus,
   buildWorkflowDirPath,
   buildWorkflowFilePath,
@@ -36,6 +33,7 @@ type WorkflowApi = {
   deleteFile: (path: string) => Promise<WorkflowFileResult<null>>
 }
 
+// 获取渲染进程注入的文件读写 API
 const getApi = (): WorkflowApi | null =>
   ((window as unknown as { api?: WorkflowApi }).api ?? null)
 
@@ -74,6 +72,7 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
   )
 
   // ──── 初始化 ──────────────────────────────────────────────
+  // 初始化流程模块：获取目录并加载已有流程
   async function init(): Promise<void> {
     const api = getApi()
     if (!api) {
@@ -90,6 +89,7 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
   }
 
   // ──── 流程文件读写 ─────────────────────────────────────────
+  // 从索引文件和各流程文件加载流程列表
   async function loadWorkflows(): Promise<void> {
     const api = getApi()
     const basePath = workflowsBasePath.value
@@ -134,6 +134,7 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
     }
   }
 
+  // 保存单个流程及流程索引文件
   async function saveWorkflow(workflowId?: string): Promise<boolean> {
     const api = getApi()
     const basePath = workflowsBasePath.value
@@ -175,6 +176,7 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
     }
   }
 
+  // 删除指定流程目录并更新索引
   async function deleteWorkflow(workflowId: string): Promise<boolean> {
     const api = getApi()
     const basePath = workflowsBasePath.value
@@ -208,6 +210,7 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
   }
 
   // ──── 流程操作 ────────────────────────────────────────────
+  // 创建一个新流程并切换为当前流程
   function createWorkflow(name: string): Workflow {
     const wf = createNewWorkflow(name)
     workflows.value.push(wf)
@@ -217,29 +220,30 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
     return wf
   }
 
+  // 切换当前编辑的流程
   function selectWorkflow(workflowId: string): void {
     currentWorkflowId.value = workflowId
     selectedNodeId.value = null
   }
 
   // ──── 节点操作 ────────────────────────────────────────────
-  function addNode(type: NodeType, label?: string): WorkflowNode | null {
+  // 向当前流程新增节点，可指定初始坐标与标签
+  function addNode(type: NodeType, x?: number, y?: number, label?: string): WorkflowNode | null {
     const wf = currentWorkflow.value
     if (!wf) return null
 
     const node = createDefaultNode(type, label)
-    node.position = calculateNextPosition(wf.nodes)
+    node.position = { x: x ?? 10, y: y ?? 10 }
     wf.nodes.push(node)
 
-    if (!wf.firstNodeId) {
-      wf.firstNodeId = node.id
-    }
+    if (!wf.firstNodeId) {wf.firstNodeId = node.id}
 
     selectedNodeId.value = node.id
     addLog('info', `添加节点「${node.label}」(ID: ${node.id})`, node.id)
     return node
   }
 
+  // 更新节点的部分字段
   function updateNode(nodeId: string, updates: Partial<WorkflowNode>): void {
     const wf = currentWorkflow.value
     if (!wf) return
@@ -248,6 +252,7 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
     wf.nodes[idx] = { ...wf.nodes[idx], ...updates }
   }
 
+  // 删除节点并清理关联引用（nextNodeId/skipConditions）
   function removeNode(nodeId: string): void {
     const wf = currentWorkflow.value
     if (!wf) return
@@ -270,6 +275,7 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
     addLog('info', `删除节点(ID: ${nodeId})`)
   }
 
+  // 建立两个节点的默认顺序连接
   function connectNodes(fromId: string, toId: string): void {
     const wf = currentWorkflow.value
     if (!wf) return
@@ -279,10 +285,12 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
     addLog('info', `连接节点 ${fromId} → ${toId}`)
   }
 
+  // 设置当前选中节点
   function selectNode(nodeId: string | null): void {
     selectedNodeId.value = nodeId
   }
 
+  // 更新节点在画布中的坐标位置
   function updateNodePosition(nodeId: string, x: number, y: number): void {
     const wf = currentWorkflow.value
     if (!wf) return
@@ -292,30 +300,8 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
     }
   }
 
-  // ──── 数据映射操作 ─────────────────────────────────────────
-  function addDataMapping(nodeId: string, mapping: Omit<DataMapping, 'id'>): void {
-    const wf = currentWorkflow.value
-    if (!wf) return
-    const node = wf.nodes.find((n) => n.id === nodeId)
-    if (!node) return
-    node.dataMappings.push(createDataMapping(
-      mapping.sourceType,
-      mapping.targetField,
-      mapping.sourceNodeId,
-      mapping.sourceField,
-      mapping.fixedValue
-    ))
-  }
-
-  function removeDataMapping(nodeId: string, mappingId: string): void {
-    const wf = currentWorkflow.value
-    if (!wf) return
-    const node = wf.nodes.find((n) => n.id === nodeId)
-    if (!node) return
-    node.dataMappings = node.dataMappings.filter((m) => m.id !== mappingId)
-  }
-
   // ──── 跳转条件操作 ─────────────────────────────────────────
+  // 为指定节点新增一条跳转条件
   function addSkipCondition(nodeId: string, condition: Omit<SkipCondition, 'id'>): void {
     const wf = currentWorkflow.value
     if (!wf) return
@@ -329,6 +315,7 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
     ))
   }
 
+  // 删除指定节点的一条跳转条件
   function removeSkipCondition(nodeId: string, conditionId: string): void {
     const wf = currentWorkflow.value
     if (!wf) return
@@ -338,6 +325,7 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
   }
 
   // ──── 运行引擎 ────────────────────────────────────────────
+  // 按节点链路执行当前流程，并维护运行上下文与日志
   async function runWorkflow(): Promise<void> {
     const wf = currentWorkflow.value
     if (!wf || !wf.firstNodeId || isRunning.value) return
@@ -360,17 +348,12 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
 
     try {
       let currentNodeId: string | null = wf.firstNodeId
-      const visited = new Set<string>()
+      let previousNodeId: string | null = null
       let loopGuard = 0
 
       while (currentNodeId && loopGuard < 100) {
         ensureWorkflowRunning()
         loopGuard++
-        if (visited.has(currentNodeId)) {
-          addLog('warn', `检测到循环，跳出 (节点: ${currentNodeId})`, currentNodeId)
-          break
-        }
-        visited.add(currentNodeId)
 
         const node = wf.nodes.find((n) => n.id === currentNodeId)
         if (!node) {
@@ -381,16 +364,11 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
         runContext.value.currentNodeId = node.id
 
         // 执行节点
-        await executeNode(node)
+        await executeNode(node, previousNodeId)
         ensureWorkflowRunning()
 
-        // 检查条件跳转
-        const nextId = evaluateSkipConditions(node)
-        if (node.runStatus === 'failed' && !nextId) {
-          addLog('error', `节点「${node.label}」执行失败且未配置失败跳转，流程停止`, node.id)
-          break
-        }
-        currentNodeId = nextId ?? node.nextNodeId
+        previousNodeId = node.id
+        currentNodeId =  node.nextNodeId
       }
 
       if (runContext.value.status === 'running') {
@@ -413,7 +391,8 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
     }
   }
 
-  async function executeNode(node: WorkflowNode): Promise<void> {
+  // 执行单个节点并记录输入输出、状态与日志
+  async function executeNode(node: WorkflowNode, previousNodeId: string | null): Promise<void> {
     const ctx = runContext.value
     if (!ctx) return
 
@@ -423,12 +402,9 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
     const startTime = nowISO()
     try {
       ensureWorkflowRunning()
-      // 解析数据映射
-      const resolvedInput = resolveDataMappings(node.dataMappings, ctx)
-      console.log('resolvedInput', resolvedInput)
+      const resolvedInput = resolveNodeInput(ctx, previousNodeId)
       // 根据节点类型执行
       let output: Record<string, unknown> = {}
-
       switch (node.type) {
         case 'task':
           output = await executeTaskNode(node, resolvedInput)
@@ -443,7 +419,6 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
           output = executeLoopNode(node)
           break
       }
-      console.log('debug')
       addLog('debug', `节点「${node.label}」执行结果: ${JSON.stringify(output)}`, node.id)
 
       node.runStatus = getNodeRunStatusFromOutput(output)
@@ -478,6 +453,14 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
     }
   }
 
+  function resolveNodeInput(context: WorkflowContext,previousNodeId: string | null): Record<string, unknown> {
+    if (!previousNodeId) return {}
+    const previousOutput = context.nodeOutputs[previousNodeId]?.data
+    if (!previousOutput || typeof previousOutput !== 'object' || Array.isArray(previousOutput)) return {}
+    return previousOutput as Record<string, unknown>
+  }
+
+  // 从节点输出中归一化提取成功/失败状态
   function getNodeRunStatusFromOutput(output: Record<string, unknown>): 'success' | 'failed' {
     const result = output.result
     if (result && typeof result === 'object' && !Array.isArray(result)) {
@@ -489,6 +472,7 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
   }
 
   // ──── 各节点类型执行逻辑 ──────────────────────────────────
+  // 执行任务节点：发起 HTTP 请求并返回统一结果
   async function executeTaskNode(node: WorkflowNode,resolvedInput: Record<string, unknown>): Promise<Record<string, unknown>> {
     const endpoint = (node.config.apiEndpoint ?? '') as string
     const method = String(node.config.apiMethod ?? 'POST').toUpperCase()
@@ -538,41 +522,7 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
       activeAbortController = null
     }
   }
-
-  function executeConditionNode(node: WorkflowNode,resolvedInput: Record<string, unknown>): Record<string, unknown> {
-    const operator = (node.config.operator ?? 'eq') as string
-    const compareValue = (node.config.compareValue ?? '') as string
-    const value = resolvedInput.value ?? resolvedInput['value']
-
-    let matched = false
-    switch (operator) {
-      case 'eq':
-        matched = String(value) === compareValue
-        break
-      case 'ne':
-        matched = String(value) !== compareValue
-        break
-      case 'gt':
-        matched = Number(value) > Number(compareValue)
-        break
-      case 'gte':
-        matched = Number(value) >= Number(compareValue)
-        break
-      case 'lt':
-        matched = Number(value) < Number(compareValue)
-        break
-      case 'lte':
-        matched = Number(value) <= Number(compareValue)
-        break
-      case 'contains':
-        matched = String(value).includes(compareValue)
-        break
-    }
-
-    addLog('info', `条件判断: ${String(value)} ${operator} ${compareValue} = ${matched}`, node.id)
-    return { matched }
-  }
-
+  // 执行延时节点：等待指定秒数
   async function executeDelayNode(node: WorkflowNode): Promise<Record<string, unknown>> {
     const seconds = (node.config.fixedSeconds ?? 1) as number
     addLog('info', `等待 ${seconds} 秒...`, node.id)
@@ -580,58 +530,26 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
     return { elapsed: seconds }
   }
 
+  // 执行条件节点：已清空，等待重新实现
+  function executeConditionNode(node: WorkflowNode,resolvedInput: Record<string, unknown>): Record<string, unknown> {
+    void resolvedInput
+    addLog('warn', `条件判断逻辑已清空，请重新编辑节点「${node.label}」的条件规则`, node.id)
+    return {}
+  }
+
+
+
+  // 执行循环节点：已清空，等待重新实现
   function executeLoopNode(node: WorkflowNode): Record<string, unknown> {
-    const count = (node.config.count ?? 1) as number
-    addLog('info', `循环执行 ${count} 次`, node.id)
-    return { currentItem: null, index: 0, total: count }
+    addLog('warn', `循环操作逻辑已清空，请重新编辑节点「${node.label}」的循环规则`, node.id)
+    return {}
   }
 
   // ──── 条件跳转评估 ─────────────────────────────────────────
-  function evaluateSkipConditions(node: WorkflowNode): string | null {
-    for (const condition of node.skipConditions) {
-      switch (condition.when) {
-        case 'always':
-          addLog('info', `条件跳转: "${condition.label}" → ${condition.targetNodeId}`, node.id)
-          return condition.targetNodeId
-        case 'on_success':
-          if (node.runStatus === 'success') {
-            addLog('info', `成功跳转: "${condition.label}" → ${condition.targetNodeId}`, node.id)
-            return condition.targetNodeId
-          }
-          break
-        case 'on_failure':
-          if (node.runStatus === 'failed') {
-            addLog('info', `失败跳转: "${condition.label}" → ${condition.targetNodeId}`, node.id)
-            return condition.targetNodeId
-          }
-          break
-        case 'expression':
-          // 简单表达式解析
-          if (condition.expression && evaluateSimpleExpression(condition.expression, node)) {
-            addLog('info', `表达式跳转: "${condition.label}" → ${condition.targetNodeId}`, node.id)
-            return condition.targetNodeId
-          }
-          break
-      }
-    }
-    return null
-  }
-
-  function evaluateSimpleExpression(expr: string, node: WorkflowNode): boolean {
-    const normalized = expr.trim().replace(/^\{\{\s*/, '').replace(/\s*\}\}$/, '')
-    const match = normalized.match(/^(.+?)\s*(===|!==|==|!=|>=|<=|>|<|contains)\s*(.+)$/)
-    if (!match) {
-      addLog('warn', `表达式格式不支持: ${expr}`, node.id)
-      return false
-    }
-
-    const [, leftToken, operator, rightToken] = match
-    const left = resolveExpressionValue(leftToken, node)
-    const right = resolveExpressionValue(rightToken, node)
-    return compareExpressionValues(left, operator, right)
-  }
+  
 
   // ──── 停止运行 ────────────────────────────────────────────
+  // 手动停止流程运行并中断当前请求
   function stopWorkflow(): void {
     if (!isRunning.value) return
     stopRequested = true
@@ -644,6 +562,7 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
   }
 
   // ──── 日志管理 ────────────────────────────────────────────
+  // 追加一条运行日志，并限制日志总量
   function addLog(level: WorkflowLog['level'], message: string, nodeId?: string): void {
     const log = createLog(level, message, nodeId ?? null)
     workflowLogs.value.push(log)
@@ -653,17 +572,20 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
     }
   }
 
+  // 清空全部运行日志
   function clearLogs(): void {
     workflowLogs.value = []
   }
 
   // ──── 辅助 ────────────────────────────────────────────────
+  // 校验流程是否仍处于可运行状态，否则抛出停止异常
   function ensureWorkflowRunning(): void {
     if (stopRequested || !isRunning.value) {
       throw new WorkflowStoppedError()
     }
   }
 
+  // 可响应停止信号的睡眠函数
   async function sleepWithStop(ms: number): Promise<void> {
     const stepMs = 100
     let elapsed = 0
@@ -676,6 +598,7 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
     ensureWorkflowRunning()
   }
 
+  // 将 endpoint 中的路径参数占位符替换为实际值
   function replacePathParams(endpoint: string, values: Record<string, unknown>): string {
     return endpoint.replace(/\{([^}]+)\}/g, (_match, key: string) => {
       const value = values[key]
@@ -683,6 +606,7 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
     })
   }
 
+  // 构造请求 URL（GET 方法自动拼接 query 参数）
   function buildRequestUrl(
     rawUrl: string,
     method: string,
@@ -699,11 +623,13 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
     return url
   }
 
+  // 将 query 参数值序列化为字符串
   function serializeQueryValue(value: unknown): string {
     if (typeof value === 'object') return JSON.stringify(value)
     return String(value)
   }
 
+  // 尝试解析响应体为 JSON，失败则返回原始文本
   async function parseResponseBody(response: Response): Promise<unknown> {
     const text = await response.text()
     if (!text) return null
@@ -714,6 +640,7 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
     }
   }
 
+  // 解析表达式 token：字面量、数字、布尔值或节点输出路径
   function resolveExpressionValue(token: string, node: WorkflowNode): unknown {
     const trimmed = token.trim()
     if (/^(['"]).*\1$/.test(trimmed)) return trimmed.slice(1, -1)
@@ -733,6 +660,7 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
     return getByPath(output, path)
   }
 
+  // 按点路径读取对象中的嵌套值
   function getByPath(source: unknown, path: string): unknown {
     return path.split('.').reduce<unknown>((current, key) => {
       if (current && typeof current === 'object' && key in current) {
@@ -742,6 +670,7 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
     }, source)
   }
 
+  // 根据运算符比较左右值
   function compareExpressionValues(left: unknown, operator: string, right: unknown): boolean {
     switch (operator) {
       case '==':
@@ -765,6 +694,7 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
     }
   }
 
+  // 将可比较值标准化（字符串数字/布尔转实际类型）
   function normalizeComparable(value: unknown): string | number | boolean | null | undefined {
     if (typeof value === 'string') {
       if (value === 'true') return true
@@ -774,14 +704,9 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
     return value as string | number | boolean | null | undefined
   }
 
+  // 将未知错误对象转换为可展示的错误消息
   function getErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : String(error)
-  }
-
-  function calculateNextPosition(nodes: WorkflowNode[]): { x: number; y: number } {
-    if (nodes.length === 0) return { x: 100, y: 100 }
-    const maxY = Math.max(...nodes.map((n) => n.position.y))
-    return { x: 100, y: maxY + 120 }
   }
 
   // ──── 返回 ────────────────────────────────────────────────
@@ -808,8 +733,6 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
     connectNodes,
     selectNode,
     updateNodePosition,
-    addDataMapping,
-    removeDataMapping,
     addSkipCondition,
     removeSkipCondition,
     runWorkflow,

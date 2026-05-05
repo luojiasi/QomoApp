@@ -12,6 +12,7 @@ const store = useSelfProcessStore()
 const canvasRef = ref<HTMLElement | null>(null)
 const showSelector = ref(false)
 const selectorPos = ref({ x: 0, y: 0 })
+const newNodePos = ref<{ x: number; y: number } | null>(null)
 const connectingFrom = ref<string | null>(null)
 const connectTarget = ref<{ x: number; y: number } | null>(null)
 const dragNodeId = ref<string | null>(null)
@@ -72,10 +73,14 @@ function onCanvasContextMenu(e: MouseEvent): void {
   const target = e.target as HTMLElement
   if (!canvasRef.value?.contains(target)) return
   if (target.closest('[data-node-id]')) return
-
+  const rect = canvasRef.value.getBoundingClientRect()
   store.selectNode(null)
   showSelector.value = true
   selectorPos.value = { x: e.clientX, y: e.clientY }
+  newNodePos.value = {
+    x: e.clientX - rect.left - NODE_WIDTH / 2,
+    y: e.clientY - rect.top - NODE_HEIGHT / 2
+  }
 }
 
 function onNodeSelect(nodeId: string): void {
@@ -88,8 +93,10 @@ function onNodeRemove(nodeId: string): void {
 }
 
 function onSelectorSelect(type: NodeType): void {
-  store.addNode(type)
+  const pos = newNodePos.value
+  store.addNode(type, pos?.x, pos?.y)
   showSelector.value = false
+  newNodePos.value = null
 }
 
 function onSelectorClose(): void {

@@ -159,6 +159,25 @@ def emergency_stop(payload: MotionAxisNoRequest,motion: ZMotionDriver = Depends(
         success=ok,
         message="急停成功（已停止并清空该轴缓存）" if ok else "急停失败",
     )
+    
+@router.get("/motion/position/{axis_no}", response_model=ApiResponse)
+def get_axis_position(axis_no: int, motion: ZMotionDriver = Depends(get_motion_driver)) -> ApiResponse:
+    if axis_no < 0 or axis_no > 4:
+        return ApiResponse(success=False, message="axis_no 必须在 0-4 之间", data=None)
+    axes = motion.get_axes_status()
+    axis = axes.get(str(axis_no))
+    if not axis:
+        return ApiResponse(success=False, message="轴不存在", data=None)
+    return ApiResponse(
+        success=True,
+        message="读取轴位置成功",
+        data={
+            "axis_no": axis_no,
+            "dpos": axis.get("dpos", 0.0),
+            "mpos": axis.get("mpos", 0.0),
+            "idle": axis.get("idle", 0),
+        },
+    )
 
 
 @router.post("/motion/online-command", response_model=ApiResponse)
