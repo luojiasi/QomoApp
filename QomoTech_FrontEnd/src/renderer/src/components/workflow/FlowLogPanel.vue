@@ -7,16 +7,40 @@ const store = useSelfProcessStore()
 const logContainer = ref<HTMLElement | null>(null)
 const autoScroll = ref(true)
 const filterLevel = ref<string>('all')
+const expandedLogIds = ref<Set<string>>(new Set())
 
 const filteredLogs = computed(() => {
   if (filterLevel.value === 'all') return store.workflowLogs
   return store.workflowLogs.filter((log) => log.level === filterLevel.value)
 })
 
-// 自动滚动
+function toggleExpand(logId: string): void {
+  const next = new Set(expandedLogIds.value)
+  if (next.has(logId)) {
+    next.delete(logId)
+  } else {
+    next.add(logId)
+  }
+  expandedLogIds.value = next
+}
+
+function isExpanded(logId: string): boolean {
+  return expandedLogIds.value.has(logId)
+}
+
+function formatJson(data: unknown): string {
+  try {
+    return JSON.stringify(data, null, 2)
+  } catch {
+    return String(data)
+  }
+}
+
+// 自动滚动 & 日志清空时重置展开状态
 watch(
   () => store.workflowLogs.length,
-  async () => {
+  async (len) => {
+    if (len === 0) expandedLogIds.value = new Set()
     if (autoScroll.value) {
       await nextTick()
       if (logContainer.value) {
@@ -91,7 +115,7 @@ function formatTime(timestamp: string): string {
         class="mx-1 mt-2 rounded-xl border border-dashed border-(--app-border) px-4 py-10 text-center font-sans text-(--app-text-muted)"
       >
         <p class="text-[13px] font-semibold text-(--app-text-secondary)">
-          {{ store.isRunning ? '等待日志...' : '运行流程后将显示日志' }}
+          运行流程后将显示日志
         </p>
         <p class="mt-1 text-[11px]">日志会按时间自动追加到这里</p>
       </div>
@@ -99,25 +123,41 @@ function formatTime(timestamp: string): string {
       <div
         v-for="log in filteredLogs"
         :key="log.id"
-        class="rounded-lg border border-transparent px-2 py-1 transition-colors duration-100 hover:border-(--app-border) hover:bg-(--app-card-soft)"
+        class="mb-0.5 cursor-pointer rounded-lg border px-2 py-1 transition-colors duration-100 hover:bg-(--app-card-soft)"
+        :style="{ borderColor: log.data ? LOG_LEVEL_COLOR[log.level] + '30' : 'transparent', borderLeftWidth: '3px' }"
+        :class="{ 'bg-(--app-card-soft)': isExpanded(log.id) }"
+        @click="log.data ? toggleExpand(log.id) : undefined"
       >
-        <div class="flex gap-1.5">
+        <div class="flex items-center gap-1.5">
+          <span
+            v-if="log.data"
+            class="inline-block text-[10px] leading-none transition-transform duration-150"
+            :class="{ 'rotate-90': isExpanded(log.id) }"
+          >▶</span>
+          <span
+            v-else
+            class="inline-block w-[10px]"
+          />
           <span class="whitespace-nowrap text-(--app-text-muted)">{{ formatTime(log.timestamp) }}</span>
           <span class="whitespace-nowrap font-semibold" :style="{ color: LOG_LEVEL_COLOR[log.level] }">
             [{{ LOG_LEVEL_LABEL[log.level] }}]
           </span>
-          <span class="break-all text-(--app-text-primary)">{{ log.message }}</span>
+          <span class="flex-1 break-all text-(--app-text-primary)">{{ log.message }}</span>
         </div>
-        <div v-if="log.nodeId" class="pl-20 text-[10px] text-(--app-text-muted)">
+        <div v-if="log.nodeId" class="pl-16 text-[10px] text-(--app-text-muted)">
           节点: {{ log.nodeId.slice(0, 8) }}
         </div>
+        <!-- 展开的 JSON 数据 -->
+        <div
+          v-if="log.data && isExpanded(log.id)"
+          class="mt-1 overflow-x-auto rounded bg-black/5 px-2.5 py-1.5 font-mono text-[10px] leading-snug whitespace-pre text-(--app-text-secondary) dark:bg-white/5"
+        >{{ formatJson(log.data) }}</div>
       </div>
     </div>
 
     <!-- 底部计数 -->
     <div class="flex items-center justify-between border-t border-(--app-border) px-3.5 py-2">
       <span class="text-[11px] text-(--app-text-muted)">{{ filteredLogs.length }} 条日志</span>
-      <span v-if="store.isRunning" class="text-[11px] text-blue-600">● 运行中</span>
     </div>
   </div>
 </template>

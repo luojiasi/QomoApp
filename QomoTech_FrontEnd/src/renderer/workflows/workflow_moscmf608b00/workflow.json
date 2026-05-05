@@ -1,0 +1,40 @@
+{
+  "id": "moscmf608b00",
+  "name": "单行入口",
+  "description": "",
+  "nodes": [
+    {
+      "id": "moscmgi0xady",
+      "type": "workflowSystem.singleStart",
+      "label": "单一入口",
+      "position": {
+        "x": 90,
+        "y": 135
+      },
+      "config": {},
+      "description": ""
+    },
+    {
+      "id": "moscmkt4hgzl",
+      "type": "motion.connect",
+      "label": "连接控制器",
+      "position": {
+        "x": 105,
+        "y": 555
+      },
+      "config": {
+        "ipAddress": "192.168.0.11"
+      },
+      "description": ""
+    }
+  ],
+  "edges": [
+    {
+      "id": "moscmmyfs43g",
+      "source": "moscmgi0xady",
+      "target": "moscmkt4hgzl"
+    }
+  ],
+  "createdAt": "2026-05-05T08:10:40.584Z",
+  "updatedAt": "2026-05-05T08:12:12.879Z"
+}

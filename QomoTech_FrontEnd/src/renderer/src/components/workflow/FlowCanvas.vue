@@ -1,239 +1,199 @@
 <script setup lang="ts">
-import { ref, computed, onBeforeUnmount } from 'vue'
-import type { WorkflowNode } from '../../types/selfProcessTypes'
+import { computed, markRaw, ref, onBeforeUnmount } from 'vue'
+import { VueFlow, useVueFlow } from '@vue-flow/core'
+import { Background } from '@vue-flow/background'
+import { Controls } from '@vue-flow/controls'
+import { MiniMap } from '@vue-flow/minimap'
+import type { Node, Edge, Connection } from '@vue-flow/core'
 import { useSelfProcessStore } from '../../stores/selfProcessStores'
+import { NODE_WIDTH, NODE_HEIGHT } from '../../configs/selfProcessConfigs'
+import type { WorkflowNode, WorkflowEdge } from '../../types/selfProcessTypes'
 import FlowNode from './FlowNode.vue'
 import FlowNodeSelector from './FlowNodeSelector.vue'
-import type { NodeType } from '../../types/selfProcessTypes'
-import { NODE_WIDTH, NODE_HEIGHT } from '../../configs/selfProcessConfigs'
+
+import '@vue-flow/core/dist/style.css'
+import '@vue-flow/core/dist/theme-default.css'
+import '@vue-flow/controls/dist/style.css'
+import '@vue-flow/minimap/dist/style.css'
 
 const store = useSelfProcessStore()
 
-const canvasRef = ref<HTMLElement | null>(null)
+const nodeTypes = {
+  'workflow-node': markRaw(FlowNode)
+}
+
+// ──── 上下文菜单状态 ────────────────────────────────────────
 const showSelector = ref(false)
 const selectorPos = ref({ x: 0, y: 0 })
 const newNodePos = ref<{ x: number; y: number } | null>(null)
-const connectingFrom = ref<string | null>(null)
-const connectTarget = ref<{ x: number; y: number } | null>(null)
-const dragNodeId = ref<string | null>(null)
-const dragOffset = ref({ x: 0, y: 0 })
-const dragMoved = ref(false)
+const selectedEdgeId = ref<string | null>(null)
 
-const nodes = computed(() => store.currentWorkflow?.nodes ?? [])
-
-function startPointerTracking(): void {
-  window.addEventListener('mousemove', onCanvasMouseMove)
-  window.addEventListener('mouseup', onCanvasMouseUp)
-}
-
-function stopPointerTracking(): void {
-  window.removeEventListener('mousemove', onCanvasMouseMove)
-  window.removeEventListener('mouseup', onCanvasMouseUp)
-}
-
-onBeforeUnmount(() => {
-  stopPointerTracking()
+// ──── VueFlow nodes/edges 映射 ──────────────────────────────
+const vfNodes = computed<Node[]>({
+  get: () => {
+    const wf = store.currentWorkflow
+    if (!wf) return []
+    return wf.nodes.map((n) => workflowNodeToVfNode(n))
+  },
+  set: () => {
+    // 位置仅通过 @node-drag-stop 同步，不在 setter 中回写
+    // 防止每次节点列表变化时 VueFlow 重算所有位置并覆盖 store
+  }
 })
 
-// 根据节点的 nextNodeId 构建连线
-const edges = computed(() => {
-  const result: Array<{ from: WorkflowNode; to: WorkflowNode }> = []
-  const nodeMap = new Map(nodes.value.map((n) => [n.id, n]))
-  for (const node of nodes.value) {
-    if (node.nextNodeId) {
-      const target = nodeMap.get(node.nextNodeId)
-      if (target) result.push({ from: node, to: target })
+const vfEdges = computed<Edge[]>({
+  get: () => {
+    const wf = store.currentWorkflow
+    if (!wf) return []
+    return wf.edges.map((e) => {
+      const vfEdge = workflowEdgeToVfEdge(e)
+      if (e.id === selectedEdgeId.value) {
+        vfEdge.style = { stroke: '#facc15', strokeWidth: 2.5 }
+      }
+      return vfEdge
+    })
+  },
+  set: () => {
+    // edges 通过 @connect / store.removeEdge 管理
+  }
+})
+
+function workflowNodeToVfNode(wn: WorkflowNode): Node {
+  return {
+    id: wn.id,
+    type: 'workflow-node',
+    position: { x: wn.position.x, y: wn.position.y },
+    data: {
+      type: wn.type,
+      label: wn.label,
+      description: wn.description,
+      status: store.runContext?.nodeOutputs[wn.id]?.status ?? 'idle',
+      workflowRunning: store.isRunning
     }
   }
-  return result
-})
-
-// SVG 贝塞尔曲线路径
-function edgePath(from: WorkflowNode, to: WorkflowNode): string {
-  const x1 = from.position.x + NODE_WIDTH / 2
-  const y1 = from.position.y + NODE_HEIGHT + 12
-  const x2 = to.position.x + NODE_WIDTH / 2
-  const y2 = to.position.y
-  const mid = (y1 + y2) / 2
-  return `M ${x1} ${y1} C ${x1} ${mid}, ${x2} ${mid}, ${x2} ${y2}`
 }
 
-// 画布左键点击：仅取消选中
-function onCanvasClick(e: MouseEvent): void {
-  const target = e.target as HTMLElement
-  if (!canvasRef.value?.contains(target)) return
-  if (target.closest('[data-node-id]')) return
-
-  store.selectNode(null)
-}
-
-// 画布右键：打开节点选择器
-function onCanvasContextMenu(e: MouseEvent): void {
-  if (showSelector.value) return
-  const target = e.target as HTMLElement
-  if (!canvasRef.value?.contains(target)) return
-  if (target.closest('[data-node-id]')) return
-  const rect = canvasRef.value.getBoundingClientRect()
-  store.selectNode(null)
-  showSelector.value = true
-  selectorPos.value = { x: e.clientX, y: e.clientY }
-  newNodePos.value = {
-    x: e.clientX - rect.left - NODE_WIDTH / 2,
-    y: e.clientY - rect.top - NODE_HEIGHT / 2
+function workflowEdgeToVfEdge(we: WorkflowEdge): Edge {
+  return {
+    id: we.id,
+    source: we.source,
+    target: we.target,
+    sourceHandle: we.sourceHandle,
+    targetHandle: we.targetHandle
   }
 }
 
-function onNodeSelect(nodeId: string): void {
-  store.selectNode(nodeId)
+// ──── VueFlow 事件处理 ─────────────────────────────────────
+// 用户拖线连接两个节点时触发，通常在这里新增 edge/更新流程关系
+function onConnect(connection: Connection): void {
+  store.addEdge(connection.source, connection.target, connection.sourceHandle ?? undefined, connection.targetHandle ?? undefined)
+}
+// 点击节点时触发，一般用来”选中节点、打开配置
+function onNodeClick({ node }: { node: Node }): void {
+  store.selectNode(node.id)
+  selectedEdgeId.value = null
+}
+//点击画布空白区域时触发，常用于取消选中、关闭弹层
+function onPaneClick(): void {
+  store.selectNode(null)
   showSelector.value = false
+  selectedEdgeId.value = null
+}
+// 点击边时选中/取消选中，配合 Delete 键删除
+function onEdgeClick({ edge }: { edge: Edge }): void {
+  selectedEdgeId.value = selectedEdgeId.value === edge.id ? null : edge.id
+}
+// 右键画布空白区域时触发，通常用来弹“新增节点”菜单
+function onPaneContextMenu(event: MouseEvent): void {
+  event.preventDefault()
+  // 选择器弹窗用屏幕坐标
+  showSelector.value = true
+  selectorPos.value = { x: event.clientX, y: event.clientY }
+  // 节点位置用 flow 坐标（已考虑平移/缩放）
+  const flowPos = screenToFlowCoordinate({ x: event.clientX, y: event.clientY })
+  newNodePos.value = {
+    x: flowPos.x - NODE_WIDTH / 2,
+    y: flowPos.y - NODE_HEIGHT / 2
+  }
 }
 
-function onNodeRemove(nodeId: string): void {
-  store.removeNode(nodeId)
-}
-
-function onSelectorSelect(type: NodeType): void {
-  const pos = newNodePos.value
-  store.addNode(type, pos?.x, pos?.y)
+function onSelectorSelect(type: string): void {
+  store.addNode(type, newNodePos.value?.x, newNodePos.value?.y)
   showSelector.value = false
   newNodePos.value = null
 }
 
 function onSelectorClose(): void {
   showSelector.value = false
+  newNodePos.value = null
 }
 
-// 连线拖拽
-function onStartConnect(nodeId: string): void {
-  connectingFrom.value = nodeId
-  startPointerTracking()
+function onNodeDragStop({ node }: { node: Node }): void {
+  store.updateNodePosition(node.id, node.position.x, node.position.y)
 }
 
-function onCanvasMouseMove(e: MouseEvent): void {
-  if (connectingFrom.value && canvasRef.value) {
-    const rect = canvasRef.value.getBoundingClientRect()
-    connectTarget.value = { x: e.clientX - rect.left, y: e.clientY - rect.top }
-  }
-  if (dragNodeId.value && canvasRef.value) {
-    const rect = canvasRef.value.getBoundingClientRect()
-    const x = e.clientX - rect.left - dragOffset.value.x
-    const y = e.clientY - rect.top - dragOffset.value.y
-    store.updateNodePosition(dragNodeId.value, x, y)
-    dragMoved.value = true
-  }
+function onNodeRemove(nodeId: string): void {
+  store.removeNode(nodeId)
 }
 
-function onCanvasMouseUp(e: MouseEvent): void {
-  if (connectingFrom.value) {
-    // 检查是否释放在某个节点上
-    const target = e.target instanceof Element ? e.target.closest('[data-node-id]') : null
-    if (target) {
-      const targetId = target.getAttribute('data-node-id')
-      if (targetId && targetId !== connectingFrom.value) {
-        store.connectNodes(connectingFrom.value, targetId)
-      }
+// ──── 键盘删除边 ─────────────────────────────────────────
+function onKeydown(e: KeyboardEvent): void {
+  if (e.key === 'Delete' && selectedEdgeId.value) {
+    const edgeId = selectedEdgeId.value
+    // 检查边是否仍存在于 store 中
+    const wf = store.currentWorkflow
+    if (wf && wf.edges.some((edge) => edge.id === edgeId)) {
+      store.removeEdge(edgeId)
     }
-    connectingFrom.value = null
-    connectTarget.value = null
+    selectedEdgeId.value = null
   }
-  dragNodeId.value = null
-  dragMoved.value = false
-  stopPointerTracking()
 }
 
-// 节点拖拽
-function onNodeMouseDown(nodeId: string, e: MouseEvent): void {
-  if (store.isRunning || !canvasRef.value) return
-  const node = nodes.value.find((n) => n.id === nodeId)
-  if (!node) return
-  const rect = canvasRef.value.getBoundingClientRect()
-  dragNodeId.value = nodeId
-  dragMoved.value = false
-  dragOffset.value = {
-    x: e.clientX - rect.left - node.position.x,
-    y: e.clientY - rect.top - node.position.y
-  }
-  startPointerTracking()
-}
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKeydown)
+})
 
-// 节点之间的连线箭头
-const svgEdges = computed(() => {
-  return edges.value.map((e) => ({
-    from: e.from,
-    to: e.to,
-    path: edgePath(e.from, e.to)
-  }))
+const { onInit, screenToFlowCoordinate } = useVueFlow()
+
+onInit(() => {
+  window.addEventListener('keydown', onKeydown)
 })
 </script>
 
 <template>
-  <div
-    ref="canvasRef"
-    class="relative min-h-0 flex-1 cursor-default overflow-hidden rounded-2xl border border-(--app-border) bg-[radial-gradient(circle_at_1px_1px,rgba(148,163,184,0.24)_1px,transparent_0)] bg-size-[22px_22px] shadow-[inset_0_1px_0_rgba(255,255,255,0.03),0_12px_32px_rgba(0,0,0,0.18)]"
-    :class="{ 'cursor-crosshair': !!connectingFrom }"
-    @click="onCanvasClick"
-    @contextmenu.prevent="onCanvasContextMenu"
-    @mousemove="onCanvasMouseMove"
-    @mouseup="onCanvasMouseUp"
-  >
-    <!-- SVG 连线层 -->
-    <svg class="pointer-events-none absolute inset-0 z-1 h-full w-full">
-      <defs>
-        <marker id="flow-arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
-          <path fill="var(--app-text-muted)" d="M0,0 L8,4 L0,8 z" />
-        </marker>
-      </defs>
-
-      <g v-for="edge in svgEdges" :key="`${edge.from.id}-${edge.to.id}`">
-        <path
-          :d="edge.path"
-          fill="none"
-          stroke="var(--app-text-muted)"
-          stroke-width="1.5"
-          marker-end="url(#flow-arrow)"
-        />
-        <text
-          class="fill-(--app-text-muted) text-[10px] [text-anchor:middle]"
-          :x="(edge.from.position.x + NODE_WIDTH / 2 + edge.to.position.x + NODE_WIDTH / 2) / 2"
-          :y="(edge.from.position.y + NODE_HEIGHT + edge.to.position.y) / 2"
-        >
-          {{ edge.to.label }}
-        </text>
-      </g>
-
-      <!-- 拖拽中的临时连线 -->
-      <path
-        v-if="connectingFrom && connectTarget"
-        :d="`M ${(nodes.find(n => n.id === connectingFrom)?.position.x ?? 0) + NODE_WIDTH / 2} ${(nodes.find(n => n.id === connectingFrom)?.position.y ?? 0) + NODE_HEIGHT + 12} C ${(nodes.find(n => n.id === connectingFrom)?.position.x ?? 0) + NODE_WIDTH / 2} ${(connectTarget.y)}, ${connectTarget.x} ${connectTarget.y}, ${connectTarget.x} ${connectTarget.y}`"
-        fill="none"
-        stroke="#2563eb"
-        stroke-width="2"
-        stroke-dasharray="6,3"
-      />
-    </svg>
-
-    <!-- 节点层 -->
-    <div
-      v-for="node in nodes"
-      :key="node.id"
-      :data-node-id="node.id"
-      @mousedown="onNodeMouseDown(node.id, $event)"
+  <div class="relative h-full w-full overflow-hidden rounded-2xl border border-(--app-border) bg-(--app-card)">
+    <VueFlow
+      v-model:nodes="vfNodes"
+      v-model:edges="vfEdges"
+      :node-types="nodeTypes"
+      :default-viewport="{ x: 0, y: 0, zoom: 1 }"
+      :min-zoom="0.1"
+      :max-zoom="4"
+      :snap-to-grid="true"
+      @connect="onConnect"
+      @node-click="onNodeClick"
+      @edge-click="onEdgeClick"
+      @node-drag-stop="onNodeDragStop"
+      @pane-click="onPaneClick"
+      @pane-context-menu="onPaneContextMenu"
     >
-      <FlowNode
-        :node="node"
-        :is-selected="store.selectedNodeId === node.id"
-        :is-running="store.isRunning"
-        @select="onNodeSelect"
-        @drag-start="onNodeMouseDown"
-        @start-connect="onStartConnect"
-        @remove="onNodeRemove"
-      />
-    </div>
+      <Background :gap="20" :size="4" pattern-color="rgba(148,163,184,0.24)" />
+      <Controls position="bottom-right" />
+      <MiniMap position="top-left" :width="160" :height="100" />
+
+      <!-- 自定义节点插槽 -->
+      <template #node-workflow-node="nodeProps">
+        <FlowNode
+          v-bind="nodeProps"
+          @remove="onNodeRemove"
+        />
+      </template>
+    </VueFlow>
 
     <!-- 空状态 -->
     <div
-      v-if="nodes.length === 0"
-      class="absolute inset-0 z-0 flex flex-col items-center justify-center gap-3 bg-[radial-gradient(circle_at_center,rgba(37,99,235,0.08),transparent_42%)]"
+      v-if="vfNodes.length === 0"
+      class="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-3"
     >
       <div
         class="flex h-14 w-14 items-center justify-center rounded-2xl border border-blue-500/30 bg-blue-600/10 text-3xl text-blue-400 shadow-[0_12px_28px_rgba(37,99,235,0.18)]"
@@ -242,7 +202,7 @@ const svgEdges = computed(() => {
       </div>
       <div class="text-center">
         <p class="text-sm font-semibold text-(--app-text-primary)">右键画布空白区域添加节点</p>
-        <p class="mt-1 text-xs text-(--app-text-muted)">添加任务、条件、延时或循环节点后开始编排流程</p>
+        <p class="mt-1 text-xs text-(--app-text-muted)">新的节点类型即将推出</p>
       </div>
     </div>
 
@@ -254,13 +214,5 @@ const svgEdges = computed(() => {
       @select="onSelectorSelect"
       @close="onSelectorClose"
     />
-
-    <!-- 连接提示 -->
-    <div
-      v-if="connectingFrom"
-      class="absolute bottom-3 left-1/2 z-50 -translate-x-1/2 rounded-lg border border-blue-600 bg-(--app-card) px-3.5 py-1.5 text-xs text-blue-600"
-    >
-      拖拽到目标节点上释放以建立连接
-    </div>
   </div>
 </template>

@@ -1,50 +1,69 @@
-export type NodeType = 'task' | 'condition' | 'delay' | 'loop'
-
 export type NodeRunStatus = 'idle' | 'running' | 'success' | 'failed' | 'skipped'
-
-export type NodeRunStatusColor = 'idle' | 'running' | 'success' | 'failed' | 'skipped'
-
-export type SkipConditionWhen = 'always' | 'on_success' | 'on_failure' | 'expression'
 
 export type LogLevel = 'info' | 'warn' | 'error' | 'debug'
 
 export type WorkflowRunStatus = 'running' | 'paused' | 'completed' | 'failed' | 'idle'
 
-/** 条件跳转规则 */
-export interface SkipCondition {
-  id: string
-  label: string
-  when: SkipConditionWhen
-  expression?: string
-  targetNodeId: string
+export type NodeCategory = 'workflowSystem'|'motion' | 'io' | 'flow' | 'camera' | 'laser'
+
+/** 节点参数定义（用于动态表单） */
+export interface NodeProperty {
+  name: string
+  displayName: string
+  type: 'string' | 'number' | 'boolean' | 'select' | 'json'
+  default: unknown
+  required: boolean
+  description?: string
+  placeholder?: string
+  options?: { label: string; value: string }[]
 }
 
-/** 节点输入输出字段定义 */
-export interface NodeIOField {
+/** 节点端口定义 */
+export interface NodePort {
   name: string
-  label: string
-  type: 'string' | 'number' | 'boolean' | 'object' | 'array' | 'any'
-  required: boolean
-  defaultValue?: unknown
+  displayName: string
   description?: string
 }
 
-/** 节点 IO schema */
-export interface NodeIOSchema {
-  inputs: NodeIOField[]
-  outputs: NodeIOField[]
+/** 节点类型完整定义 */
+export interface NodeDefinition {
+  type: string
+  category: NodeCategory
+  label: string
+  icon: string
+  color: string
+  description: string
+  properties: NodeProperty[]
+  inputs: NodePort[]
+  outputs: NodePort[]
+  defaults: Record<string, unknown>
+}
+
+/** 节点分类元数据 */
+export interface NodeCategoryMeta {
+  category: NodeCategory
+  label: string
+  icon: string
+  color: string
+  description: string
+}
+
+/** 流程边（对齐 VueFlow Edge 模型） */
+export interface WorkflowEdge {
+  id: string
+  source: string
+  target: string
+  sourceHandle?: string
+  targetHandle?: string
 }
 
 /** 流程节点 */
 export interface WorkflowNode {
   id: string
-  type: NodeType
+  type: string
   label: string
   position: { x: number; y: number }
   config: Record<string, unknown>
-  nextNodeId: string | null
-  skipConditions: SkipCondition[]
-  runStatus: NodeRunStatus
   description: string
 }
 
@@ -54,7 +73,7 @@ export interface Workflow {
   name: string
   description: string
   nodes: WorkflowNode[]
-  firstNodeId: string | null
+  edges: WorkflowEdge[]
   createdAt: string
   updatedAt: string
 }
@@ -96,16 +115,6 @@ export interface WorkflowIndexEntry {
   updatedAt: string
 }
 
-/** 各节点类型的元数据 */
-export interface NodeTypeMeta {
-  type: NodeType
-  label: string
-  icon: string
-  color: string
-  description: string
-  io: NodeIOSchema
-}
-
 /** Store state */
 export interface SelfProcessState {
   workflows: Workflow[]
@@ -113,6 +122,5 @@ export interface SelfProcessState {
   workflowLogs: WorkflowLog[]
   runContext: WorkflowContext | null
   selectedNodeId: string | null
-  isRunning: boolean
   isSaving: boolean
 }

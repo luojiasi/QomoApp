@@ -1,109 +1,111 @@
 <script setup lang="ts">
-import type { WorkflowNode } from '../../types/selfProcessTypes'
-import { NODE_TYPE_META, NODE_STATUS_COLOR, NODE_WIDTH } from '../../configs/selfProcessConfigs'
 import { computed } from 'vue'
+import { Handle, Position } from '@vue-flow/core'
+import type { NodeProps } from '@vue-flow/core'
+import { getNodeDefinition } from '../../configs/nodeDefinitions'
+import { NODE_WIDTH } from '../../configs/selfProcessConfigs'
 
-const props = defineProps<{
-  node: WorkflowNode
-  isSelected: boolean
-  isRunning: boolean
-}>()
+const props = defineProps<NodeProps>()
 
 const emit = defineEmits<{
-  select: [id: string]
-  dragStart: [id: string, event: MouseEvent]
-  startConnect: [id: string]
   remove: [id: string]
 }>()
 
-const meta = computed(() => NODE_TYPE_META[props.node.type])
-const statusColor = computed(() => NODE_STATUS_COLOR[props.node.runStatus] ?? '#94a3b8')
-const borderColor = computed(() => {
-  if (props.isSelected) return '#facc15'
-  return statusColor.value
+const nodeType = computed(() => (props.data?.type as string) ?? 'unknown')
+const label = computed(() => (props.data?.label as string) ?? props.id)
+const def = computed(() => getNodeDefinition(nodeType.value))
+const status = computed(() => (props.data?.status as string) ?? 'idle')
+const workflowRunning = computed(() => (props.data?.workflowRunning as boolean) ?? false)
+
+const typeColor = computed(() => def.value?.color ?? '#64748b')
+const icon = computed(() => def.value?.icon ?? '???')
+const typeLabel = computed(() => def.value?.label ?? nodeType.value)
+
+const hasOutputs = computed(() => (def.value?.outputs.length ?? 0) > 0)
+
+// 运行中时节点类型色变灰，停止后恢复
+const color = computed(() => workflowRunning.value ? '#94a3b8' : typeColor.value)
+
+const statusColor = computed(() => {
+  const map: Record<string, string> = {
+    idle: color.value + '80',
+    running: '#3b82f6',
+    success: '#22c55e',
+    failed: '#ef4444'
+  }
+  return map[status.value] ?? color.value + '80'
 })
 
-const statusLabel: Record<string, string> = {
-  idle: '空闲',
-  running: '运行中',
-  success: '成功',
-  failed: '失败',
-  skipped: '跳过'
-}
+const isRunning = computed(() => status.value === 'running')
 
-function onMousedown(e: MouseEvent): void {
-  if (props.isRunning) return
-  emit('select', props.node.id)
-  emit('dragStart', props.node.id, e)
-  e.stopPropagation()
-}
-
-function onConnectClick(e: MouseEvent): void {
-  e.stopPropagation()
-  if (!props.isRunning) emit('startConnect', props.node.id)
+function outputHandleOffset(total: number, idx: number): string {
+  if (total <= 1) return ''
+  const span = Math.min(70, total * 24)
+  const step = span / (total - 1)
+  const offset = -span / 2 + idx * step
+  return `${offset}px`
 }
 </script>
 
 <template>
   <div
-    class="absolute z-10 select-none overflow-visible rounded-xl border-2 border-solid bg-(--app-card) transition-[box-shadow,border-color] duration-150 hover:shadow-[0_4px_12px_rgba(0,0,0,0.1)]"
-    :class="[
-      node.runStatus === 'running' ? 'animate-pulse' : '',
-      isRunning ? 'cursor-default' : 'cursor-pointer'
-    ]"
+    class="flex flex-col rounded-xl border-2 bg-(--app-card) text-[13px] transition-all duration-300"
+    :class="{ 'animate-pulse': isRunning }"
     :style="{
-      left: node.position.x + 'px',
-      top: node.position.y + 'px',
       width: NODE_WIDTH + 'px',
-      borderColor: borderColor,
-      boxShadow: isSelected ? '0 0 0 2px rgba(250,204,21,0.35)' : undefined
+      borderColor: props.selected ? '#facc15' : statusColor,
+      boxShadow: props.selected ? '0 0 0 2px rgba(250,204,21,0.35)' : undefined
     }"
-    @mousedown.prevent="onMousedown"
   >
+    <!-- 输入 Handle -->
+    <Handle
+      type="target"
+      :position="Position.Top"
+      class="h-3! w-3! border-2!"
+      :style="{ borderColor: 'var(--app-card)', background: 'var(--app-text-muted)' }"
+    />
+
+    <!-- 头部 -->
     <div
       class="flex items-center gap-1.5 rounded-t-[10px] px-3 py-1.5 text-xs font-semibold"
-      :style="{ background: meta.color + '18' }"
+      :style="{ background: color + '18' }"
     >
-      <span class="text-sm">{{ meta.icon }}</span>
-      <span class="flex-1">{{ meta.label }}</span>
+      <!-- 状态指示灯 -->
+      <span
+        class="inline-block h-1.5 w-1.5 rounded-full"
+        :style="{ background: statusColor }"
+      />
+      <span>{{ icon }}</span>
+      <span class="flex-1 truncate">{{ typeLabel }}</span>
       <button
-        v-if="!isRunning"
         class="h-[18px] w-[18px] cursor-pointer rounded border-0 bg-transparent text-base leading-none text-(--app-text-muted) hover:bg-red-600/10 hover:text-red-600"
-        @mousedown.stop
-        @click="emit('remove', node.id)"
+        @click.stop="emit('remove', props.id)"
         title="删除节点"
       >×</button>
     </div>
 
-    <div class="overflow-hidden text-ellipsis whitespace-nowrap px-3 py-1.5 text-[13px] text-(--app-text-primary)">
-      <span>{{ node.label }}</span>
+    <!-- 标签 -->
+    <div class="overflow-hidden text-ellipsis whitespace-nowrap px-3 py-1.5 font-medium text-(--app-text-primary)">
+      {{ label }}
     </div>
 
-    <div class="px-3 pb-1.5 pt-1 text-[11px]">
-      <span :style="{ color: statusColor }">
-        ● {{ statusLabel[node.runStatus] ?? '空闲' }}
-      </span>
-    </div>
-
-    <!-- 输出连接点 -->
-    <div
-      class="absolute bottom-[-12px] left-1/2 z-20 flex -translate-x-1/2 items-center justify-center"
-      :class="isRunning ? 'cursor-default' : 'cursor-crosshair'"
-      @mousedown="onConnectClick"
-      title="拖拽连接下一个节点"
-    >
-      <div
-        class="h-2.5 w-2.5 rounded-full border-2 border-(--app-card) shadow-[0_0_0_1px_var(--app-border)]"
-        :style="{ background: meta.color }"
-      ></div>
-    </div>
-
-    <!-- 输入连接点 -->
-    <div class="absolute left-1/2 top-[-12px] z-20 flex -translate-x-1/2 items-center justify-center">
-      <div
-        class="h-2.5 w-2.5 rounded-full border-2 border-(--app-card) shadow-[0_0_0_1px_var(--app-border)]"
-        :style="{ background: meta.color }"
-      ></div>
-    </div>
+    <!-- 输出 Handle（多端口） -->
+    <template v-if="hasOutputs">
+      <Handle
+        v-for="(output, idx) in def?.outputs ?? []"
+        :key="output.name"
+        :id="output.name"
+        type="source"
+        :position="Position.Bottom"
+        class="h-3! w-3! border-2! handle-output"
+        :class="{ 'handle-output--error': output.name === 'error' }"
+        :style="{
+          borderColor: 'var(--app-card)',
+          background: output.name === 'error' ? '#ef4444' : color,
+          marginLeft: outputHandleOffset(def?.outputs.length ?? 1, idx)
+        }"
+        :title="output.displayName"
+      />
+    </template>
   </div>
 </template>
