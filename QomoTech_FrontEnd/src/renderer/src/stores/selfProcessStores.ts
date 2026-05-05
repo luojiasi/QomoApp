@@ -46,6 +46,24 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
   const runContext = ref<WorkflowContext | null>(null)
   const workflowsBasePath = ref('')
 
+  // ──── 画布配置 ────────────────────────────────────────────
+  const snapToGrid = ref(true)
+  const snapGridSize = ref(20)
+  const bgGap = ref(20)
+  const bgSize = ref(6)
+  const bgColor = ref('#575757')
+  const showMiniMap = ref(true)
+  const miniMapWidth = ref(160)
+  const miniMapHeight = ref(100)
+  const miniMapPosition = ref<'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'>('top-left')
+
+  // ──── 断点调试 ────────────────────────────────────────────
+  const breakpointEnabled = ref(false)
+  const breakpointNodeIds = ref<Set<string>>(new Set())
+  const breakpointPaused = ref(false)
+  const breakpointPausedNodeId = ref<string | null>(null)
+  let breakpointResolve: (() => void) | null = null
+
   // ──── Computed ────────────────────────────────────────────
   const currentWorkflow = computed(() =>
     workflows.value.find((w) => w.id === currentWorkflowId.value) ?? null
@@ -319,7 +337,10 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
     isRunning,
     runContext,
     addLog,
-    clearLogs
+    clearLogs,
+    hasBreakpoint,
+    isBreakpointEnabled: () => breakpointEnabled.value,
+    waitForBreakpoint
   })
 
   function runWorkflow(): Promise<void> {
@@ -328,6 +349,10 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
 
   function stopWorkflow(): void {
     engine.stop()
+  }
+
+  async function runSingleNode(nodeId: string): Promise<void> {
+    return engine.runSingleNode(nodeId)
   }
 
   // ──── 日志管理 ────────────────────────────────────────────
@@ -346,6 +371,53 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
   // ──── 辅助 ────────────────────────────────────────────────
   function getErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : String(error)
+  }
+
+  // ──── 断点操作 ───────────────────────────────────────────
+  function toggleBreakpoint(nodeId: string): void {
+    const next = new Set(breakpointNodeIds.value)
+    if (next.has(nodeId)) {
+      next.delete(nodeId)
+    } else {
+      next.add(nodeId)
+    }
+    breakpointNodeIds.value = next
+    addLog('debug', next.has(nodeId) ? `设置断点` : `取消断点`, nodeId)
+  }
+
+  function hasBreakpoint(nodeId: string): boolean {
+    return breakpointNodeIds.value.has(nodeId)
+  }
+
+  function setBreakpointEnabled(enabled: boolean): void {
+    breakpointEnabled.value = enabled
+    if (!enabled) {
+      // 关闭断点模式时自动恢复执行
+      breakpointPaused.value = false
+      breakpointPausedNodeId.value = null
+      if (breakpointResolve) {
+        breakpointResolve()
+        breakpointResolve = null
+      }
+    }
+  }
+
+  async function waitForBreakpoint(nodeId: string): Promise<void> {
+    if (!breakpointEnabled.value || !hasBreakpoint(nodeId)) return
+    breakpointPaused.value = true
+    breakpointPausedNodeId.value = nodeId
+    return new Promise<void>((resolve) => {
+      breakpointResolve = resolve
+    })
+  }
+
+  function resumeFromBreakpoint(): void {
+    if (breakpointResolve) {
+      breakpointPaused.value = false
+      breakpointPausedNodeId.value = null
+      breakpointResolve()
+      breakpointResolve = null
+    }
   }
 
   // ──── 返回 ────────────────────────────────────────────────
@@ -376,6 +448,25 @@ export const useSelfProcessStore = defineStore('selfProcess', () => {
     isRunning,
     runContext,
     runWorkflow,
-    stopWorkflow
+    stopWorkflow,
+    runSingleNode,
+    breakpointEnabled,
+    breakpointNodeIds,
+    breakpointPaused,
+    breakpointPausedNodeId,
+    toggleBreakpoint,
+    hasBreakpoint,
+    setBreakpointEnabled,
+    waitForBreakpoint,
+    resumeFromBreakpoint,
+    snapToGrid,
+    snapGridSize,
+    bgGap,
+    bgSize,
+    bgColor,
+    showMiniMap,
+    miniMapWidth,
+    miniMapHeight,
+    miniMapPosition
   }
 })

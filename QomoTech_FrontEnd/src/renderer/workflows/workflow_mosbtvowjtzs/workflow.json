@@ -9,8 +9,8 @@
       "type": "flow.delay",
       "label": "延时等待",
       "position": {
-        "x": 90,
-        "y": 210
+        "x": 60,
+        "y": 160
       },
       "config": {
         "seconds": 5
@@ -61,8 +61,8 @@
       "type": "workflowSystem.multiStart",
       "label": "并行入口",
       "position": {
-        "x": 210,
-        "y": 75
+        "x": 220,
+        "y": 0
       },
       "config": {},
       "description": ""
@@ -120,5 +120,5 @@
     }
   ],
   "createdAt": "2026-05-05T07:48:28.976Z",
-  "updatedAt": "2026-05-05T08:08:30.721Z"
+  "updatedAt": "2026-05-05T09:09:17.035Z"
 }

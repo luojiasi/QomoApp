@@ -88,10 +88,16 @@ function workflowEdgeToVfEdge(we: WorkflowEdge): Edge {
 function onConnect(connection: Connection): void {
   store.addEdge(connection.source, connection.target, connection.sourceHandle ?? undefined, connection.targetHandle ?? undefined)
 }
+
+
 // 点击节点时触发，一般用来”选中节点、打开配置
 function onNodeClick({ node }: { node: Node }): void {
   store.selectNode(node.id)
   selectedEdgeId.value = null
+}
+// 双击节点 → 单独运行该节点进行调试
+function onNodeDoubleClick({ node }: { node: Node }): void {
+  store.runSingleNode(node.id)
 }
 //点击画布空白区域时触发，常用于取消选中、关闭弹层
 function onPaneClick(): void {
@@ -169,17 +175,24 @@ onInit(() => {
       :default-viewport="{ x: 0, y: 0, zoom: 1 }"
       :min-zoom="0.1"
       :max-zoom="4"
-      :snap-to-grid="true"
+      :snap-to-grid="store.snapToGrid"
+      :snap-grid="[store.snapGridSize, store.snapGridSize]"
       @connect="onConnect"
       @node-click="onNodeClick"
+      @node-double-click="onNodeDoubleClick"
       @edge-click="onEdgeClick"
       @node-drag-stop="onNodeDragStop"
       @pane-click="onPaneClick"
       @pane-context-menu="onPaneContextMenu"
     >
-      <Background :gap="20" :size="4" pattern-color="rgba(148,163,184,0.24)" />
+      <Background :gap="store.bgGap" :size="store.bgSize" :pattern-color="store.bgColor" />
       <Controls position="bottom-right" />
-      <MiniMap position="top-left" :width="160" :height="100" />
+      <MiniMap
+        v-if="store.showMiniMap"
+        :position="store.miniMapPosition"
+        :width="store.miniMapWidth"
+        :height="store.miniMapHeight"
+      />
 
       <!-- 自定义节点插槽 -->
       <template #node-workflow-node="nodeProps">

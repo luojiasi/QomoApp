@@ -5,6 +5,7 @@ import FlowTaskPanel from '../components/workflow/FlowTaskPanel.vue'
 import FlowCanvas from '../components/workflow/FlowCanvas.vue'
 import FlowNodeConfig from '../components/workflow/FlowNodeConfig.vue'
 import FlowLogPanel from '../components/workflow/FlowLogPanel.vue'
+import FlowCanvasConfig from '../components/workflow/FlowCanvasConfig.vue'
 import MotionController from '../components/workflow/MotionController.vue'
 import CameraPic from '@/components/cameraPic.vue'
 
@@ -119,7 +120,7 @@ onMounted(async () => {
         <div class="h-[calc(100%-48px)] overflow-hidden">
           <FlowLogPanel v-if="sidePanelTab === 'log'" />
           <FlowNodeConfig v-else-if="sidePanelTab === 'config'" />
-          <!-- <FlowCanvasConfig v-else-if="sidePanelTab === 'canvasConfig'" /> -->
+          <FlowCanvasConfig v-else-if="sidePanelTab === 'canvasConfig'" />
           <MotionController v-else-if="sidePanelTab === 'motionController'" />
         </div>
       </div>

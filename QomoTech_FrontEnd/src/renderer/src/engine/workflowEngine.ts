@@ -49,16 +49,6 @@ function normalizeValue(val: unknown): unknown {
   }
   return val
 }
-
-function getByPath(source: unknown, path: string): unknown {
-  return path.split('.').reduce<unknown>((cur, key) => {
-    if (cur && typeof cur === 'object' && key in cur) {
-      return (cur as Record<string, unknown>)[key]
-    }
-    return undefined
-  }, source)
-}
-
 // ──── 依赖接口 ──────────────────────────────────────────────────
 export interface WorkflowEngineDeps {
   getWorkflow: () => Workflow | null
@@ -66,6 +56,9 @@ export interface WorkflowEngineDeps {
   runContext: Ref<WorkflowContext | null>
   addLog: (level: WorkflowLog['level'], message: string, nodeId?: string, data?: Record<string, unknown>) => void
   clearLogs: () => void
+  hasBreakpoint: (nodeId: string) => boolean
+  isBreakpointEnabled: () => boolean
+  waitForBreakpoint: (nodeId: string) => Promise<void>
 }
 
 // ──── 引擎工厂 ──────────────────────────────────────────────────
@@ -139,6 +132,58 @@ export function createWorkflowEngine(deps: WorkflowEngineDeps) {
     deps.addLog('warn', '流程被手动停止')
   }
 
+  // ──── 单节点运行（双击节点调试）───────────────────────────
+  async function runSingleNode(nodeId: string): Promise<void> {
+    const wf = deps.getWorkflow()
+    if (!wf || deps.isRunning.value) return
+
+    const node = wf.nodes.find((n) => n.id === nodeId)
+    if (!node) return
+
+    // 确保有运行上下文
+    if (!deps.runContext.value) {
+      const nodeOutputs: Record<string, NodeOutput> = {}
+      for (const n of wf.nodes) {
+        nodeOutputs[n.id] = { status: 'idle', data: {}, startedAt: '', endedAt: '' }
+      }
+      deps.runContext.value = {
+        workflowId: wf.id,
+        runId: generateId(),
+        nodeOutputs,
+        variables: {},
+        currentNodeId: null,
+        status: 'idle',
+        startTime: new Date().toISOString()
+      }
+    }
+
+    deps.addLog('info', `[单步调试] 执行节点「${node.label}」(${node.type})`, nodeId)
+
+    // 临时设置 isRunning，避免 sleep/ensureRunning 抛出 WorkflowStoppedError
+    deps.isRunning.value = true
+    try {
+      deps.runContext.value.currentNodeId = nodeId
+      setNodeStatus(nodeId, 'running', {})
+
+      const output = await executeNode(node)
+      const ok = output.success !== false
+
+      setNodeStatus(nodeId, ok ? 'success' : 'failed', output)
+
+      if (ok) {
+        deps.addLog('info', `[单步调试] 节点「${node.label}」执行成功`, nodeId, { output })
+      } else {
+        deps.addLog('error', `[单步调试] 节点「${node.label}」执行失败`, nodeId, { output })
+      }
+    } catch (e) {
+      setNodeStatus(nodeId, 'failed', { error: getErrorMessage(e) })
+      deps.addLog('error', `[单步调试] 节点执行异常: ${getErrorMessage(e)}`, nodeId)
+    } finally {
+      deps.isRunning.value = false
+      deps.runContext.value.currentNodeId = null
+    }
+  }
+
   // ──── 解析起始节点 ────────────────────────────────────────
   function resolveStartNodes(wf: Workflow): string[] {
     const singleStarts = wf.nodes.filter((n) => n.type === 'workflowSystem.singleStart')
@@ -198,7 +243,11 @@ export function createWorkflowEngine(deps: WorkflowEngineDeps) {
       if (queued.has(nodeId)) return false
       const incoming = wf.edges.filter((e) => e.target === nodeId)
       if (incoming.length === 0) return true
-      return incoming.every((e) => completedNodes.get(e.source) === true)
+      return incoming.every((e) => {
+        // error 出口：上游节点只需"已完成"（即使失败），不要求成功
+        if (e.sourceHandle === 'error') return completedNodes.has(e.source)
+        return completedNodes.get(e.source) === true
+      })
     }
 
     // 尝试启动下游节点（如果就绪则立即执行，不等待）
@@ -233,6 +282,13 @@ export function createWorkflowEngine(deps: WorkflowEngineDeps) {
 
         deps.runContext.value!.currentNodeId = nodeId
         setNodeStatus(nodeId, 'running', {})
+
+        // 断点检测：如果此节点设置了断点且断点模式开启，暂停等待
+        if (deps.isBreakpointEnabled() && deps.hasBreakpoint(nodeId)) {
+          deps.addLog('debug', `断点暂停 → 节点「${node.label}」`, nodeId)
+          await deps.waitForBreakpoint(nodeId)
+          deps.addLog('debug', `断点继续 → 节点「${node.label}」`, nodeId)
+        }
 
         const output = await executeNode(node)
         const ok = output.success !== false
@@ -281,7 +337,12 @@ export function createWorkflowEngine(deps: WorkflowEngineDeps) {
               .filter((e) => e.sourceHandle === handle)
               .map((e) => e.target)
           } else {
-            candidateEdgeTargets = [...new Set(outgoing.map((e) => e.target))]
+            // 成功：只走非 error 出口
+            candidateEdgeTargets = [...new Set(
+              outgoing
+                .filter((e) => e.sourceHandle !== 'error')
+                .map((e) => e.target)
+            )]
           }
           for (const targetId of candidateEdgeTargets) {
             launchIfReady(targetId)
@@ -435,9 +496,11 @@ export function createWorkflowEngine(deps: WorkflowEngineDeps) {
 
   // ──── 条件节点 ────────────────────────────────────────────
   function executeConditionNode(node: WorkflowNode): Record<string, unknown> {
-    const resCtx = buildResolverContext(node.id)
-    const left = resolveValue(node.config.leftOperand ?? '', resCtx)
-    const right = resolveValue(node.config.rightOperand ?? '', resCtx)
+    // 左右操作数分别关联各自的输入端口
+    const leftCtx = buildResolverContext(node.id, 'input')
+    const rightCtx = buildResolverContext(node.id, 'compare')
+    const left = resolveValue(node.config.leftOperand ?? '', leftCtx)
+    const right = resolveValue(node.config.rightOperand ?? '', rightCtx)
     const operator = (node.config.operator ?? 'eq') as string
 
     const result = evaluateCondition(String(left), operator, String(right))
@@ -475,7 +538,7 @@ export function createWorkflowEngine(deps: WorkflowEngineDeps) {
       deps.runContext.value.variables[varName] = value
     }
     deps.addLog('info', `设置变量 $${varName} = ${JSON.stringify(value)}`, node.id)
-    return { success: true, varName, value }
+    return { success: true, [varName]: value }
   }
 
   function executeGetVariableNode(node: WorkflowNode): Record<string, unknown> {
@@ -486,20 +549,17 @@ export function createWorkflowEngine(deps: WorkflowEngineDeps) {
     return { success: true, varName, value }
   }
 
-  function findPreviousNodeId(): string | null {
-    const ctx = deps.runContext.value
-    if (!ctx?.currentNodeId) return null
-    const wf = deps.getWorkflow()
-    if (!wf) return null
-    const incomingEdges = wf.edges.filter((e) => e.target === ctx.currentNodeId)
-    return incomingEdges[0]?.source ?? null
-  }
 
-  function getPreviousNodeOutput(nodeId: string): Record<string, unknown> | undefined {
+  function getPreviousNodeOutput(nodeId: string, targetHandle?: string): Record<string, unknown> | undefined {
     const wf = deps.getWorkflow()
     if (!wf) return undefined
     const incomingEdges = wf.edges.filter((e) => e.target === nodeId)
-    const prevId = incomingEdges[0]?.source
+    // 如果指定了 targetHandle，优先匹配对应的入边
+    let edge = incomingEdges[0]
+    if (targetHandle) {
+      edge = incomingEdges.find((e) => e.targetHandle === targetHandle) ?? incomingEdges[0]
+    }
+    const prevId = edge?.source
     if (!prevId) return undefined
     return deps.runContext.value?.nodeOutputs[prevId]?.data
   }
@@ -512,11 +572,12 @@ export function createWorkflowEngine(deps: WorkflowEngineDeps) {
     return deps.runContext.value?.nodeOutputs[node.id]?.data
   }
 
-  function buildResolverContext(nodeId: string): ResolverContext {
+  function buildResolverContext(nodeId: string, targetHandle?: string): ResolverContext {
     return {
       ctx: deps.runContext.value!,
       currentNodeId: nodeId,
-      getPreviousNodeOutput,
+      getPreviousNodeOutput: (nid: string, th?: string) =>
+        getPreviousNodeOutput(nid, th ?? targetHandle),
       getNodeOutputByLabel
     }
   }
@@ -545,5 +606,5 @@ export function createWorkflowEngine(deps: WorkflowEngineDeps) {
     try { return JSON.parse(text) } catch { return text }
   }
 
-  return { run, stop }
+  return { run, stop, runSingleNode }
 }

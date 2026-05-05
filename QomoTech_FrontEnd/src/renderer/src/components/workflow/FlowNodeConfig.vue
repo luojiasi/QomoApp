@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useSelfProcessStore } from '../../stores/selfProcessStores'
 import { getNodeDefinition } from '../../configs/nodeDefinitions'
-import type { NodeProperty } from '../../types/selfProcessTypes'
+import type { NodeProperty, WorkflowNode } from '../../types/selfProcessTypes'
 
 const store = useSelfProcessStore()
 
@@ -14,6 +14,86 @@ const outgoingEdges = computed(() => {
   if (!node.value || !store.currentWorkflow) return []
   return store.currentWorkflow.edges.filter((e) => e.source === node.value!.id)
 })
+
+/** 入边：连入当前节点的边 */
+const incomingEdges = computed(() => {
+  if (!node.value || !store.currentWorkflow) return []
+  return store.currentWorkflow.edges.filter((e) => e.target === node.value!.id)
+})
+
+/** 按 targetHandle 获取前驱节点 */
+function getPreviousNodeByHandle(targetHandle: string): WorkflowNode | null {
+  const edge = incomingEdges.value.find((e) => e.targetHandle === targetHandle)
+  if (!edge) return null
+  return store.currentWorkflow?.nodes.find((n) => n.id === edge.source) ?? null
+}
+
+/** 首个入边的前驱节点（无 targetHandle 过滤） */
+const firstPreviousNode = computed<WorkflowNode | null>(() => {
+  const edge = incomingEdges.value[0]
+  if (!edge) return null
+  return store.currentWorkflow?.nodes.find((n) => n.id === edge.source) ?? null
+})
+
+/** 首个入边前驱节点的可用输出字段 */
+const firstPrevOutputFields = computed<string[]>(() => {
+  const fields: string[] = []
+  const prevNode = firstPreviousNode.value
+  if (!prevNode) return fields
+
+  const def = getNodeDefinition(prevNode.type)
+  if (def) {
+    for (const port of def.outputs) fields.push(port.name)
+  }
+
+  const prevData = store.runContext?.nodeOutputs[prevNode.id]?.data
+  if (prevData && typeof prevData === 'object') {
+    for (const key of Object.keys(prevData)) {
+      if (!fields.includes(key)) fields.push(key)
+    }
+    for (const [key, val] of Object.entries(prevData)) {
+      if (val && typeof val === 'object' && !Array.isArray(val)) {
+        for (const subKey of Object.keys(val as Record<string, unknown>)) {
+          const path = `${key}.${subKey}`
+          if (!fields.includes(path)) fields.push(path)
+        }
+      }
+    }
+  }
+
+  return fields
+})
+
+/** 前驱节点的可用输出字段（用于 $prev.data.* 联想） */
+function getPrevOutputFields(targetHandle: string): string[] {
+  const fields: string[] = []
+  const prevNode = getPreviousNodeByHandle(targetHandle)
+  if (!prevNode) return fields
+
+  const def = getNodeDefinition(prevNode.type)
+  if (def) {
+    for (const port of def.outputs) {
+      fields.push(port.name)
+    }
+  }
+
+  const prevData = store.runContext?.nodeOutputs[prevNode.id]?.data
+  if (prevData && typeof prevData === 'object') {
+    for (const key of Object.keys(prevData)) {
+      if (!fields.includes(key)) fields.push(key)
+    }
+    for (const [key, val] of Object.entries(prevData)) {
+      if (val && typeof val === 'object' && !Array.isArray(val)) {
+        for (const subKey of Object.keys(val as Record<string, unknown>)) {
+          const path = `${key}.${subKey}`
+          if (!fields.includes(path)) fields.push(path)
+        }
+      }
+    }
+  }
+
+  return fields
+}
 
 function getTargetLabel(edge: { target: string }): string {
   return store.currentWorkflow?.nodes.find((n) => n.id === edge.target)?.label ?? edge.target
@@ -113,6 +193,54 @@ function onUnselectedNodeChange(e: Event): void {
                 :value="formatValue(getConfigValue(prop))"
                 @input="setConfigValue(prop, ($event.target as HTMLInputElement).value)"
               />
+              <!-- 设置变量 value 字段的前驱输出联想 -->
+              <div
+                v-if="prop.name === 'value' && node?.type === 'flow.setVariable' && firstPrevOutputFields.length > 0"
+                class="flex flex-wrap items-center gap-1 mt-0.5"
+              >
+                <span class="text-[10px] text-(--app-text-muted)">前驱输出:</span>
+                <button
+                  v-for="field in firstPrevOutputFields"
+                  :key="field"
+                  class="cursor-pointer rounded border border-(--app-border) bg-(--app-card-soft) px-1.5 py-0.5 text-[10px] font-mono text-(--app-text-secondary) transition-colors hover:border-blue-500 hover:text-blue-600"
+                  :title="`插入 $prev.data.${field}`"
+                  @click="setConfigValue(prop, `$prev.data.${field}`)"
+                >
+                  $prev.data.{{ field }}
+                </button>
+              </div>
+              <!-- 左操作数联想（条件判断 input 端口） -->
+              <div
+                v-if="prop.name === 'leftOperand' && getPrevOutputFields('input').length > 0"
+                class="flex flex-wrap items-center gap-1 mt-0.5"
+              >
+                <span class="text-[10px] text-(--app-text-muted)">左输入:</span>
+                <button
+                  v-for="field in getPrevOutputFields('input')"
+                  :key="field"
+                  class="cursor-pointer rounded border border-(--app-border) bg-(--app-card-soft) px-1.5 py-0.5 text-[10px] font-mono text-(--app-text-secondary) transition-colors hover:border-blue-500 hover:text-blue-600"
+                  :title="`插入 $prev.data.${field}`"
+                  @click="setConfigValue(prop, `$prev.data.${field}`)"
+                >
+                  $prev.data.{{ field }}
+                </button>
+              </div>
+              <!-- 右操作数联想（条件判断 compare 端口） -->
+              <div
+                v-if="prop.name === 'rightOperand' && getPrevOutputFields('compare').length > 0"
+                class="flex flex-wrap items-center gap-1 mt-0.5"
+              >
+                <span class="text-[10px] text-(--app-text-muted)">右输入:</span>
+                <button
+                  v-for="field in getPrevOutputFields('compare')"
+                  :key="field"
+                  class="cursor-pointer rounded border border-(--app-border) bg-(--app-card-soft) px-1.5 py-0.5 text-[10px] font-mono text-(--app-text-secondary) transition-colors hover:border-blue-500 hover:text-blue-600"
+                  :title="`插入 $prev.data.${field}`"
+                  @click="setConfigValue(prop, `$prev.data.${field}`)"
+                >
+                  $prev.data.{{ field }}
+                </button>
+              </div>
             </label>
 
             <!-- number -->

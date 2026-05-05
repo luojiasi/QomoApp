@@ -4,7 +4,7 @@ import type { WorkflowContext } from '../types/selfProcessTypes'
 export interface ResolverContext {
   ctx: WorkflowContext
   currentNodeId: string
-  getPreviousNodeOutput: (nodeId: string) => Record<string, unknown> | undefined
+  getPreviousNodeOutput: (nodeId: string, targetHandle?: string) => Record<string, unknown> | undefined
   getNodeOutputByLabel: (label: string) => Record<string, unknown> | undefined
 }
 

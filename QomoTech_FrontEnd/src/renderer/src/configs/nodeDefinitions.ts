@@ -375,7 +375,10 @@ export const NODE_DEFINITIONS: Record<string, NodeDefinition> = {
       ]},
       { name: 'rightOperand', displayName: '右操作数', type: 'string', default: '', required: true, placeholder: '比较目标值' }
     ],
-    inputs: [],
+    inputs: [
+      { name: 'input', displayName: '左操作数输入' },
+      { name: 'compare', displayName: '右操作数输入' }
+    ],
     outputs: [
       { name: 'true', displayName: '条件成立' },
       { name: 'false', displayName: '条件不成立' }
@@ -413,7 +416,7 @@ export const NODE_DEFINITIONS: Record<string, NodeDefinition> = {
       { name: 'value', displayName: '值', type: 'string', default: '', required: true, placeholder: '支持表达式如 $prev.data.position' }
     ],
     inputs: [],
-    outputs: [{ name: 'main', displayName: '完成' }, { name: 'error', displayName: '失败' }],
+    outputs: [{ name: 'main', displayName: '完成' }],
     defaults: { varName: '', value: '' }
   },
 

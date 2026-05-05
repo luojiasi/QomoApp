@@ -4,12 +4,15 @@ import { Handle, Position } from '@vue-flow/core'
 import type { NodeProps } from '@vue-flow/core'
 import { getNodeDefinition } from '../../configs/nodeDefinitions'
 import { NODE_WIDTH } from '../../configs/selfProcessConfigs'
+import { useSelfProcessStore } from '../../stores/selfProcessStores'
 
 const props = defineProps<NodeProps>()
 
 const emit = defineEmits<{
   remove: [id: string]
 }>()
+
+const store = useSelfProcessStore()
 
 const nodeType = computed(() => (props.data?.type as string) ?? 'unknown')
 const label = computed(() => (props.data?.label as string) ?? props.id)
@@ -21,6 +24,7 @@ const typeColor = computed(() => def.value?.color ?? '#64748b')
 const icon = computed(() => def.value?.icon ?? '???')
 const typeLabel = computed(() => def.value?.label ?? nodeType.value)
 
+const hasInputs = computed(() => (def.value?.inputs.length ?? 0) > 0)
 const hasOutputs = computed(() => (def.value?.outputs.length ?? 0) > 0)
 
 // 运行中时节点类型色变灰，停止后恢复
@@ -37,6 +41,23 @@ const statusColor = computed(() => {
 })
 
 const isRunning = computed(() => status.value === 'running')
+
+const showBreakpointToggle = computed(() => store.breakpointEnabled && !store.isRunning)
+const hasBreakpoint = computed(() => store.breakpointNodeIds.has(props.id))
+const isPausedHere = computed(() => store.breakpointPaused && store.breakpointPausedNodeId === props.id)
+
+function onToggleBreakpoint(e: MouseEvent): void {
+  e.stopPropagation()
+  store.toggleBreakpoint(props.id)
+}
+
+function outputHandleColor(outputName: string): string {
+  if (outputName === 'error') return '#ef4444'
+  if (nodeType.value === 'flow.condition') {
+    return outputName === 'true' ? '#3b82f6' : '#ef4444'
+  }
+  return color.value
+}
 
 function outputHandleOffset(total: number, idx: number): string {
   if (total <= 1) return ''
@@ -57,8 +78,25 @@ function outputHandleOffset(total: number, idx: number): string {
       boxShadow: props.selected ? '0 0 0 2px rgba(250,204,21,0.35)' : undefined
     }"
   >
-    <!-- 输入 Handle -->
+    <!-- 输入 Handle（多端口） -->
+    <template v-if="hasInputs">
+      <Handle
+        v-for="(input, idx) in def?.inputs ?? []"
+        :key="input.name"
+        :id="input.name"
+        type="target"
+        :position="Position.Top"
+        class="h-3! w-3! border-2!"
+        :style="{
+          borderColor: 'var(--app-card)',
+          background: 'var(--app-text-muted)',
+          marginLeft: outputHandleOffset(def?.inputs.length ?? 1, idx)
+        }"
+        :title="input.displayName"
+      />
+    </template>
     <Handle
+      v-else
       type="target"
       :position="Position.Top"
       class="h-3! w-3! border-2!"
@@ -89,6 +127,26 @@ function outputHandleOffset(total: number, idx: number): string {
       {{ label }}
     </div>
 
+    <!-- 断点暂停指示 -->
+    <div
+      v-if="isPausedHere"
+      class="mx-3 mb-1 rounded bg-yellow-500 px-2 py-0.5 text-center text-[10px] font-bold text-white"
+    >
+      ⏸ 断点暂停
+    </div>
+
+    <!-- 断点开关 -->
+    <div
+      v-if="showBreakpointToggle"
+      class="absolute -right-1.5 -bottom-1.5 z-10 flex h-4 w-4 cursor-pointer items-center justify-center rounded-full border-2 shadow transition-colors duration-150"
+      :style="{
+        borderColor: 'var(--app-card)',
+        background: hasBreakpoint ? '#ef4444' : '#64748b'
+      }"
+      :title="hasBreakpoint ? '取消断点' : '设置断点'"
+      @click="onToggleBreakpoint"
+    />
+
     <!-- 输出 Handle（多端口） -->
     <template v-if="hasOutputs">
       <Handle
@@ -101,7 +159,7 @@ function outputHandleOffset(total: number, idx: number): string {
         :class="{ 'handle-output--error': output.name === 'error' }"
         :style="{
           borderColor: 'var(--app-card)',
-          background: output.name === 'error' ? '#ef4444' : color,
+          background: outputHandleColor(output.name),
           marginLeft: outputHandleOffset(def?.outputs.length ?? 1, idx)
         }"
         :title="output.displayName"
