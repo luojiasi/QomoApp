@@ -2,7 +2,6 @@ import type { Ref } from 'vue'
 import type {
   Workflow,
   WorkflowNode,
-  WorkflowEdge,
   WorkflowLog,
   WorkflowContext,
   NodeOutput,
@@ -74,7 +73,7 @@ export function createWorkflowEngine(deps: WorkflowEngineDeps) {
     deps.isRunning.value = true
     stopRequested = false
     deps.clearLogs()
-
+    // 在执行前就把所有节点的运行容器准备好，后续节点执行时只更新对应字段，不需要动态创建结构
     const nodeOutputs: Record<string, NodeOutput> = {}
     for (const node of wf.nodes) {
       nodeOutputs[node.id] = {
@@ -84,25 +83,22 @@ export function createWorkflowEngine(deps: WorkflowEngineDeps) {
         endedAt: ''
       }
     }
-
+    // 构建本次运行上下文
     deps.runContext.value = {
-      workflowId: wf.id,
-      runId: generateId(),
-      nodeOutputs,
-      variables: {},
-      currentNodeId: null,
+      workflowId: wf.id,      //当前流程 ID
+      runId: generateId(),    //新生成的唯一运行 ID
+      nodeOutputs,            // 上一步初始化好的节点状态表
+      variables: {},          //运行时变量容器
+      currentNodeId: null,    //当前执行节点（初始 null）
       status: 'running',
-      startTime: new Date().toISOString()
+      startTime: new Date().toISOString()//启动时间
     }
     deps.addLog('info', `流程「${wf.name}」开始运行`)
-
-    try {
-      const startNodeIds = resolveStartNodes(wf)
-
-      if (startNodeIds.length > 0) {
-        await executeParallel(startNodeIds)
-      }
-
+    
+    try { // 主执行逻辑
+      const startNodeIds = resolveStartNodes(wf)  //计算起始节点列表
+      if (startNodeIds.length > 0) await executeParallel(startNodeIds)
+    
       if (deps.runContext.value?.status === 'running') {
         deps.runContext.value.status = 'completed'
         deps.addLog('info', `流程「${wf.name}」运行完成`)
@@ -217,11 +213,10 @@ export function createWorkflowEngine(deps: WorkflowEngineDeps) {
   // ──── 并行图执行（fire-and-forget 模型）────────────────────
   // 每个节点完成后立即触发就绪的下游节点，不等待兄弟节点
   // sharedCompleted: 流程级共享完成状态；循环迭代不共享
-  async function executeParallel(
-    startNodeIds: string[],
-    sharedCompleted?: Map<string, boolean>
-  ): Promise<void> {
+  async function executeParallel(startNodeIds: string[],sharedCompleted?: Map<string, boolean>): Promise<void> {
     const wf = deps.getWorkflow()!
+    ///----------------------------------------------------
+    ///状态初始化
     const completedNodes = sharedCompleted ?? new Map<string, boolean>()
     const queued = new Set<string>()  // 已触发执行的节点，防止重复启动
     let flying = 0                    // 当前正在执行的节点数
@@ -230,29 +225,57 @@ export function createWorkflowEngine(deps: WorkflowEngineDeps) {
     let failed = false
 
     let resolvePromise!: () => void
-    const done = new Promise<void>((resolve) => {
-      resolvePromise = resolve
-    })
+    const done = new Promise<void>((resolve) => {resolvePromise = resolve})
+    function finish() {if (flying === 0) resolvePromise()}
+    ///----------------------------------------------------
 
-    function finish() {
-      if (flying === 0) resolvePromise()
-    }
 
+    
+    // 判断节点是否就绪：
+    // - 无入边：就绪
+    // - 入边按 targetHandle 分组，同一 handle 的边为 OR（任一源完成即可），
+    //   不同 handle 之间为 AND（每个 handle 都需有源完成）
     function isNodeReady(nodeId: string): boolean {
       if (completedNodes.has(nodeId)) return false
       if (queued.has(nodeId)) return false
       const incoming = wf.edges.filter((e) => e.target === nodeId)
       if (incoming.length === 0) return true
-      return incoming.every((e) => {
-        // error 出口：上游节点只需"已完成"（即使失败），不要求成功
-        if (e.sourceHandle === 'error') return completedNodes.has(e.source)
-        return completedNodes.get(e.source) === true
-      })
+
+      const groups = new Map<string, boolean>()
+      for (const e of incoming) {
+        const handle = e.targetHandle ?? '__default'
+        if (!groups.has(handle)) groups.set(handle, false)
+        if (completedNodes.get(e.source) === true || (e.sourceHandle === 'error' && completedNodes.has(e.source))) {
+          groups.set(handle, true)
+        }
+      }
+      return [...groups.values()].every((ok) => ok)
+    }
+
+    // 检测回边重入：所有 handle 分组都有已完成源 → 允许重置并重新执行
+    function canReEnter(nodeId: string): boolean {
+      const incoming = wf.edges.filter((e) => e.target === nodeId)
+      if (incoming.length === 0) return false
+      const groups = new Map<string, boolean>()
+      for (const e of incoming) {
+        const handle = e.targetHandle ?? '__default'
+        if (!groups.has(handle)) groups.set(handle, false)
+        if (completedNodes.has(e.source)) groups.set(handle, true)
+      }
+      return [...groups.values()].every((ok) => ok)
     }
 
     // 尝试启动下游节点（如果就绪则立即执行，不等待）
     function launchIfReady(nodeId: string) {
       if (failed) return
+      if (completedNodes.has(nodeId)) {
+        if (canReEnter(nodeId)) {
+          completedNodes.delete(nodeId)
+          queued.delete(nodeId)
+        } else {
+          return
+        }
+      }
       if (!isNodeReady(nodeId)) return
       queued.add(nodeId)
       executeAndPropagate(nodeId)
@@ -272,12 +295,12 @@ export function createWorkflowEngine(deps: WorkflowEngineDeps) {
       }
 
       try {
-        ensureRunning()
+        ensureRunning()  //校验流程没被 stop
 
         const node = wf.nodes.find((n) => n.id === nodeId)
         if (!node) {
           completedNodes.set(nodeId, false)
-          return
+          return  //节点不存在，直接返回
         }
 
         deps.runContext.value!.currentNodeId = nodeId
@@ -290,7 +313,7 @@ export function createWorkflowEngine(deps: WorkflowEngineDeps) {
           deps.addLog('debug', `断点继续 → 节点「${node.label}」`, nodeId)
         }
 
-        const output = await executeNode(node)
+        const output = await executeNode(node) //调用 API / 延时 / 条件判断 / 变量操作
         const ok = output.success !== false
 
         completedNodes.set(nodeId, ok)
@@ -359,20 +382,22 @@ export function createWorkflowEngine(deps: WorkflowEngineDeps) {
       }
     }
 
-    // 启动所有起始节点
+
+    ///============================
+    /// 启动所有起始节点
     for (const id of startNodeIds) {
       launchIfReady(id)
     }
-
+    ///============================
+    ///============================
+    ///同步等待
     finish()
-    await done
+    await done  //等待所有节点完成
+    ///============================
   }
 
-  function setNodeStatus(
-    nodeId: string,
-    status: string,
-    data: Record<string, unknown>
-  ): void {
+  // ————  设置节点状态  ————————————————————————
+  function setNodeStatus(nodeId: string,status: string,data: Record<string, unknown>): void {
     const ctx = deps.runContext.value
     if (!ctx) return
     const prev = ctx.nodeOutputs[nodeId]

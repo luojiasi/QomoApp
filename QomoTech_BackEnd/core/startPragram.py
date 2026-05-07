@@ -6,6 +6,7 @@ import time
 import threading
 from typing import Any
 
+from api.dependencies import hardware_status_poller
 from core.calc_offset_ljs import OffsetEndpointCalculator
 from core.program_status_ws import notify_program_status_changed
 from core.zmotion_adapter import ZMotionAdapter
@@ -59,7 +60,7 @@ def 跳过任务时处理并回到目标Z轴位置(
     speed: float,
 ) -> str:
     """
-    统一处理“跳过任务”：
+    统一处理"跳过任务"：
     1) 先执行停机和关闭输出；
     2) 若提供了目标 Z，则补一次 Z 轴定位，尽量与正常流程的首次目标位保持一致；
     3) 清除 skip 标记并返回 "skip"。
@@ -222,6 +223,47 @@ def _rebuild_xy_path_from_current(original_points_run: list[dict[str, Any]],cont
         return head + [{"x": conv[best_i][0], "y": conv[best_i][1]}]
     return head + rest
 
+def _safe_poll_idle(controller: ZMotionAdapter, axis_no: int, timeout_count: int = 2000, sleep_s: float = 0.02) -> dict[str, Any]:
+    """安全轮询轴静止状态，返回 {"success": bool, "notMoving": bool, "skip": bool, "abort": bool}"""
+    for _ in range(timeout_count):
+        if _abort_pending():
+            return {"success": False, "notMoving": False, "abort": True}
+        if _skip_requested():
+            return {"success": False, "notMoving": False, "skip": True}
+        if _paused():
+            time.sleep(0.05)
+            continue
+        try:
+            result = controller.get_notIsMoving(axis_no)
+            if result.get("success") and result.get("notMoving"):
+                return {"success": True, "notMoving": True}
+        except Exception:
+            logger.exception("_safe_poll_idle axis=%s failed", axis_no)
+        time.sleep(sleep_s)
+    return {"success": False, "notMoving": False, "message": "等待轴静止超时"}
+
+
+def _safe_poll_xy_idle(controller: ZMotionAdapter, timeout_count: int = 2000, sleep_s: float = 0.02) -> dict[str, Any]:
+    """安全轮询 XY 双轴静止状态，返回 {"success": bool, "skip": bool, "abort": bool}"""
+    for _ in range(timeout_count):
+        if _abort_pending():
+            return {"success": False, "abort": True}
+        if _skip_requested():
+            return {"success": False, "skip": True}
+        if _paused():
+            time.sleep(0.05)
+            continue
+        try:
+            rx = controller.get_notIsMoving(0)
+            ry = controller.get_notIsMoving(1)
+            if rx.get("success") and ry.get("success") and rx.get("notMoving") and ry.get("notMoving"):
+                return {"success": True}
+        except Exception:
+            logger.exception("_safe_poll_xy_idle failed")
+        time.sleep(sleep_s)
+    return {"success": False, "message": "等待 XY 轴静止超时"}
+
+
 def 在配方中查找ID的配方(recipe_payload: Any, id: Any) -> dict[str, Any] | None:
     """
     在 recipe_payload 中查找具有 `id == id` 的 dict。
@@ -294,6 +336,7 @@ def execute_start_program(*,motion: ZMotionDriver,recipe_payload: dict[str, Any]
         return {"success": False, "message": "程序正在执行中（重复触发被拒绝）", "data": None}
 
     try:
+        hardware_status_poller.pause()
         if rs232_open is None and rs232 is not None:
             rs232_open = rs232.get_preferred_session()
 
@@ -358,6 +401,7 @@ def execute_start_program(*,motion: ZMotionDriver,recipe_payload: dict[str, Any]
         logger.exception("execute_start_program failed")
         return {"success": False,"message": f"程序执行异常","data": {"error": "运行报错"},}
     finally:
+        hardware_status_poller.resume()
         with _PROGRAM_CTRL_LOCK:
             _program_running = False
             _current_motion_ref = None
@@ -439,7 +483,7 @@ def wangFuLoop(originalPointsNum: int,recipe_payload: dict[str, Any],controller:
 
     主配方 = recipe_payload.get("selectedMainRecipe") or {}
 
-    # 子配方对象在前端 payload 中是“数组形式”（例如 selectedBlackeningRecipe: [blackening]）
+    # 子配方对象在前端 payload 中是"数组形式"（例如 selectedBlackeningRecipe: [blackening]）
     主配方中的扫黑配方 = 在配方中查找ID的配方(recipe_payload.get("selectedBlackeningRecipe"),主配方.get("blackeningRecipeId"),)
     主配方中的工作配方 = 在配方中查找ID的配方(recipe_payload.get("selectedMachiningRecipe"),主配方.get("machiningRecipeId"),)
 
@@ -807,7 +851,7 @@ def 修面和切片的程序(originalPointsNum: int,recipe_payload: dict[str, An
     
     主配方 = recipe_payload.get("selectedMainRecipe") or {}
 
-    # 子配方对象在前端 payload 中是“数组形式”（例如 selectedBlackeningRecipe: [blackening]）
+    # 子配方对象在前端 payload 中是"数组形式"（例如 selectedBlackeningRecipe: [blackening]）
     主配方中的扫黑配方 = 在配方中查找ID的配方(recipe_payload.get("selectedBlackeningRecipe"),主配方.get("blackeningRecipeId"),)
     主配方中的工作配方 = 在配方中查找ID的配方(recipe_payload.get("selectedMachiningRecipe"),主配方.get("machiningRecipeId"),)
 
@@ -926,32 +970,15 @@ def 修面和切片的程序(originalPointsNum: int,recipe_payload: dict[str, An
                 结果Y = controller.absolute_move_speed({'axis':1,'moveDistance':起始点Y,'speed':切割速度})
                 当前步骤 = 20 if 结果X.get('success') and 结果Y.get('success') and 结果X is not None and 结果Y is not None else 300
             case 20:
-                跳出计数 = 0
-                paused_seen = False
-                while True:
-                    if _abort_pending():
-                        清除运行输出(controller)
-                        return "abort"
-                    if _skip_requested():
-                        return 跳过任务时处理并回到目标Z轴位置(controller,z_target=首次目标Z轴位置,speed=切割速度)
-                    if _paused():
-                        paused_seen = True
-                        time.sleep(0.05)
-                        continue
-                    结果X = controller.get_notIsMoving(0)
-                    结果Y = controller.get_notIsMoving(1)
-                    if paused_seen:
-                        # 从暂停恢复后重新走一次状态确认
-                        当前步骤 = 20
-                        break
-                    if 结果X.get('success') and 结果Y.get('success'):
-                        if 结果X.get('notMoving') and 结果Y.get('notMoving'):
-                            当前步骤 = 30
-                            break
-                    if 跳出计数 >= 2000:
-                        return False
-                    跳出计数 += 1
-                    time.sleep(0.02)
+                result = _safe_poll_xy_idle(controller, timeout_count=2000, sleep_s=0.02)
+                if result.get("skip"):
+                    return 跳过任务时处理并回到目标Z轴位置(controller, z_target=首次目标Z轴位置, speed=切割速度)
+                if result.get("abort"):
+                    return "abort"
+                if result.get("success"):
+                    当前步骤 = 30
+                else:
+                    return False
             case 30:
                 # 判断是否打开扫黑功能
                 if 是否打开扫黑功能:
@@ -980,34 +1007,16 @@ def 修面和切片的程序(originalPointsNum: int,recipe_payload: dict[str, An
                 运行结果= controller.absolute_move_speed({'axis':2,'moveDistance':目标高度,'speed':切割速度})
                 当前步骤 = 70 if 运行结果.get('success') and 运行结果 is not None else 300
             case 70:
-                # 判断是否到达目标位置（支持暂停后重下发当前目标深度）
-                跳出计数 = 0
-                paused_seen = False
                 目标高度 = -累计下降量 + 当前Z轴的位置
-                while True:
-                    if _abort_pending():
-                        清除运行输出(controller)
-                        return "abort"
-                    if _skip_requested():
-                        return 跳过任务时处理并回到目标Z轴位置(controller,z_target=首次目标Z轴位置,speed=切割速度)
-                    if _paused():
-                        paused_seen = True
-                        time.sleep(0.05)
-                        continue
-                    运行结果 = controller.get_notIsMoving(2)
-                    if 运行结果.get('success'):
-                        if paused_seen:
-                            r_z = controller.absolute_move_speed({'axis': 2, 'moveDistance': float(目标高度), 'speed': 切割速度})
-                            if not r_z.get('success'): return False
-                            paused_seen = False
-                            continue
-                        if 运行结果.get('notMoving'):
-                            当前步骤 = 80
-                            break
-                    if 跳出计数 >= 2000:
-                        return False
-                    跳出计数 += 1
-                    time.sleep(0.02)
+                result = _safe_poll_idle(controller, axis_no=2, timeout_count=2000, sleep_s=0.02)
+                if result.get("skip"):
+                    return 跳过任务时处理并回到目标Z轴位置(controller, z_target=首次目标Z轴位置, speed=切割速度)
+                if result.get("abort"):
+                    return "abort"
+                if result.get("success"):
+                    当前步骤 = 80
+                else:
+                    return False
 
             case 80:
                 # 计算偏移并连续运动（暂停后可从当前位重建剩余轨迹）
@@ -1032,36 +1041,15 @@ def 修面和切片的程序(originalPointsNum: int,recipe_payload: dict[str, An
                     当前切割次数 = 0
                     当前步骤 = 82 if not 是否需要跳转计算下一层开口 else 100
             case 82:
-                # 判断 XY 是否结束（支持暂停后从当前位置接续）
-                跳出计数 = 0
-                paused_seen = False
-                while True:
-                    if _abort_pending():
-                        清除运行输出(controller)
-                        return "abort"
-                    if _skip_requested():
-                        return 跳过任务时处理并回到目标Z轴位置(controller,z_target=首次目标Z轴位置,speed=切割速度)
-                    if _paused():
-                        paused_seen = True
-                        time.sleep(0.05)
-                        continue
-                    结果X = controller.get_notIsMoving(0)
-                    结果Y = controller.get_notIsMoving(1)
-                    if 结果X.get('success') and 结果Y.get('success'):
-                        if paused_seen:
-                            原始点数据_插补数据 = _rebuild_xy_path_from_current(原始点数据_插补数据, controller)
-                            if len(原始点数据_插补数据) < 2:
-                                当前步骤 = 90 if not 是否需要跳转计算下一层开口 else 100
-                                break
-                            当前步骤 = 80
-                            break
-                        if 结果X.get('notMoving') and 结果Y.get('notMoving'):
-                            当前步骤 = 90 if not 是否需要跳转计算下一层开口 else 100
-                            break
-                    if 跳出计数 >= 2000:
-                        return False
-                    跳出计数 += 1
-                    time.sleep(0.01)
+                result = _safe_poll_xy_idle(controller, timeout_count=2000, sleep_s=0.01)
+                if result.get("skip"):
+                    return 跳过任务时处理并回到目标Z轴位置(controller, z_target=首次目标Z轴位置, speed=切割速度)
+                if result.get("abort"):
+                    return "abort"
+                if result.get("success"):
+                    当前步骤 = 90 if not 是否需要跳转计算下一层开口 else 100
+                else:
+                    return False
             case 90:
                 # 计算偏移值
                 当前开口值 = 当前开口值+每次开口的偏移量 if 是否是从小到大的开口偏移 else 当前开口值-每次开口的偏移量
@@ -1100,7 +1088,7 @@ def 修面和切片的程序(originalPointsNum: int,recipe_payload: dict[str, An
                 # ---- 基于当前进度动态计算目标运行速度 ----
                 当前大区间索引 = int(进度百分比 // 变化百分比) if 变化百分比 > 0 else 0
                 段内进度 = (进度百分比 % 变化百分比)//(变化百分比//每段子区间速度数量) if 变化百分比 > 0 else 0
-                中间切割速度百分比 = min(2.0,max(0.3,round((原始中间切割速度百分比值 + 中间切割速度的变化B/100 * (当前大区间索引 % (中间切割速度的变化K + 1))),4)))
+                中间切割速度百分比 = min(1.0,max(0.3,round((原始中间切割速度百分比值 + 中间切割速度的变化B/100 * (当前大区间索引 % (中间切割速度的变化K + 1))),4)))
                 边缘切割速度百分比 = min(1.0,max(0.3,round((原始边缘切割速度百分比值 + 边缘切割速度的变化B/100 * 段内进度 + 边缘切割速度的变化K/100 * 当前大区间索引),4)))
                 
 
@@ -1138,19 +1126,21 @@ def 修面和切片的程序(originalPointsNum: int,recipe_payload: dict[str, An
                 if 运行结果.get('success') and 运行结果 is not None:
                     当前步骤 = 301
             case 301:
-                # 多任务中完成一个任务回到焦点位置
+                # 多任务中完成一个任务回到焦点位置（带异常保护）
                 跳转计数 = 0
-                while True:
-                    目标位置 = 当前Z轴的位置 - float(焦距补偿)
-                    实际位置 = controller.get_z_mpos_mm()
-                    if abs(实际位置 - 目标位置) <= 0.001:
-                        print(abs(实际位置 - 目标位置))
-                        当前步骤 = 999
-                        break
+                目标位置 = 当前Z轴的位置 - float(焦距补偿)
+                while 跳转计数 < 2000:
+                    try:
+                        实际位置 = controller.get_z_mpos_mm()
+                        if abs(实际位置 - 目标位置) <= 0.001:
+                            当前步骤 = 999
+                            break
+                    except Exception:
+                        logger.exception("case 301 轮询 Z 轴位置异常")
                     跳转计数 += 1
-                    print(跳转计数)
-                    if 跳转计数 >= 2000: return False
                     time.sleep(0.02)
+                else:
+                    return False
             case 999:
                 controller.stop_axis_motion([0, 1, 2, 3 , 4 , 5])
                 controller.open_output(0, 0)#关闭吹风
@@ -1168,7 +1158,7 @@ def 用旋转轴去切圆(originalPointsNum: int,recipe_payload: dict[str, Any],
 
     主配方 = recipe_payload.get("selectedMainRecipe") or {}
 
-    # 子配方对象在前端 payload 中是“数组形式”（例如 selectedBlackeningRecipe: [blackening]）
+    # 子配方对象在前端 payload 中是"数组形式"（例如 selectedBlackeningRecipe: [blackening]）
     主配方中的扫黑配方 = 在配方中查找ID的配方(recipe_payload.get("selectedBlackeningRecipe"),主配方.get("blackeningRecipeId"),)
     主配方中的工作配方 = 在配方中查找ID的配方(recipe_payload.get("selectedMachiningRecipe"),主配方.get("machiningRecipeId"),)
 
@@ -1274,36 +1264,15 @@ def 用旋转轴去切圆(originalPointsNum: int,recipe_payload: dict[str, Any],
                 Y移动结果 = controller.absolute_move_speed({'axis':1,'moveDistance':圆中心点Y,'speed':10})
                 当前步骤 = 20 if X移动结果.get('success') and Y移动结果.get('success') else 300
             case 20:
-                跳出计数 = 0
-                paused_seen = False
-                while True:
-                    if _abort_pending():
-                        清除运行输出(controller)
-                        return "abort"
-                    if _skip_requested():
-                        return 跳过任务时处理并回到目标Z轴位置(controller,z_target=首次目标Z轴位置,speed=切割速度)
-                    if _paused():
-                        paused_seen = True
-                        time.sleep(0.05)
-                        continue
-                    X是否在移动 = controller.get_notIsMoving(0)
-                    Y是否在移动 = controller.get_notIsMoving(1)
-                    if paused_seen:
-                        # 暂停时会急停所有轴；恢复后需要重新下发 XY 目标位，避免卡在等待循环
-                        X恢复结果 = controller.absolute_move_speed({'axis':0,'moveDistance':圆中心点X,'speed':10})
-                        Y恢复结果 = controller.absolute_move_speed({'axis':1,'moveDistance':圆中心点Y,'speed':10})
-                        if not X恢复结果.get('success') or not Y恢复结果.get('success'):
-                            return False
-                        paused_seen = False
-                        continue
-                    if X是否在移动.get('success') and Y是否在移动.get('success'):
-                        if X是否在移动.get('notMoving') and Y是否在移动.get('notMoving'):
-                            当前步骤 = 30
-                            break
-                    if 跳出计数>=2000:
-                        return False
-                    跳出计数+=1
-                    time.sleep(0.02)
+                result = _safe_poll_xy_idle(controller, timeout_count=2000, sleep_s=0.02)
+                if result.get("skip"):
+                    return 跳过任务时处理并回到目标Z轴位置(controller, z_target=首次目标Z轴位置, speed=切割速度)
+                if result.get("abort"):
+                    return "abort"
+                if result.get("success"):
+                    当前步骤 = 30
+                else:
+                    return False
             case 30:
                 # 判断是否打开扫黑功能
                 if 是否打开扫黑功能:
@@ -1338,35 +1307,15 @@ def 用旋转轴去切圆(originalPointsNum: int,recipe_payload: dict[str, Any],
                 Z轴移动结果 = controller.absolute_move_speed({'axis':2,'moveDistance':Z轴目标位置,'speed':切割速度})
                 当前步骤 = 70 if Z轴移动结果.get('success')and Z轴移动结果 is not None else 300
             case 70:
-                # 判断是否到达目标位置
-                跳出计数 = 0
-                paused_seen = False
-                while True:
-                    if _abort_pending():
-                        清除运行输出(controller)
-                        return "abort"
-                    if _skip_requested():
-                        return 跳过任务时处理并回到目标Z轴位置(controller,z_target=首次目标Z轴位置,speed=切割速度)
-                    if _paused():
-                        paused_seen = True
-                        time.sleep(0.05)
-                        continue
-                    Z轴是否在移动 = controller.get_notIsMoving(2)
-
-                    if Z轴是否在移动.get('success'):
-                        if paused_seen:
-                            # 暂停恢复后重发当前 Z 轴目标
-                            Z恢复结果 = controller.absolute_move_speed({'axis':2,'moveDistance':Z轴目标位置,'speed':切割速度})
-                            if not Z恢复结果.get('success'):
-                                return False
-                            paused_seen = False
-                            continue
-                        if Z轴是否在移动.get('notMoving'):
-                            当前步骤 = 80
-                            break
-                    if 跳出计数>=2000: return False
-                    跳出计数+=1
-                    time.sleep(0.02)
+                result = _safe_poll_idle(controller, axis_no=2, timeout_count=2000, sleep_s=0.02)
+                if result.get("skip"):
+                    return 跳过任务时处理并回到目标Z轴位置(controller, z_target=首次目标Z轴位置, speed=切割速度)
+                if result.get("abort"):
+                    return "abort"
+                if result.get("success"):
+                    当前步骤 = 80
+                else:
+                    return False
             case 80:
                 # 获取当前R轴的圈数
                 R轴的圈数 = controller.获取R轴的当前位置()
@@ -1376,32 +1325,46 @@ def 用旋转轴去切圆(originalPointsNum: int,recipe_payload: dict[str, Any],
                 目标圈数 = float(R轴的圈数) + 1.0
                 跳出计数 = 0
                 paused_seen = False
-                while True:
+                while 跳出计数 < 5000:
                     if _abort_pending():
                         清除运行输出(controller)
                         return "abort"
                     if _skip_requested():
-                        return 跳过任务时处理并回到目标Z轴位置(controller,z_target=首次目标Z轴位置,speed=切割速度)
+                        return 跳过任务时处理并回到目标Z轴位置(controller, z_target=首次目标Z轴位置, speed=切割速度)
                     if _paused():
                         paused_seen = True
                         time.sleep(0.05)
                         continue
-                    R轴当前的圈数 = controller.获取R轴的当前位置()
+                    try:
+                        R轴当前的圈数 = controller.获取R轴的当前位置()
+                    except Exception:
+                        logger.exception("case 90 获取R轴位置异常")
+                        跳出计数 += 1
+                        time.sleep(0.02)
+                        continue
                     if paused_seen:
-                        # 暂停会急停 R 轴，恢复后需重新启动持续旋转，并从当前位置重算“再转 1 圈”的目标
-                        R轴恢复结果 = controller.R轴一直进行旋转()
-                        if not R轴恢复结果 or not R轴恢复结果.get('success'):return False
-                        if R轴当前的圈数 is None:return False
+                        try:
+                            R轴恢复结果 = controller.R轴一直进行旋转()
+                            if not R轴恢复结果 or not R轴恢复结果.get("success"):
+                                return False
+                        except Exception:
+                            logger.exception("case 90 R轴恢复旋转异常")
+                            return False
+                        if R轴当前的圈数 is None:
+                            return False
                         R轴的圈数 = float(R轴当前的圈数)
                         目标圈数 = R轴的圈数 + float(旋转切割的次数)
                         paused_seen = False
                         continue
-                    # 采用微小容差，避免采样周期导致“正好 +1 圈”被跨过
                     if R轴当前的圈数 is not None and float(R轴当前的圈数) >= (目标圈数 - 0.001):
-                        当前X, _ = controller.get_xy_dpos_mm()
+                        try:
+                            当前X, _ = controller.get_xy_dpos_mm()
+                        except Exception:
+                            logger.exception("case 90 获取XY位置异常")
+                            return False
                         当前开口值 = 当前开口值+每次开口的偏移量 if 是否是从小到大的开口偏移 else 当前开口值 - 每次开口的偏移量
                         当前开口值是否在范围内 = round(当前开口值, 6) >= round(最小的偏移/1000, 6) and round(当前开口值, 6) <= round(最大的偏移/1000, 6)
-                        
+
                         if not 当前开口值是否在范围内 and 是否是从小到大的开口偏移:
                             X的目标距离 = 当前X + round(round(最大的偏移/1000, 6) - (当前开口值 - 每次开口的偏移量),6)
                             当前开口值 = round(最大的偏移/1000, 6)
@@ -1418,11 +1381,10 @@ def 用旋转轴去切圆(originalPointsNum: int,recipe_payload: dict[str, Any],
                         当前步骤 = 100 if X移动结果.get('success') else 300
                         break
 
-                    if 跳出计数 >= 5000:
-                        当前步骤 = 300
-                        break
                     跳出计数 += 1
                     time.sleep(0.02)
+                else:
+                    当前步骤 = 300
             case 100:
                 # 判断当前开口值是否在范围内
                 print(round(当前开口值,6))
@@ -1613,35 +1575,15 @@ def 进行4P切产品(originalPointsNum: int,recipe_payload: dict[str, Any],cont
                 Y移动结果 = controller.absolute_move_speed({'axis':1,'moveDistance':起始点Y,'speed':切割速度})
                 当前步骤 = 11 if X移动结果.get('success') and Y移动结果.get('success') else 300
             case 11:
-                跳出计数 = 0
-                paused_seen = False
-                while True:
-                    if _abort_pending():
-                        清除运行输出(controller)
-                        return "abort"
-                    if _skip_requested():
-                        return 跳过任务时处理并回到目标Z轴位置(controller,z_target=Z轴原始初始位置,speed=切割速度)
-                    if _paused():
-                        paused_seen = True
-                        time.sleep(0.05)
-                        continue
-                    time.sleep(0.02)
-                    X是否在移动 = controller.get_notIsMoving(0)
-                    Y是否在移动 = controller.get_notIsMoving(1)
-                    # x,y = controller.get_xy_dpos_mm()
-                    # print(X是否在移动,"=================",x)
-                    # print(Y是否在移动,"=================",y)
-                    if paused_seen:
-                        # 从暂停恢复后重新走一次状态确认
-                        当前步骤 = 11
-                        break
-                    if X是否在移动.get('success') and Y是否在移动.get('success'):
-                        if X是否在移动.get('notMoving') and Y是否在移动.get('notMoving'):
-                            当前步骤 = 20
-                            break
-                    if 跳出计数 >= 2000:
-                        当前步骤 = 300
-                    跳出计数 += 1
+                result = _safe_poll_xy_idle(controller, timeout_count=2000, sleep_s=0.02)
+                if result.get("skip"):
+                    return 跳过任务时处理并回到目标Z轴位置(controller, z_target=Z轴原始初始位置, speed=切割速度)
+                if result.get("abort"):
+                    return "abort"
+                if result.get("success"):
+                    当前步骤 = 20
+                else:
+                    当前步骤 = 300
             case 12:
                 # 进行角度旋转
                 旋转角度 = entities[originalPointsNum].get("surfaceAngle")
@@ -1702,33 +1644,16 @@ def 进行4P切产品(originalPointsNum: int,recipe_payload: dict[str, Any],cont
                 Z轴移动结果= controller.absolute_move_speed({'axis':2,'moveDistance':Z轴目标位置,'speed':切割速度})
                 当前步骤 = 70 if Z轴移动结果.get('success')and Z轴移动结果 is not None else 300
             case 70:
-                # 判断是否到达目标位置（支持暂停后重下发当前目标深度）
-                跳出计数 = 0
-                paused_seen = False
                 目标深度 = -累计下降量 + 下降直到可以切产品的高度
-                while True:
-                    if _abort_pending():
-                        清除运行输出(controller)
-                        return "abort"
-                    if _skip_requested():
-                        return 跳过任务时处理并回到目标Z轴位置(controller,z_target=Z轴原始初始位置,speed=切割速度)
-                    if _paused():
-                        paused_seen = True
-                        time.sleep(0.05)
-                        continue
-                    运行结果 = controller.get_notIsMoving(2)
-                    if 运行结果.get('success'):
-                        if paused_seen:
-                            r_z = controller.absolute_move_speed({'axis': 2, 'moveDistance': float(目标深度), 'speed': 切割速度})
-                            if not r_z.get('success'): return False
-                            paused_seen = False
-                            continue
-                        if 运行结果.get('notMoving'):
-                            当前步骤 = 80
-                            break
-                    if 跳出计数 >= 2000:当前步骤 = 300
-                    跳出计数 += 1
-                    time.sleep(0.02)
+                result = _safe_poll_idle(controller, axis_no=2, timeout_count=2000, sleep_s=0.02)
+                if result.get("skip"):
+                    return 跳过任务时处理并回到目标Z轴位置(controller, z_target=Z轴原始初始位置, speed=切割速度)
+                if result.get("abort"):
+                    return "abort"
+                if result.get("success"):
+                    当前步骤 = 80
+                else:
+                    当前步骤 = 300
 
             case 80:
                 # 计算偏移并连续运动（暂停后可从当前位重建剩余轨迹）
@@ -1753,35 +1678,15 @@ def 进行4P切产品(originalPointsNum: int,recipe_payload: dict[str, Any],cont
                     当前切割次数 = 0
                     当前步骤 = 82 if not 是否需要跳转计算下一层开口 else 100
             case 82:
-                # 判断 XY 是否结束（支持暂停后从当前位置接续）
-                跳出计数 = 0
-                paused_seen = False
-                while True:
-                    if _abort_pending():
-                        清除运行输出(controller)
-                        return "abort"
-                    if _skip_requested():
-                        return 跳过任务时处理并回到目标Z轴位置(controller,z_target=Z轴原始初始位置,speed=切割速度)
-                    if _paused():
-                        paused_seen = True
-                        time.sleep(0.05)
-                        continue
-                    X的运动结果 = controller.get_notIsMoving(0)
-                    Y的运动结果 = controller.get_notIsMoving(1)
-                    if X的运动结果.get('success') and Y的运动结果.get('success'):
-                        if paused_seen:
-                            原始点数据_插补数据 = _rebuild_xy_path_from_current(原始点数据_插补数据, controller)
-                            if len(原始点数据_插补数据) < 2:
-                                当前步骤 = 90 if not 是否需要跳转计算下一层开口 else 100
-                                break
-                            当前步骤 = 80
-                            break
-                        if X的运动结果.get('notMoving') and Y的运动结果.get('notMoving'):
-                            当前步骤 = 90 if not 是否需要跳转计算下一层开口 else 100
-                            break
-                    if 跳出计数 >= 2000:当前步骤 = 300
-                    跳出计数 += 1
-                    time.sleep(0.01)
+                result = _safe_poll_xy_idle(controller, timeout_count=2000, sleep_s=0.01)
+                if result.get("skip"):
+                    return 跳过任务时处理并回到目标Z轴位置(controller, z_target=Z轴原始初始位置, speed=切割速度)
+                if result.get("abort"):
+                    return "abort"
+                if result.get("success"):
+                    当前步骤 = 90 if not 是否需要跳转计算下一层开口 else 100
+                else:
+                    当前步骤 = 300
             case 90:
                 # 计算偏移值
                 当前开口值 = 当前开口值+每次开口的偏移量 if 是否是从小到大的开口偏移 else 当前开口值-每次开口的偏移量
@@ -1838,18 +1743,20 @@ def 进行4P切产品(originalPointsNum: int,recipe_payload: dict[str, Any],cont
                 if 运行结果.get('success') and 运行结果 is not None:
                     当前步骤 = 301
             case 301:
-                # 多任务中完成一个任务回到焦点位置
+                # 多任务中完成一个任务回到焦点位置（带异常保护）
                 跳转计数 = 0
-                while True:
-                    实际位置 = controller.get_z_mpos_mm()
-                    if abs(实际位置 - Z轴原始初始位置) <= 0.001:
-                        print(abs(实际位置 - Z轴原始初始位置))
-                        当前步骤 = 999
-                        break
+                while 跳转计数 < 2000:
+                    try:
+                        实际位置 = controller.get_z_mpos_mm()
+                        if abs(实际位置 - Z轴原始初始位置) <= 0.001:
+                            当前步骤 = 999
+                            break
+                    except Exception:
+                        logger.exception("4P case 301 轮询 Z 轴位置异常")
                     跳转计数 += 1
-                    print(跳转计数)
-                    if 跳转计数 >= 2000: 当前步骤 = 300
                     time.sleep(0.02)
+                else:
+                    当前步骤 = 300
             case 999:
                 controller.stop_axis_motion([0, 1, 2, 3 , 4 , 5])
                 controller.open_output(0, 0)#关闭吹风

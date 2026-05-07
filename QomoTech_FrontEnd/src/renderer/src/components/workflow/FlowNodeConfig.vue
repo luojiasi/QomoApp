@@ -134,6 +134,24 @@ function isBoolTrue(value: unknown): string {
   return value === true ? 'true' : 'false'
 }
 
+// ──── 额外输入端口管理 ─────────────────────────────────────────
+const currentExtraInputs = computed(() => node.value?.extraInputs ?? [])
+
+function addExtraInput(): void {
+  if (!node.value) return
+  if (!node.value.extraInputs) node.value.extraInputs = []
+  const index = node.value.extraInputs.length + 1
+  node.value.extraInputs.push({
+    name: `__extra_${Date.now()}`,
+    displayName: `输入${index}`
+  })
+}
+
+function removeExtraInput(name: string): void {
+  if (!node.value?.extraInputs) return
+  node.value.extraInputs = node.value.extraInputs.filter((p) => p.name !== name)
+}
+
 // ──── 未选中节点时下拉选择 ─────────────────────────────────
 function onUnselectedNodeChange(e: Event): void {
   const target = e.target as HTMLSelectElement
@@ -322,6 +340,36 @@ function onUnselectedNodeChange(e: Event): void {
             → {{ getTargetLabel(edge) }}
           </div>
         </div>
+      </div>
+
+      <!-- 额外输入端口 -->
+      <div class="mb-4">
+        <div class="mb-1 flex items-center justify-between">
+          <span class="text-[13px] font-semibold text-(--app-text-primary)">额外输入端口</span>
+          <button
+            class="cursor-pointer rounded border border-(--app-border) bg-(--app-card-soft) px-2 py-0.5 text-[11px] text-(--app-text-secondary) transition-colors hover:border-purple-500 hover:text-purple-500"
+            @click="addExtraInput"
+          >+ 添加</button>
+        </div>
+        <p class="mb-1.5 text-[10px] text-(--app-text-muted)">
+          多个不同端口 → 全部连入后才执行（AND）；同一端口多连线 → 任一触发（OR）
+        </p>
+        <div v-if="currentExtraInputs.length > 0" class="flex flex-col gap-1">
+          <div
+            v-for="port in currentExtraInputs"
+            :key="port.name"
+            class="flex items-center gap-2 rounded-md bg-(--app-card-soft) px-2.5 py-1"
+          >
+            <span class="h-2 w-2 rounded-full bg-purple-400 flex-shrink-0" />
+            <span class="flex-1 text-[12px] text-(--app-text-secondary)">{{ port.displayName }}</span>
+            <button
+              class="cursor-pointer border-0 bg-transparent text-[11px] text-(--app-text-muted) transition-colors hover:text-red-500"
+              @click="removeExtraInput(port.name)"
+              title="移除此端口"
+            >删除</button>
+          </div>
+        </div>
+        <div v-else class="text-[11px] text-(--app-text-muted) italic">未添加额外输入端口</div>
       </div>
     </div>
   </div>

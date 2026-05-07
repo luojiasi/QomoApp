@@ -390,9 +390,7 @@ const trySplineEntity = (
 export const parseDxfToQomoEntities = (text: string): DxfImportResult => {
   const parser = new DxfParser()
   const dxf = parser.parseSync(text) as unknown as DxfLikeDocument
-  console.log(dxf,"dxf=============")
   const sourceEntities = Array.isArray(dxf.entities) ? dxf.entities : []
-  console.log(sourceEntities,"sourceEntities=============")
   const layerMap = buildLayerMap(sourceEntities)
   const entities: QomoEntityWithSurface[] = []
   let unsupportedEntities = 0

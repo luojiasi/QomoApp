@@ -8,73 +8,8 @@
       "type": "workflowSystem.singleStart",
       "label": "单一入口",
       "position": {
-        "x": 600,
+        "x": 60,
         "y": 20
-      },
-      "config": {},
-      "description": ""
-    },
-    {
-      "id": "moscmkt4hgzl",
-      "type": "motion.connect",
-      "label": "连接控制器",
-      "position": {
-        "x": 100,
-        "y": 160
-      },
-      "config": {
-        "ipAddress": "127.168.0.1"
-      },
-      "description": ""
-    },
-    {
-      "id": "mose7mxh2twh",
-      "type": "flow.delay",
-      "label": "延时等待",
-      "position": {
-        "x": 40,
-        "y": 360
-      },
-      "config": {
-        "seconds": 1
-      },
-      "description": ""
-    },
-    {
-      "id": "mose7ox15m0f",
-      "type": "flow.delay",
-      "label": "延时等待",
-      "position": {
-        "x": 780,
-        "y": 680
-      },
-      "config": {
-        "seconds": 1
-      },
-      "description": ""
-    },
-    {
-      "id": "mosfe5pe8bii",
-      "type": "motion.move-abs",
-      "label": "轴绝对移动",
-      "position": {
-        "x": 160,
-        "y": 500
-      },
-      "config": {
-        "axis_no": 0,
-        "target_mm": 0,
-        "speed": 10
-      },
-      "description": ""
-    },
-    {
-      "id": "mosfexy8nkoo",
-      "type": "motion.disconnect",
-      "label": "断开控制器",
-      "position": {
-        "x": 760,
-        "y": 180
       },
       "config": {},
       "description": ""
@@ -84,8 +19,8 @@
       "type": "motion.get-position",
       "label": "获取轴位置",
       "position": {
-        "x": 520,
-        "y": 160
+        "x": -60,
+        "y": 180
       },
       "config": {
         "axis_no": 0
@@ -93,70 +28,61 @@
       "description": ""
     },
     {
-      "id": "mosgzn6cx91k",
+      "id": "motbxoyru3mo",
       "type": "flow.condition",
       "label": "条件判断",
       "position": {
-        "x": 680,
-        "y": 380
+        "x": -120,
+        "y": 460
       },
       "config": {
-        "leftOperand": "$prev.data.success",
+        "leftOperand": "$prev.data.result.data.mpos",
         "operator": "eq",
-        "rightOperand": "$prev.data.result.message"
+        "rightOperand": "$prev.data.result.data.idle"
       },
       "description": ""
     },
     {
-      "id": "mosh3mdctsgg",
-      "type": "flow.setVariable",
-      "label": "设置变量",
+      "id": "motc5krqyo8u",
+      "type": "motion.get-position",
+      "label": "获取轴位置",
       "position": {
-        "x": 380,
-        "y": 380
+        "x": 180,
+        "y": 240
       },
       "config": {
-        "varName": "luojiasi",
-        "value": "$prev.data.result.data.mpos"
+        "axis_no": "2"
       },
       "description": ""
     },
     {
-      "id": "mosh6h3zufhx",
-      "type": "flow.condition",
-      "label": "条件判断",
-      "position": {
-        "x": 480,
-        "y": 540
-      },
-      "config": {
-        "leftOperand": "$prev.data.luojiasi",
-        "operator": "eq",
-        "rightOperand": "$prev.data._conditionResult"
-      },
-      "description": ""
-    },
-    {
-      "id": "moshv1s25hrf",
+      "id": "motcyfr669xs",
       "type": "flow.delay",
       "label": "延时等待",
       "position": {
-        "x": 260,
-        "y": 740
+        "x": 100,
+        "y": 580
       },
       "config": {
-        "seconds": 5
+        "seconds": 1
+      },
+      "description": ""
+    },
+    {
+      "id": "motni0aemsfu",
+      "type": "flow.delay",
+      "label": "延时等待",
+      "position": {
+        "x": -200,
+        "y": 300
+      },
+      "config": {
+        "seconds": 1
       },
       "description": ""
     }
   ],
   "edges": [
-    {
-      "id": "mose7q6savcl",
-      "source": "moscmkt4hgzl",
-      "target": "mose7mxh2twh",
-      "sourceHandle": "main"
-    },
     {
       "id": "mosfkb6f2hck",
       "source": "moscmgi0xady",
@@ -164,58 +90,50 @@
       "sourceHandle": "main"
     },
     {
-      "id": "mosh3orz7bh1",
-      "source": "mosfhfbtg00e",
-      "target": "mosh3mdctsgg",
-      "sourceHandle": "main"
-    },
-    {
-      "id": "mosh507j1hsz",
-      "source": "mosfhfbtg00e",
-      "target": "mosgzn6cx91k",
-      "sourceHandle": "main",
-      "targetHandle": "input"
-    },
-    {
-      "id": "mosh53jpv3sn",
-      "source": "mosfexy8nkoo",
-      "target": "mosgzn6cx91k",
+      "id": "motc84cp2c53",
+      "source": "motc5krqyo8u",
+      "target": "motbxoyru3mo",
       "sourceHandle": "main",
       "targetHandle": "compare"
     },
     {
-      "id": "moshtuhsynn5",
-      "source": "mosh3mdctsgg",
-      "target": "mosh6h3zufhx",
-      "sourceHandle": "main",
-      "targetHandle": "input"
-    },
-    {
-      "id": "moshv9qpd2yz",
+      "id": "motc89kgkezm",
       "source": "moscmgi0xady",
-      "target": "mosfexy8nkoo",
+      "target": "motc5krqyo8u",
       "sourceHandle": "main"
     },
     {
-      "id": "moshzxteod7b",
-      "source": "mosgzn6cx91k",
-      "target": "mose7ox15m0f",
+      "id": "motcyhc8ogho",
+      "source": "motbxoyru3mo",
+      "target": "motcyfr669xs",
       "sourceHandle": "false"
     },
     {
-      "id": "mosi0l6ppxe9",
-      "source": "mosgzn6cx91k",
-      "target": "mosh6h3zufhx",
-      "sourceHandle": "false",
-      "targetHandle": "compare"
+      "id": "motcyj8vi0zx",
+      "source": "motcyfr669xs",
+      "target": "mosfhfbtg00e",
+      "sourceHandle": "main"
     },
     {
-      "id": "mosi0ss9upso",
-      "source": "mosh6h3zufhx",
-      "target": "moshv1s25hrf",
-      "sourceHandle": "false"
+      "id": "motcyklavecw",
+      "source": "motcyfr669xs",
+      "target": "motc5krqyo8u",
+      "sourceHandle": "main"
+    },
+    {
+      "id": "motni1zjr9q0",
+      "source": "mosfhfbtg00e",
+      "target": "motni0aemsfu",
+      "sourceHandle": "main"
+    },
+    {
+      "id": "motni32ty4ku",
+      "source": "motni0aemsfu",
+      "target": "motbxoyru3mo",
+      "sourceHandle": "main",
+      "targetHandle": "input"
     }
   ],
   "createdAt": "2026-05-05T08:10:40.584Z",
-  "updatedAt": "2026-05-05T10:43:20.909Z"
+  "updatedAt": "2026-05-06T06:03:15.638Z"
 }

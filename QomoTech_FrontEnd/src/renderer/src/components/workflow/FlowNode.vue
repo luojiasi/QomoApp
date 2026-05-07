@@ -5,6 +5,7 @@ import type { NodeProps } from '@vue-flow/core'
 import { getNodeDefinition } from '../../configs/nodeDefinitions'
 import { NODE_WIDTH } from '../../configs/selfProcessConfigs'
 import { useSelfProcessStore } from '../../stores/selfProcessStores'
+import type { NodePort } from '../../types/selfProcessTypes'
 
 const props = defineProps<NodeProps>()
 
@@ -24,7 +25,13 @@ const typeColor = computed(() => def.value?.color ?? '#64748b')
 const icon = computed(() => def.value?.icon ?? '???')
 const typeLabel = computed(() => def.value?.label ?? nodeType.value)
 
-const hasInputs = computed(() => (def.value?.inputs.length ?? 0) > 0)
+/** 用户自定义的额外输入端口 */
+const extraInputs = computed(() => (props.data?.extraInputs as NodePort[]) ?? [])
+
+/** 所有输入端口的合集（定义端口 + 额外端口） */
+const allInputs = computed(() => [...(def.value?.inputs ?? []), ...extraInputs.value])
+
+const hasInputs = computed(() => allInputs.value.length > 0)
 const hasOutputs = computed(() => (def.value?.outputs.length ?? 0) > 0)
 
 // 运行中时节点类型色变灰，停止后恢复
@@ -78,10 +85,10 @@ function outputHandleOffset(total: number, idx: number): string {
       boxShadow: props.selected ? '0 0 0 2px rgba(250,204,21,0.35)' : undefined
     }"
   >
-    <!-- 输入 Handle（多端口） -->
+    <!-- 输入 Handle（定义端口 + 自定义额外端口，紫色为额外端口） -->
     <template v-if="hasInputs">
       <Handle
-        v-for="(input, idx) in def?.inputs ?? []"
+        v-for="(input, idx) in allInputs"
         :key="input.name"
         :id="input.name"
         type="target"
@@ -89,8 +96,8 @@ function outputHandleOffset(total: number, idx: number): string {
         class="h-3! w-3! border-2!"
         :style="{
           borderColor: 'var(--app-card)',
-          background: 'var(--app-text-muted)',
-          marginLeft: outputHandleOffset(def?.inputs.length ?? 1, idx)
+          background: input.name.startsWith('__extra_') ? '#a78bfa' : 'var(--app-text-muted)',
+          marginLeft: outputHandleOffset(allInputs.length, idx)
         }"
         :title="input.displayName"
       />
@@ -108,11 +115,7 @@ function outputHandleOffset(total: number, idx: number): string {
       class="flex items-center gap-1.5 rounded-t-[10px] px-3 py-1.5 text-xs font-semibold"
       :style="{ background: color + '18' }"
     >
-      <!-- 状态指示灯 -->
-      <span
-        class="inline-block h-1.5 w-1.5 rounded-full"
-        :style="{ background: statusColor }"
-      />
+      <span class="inline-block h-1.5 w-1.5 rounded-full" :style="{ background: statusColor }" />
       <span>{{ icon }}</span>
       <span class="flex-1 truncate">{{ typeLabel }}</span>
       <button

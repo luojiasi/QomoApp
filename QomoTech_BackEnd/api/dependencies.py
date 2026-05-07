@@ -25,7 +25,7 @@ motion_driver = ZMotionDriver(
 hardware_status_poller = HardwareStatusPoller(
     motion_driver,
     state_manager,
-    interval_s=0.05,
+    interval_s=0.2,
 )
 
 

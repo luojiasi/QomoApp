@@ -32,3 +32,5 @@ pnpm-debug.log*
 Thumbs.db
 .vscode/
 .idea/
+.npm-cache-tmp/
+.pytest_cache/

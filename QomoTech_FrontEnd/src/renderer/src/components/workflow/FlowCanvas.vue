@@ -68,7 +68,8 @@ function workflowNodeToVfNode(wn: WorkflowNode): Node {
       label: wn.label,
       description: wn.description,
       status: store.runContext?.nodeOutputs[wn.id]?.status ?? 'idle',
-      workflowRunning: store.isRunning
+      workflowRunning: store.isRunning,
+      extraInputs: wn.extraInputs ?? []
     }
   }
 }

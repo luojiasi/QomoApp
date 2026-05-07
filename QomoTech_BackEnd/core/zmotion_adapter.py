@@ -297,46 +297,25 @@ class ZMotionAdapter:
         return {"success": True, "message": "R轴已开始持续旋转", "data": {"axis": 4}}
 
 
-    def get_notIsMoving(self, axis_no: int ,untilReturnTrue:bool=False ,countOut:float=2000.0,interruptTime:float=0.05) -> dict[str, Any]:
-        # snap = _global_state.snapshot()
-        # fb = snap.get("motion_axis_feedback", {}).get(str(axis_no), {})
-        # idle = int(fb.get("idle", 0))
+    def get_notIsMoving(self, axis_no: int, untilReturnTrue: bool = False, countOut: float = 2000.0, interruptTime: float = 0.05) -> dict[str, Any]:
+        key = str(int(axis_no))
         st = self._motion.get_axes_status()
-        idle = st.get(str(axis_no)).get('idle')
-        if untilReturnTrue:
-            jumpoutCount = 0
-            while jumpoutCount<=countOut:
-                time.sleep(interruptTime)
-                # snap = _global_state.snapshot()
-                # fb = snap.get("motion_axis_feedback", {}).get(str(axis_no), {})
-                # idle = int(fb.get("idle", 0))
-                st = self._motion.get_axes_status()
-                idle = st.get('axis_no').get('idle')
-                if idle == -1:
-                    return {"success": True, "notMoving": True}
-                jumpoutCount+=1
-                print('jumpoutCount:',jumpoutCount)
-            return {"success": False, "notMoving": False}
-        return {"success": True, "notMoving": idle==-1}
-        # st = self._motion.get_axes_status()
-        # key = str(int(axis_no))
-        # if key not in st:
-        #     return {"success": False}
-        # idle = int(st[key].get("idle"))
-        # idle = self._motion.getAxisisMoving(axis_no)
-
-        
-        # if untilReturnTrue:
-        #     jumpoutCount = 0
-        #     while jumpoutCount<=countOut:
-        #         time.sleep(interruptTime)
-        #         idle = self._motion.getAxisisMoving(axis_no)
-        #         if idle == -1:
-        #             return {"success": True, "notMoving": idle}
-        #         jumpoutCount+=1
-        #         print('jumpoutCount:',jumpoutCount)
-        #     return {"success": False, "notMoving": idle}
-        # return {"success": True, "notMoving": idle}
+        axis_data = st.get(key, {})
+        if not axis_data:
+            return {"success": False, "notMoving": False, "message": f"轴 {key} 不存在"}
+        idle = int(axis_data.get("idle", 0))
+        if not untilReturnTrue:
+            return {"success": True, "notMoving": idle == -1}
+        jumpoutCount = 0
+        while jumpoutCount <= countOut:
+            time.sleep(interruptTime)
+            st = self._motion.get_axes_status()
+            axis_data = st.get(key, {})
+            idle = int(axis_data.get("idle", 0))
+            if idle == -1:
+                return {"success": True, "notMoving": True}
+            jumpoutCount += 1
+        return {"success": False, "notMoving": False, "message": f"轴 {key} 等待静止超时"}
 
     def get_xy_dpos_mm(self) -> tuple[float, float]:
         st = self._motion.get_axes_status()

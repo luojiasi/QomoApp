@@ -65,6 +65,8 @@ export interface WorkflowNode {
   position: { x: number; y: number }
   config: Record<string, unknown>
   description: string
+  /** 用户自定义的额外输入端口，用于多输入 AND 汇聚 */
+  extraInputs?: NodePort[]
 }
 
 /** 流程定义 */

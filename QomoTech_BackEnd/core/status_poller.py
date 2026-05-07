@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from threading import Event, Thread
+from threading import Event, Lock, Thread
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -14,15 +14,18 @@ class HardwareStatusPoller:
     后台采集线程：
     - 固定周期读取运动/相机状态
     - 将结果写入 StateManager，供前端读取快照
+    - 支持 pause/resume，程序执行期间暂停轮询避免 DLL 竞态
     """
 
-    def __init__(self,motion: ZMotionDriver,state: StateManager,*,interval_s: float = 0.02,io_start: int = 0,io_end: int = 8,) -> None:
+    def __init__(self,motion: ZMotionDriver,state: StateManager,*,interval_s: float = 0.2,io_start: int = 0,io_end: int = 8,) -> None:
         self._motion = motion
         self._state = state
         self._interval_s = float(interval_s)
         self._io_start = int(io_start)
         self._io_end = int(io_end)
         self._stop_event = Event()
+        self._pause_event = Event()
+        self._pause_event.set()
         self._thread: Thread | None = None
         self._logger = logging.getLogger("qomotech.status_poller")
 
@@ -53,19 +56,34 @@ class HardwareStatusPoller:
         if self._thread is not None and self._thread.is_alive():
             return
         self._stop_event.clear()
+        self._pause_event.set()
         self._thread = Thread(target=self._run, name="hardware-status-poller", daemon=True)
         self._thread.start()
         self._logger.info("HardwareStatusPoller started (interval=%.0fms)", self._interval_s * 1000)
 
     def stop(self, timeout_s: float = 1.0) -> None:
         self._stop_event.set()
+        self._pause_event.set()
         if self._thread is not None and self._thread.is_alive():
             self._thread.join(timeout=timeout_s)
         self._thread = None
         self._logger.info("HardwareStatusPoller stopped")
 
+    def pause(self) -> None:
+        """暂停轮询（程序执行期间调用，避免 DLL 竞态）"""
+        self._pause_event.clear()
+        self._logger.debug("HardwareStatusPoller paused")
+
+    def resume(self) -> None:
+        """恢复轮询"""
+        self._pause_event.set()
+        self._logger.debug("HardwareStatusPoller resumed")
+
     def _run(self) -> None:
         while not self._stop_event.is_set():
+            self._pause_event.wait()
+            if self._stop_event.is_set():
+                break
             motion_ok = False
             try:
                 motion_ok = self._motion.is_connected()
