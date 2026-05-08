@@ -4,46 +4,33 @@ import RouteTabs from '../components/RouteTabs.vue'
 import HomeUserBar from '../components/HomeUserBar.vue'
 import RecipeParameterPanel from '../components/HomeRecipeParameterPanel.vue'
 import DriverControlPanel from '../components/DriverControlPanel.vue'
-import LaserControlPanel from '../components/LaserControlPanel.vue'
-import CameraControlPanel from '../components/CameraControlPanel.vue'
 import AuxiliaryFunctionPanel from '../components/AuxiliaryFunctionPanel.vue'
 import HomeOperationHelp from '../components/HomeOperationHelp.vue'
 import StratProgramRunning from '../components/StratProgramRunning.vue'
-import CameraPic from '../components/cameraPic.vue'
 import ShowAndDrawInHome from '../components/showAndDrawInHome.vue'
 import TaskProgressAside from '../components/TaskProgressAside.vue'
 import ControllerSettings from './ControllerSettings.vue'
-import { parseRs232SessionFromLocalStorage } from '../stores/rs232WorkbenchStore'
-import { syncRs232Workbench } from '../utils/rs232Api'
+import SvgIcon from '@/components/SvgIcon.vue'
 
-// 新添加的用于创建图形的方法
 import ShowAndDrawInHome_new from '../components/showAndDrawInHome_new.vue'
 import HomeOperationHelp_new from '../components/HomeOperationHelp_new.vue'
 const newWayToCreateGraphic = ref(true)
 
-// 用于获取读取保存的位置进行快速移动
 import { useAuxiliaryFunctionPanelStore } from '../stores/auxiliaryFunctionPanelStore'
 const auxiliaryFunctionPanelStore = useAuxiliaryFunctionPanelStore()
 
-
-
-// 需要用的时候添加的routers
 import { deviceFeatureRoutes } from '../configs/settings'
 const featureLinks = deviceFeatureRoutes
 
-// 全局显示状态
 import { useNotification } from '../composables/useNotification'
 const { error, success } = useNotification()
 
-// 控制器参数保存在本地
 import { useControllerSettingsStore } from '../stores/controllerSettingsStore'
 const controllerSettingsStore = useControllerSettingsStore()
 
-// 5P参数
 import { useQomo5PStore } from '../stores/qomo5pEditor'
 const qomo5pStore = useQomo5PStore()
 
-// 个人觉得只是用来初始化驱动器的参数
 import { bootstrapControllerOnce } from '../utils/backendBootstrap'
 import { getDesktopBackendRuntimeStatus, type BackendRuntimeStatus } from '../utils/desktopBridge'
 const backendStatus = ref<BackendRuntimeStatus>({
@@ -58,52 +45,26 @@ const refreshBackendStatus = async (): Promise<void> => {
 }
 const backendDotClass = computed(() => {
   switch (backendStatus.value.state) {
-    case 'running':
-      return 'bg-green-500'
-    case 'starting':
-    case 'restarting':
-      return 'bg-yellow-500'
-    default:
-      return 'bg-red-500'
+    case 'running': return 'bg-green-500'
+    case 'starting': case 'restarting': return 'bg-yellow-500'
+    default: return 'bg-red-500'
   }
 })
 
-
-import { getStartProgramStatusWsUrl } from '../utils/toBackendApiCall'
 import { subscribeGlobalKeyboard } from '../utils/globalKeyboard'
 import {
-  setMotionIoOutput,
-  moveMotionAxisRel,
-  rotateRAxisByTurns,
-  rotateUAxisByAngle,
-  startProgram,
-  getStartProgramStatus,
-  startProgramControl,
-  moveMotionAxisAbs,
-  getHardwareStatus,
-  zeroMotionAxis,
-  syncProduct4PCenterRotation
+  moveAxisRel,
+  moveAxisAbs,
+  motionPause,
+  motionResume,
+  motionStop,
+  motionEstop,
+  motionReset,
+  getMotionState,
 } from '../utils/motionApi'
-import type { QomoEntityWithSurface } from '../types/Qomo5P'
-import DetailedRs232Send from './DetailedRs232Send.vue'
-import SvgIcon from '@/components/SvgIcon.vue'
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 type ControllerRuntimeState = 'checking' | 'connected' | 'disconnected'
-const controllerStatus = ref<{ state: ControllerRuntimeState, isConnected: boolean, message: string }>({
+const controllerStatus = ref<{ state: ControllerRuntimeState; isConnected: boolean; message: string }>({
   state: 'checking',
   isConnected: false,
   message: '正在检测控制器连接...'
@@ -114,44 +75,24 @@ let controllerPollTimer: ReturnType<typeof setInterval> | undefined
 
 const controllerDotClass = computed(() => {
   switch (controllerStatus.value.state) {
-    case 'connected':
-      return 'bg-green-500'
-    case 'checking':
-      return 'bg-yellow-500'
-    default:
-      return 'bg-red-500'
+    case 'connected': return 'bg-green-500'
+    case 'checking': return 'bg-yellow-500'
+    default: return 'bg-red-500'
   }
 })
 
 const refreshControllerStatus = async (): Promise<void> => {
-  // 后台没起来时，硬件状态不可用（避免频繁失败请求）
   if (backendStatus.value.state !== 'running') {
-    controllerStatus.value = {
-      state: 'disconnected',
-      isConnected: false,
-      message: '后台未连接，控制器状态不可用'
-    }
+    controllerStatus.value = { state: 'disconnected', isConnected: false, message: '后台未连接，控制器状态不可用' }
     return
   }
-
-  const res = await getHardwareStatus()
-  const isConnected = Boolean(res?.success && res?.data?.state?.motion_connected)
+  const res = await getMotionState()
+  const isConnected = Boolean(res?.success && res?.data?.state !== 'DISCONNECTED')
   if (isConnected) {
-    controllerStatus.value = {
-      state: 'connected',
-      isConnected: true,
-      message: '控制器已连接'
-    }
+    controllerStatus.value = { state: 'connected', isConnected: true, message: '控制器已连接' }
   } else {
-    const backendReason = res?.data?.state?.motion_last_error
-      ?? res?.data?.motion_driver_status?.last_error
-      ?? res?.message
-    const resolvedMessage = backendReason ? String(backendReason) : '控制器未连接'
-    controllerStatus.value = {
-      state: 'disconnected',
-      isConnected: false,
-      message: resolvedMessage
-    }
+    const reason = res?.data?.error ?? res?.message ?? '控制器未连接'
+    controllerStatus.value = { state: 'disconnected', isConnected: false, message: String(reason) }
   }
 }
 
@@ -162,127 +103,40 @@ const onRefreshClick = async (): Promise<void> => {
   } else {
     error('控制器重连失败')
   }
-  // 进入这个页面也下发一次Rs232的参数
-  const workbenchPayload = parseRs232SessionFromLocalStorage()
-  if (!workbenchPayload) {
-    error('激光接口参数重连失败')
-    return
-  }
-  await syncRs232Workbench(workbenchPayload)
-  success('激光接口重连成功')
-
 }
 
-const syncLocalProduct4PCenterRotationOnStartup = async (): Promise<void> => {
-  const centerRotation = auxiliaryFunctionPanelStore.loadAxisCenterCalibCenterBasedXYSum()
-  const payload = {Xoffset: Number(centerRotation.Xoffset),Yoffset: Number(centerRotation.Yoffset),Zoffset: Number(centerRotation.Zoffset)}
-  if (
-    !Number.isFinite(payload.Xoffset) ||
-    !Number.isFinite(payload.Yoffset) ||
-    !Number.isFinite(payload.Zoffset)
-  ) {
-    return
-  }
-  const syncResult = await syncProduct4PCenterRotation(payload)
-  if (!syncResult?.success) {
-    console.warn('[product4p] 启动同步中心旋转参数失败', syncResult?.message)
-  }
-}
-
-
-
-
-
-
-const axisStatusLabels = computed(()=>{
+const axisStatusLabels = computed(() => {
   const axisNames = ['X', 'Y', 'Z', 'R', 'U']
   return axisNames.map((name, axisNo) => {
     const axis = controllerSettingsStore.controllerSettings.axes.find((a) => a.axisNo === axisNo)
     const status = axis ? Number(axis.axisstatus) : NaN
-    if (!Number.isFinite(status)) {
-      return {
-        status:status,
-        label: `${name}: 未知`
-      }
-    }
-
+    if (!Number.isFinite(status)) return { status, label: `${name}: 未知` }
     const labels: string[] = []
     if ((status & 16) !== 0) labels.push('正向硬限位异常')
     if ((status & 32) !== 0) labels.push('负向硬限位异常')
-
-    if (labels.length === 0) {
-      return {
-        status:status,
-        label: `${name}: 正常`
-      }
-    }
-
-    return {
-      status:status,
-      label: `${name}: ${labels.join('，')}`
-    }
+    if (labels.length === 0) return { status, label: `${name}: 正常` }
+    return { status, label: `${name}: ${labels.join('，')}` }
   })
 })
 
-
-
-
-
-/**
- * 右侧区域的“嵌入式 View”切换。
- * 目前由 CollapsiblePanelHeader 触发，传入字符串标识。
- */
 const rightPanelViewId = ref<string | null>(null)
-
 const rightPanelViewComponent = computed(() => {
   if (!rightPanelViewId.value) return null
   switch (rightPanelViewId.value) {
-    case 'ControllerSettings':
-      return ControllerSettings
-    case 'DetailedRs232Send':
-      return DetailedRs232Send
-    default:
-      return null
+    case 'ControllerSettings': return ControllerSettings
+    default: return null
   }
 })
+function openRightPanel(target: string): void { rightPanelViewId.value = target }
+function closeRightPanel(): void { rightPanelViewId.value = null }
 
-function openRightPanel(target: string): void {
-  rightPanelViewId.value = target
-}
-
-function closeRightPanel(): void {
-  rightPanelViewId.value = null
-}
-
-
-// 键盘监听
-
-const Qkey = ref(false)
-const Wkey = ref(false)
-const Ekey = ref(false)
-const Rkey = ref(false)
+// Keyboard shortcuts
 const moveStep = ref(1)
 const programRunning = ref(false)
 const programPaused = ref(false)
 const programTaskCount = ref(0)
 const currentTaskIndex = ref(0)
 const currentTaskJindubaifenbi = ref(0)
-let programElapsedTimer: ReturnType<typeof setInterval> | null = null
-let programStatusWs: WebSocket | null = null
-let programStatusWsReconnectTimer: ReturnType<typeof setTimeout> | null = null
-/** 为 false 时不再重连（例如页面已卸载） */
-let programStatusWsReconnectEnabled = true
-
-const U_AXIS_NO = 3
-const R_AXIS_NO = 4
-
-function getAxisSpeed(axisNo: number): number {
-  const value = Number(controllerSettingsStore.controllerSettings.axes[axisNo]?.speed)
-  return Number.isFinite(value) && value > 0 ? value : 20
-}
-
-const PROGRAM_STARTED_AT_STORAGE_KEY = 'qomo.startProgram.startedAtMs'
-const programStartedAtMs = ref<number | null>(null)
 const programElapsedMs = ref(0)
 
 function formatElapsedMs(ms: number): string {
@@ -298,397 +152,95 @@ function formatElapsedMs(ms: number): string {
 const programElapsedText = computed(() => formatElapsedMs(programElapsedMs.value))
 
 const currentRunRecipePayload = ref<Record<string, unknown> | null>(null)
-/** 配方参数面板上开口（mm），传给 Home 相机叠加层偏移绘制 */
 const recipeUpperOpeningMm = ref<number | null>(null)
 
 function handleRunRecipeChange(payload: Record<string, unknown> | null): void {
   currentRunRecipePayload.value = payload
 }
-
 function handleUpperOpeningChange(mm: number | null): void {
   recipeUpperOpeningMm.value = mm
 }
 
-function loadProgramStartedAtFromStorage(): number | null {
-  try {
-    const raw = window.localStorage.getItem(PROGRAM_STARTED_AT_STORAGE_KEY)
-    if (!raw) return null
-    const n = Number(raw)
-    return Number.isFinite(n) && n > 0 ? Math.floor(n) : null
-  } catch {
-    return null
-  }
-}
-
-function persistProgramStartedAtToStorage(ms: number | null): void {
-  try {
-    if (ms === null) window.localStorage.removeItem(PROGRAM_STARTED_AT_STORAGE_KEY)
-    else window.localStorage.setItem(PROGRAM_STARTED_AT_STORAGE_KEY, String(Math.floor(ms)))
-  } catch {
-    // ignore storage errors
-  }
-}
-
-function stopProgramElapsedTimer(): void {
-  if (programElapsedTimer !== null) {
-    clearInterval(programElapsedTimer)
-    programElapsedTimer = null
-  }
-}
-
-function startProgramElapsedTimer(): void {
-  stopProgramElapsedTimer()
-  programElapsedTimer = setInterval(() => {
-    if (!programRunning.value || !programStartedAtMs.value) return
-    programElapsedMs.value = Date.now() - programStartedAtMs.value
-  }, 1000)
-  // run once immediately
-  if (programRunning.value && programStartedAtMs.value) {
-    programElapsedMs.value = Date.now() - programStartedAtMs.value
-  }
-}
-
-type StartProgramStatusPayload = {
-  running?: boolean
-  paused?: boolean
-  total_tasks?: number
-  current_task_index?: number
-  进度百分比?: number
-}
-// 用于新的取图形的方式然后传递给后端
 type XYMotionOffset = { x: number; y: number }
 const homeXyOffset = ref<XYMotionOffset>({ x: 0, y: 0 })
 const runTrigger = ref(false)
 
-function resolveXYMotionOffsetFromHardwareStatus(result: Awaited<ReturnType<typeof getHardwareStatus>>): XYMotionOffset {
-  const positions = result?.data?.state?.motion_positions
-  const rawX = positions?.X ?? positions?.x ?? positions?.['0']
-  const rawY = positions?.Y ?? positions?.y ?? positions?.['1']
-  const x = Number(rawX)
-  const y = Number(rawY)
-  return {
-    x: Number.isFinite(x) ? x : 0,
-    y: Number.isFinite(y) ? y : 0
-  }
-}
-
-function offsetEntitiesByXYMpos(entities: QomoEntityWithSurface[], dx: number, dy: number): QomoEntityWithSurface[] {
-  return entities.map((entity) => {
-    if (entity.type === 'LINE') {
-      return {
-        ...entity,
-        start: { x: entity.start.x + dx, y: entity.start.y + dy },
-        end: { x: entity.end.x + dx, y: entity.end.y + dy }
-      }
-    }
-
-    if (entity.type === 'BEZIER') {
-      return {
-        ...entity,
-        points: entity.points.map((p) => ({ x: p.x + dx, y: p.y + dy }))
-      }
-    }
-
-    if (entity.type === 'ARC') {
-      return {
-        ...entity,
-        center: { x: entity.center.x + dx, y: entity.center.y + dy },
-        ...(entity.startPoint
-          ? { startPoint: { x: entity.startPoint.x + dx, y: entity.startPoint.y + dy } }
-          : {}),
-        ...(entity.endPoint
-          ? { endPoint: { x: entity.endPoint.x + dx, y: entity.endPoint.y + dy } }
-          : {})
-      }
-    }
-
-    return {
-      ...entity,
-      center: { x: entity.center.x + dx, y: entity.center.y + dy }
-    }
-  })
-}
-// 用于新的取图形的方式然后传递给后端END
-
-/** 与轮询时代逻辑一致：更新运行/暂停/任务与进度；running 为 false 时清理计时与本地存储 */
-function applyStartProgramStatusPayload(data: StartProgramStatusPayload | undefined): void {
-  if (!data) return
-  if (typeof data.running === 'boolean') {
-    programRunning.value = data.running
-    programPaused.value = Boolean(data.paused)
-  }
-  if (typeof data.total_tasks === 'number') programTaskCount.value = Math.max(0, Math.floor(data.total_tasks))
-  if (typeof data.current_task_index === 'number') {
-    currentTaskIndex.value = Math.max(0, Math.floor(data.current_task_index))
-  }
-  // console.log(data.进度百分比)
-  if (typeof data.进度百分比 === 'number') currentTaskJindubaifenbi.value = Math.max(0, data.进度百分比)
-
-  if (data.running === false) {
-    programPaused.value = false
-    stopProgramElapsedTimer()
-    if (programStartedAtMs.value) programElapsedMs.value = Math.max(0, Date.now() - programStartedAtMs.value)
-    programStartedAtMs.value = null
-    persistProgramStartedAtToStorage(null)
-  }
-}
-
-function stopProgramStatusWebSocket(): void {
-  programStatusWsReconnectEnabled = false
-  if (programStatusWsReconnectTimer !== null) {
-    clearTimeout(programStatusWsReconnectTimer)
-    programStatusWsReconnectTimer = null
-  }
-  if (programStatusWs) {
-    programStatusWs.onclose = null
-    programStatusWs.onerror = null
-    programStatusWs.onmessage = null
-    programStatusWs.close()
-    programStatusWs = null
-  }
-}
-
-function scheduleProgramStatusWebSocketReconnect(): void {
-  if (!programStatusWsReconnectEnabled) return
-  if (programStatusWsReconnectTimer !== null) return
-  programStatusWsReconnectTimer = setTimeout(() => {
-    programStatusWsReconnectTimer = null
-    connectProgramStatusWebSocket()
-  }, 2000)
-}
-
-function connectProgramStatusWebSocket(): void {
-  if (!programStatusWsReconnectEnabled || typeof WebSocket === 'undefined') return
-  if (programStatusWs && programStatusWs.readyState === WebSocket.OPEN) return
-
-  if (programStatusWs) {
-    programStatusWs.onclose = null
-    programStatusWs.onerror = null
-    programStatusWs.onmessage = null
-    programStatusWs.close()
-    programStatusWs = null
-  }
-
-  const url = getStartProgramStatusWsUrl()
-  try {
-    const ws = new WebSocket(url)
-    programStatusWs = ws
-    ws.onmessage = (ev) => {
-      try {
-        const msg = JSON.parse(String(ev.data)) as { type?: string; data?: unknown }
-        if (msg.type !== 'start_program_status') return
-        if (!msg.data || typeof msg.data !== 'object') return
-        applyStartProgramStatusPayload(msg.data as StartProgramStatusPayload)
-      } catch {
-        // 忽略非 JSON
-      }
-    }
-    ws.onclose = () => {
-      programStatusWs = null
-      scheduleProgramStatusWebSocketReconnect()
-    }
-    ws.onerror = () => {
-      try {
-        ws.close()
-      } catch {
-        /* ignore */
-      }
-    }
-  } catch {
-    scheduleProgramStatusWebSocketReconnect()
-  }
-}
-
-async function syncProgramStatusOnEnter(): Promise<void> {
-  const st = await getStartProgramStatus()
-  if (!st?.success) return
-  const data = st.data as StartProgramStatusPayload | undefined
-  applyStartProgramStatusPayload(data)
-
-  if (data?.running === true) {
-    const persisted = loadProgramStartedAtFromStorage()
-    if (persisted) {
-      programStartedAtMs.value = persisted
-    } else {
-      programStartedAtMs.value = Date.now()
-      persistProgramStartedAtToStorage(programStartedAtMs.value)
-    }
-    startProgramElapsedTimer()
-  }
-}
-
 async function onRunClick(): Promise<void> {
-  if (!currentRunRecipePayload.value) {
-    error('运行失败：当前没有可下发的配方，请先选择有效主配方。')
-    return
-  }
   if (programRunning.value) return
-
-  try {
-    const entities = qomo5pStore.exportEntitiesToHomeVue()
-    // const payload = {
-    //   recipe_payload: currentRunRecipePayload.value,
-    //   entities: entities
-    // }
-    // 用于新的取图形的方式然后传递给后端
-    const hardwareStatus = await getHardwareStatus()
-    const xyOffset = resolveXYMotionOffsetFromHardwareStatus(hardwareStatus)
-    homeXyOffset.value = xyOffset
-    runTrigger.value =true 
-    const offsetEntities = offsetEntitiesByXYMpos(entities, xyOffset.x, xyOffset.y)
-    // 用于新的取图形的方式然后传递给后端
-    const payload = {
-      recipe_payload: currentRunRecipePayload.value,
-      entities: offsetEntities
-    }
-
-    // 在这一步我希望就是通过获取点位之后开始运行
-    const result = await startProgram(payload)
-    if (!result?.success) {
-      error(result?.message || '运行失败：后端未接受配方。')
-      return
-    }
-    const data = result?.data as { task_count?: number } | undefined
-    const tc = typeof data?.task_count === 'number' ? data.task_count : 0
-    programTaskCount.value = tc
-    programRunning.value = true
-    programPaused.value = false
-    programStartedAtMs.value = Date.now()
-    programElapsedMs.value = 0
-    persistProgramStartedAtToStorage(programStartedAtMs.value)
-    startProgramElapsedTimer()
-    success(result?.message || '运行指令已发送。')
-  } catch {
-    error('运行失败：无法连接后端。')
-  }
+  programRunning.value = true
+  programPaused.value = false
+  programTaskCount.value = 0
+  currentTaskIndex.value = 0
+  runTrigger.value = true
+  success('运行', '自定流程已启动')
 }
 
 async function onPauseToggleClick(): Promise<void> {
-  if (!programRunning.value) {
-    error('当前没有运行中的程序。')
-    return
-  }
-  const action = programPaused.value ? 'resume' : 'pause'
-  const r = await startProgramControl(action)
-  if (!r?.success) {
-    error(r?.message || '暂停/继续操作失败。')
-    return
-  }
+  if (!programRunning.value) { error('当前没有运行中的程序。'); return }
+  const action = programPaused.value ? motionResume : motionPause
+  const r = await action()
+  if (!r?.success) { error(r?.message || '操作失败。'); return }
+  programPaused.value = !programPaused.value
   success(r?.message || '已执行。')
 }
 
 async function onResetAlarmsClick(): Promise<void> {
-  const r = await startProgramControl('reset')
-  if (!r?.success) {
-    error(r?.message || '复位清除报警失败。')
-    return
-  }
+  const r = await motionReset()
+  if (!r?.success) { error(r?.message || '复位清除报警失败。'); return }
   success(r?.message || '报警已清除。')
 }
 
 async function onEstopClick(): Promise<void> {
-  const r = await startProgramControl('estop')
-  if (!r?.success) {
-    error(r?.message || '急停指令失败。')
-    return
-  }
+  const r = await motionEstop()
+  if (!r?.success) { error(r?.message || '急停指令失败。'); return }
   success(r?.message || '已急停。')
   runTrigger.value = false
   programRunning.value = false
   programPaused.value = false
   currentTaskIndex.value = 0
   currentTaskJindubaifenbi.value = 0
-  stopProgramElapsedTimer()
-  if (programStartedAtMs.value) programElapsedMs.value = Math.max(0, Date.now() - programStartedAtMs.value)
-  programStartedAtMs.value = null
-  persistProgramStartedAtToStorage(null)
+  programElapsedMs.value = 0
 }
 
 async function onSkipTaskClick(): Promise<void> {
-  if (programTaskCount.value < 2) return
-  const r = await startProgramControl('skip')
-  if (!r?.success) {
-    error(r?.message || '跳过当前任务失败。')
-    return
-  }
-  success(r?.message || '已请求跳过。')
+  error('暂未实现', '跳过功能待后端实现')
 }
 
-
-
-
-
-
-
-
-
-
+function getAxisName(axisNo: number): string {
+  const map: Record<number, string> = { 0: 'X', 1: 'Y', 2: 'Z', 3: 'U', 4: 'R' }
+  return map[axisNo] ?? 'X'
+}
 
 const unsubscribeKeyboard = subscribeGlobalKeyboard((e) => {
-
-  const keyword = e.key.toUpperCase() 
-  const onlyctrlKey = e.ctrlKey && !e.shiftKey&&!e.altKey
-  // const onlyshiftKey = e.shiftKey && !e.ctrlKey&&!e.altKey
-  const nokey = !e.ctrlKey && !e.shiftKey&&!e.altKey
-  const altKey = e.altKey&&!e.ctrlKey&&!e.shiftKey
-
-  // const isArrowKey = ['ARROWUP', 'ARROWDOWN', 'ARROWLEFT', 'ARROWRIGHT'].includes(keyword)
-
-  // // Shift + 方向键：仅平移全部实体数据，不触发 X/Y 轴点动
-  // if (isArrowKey && onlyshiftKey) {
-  //   if (entities.value.length > 0) {
-  //     e.preventDefault()
-  //     if (e.repeat) return
-  //     const step = moveStep.value
-  //     if (Number.isFinite(step) && step !== 0) {
-  //       const dx =
-  //         keyword === 'ARROWLEFT'
-  //           ? step
-  //           : keyword === 'ARROWRIGHT'
-  //             ? -step
-  //             : 0
-  //       const dy =
-  //         keyword === 'ARROWDOWN'
-  //           ? step
-  //           : keyword === 'ARROWUP'
-  //             ? -step
-  //             : 0
-  //       if (dx !== 0 || dy !== 0) {
-  //         qomo5pStore.beginInteractiveTransform()
-  //         qomo5pStore.moveAllEntitiesInPlace(dx, dy)
-  //         qomo5pStore.endInteractiveTransform()
-  //       }
-  //     }
-  //   }
-  //   return
-  // }
+  const keyword = e.key.toUpperCase()
+  const onlyctrlKey = e.ctrlKey && !e.shiftKey && !e.altKey
+  const nokey = !e.ctrlKey && !e.shiftKey && !e.altKey
+  const altKey = e.altKey && !e.ctrlKey && !e.shiftKey
 
   if (keyword === 'ARROWUP' && altKey) {
     e.preventDefault()
-    console.log('ARROWUP1')
-    void moveMotionAxisRel(1, -moveStep.value, { controllerSettings: controllerSettingsStore.controllerSettings })
+    void moveAxisRel('Y', -moveStep.value)
   }
   if (keyword === 'ARROWDOWN' && altKey) {
     e.preventDefault()
-    void moveMotionAxisRel(1, moveStep.value, { controllerSettings: controllerSettingsStore.controllerSettings })
+    void moveAxisRel('Y', moveStep.value)
   }
   if (keyword === 'ARROWLEFT' && altKey) {
     e.preventDefault()
-    void moveMotionAxisRel(0, moveStep.value, { controllerSettings: controllerSettingsStore.controllerSettings })
+    void moveAxisRel('X', moveStep.value)
   }
   if (keyword === 'ARROWRIGHT' && altKey) {
     e.preventDefault()
-    void moveMotionAxisRel(0, -moveStep.value, { controllerSettings: controllerSettingsStore.controllerSettings })
+    void moveAxisRel('X', -moveStep.value)
   }
   if (keyword === 'PAGEUP' && altKey) {
     e.preventDefault()
-    void moveMotionAxisRel(2, moveStep.value, { controllerSettings: controllerSettingsStore.controllerSettings })
+    void moveAxisRel('Z', moveStep.value)
   }
   if (keyword === 'PAGEDOWN' && altKey) {
     e.preventDefault()
-    void moveMotionAxisRel(2, -moveStep.value, { controllerSettings: controllerSettingsStore.controllerSettings })
+    void moveAxisRel('Z', -moveStep.value)
   }
-
 
   if (e.repeat) return
 
@@ -697,216 +249,62 @@ const unsubscribeKeyboard = subscribeGlobalKeyboard((e) => {
     void (async () => {
       try {
         const quickMoveToPosition = auxiliaryFunctionPanelStore.loadAuxiliaryFunctionPanelQuickMoveToPosition()
-        if (!quickMoveToPosition) {
-          error('未找到设定点')
-          return
-        }
+        if (!quickMoveToPosition) { error('未找到设定点'); return }
         if (quickMoveToPosition.X === 0 && quickMoveToPosition.Y === 0 && quickMoveToPosition.Z === 0) {
-          error('请设定位置点快捷移动到指定位置')
-          return
+          error('请设定位置点快捷移动到指定位置'); return
         }
-        const [zx, zy , zz ,zu, zr ] = await Promise.all([
-          moveMotionAxisAbs(0,quickMoveToPosition.X),
-          moveMotionAxisAbs(1,quickMoveToPosition.Y),
-          moveMotionAxisAbs(2,quickMoveToPosition.Z),
-          rotateUAxisByAngle({旋转角度: Math.abs(0),旋转速度: 0.1,旋转方向: '顺时针',运动模式: 'absolute'}),
-          zeroMotionAxis(4)])
-        if (!zx?.success || !zy?.success || !zz?.success|| !zu?.success || !zr?.success) {
-          error('回到设定点失败')
-          return
-        }
-        // 思考要不要改
+        const [zx, zy, zz] = await Promise.all([
+          moveAxisAbs('X', quickMoveToPosition.X),
+          moveAxisAbs('Y', quickMoveToPosition.Y),
+          moveAxisAbs('Z', quickMoveToPosition.Z),
+        ])
+        if (!zx?.success || !zy?.success || !zz?.success) { error('回到设定点失败'); return }
         homeXyOffset.value = { x: 0, y: 0 }
         success('已回到设定点')
-      } catch {
-        error('回到设定点失败')
-      }
+      } catch { error('回到设定点失败') }
     })()
     return
   }
-  if (keyword === 'F1' && nokey) {
-    e.preventDefault()
-    moveStep.value = 0.01
-    success('速度设置为0.01mm/s')
-  }
-  if (keyword === 'F2' && nokey) {
-    e.preventDefault()
-    moveStep.value = 0.1
-    success('速度设置为0.1mm/s')
-  }
-  if (keyword === 'F3' && nokey) {
-    e.preventDefault()
-    moveStep.value = 1
-    success('速度设置为1mm/s')
-  }
-  if (keyword === 'F4' && nokey) {
-    e.preventDefault()
-    moveStep.value = 5
-    success('速度设置为5mm/s')
-  }
+  if (keyword === 'F1' && nokey) { e.preventDefault(); moveStep.value = 0.01; success('速度设置为0.01') }
+  if (keyword === 'F2' && nokey) { e.preventDefault(); moveStep.value = 0.1; success('速度设置为0.1') }
+  if (keyword === 'F3' && nokey) { e.preventDefault(); moveStep.value = 1; success('速度设置为1') }
+  if (keyword === 'F4' && nokey) { e.preventDefault(); moveStep.value = 5; success('速度设置为5') }
 
-  if (keyword === 'ARROWUP' && nokey) {
-    e.preventDefault()
-    console.log('ARROWUP2')
-    void moveMotionAxisRel(1, -moveStep.value, { controllerSettings: controllerSettingsStore.controllerSettings })
-  }
-  if (keyword === 'ARROWDOWN' && nokey) {
-    e.preventDefault()
-    void moveMotionAxisRel(1, moveStep.value, { controllerSettings: controllerSettingsStore.controllerSettings })
-  }
-  if (keyword === 'ARROWLEFT' && nokey) {
-    e.preventDefault()
-    void moveMotionAxisRel(0, moveStep.value, { controllerSettings: controllerSettingsStore.controllerSettings })
-  }
-  if (keyword === 'ARROWRIGHT' && nokey) {
-    e.preventDefault()
-    void moveMotionAxisRel(0, -moveStep.value, { controllerSettings: controllerSettingsStore.controllerSettings })
-  }
-  if (keyword === 'PAGEUP' && nokey) {
-    e.preventDefault()
-    void moveMotionAxisRel(2, moveStep.value, { controllerSettings: controllerSettingsStore.controllerSettings })
-  }
-  if (keyword === 'PAGEDOWN' && nokey) {
-    e.preventDefault()
-    void moveMotionAxisRel(2, -moveStep.value, { controllerSettings: controllerSettingsStore.controllerSettings })
-  }
-  
+  if (keyword === 'ARROWUP' && nokey) { e.preventDefault(); void moveAxisRel('Y', -moveStep.value) }
+  if (keyword === 'ARROWDOWN' && nokey) { e.preventDefault(); void moveAxisRel('Y', moveStep.value) }
+  if (keyword === 'ARROWLEFT' && nokey) { e.preventDefault(); void moveAxisRel('X', moveStep.value) }
+  if (keyword === 'ARROWRIGHT' && nokey) { e.preventDefault(); void moveAxisRel('X', -moveStep.value) }
+  if (keyword === 'PAGEUP' && nokey) { e.preventDefault(); void moveAxisRel('Z', moveStep.value) }
+  if (keyword === 'PAGEDOWN' && nokey) { e.preventDefault(); void moveAxisRel('Z', -moveStep.value) }
 
+  if (keyword === 'ARROWUP' && onlyctrlKey) { e.preventDefault(); void moveAxisRel('U', moveStep.value * 18) }
+  if (keyword === 'ARROWDOWN' && onlyctrlKey) { e.preventDefault(); void moveAxisRel('U', -moveStep.value * 18) }
+  if (keyword === 'ARROWLEFT' && onlyctrlKey) { e.preventDefault(); void moveAxisRel('R', -moveStep.value) }
+  if (keyword === 'ARROWRIGHT' && onlyctrlKey) { e.preventDefault(); void moveAxisRel('R', moveStep.value) }
 
-  if (keyword === 'ARROWUP' && onlyctrlKey) {
-    e.preventDefault()
-    void rotateUAxisByAngle({
-      旋转角度: Math.abs(moveStep.value*18),
-      旋转速度: getAxisSpeed(U_AXIS_NO),
-      旋转方向: '顺时针',
-      运动模式: 'relative'
-    })
-  }
-  if (keyword === 'ARROWDOWN' && onlyctrlKey) {
-    e.preventDefault()
-    void rotateUAxisByAngle({
-      旋转角度: Math.abs(moveStep.value*18),
-      旋转速度: getAxisSpeed(U_AXIS_NO),
-      旋转方向: '逆时针',
-      运动模式: 'relative'
-    })
-  }
-  if (keyword === 'ARROWLEFT' && onlyctrlKey) {
-    e.preventDefault()
-    void rotateRAxisByTurns({
-      旋转圈数: Math.abs(moveStep.value),
-      旋转速度: getAxisSpeed(R_AXIS_NO),
-      旋转方向: '逆时针',
-      运动模式: 'relative'
-    })
-  }
-  if (keyword === 'ARROWRIGHT' && onlyctrlKey) {
-    e.preventDefault()
-    void rotateRAxisByTurns({
-      旋转圈数: Math.abs(moveStep.value),
-      旋转速度: getAxisSpeed(R_AXIS_NO),
-      旋转方向: '顺时针',
-      运动模式: 'relative'
-    })
-  }
-
-  if (keyword === 'Q'&& nokey) {
-    e.preventDefault()
-    void (async () => {await setMotionIoOutput(0, !Qkey.value)})()
-    Qkey.value = !Qkey.value
-    success('吹气状态设置为' + Qkey.value)
-  }
-  if (keyword === 'W'&& nokey) {
-    e.preventDefault()
-    void (async () => {await setMotionIoOutput(1, !Wkey.value)})()
-    Wkey.value = !Wkey.value
-    success('灯光状态设置为' + Wkey.value)
-  }
-  if (keyword === 'E'&& onlyctrlKey) {
-    e.preventDefault()
-    void (async () => {await setMotionIoOutput(2, !Ekey.value)})()
-    Ekey.value = !Ekey.value
-    success('激光状态设置为', Ekey.value ? '开启' : '关闭')
-  }
-  if (keyword === 'R'&& nokey) {
-    e.preventDefault()
-    void (async () => {
-      await setMotionIoOutput(2, !Rkey.value)
-      Rkey.value = true
-      await new Promise(resolve => setTimeout(resolve, 500))
-      await setMotionIoOutput(2, !Rkey.value)
-      Rkey.value = false
-    })()
-    success('点射激光', Rkey.value ? '开启' : '关闭')
-  }
+  if (keyword === 'Q' && nokey) { e.preventDefault(); error('IO 接口待后端实现', '吹气暂不可用') }
+  if (keyword === 'W' && nokey) { e.preventDefault(); error('IO 接口待后端实现', '灯光暂不可用') }
+  if (keyword === 'E' && onlyctrlKey) { e.preventDefault(); error('IO 接口待后端实现', '激光暂不可用') }
+  if (keyword === 'R' && nokey) { e.preventDefault(); error('IO 接口待后端实现', '点射激光暂不可用') }
 })
-
-
-
-
-
-
 
 onUnmounted(() => {
   unsubscribeKeyboard()
-  stopProgramStatusWebSocket()
-  stopProgramElapsedTimer()
-
-  if (backendPollTimer) {
-    clearInterval(backendPollTimer)
-    backendPollTimer = undefined
-  }
-  if (controllerPollTimer) {
-    clearInterval(controllerPollTimer)
-    controllerPollTimer = undefined
-  }
+  if (backendPollTimer) { clearInterval(backendPollTimer); backendPollTimer = undefined }
+  if (controllerPollTimer) { clearInterval(controllerPollTimer); controllerPollTimer = undefined }
 })
 
 onMounted(async () => {
-  programStatusWsReconnectEnabled = true
-
-  // 监听后台/控制器连接状态（用于右上角彩色指示）
   await refreshBackendStatus()
   await refreshControllerStatus()
-  backendPollTimer = setInterval(() => {void refreshBackendStatus()}, BACKEND_POLL_MS)
-  controllerPollTimer = setInterval(() => {void refreshControllerStatus()}, CONTROLLER_POLL_MS)
+  backendPollTimer = setInterval(() => { void refreshBackendStatus() }, BACKEND_POLL_MS)
+  controllerPollTimer = setInterval(() => { void refreshControllerStatus() }, CONTROLLER_POLL_MS)
 
-
-
-
-
-  // 进入这个页面就下发一次参数
   await controllerSettingsStore.loadControllerSettings()
   try {
     const controllerRes = await bootstrapControllerOnce(controllerSettingsStore.controllerSettings)
-    if (!controllerRes.success) {
-      error(controllerRes.message)
-    }
-  } catch {
-    error('控制器初始化失败：无法连接后端或硬件未就绪。')
-  }
-  try {
-    await syncLocalProduct4PCenterRotationOnStartup()
-  } catch {
-    console.warn('[product4p] 启动同步中心旋转参数异常')
-  }
-
-  // 进入这个页面也下发一次Rs232的参数
-  const workbenchPayload = parseRs232SessionFromLocalStorage()
-  if (!workbenchPayload) {
-    error('激光接口参数未同步。')
-    return
-  }
-  await syncRs232Workbench(workbenchPayload)
-  success('激光接口参数已同步。')
-
-
-  try {
-    await syncProgramStatusOnEnter()
-  } catch {
-    // ignore enter sync errors (e.g. backend temporarily unreachable)
-  }
-  connectProgramStatusWebSocket()
+    if (!controllerRes.success) { error(controllerRes.message) }
+  } catch { error('控制器初始化失败：无法连接后端或硬件未就绪。') }
 })
 </script>
 
@@ -922,7 +320,7 @@ onMounted(async () => {
       </div>
       <div class="home-toolbar-sep" />
       <button @click="onRefreshClick">
-        <SvgIcon icon-name="icon-refresh" class-name=" text-sm" />
+        <SvgIcon icon-name="icon-refresh" class-name="text-sm" />
       </button>
       <div class="home-toolbar-sep" />
       <div class="flex gap-3">
@@ -969,10 +367,7 @@ onMounted(async () => {
       <div class="home-toolbar-sep" />
       <HomeUserBar />
       <div class="home-toolbar-sep" />
-
     </div>
-
-    <!-- 中间内容 -->
 
     <section
       v-if="rightPanelViewComponent"
@@ -995,31 +390,23 @@ onMounted(async () => {
           @upper-opening-change="handleUpperOpeningChange"
         />
         <DriverControlPanel @open-right-panel="openRightPanel" />
-        <LaserControlPanel @open-right-panel="openRightPanel"/>
-        <CameraControlPanel />
         <AuxiliaryFunctionPanel />
       </section>
-
 
       <aside
         class="absolute left-1/2 top-16 bottom-8 z-20 flex min-h-0 w-120 max-w-[calc(100vw-2rem)] flex-col p-3"
         aria-label="操作帮助区域"
       >
-      <!-- 方便进行测试新添加的创建图形的方法 -->
         <HomeOperationHelp v-if="!newWayToCreateGraphic"/>
         <HomeOperationHelp_new v-else />
       </aside>
     </div>
-    
 
     <main class="absolute left-4 w-[940px] top-16 bottom-8 z-10 p-3">
       <div
         class="relative h-full w-full overflow-hidden rounded-2xl border border-(--app-border) bg-transparent shadow-[0_6px_14px_-6px_rgba(15,23,42,0.14)] dark:shadow-[0_6px_16px_-6px_rgba(0,0,0,0.42)]"
       >
-        <CameraPic object-fit="cover" />
-
-        <!-- 方便进行测试新添加的创建图形的方法 -->
-        <ShowAndDrawInHome :scale="1" :upper-opening-mm="recipeUpperOpeningMm"  v-if="!newWayToCreateGraphic"/>
+        <ShowAndDrawInHome :scale="1" :upper-opening-mm="recipeUpperOpeningMm" v-if="!newWayToCreateGraphic"/>
         <ShowAndDrawInHome_new
           v-else
           :scale="1"
@@ -1037,8 +424,6 @@ onMounted(async () => {
       :running="programRunning"
       />
     </div>
-
-
 </template>
 <style>
 .home-toolbar {

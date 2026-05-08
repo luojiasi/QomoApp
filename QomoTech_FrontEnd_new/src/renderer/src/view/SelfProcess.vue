@@ -7,7 +7,6 @@ import FlowNodeConfig from '../components/workflow/FlowNodeConfig.vue'
 import FlowLogPanel from '../components/workflow/FlowLogPanel.vue'
 import FlowCanvasConfig from '../components/workflow/FlowCanvasConfig.vue'
 import MotionController from '../components/workflow/MotionController.vue'
-import CameraPic from '@/components/cameraPic.vue'
 
 const store = useSelfProcessStore()
 const sidePanelTab = ref<'log' | 'config' | 'canvasConfig' | 'motionController'>('config')
@@ -74,8 +73,8 @@ onMounted(async () => {
 
 
     <aside class="flex h-full w-2/9 flex-col overflow-hidden">
-      <div class="h-2/5 overflow-hidden rounded-xl border border-(--app-border)">
-        <CameraPic object-fit="cover" />
+      <div class="h-2/5 overflow-hidden rounded-xl border border-(--app-border) flex items-center justify-center bg-(--app-card-soft)">
+        <span class="text-xs text-(--app-text-muted)">相机预览待后续实现</span>
       </div>
       <div class="h-3/5 overflow-hidden rounded-xl border border-(--app-border) bg-(--app-card)">
         <div class="flex items-center gap-2 border-b border-(--app-border) p-2">

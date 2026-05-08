@@ -1,9 +1,5 @@
 import type { NodeDefinition, NodeCategoryMeta, NodeCategory } from '../types/selfProcessTypes'
 
-// ═══════════════════════════════════════════════════════════════
-// 节点分类元数据
-// ═══════════════════════════════════════════════════════════════
-
 export const NODE_CATEGORY_META: Record<NodeCategory, NodeCategoryMeta> = {
   workflowSystem: {
     category: 'workflowSystem',
@@ -17,14 +13,7 @@ export const NODE_CATEGORY_META: Record<NodeCategory, NodeCategoryMeta> = {
     label: '运动控制',
     icon: '⚡',
     color: '#2563eb',
-    description: '轴移动、旋转、归零、急停等运动指令'
-  },
-  io: {
-    category: 'io',
-    label: 'IO 控制',
-    icon: '🔌',
-    color: '#ca8a04',
-    description: '数字输入输出读写'
+    description: '轴移动、回零、急停等运动指令'
   },
   flow: {
     category: 'flow',
@@ -32,26 +21,16 @@ export const NODE_CATEGORY_META: Record<NodeCategory, NodeCategoryMeta> = {
     icon: '🔀',
     color: '#7c3aed',
     description: '延时、条件判断、循环等流程编排'
-  },
-  camera: {
-    category: 'camera',
-    label: '相机',
-    icon: '📷',
-    color: '#0891b2',
-    description: '图像采集'
-  },
-  laser: {
-    category: 'laser',
-    label: '激光',
-    icon: 'LA',
-    color: '#dc2626',
-    description: '激光控制'
   }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// 节点类型定义
-// ═══════════════════════════════════════════════════════════════
+const AXIS_OPTIONS = [
+  { label: 'X 轴', value: 'X' },
+  { label: 'Y 轴', value: 'Y' },
+  { label: 'Z 轴', value: 'Z' },
+  { label: 'U 轴', value: 'U' },
+  { label: 'R 轴', value: 'R' }
+]
 
 export const NODE_DEFINITIONS: Record<string, NodeDefinition> = {
   // ──── 流程系统 ────────────────────────────────────────────
@@ -90,11 +69,11 @@ export const NODE_DEFINITIONS: Record<string, NodeDefinition> = {
     color: '#2563eb',
     description: '建立与 ZMC 运动控制器的通讯连接',
     properties: [
-      { name: 'ipAddress', displayName: 'IP 地址', type: 'string', default: '192.168.0.11', required: true, placeholder: '192.168.0.11' }
+      { name: 'ip', displayName: 'IP 地址', type: 'string', default: '192.168.0.11', required: true, placeholder: '192.168.0.11' }
     ],
     inputs: [],
     outputs: [{ name: 'main', displayName: '完成' }, { name: 'error', displayName: '失败' }],
-    defaults: { ipAddress: '192.168.0.11' }
+    defaults: { ip: '192.168.0.11' }
   },
 
   'motion.disconnect': {
@@ -118,19 +97,13 @@ export const NODE_DEFINITIONS: Record<string, NodeDefinition> = {
     color: '#2563eb',
     description: '将指定轴移动到绝对坐标位置',
     properties: [
-      { name: 'axis_no', displayName: '轴号', type: 'select', default: 0, required: true, options: [
-        { label: 'X 轴 (0)', value: '0' },
-        { label: 'Y 轴 (1)', value: '1' },
-        { label: 'Z 轴 (2)', value: '2' },
-        { label: 'U 轴 (3)', value: '3' },
-        { label: 'R 轴 (4)', value: '4' }
-      ]},
-      { name: 'target_mm', displayName: '目标位置 (mm)', type: 'number', default: 0, required: true, placeholder: '目标绝对坐标' },
-      { name: 'speed', displayName: '速度 (mm/s)', type: 'number', default: 10, required: true, placeholder: '移动速度' }
+      { name: 'axis', displayName: '轴', type: 'select', default: 'X', required: true, options: AXIS_OPTIONS },
+      { name: 'position', displayName: '目标位置', type: 'number', default: 0, required: true, placeholder: '目标绝对坐标' },
+      { name: 'speed', displayName: '速度', type: 'number', default: 10, required: false, placeholder: '移动速度' }
     ],
     inputs: [],
     outputs: [{ name: 'main', displayName: '完成' }, { name: 'error', displayName: '失败' }],
-    defaults: { axis_no: 0, target_mm: 0, speed: 10 }
+    defaults: { axis: 'X', position: 0, speed: 10 }
   },
 
   'motion.move-rel': {
@@ -141,202 +114,114 @@ export const NODE_DEFINITIONS: Record<string, NodeDefinition> = {
     color: '#2563eb',
     description: '将指定轴移动相对距离',
     properties: [
-      { name: 'axis_no', displayName: '轴号', type: 'select', default: 0, required: true, options: [
-        { label: 'X 轴 (0)', value: '0' },
-        { label: 'Y 轴 (1)', value: '1' },
-        { label: 'Z 轴 (2)', value: '2' },
-        { label: 'U 轴 (3)', value: '3' },
-        { label: 'R 轴 (4)', value: '4' }
-      ]},
-      { name: 'delta_mm', displayName: '位移量 (mm)', type: 'number', default: 10, required: true, placeholder: '相对位移距离' },
-      { name: 'speed', displayName: '速度 (mm/s)', type: 'number', default: 10, required: true, placeholder: '移动速度' }
+      { name: 'axis', displayName: '轴', type: 'select', default: 'X', required: true, options: AXIS_OPTIONS },
+      { name: 'delta', displayName: '位移量', type: 'number', default: 10, required: true, placeholder: '相对位移距离' },
+      { name: 'speed', displayName: '速度', type: 'number', default: 10, required: false, placeholder: '移动速度' }
     ],
     inputs: [],
     outputs: [{ name: 'main', displayName: '完成' }, { name: 'error', displayName: '失败' }],
-    defaults: { axis_no: 0, delta_mm: 10, speed: 10 }
+    defaults: { axis: 'X', delta: 10, speed: 10 }
   },
 
-  'motion.rotate-u': {
-    type: 'motion.rotate-u',
+  'motion.move-linear': {
+    type: 'motion.move-linear',
     category: 'motion',
-    label: 'U 轴旋转',
-    icon: '↻',
+    label: '多轴直线插补',
+    icon: '📐',
     color: '#2563eb',
-    description: '控制 U 轴旋转指定角度',
+    description: '多轴同步直线插补运动（可相对/绝对）',
     properties: [
-      { name: 'angle', displayName: '旋转角度 (°)', type: 'number', default: 90, required: true, placeholder: '旋转角度' },
-      { name: 'speed', displayName: '旋转速度', type: 'number', default: 10, required: true, placeholder: '旋转速度' },
-      { name: 'direction', displayName: '旋转方向', type: 'select', default: '顺时针', required: true, options: [
-        { label: '顺时针', value: '顺时针' },
-        { label: '逆时针', value: '逆时针' }
+      { name: 'axes', displayName: '轴列表', type: 'string', default: '["X","Y"]', required: true, placeholder: '["X","Y"]' },
+      { name: 'positions', displayName: '位置列表', type: 'string', default: '[0,0]', required: true, placeholder: '[10,20]' },
+      { name: 'relative', displayName: '相对运动', type: 'select', default: false, required: false, options: [
+        { label: '否（绝对）', value: 'false' },
+        { label: '是（相对）', value: 'true' }
       ]},
-      { name: 'mode', displayName: '运动模式', type: 'select', default: 'relative', required: true, options: [
-        { label: '相对', value: 'relative' },
-        { label: '绝对', value: 'absolute' }
-      ]}
+      { name: 'speed', displayName: '速度', type: 'number', default: 10, required: false, placeholder: '移动速度' }
     ],
     inputs: [],
     outputs: [{ name: 'main', displayName: '完成' }, { name: 'error', displayName: '失败' }],
-    defaults: { angle: 90, speed: 10, direction: '顺时针', mode: 'relative' }
+    defaults: { axes: '["X","Y"]', positions: '[0,0]', relative: false, speed: 10 }
   },
 
-  'motion.rotate-r': {
-    type: 'motion.rotate-r',
+  'motion.home': {
+    type: 'motion.home',
     category: 'motion',
-    label: 'R 轴旋转',
-    icon: '🔄',
-    color: '#2563eb',
-    description: '控制 R 轴旋转指定圈数',
-    properties: [
-      { name: 'turns', displayName: '旋转圈数', type: 'number', default: 1, required: true, placeholder: '旋转圈数' },
-      { name: 'speed', displayName: '旋转速度', type: 'number', default: 10, required: true, placeholder: '旋转速度' },
-      { name: 'direction', displayName: '旋转方向', type: 'select', default: '顺时针', required: true, options: [
-        { label: '顺时针', value: '顺时针' },
-        { label: '逆时针', value: '逆时针' }
-      ]},
-      { name: 'mode', displayName: '运动模式', type: 'select', default: 'relative', required: true, options: [
-        { label: '相对', value: 'relative' },
-        { label: '绝对', value: 'absolute' }
-      ]}
-    ],
-    inputs: [],
-    outputs: [{ name: 'main', displayName: '完成' }, { name: 'error', displayName: '失败' }],
-    defaults: { turns: 1, speed: 10, direction: '顺时针', mode: 'relative' }
-  },
-
-  'motion.zero': {
-    type: 'motion.zero',
-    category: 'motion',
-    label: '轴归零',
+    label: '轴回零',
     icon: '🏠',
     color: '#2563eb',
-    description: '将指定轴回零（回原点）',
+    description: '将指定轴回零（回原点），留空表示全轴回零',
     properties: [
-      { name: 'axis_no', displayName: '轴号', type: 'select', default: 0, required: true, options: [
-        { label: 'X 轴 (0)', value: '0' },
-        { label: 'Y 轴 (1)', value: '1' },
-        { label: 'Z 轴 (2)', value: '2' },
-        { label: 'U 轴 (3)', value: '3' },
-        { label: 'R 轴 (4)', value: '4' }
-      ]}
+      { name: 'axes', displayName: '回零轴', type: 'string', default: '', required: false, placeholder: '留空=全轴，如 X,Y,Z' }
     ],
     inputs: [],
     outputs: [{ name: 'main', displayName: '完成' }, { name: 'error', displayName: '失败' }],
-    defaults: { axis_no: 0 }
+    defaults: { axes: '' }
   },
 
   'motion.stop': {
     type: 'motion.stop',
     category: 'motion',
-    label: '轴急停',
-    icon: '🛑',
+    label: '停止运动',
+    icon: '⏹️',
     color: '#dc2626',
-    description: '紧急停止指定轴的运动',
-    properties: [
-      { name: 'axis_no', displayName: '轴号', type: 'select', default: 0, required: true, options: [
-        { label: 'X 轴 (0)', value: '0' },
-        { label: 'Y 轴 (1)', value: '1' },
-        { label: 'Z 轴 (2)', value: '2' },
-        { label: 'U 轴 (3)', value: '3' },
-        { label: 'R 轴 (4)', value: '4' }
-      ]}
-    ],
-    inputs: [],
-    outputs: [{ name: 'main', displayName: '完成' }, { name: 'error', displayName: '失败' }],
-    defaults: { axis_no: 0 }
-  },
-
-  'motion.get-position': {
-    type: 'motion.get-position',
-    category: 'motion',
-    label: '获取轴位置',
-    icon: '📏',
-    color: '#2563eb',
-    description: '读取指定轴的当前位置',
-    properties: [
-      { name: 'axis_no', displayName: '轴号', type: 'select', default: 0, required: true, options: [
-        { label: 'X 轴 (0)', value: '0' },
-        { label: 'Y 轴 (1)', value: '1' },
-        { label: 'Z 轴 (2)', value: '2' },
-        { label: 'U 轴 (3)', value: '3' },
-        { label: 'R 轴 (4)', value: '4' }
-      ]}
-    ],
-    inputs: [],
-    outputs: [{ name: 'main', displayName: '位置数据' }],
-    defaults: { axis_no: 0 }
-  },
-
-  'motion.set-params': {
-    type: 'motion.set-params',
-    category: 'motion',
-    label: '设置轴参数',
-    icon: '⚙️',
-    color: '#2563eb',
-    description: '批量设置各轴的运动参数（units/speed/accel 等）',
-    properties: [
-      { name: 'params', displayName: '轴参数 JSON', type: 'json', default: JSON.stringify({
-        params_by_axis: {
-          0: { units: 1000, speed: 10, accel: 100, decel: 100 },
-          1: { units: 1000, speed: 10, accel: 100, decel: 100 },
-          2: { units: 1000, speed: 10, accel: 100, decel: 100 },
-          3: { units: 1000, speed: 10, accel: 100, decel: 100 }
-        }
-      }, null, 2), required: true, description: '按轴号索引的参数对象' }
-    ],
+    description: '停止所有轴的运动',
+    properties: [],
     inputs: [],
     outputs: [{ name: 'main', displayName: '完成' }, { name: 'error', displayName: '失败' }],
     defaults: {}
   },
 
-  // ──── IO 控制 ─────────────────────────────────────────────
-  'io.set-output': {
-    type: 'io.set-output',
-    category: 'io',
-    label: '设置 IO 输出',
-    icon: 'SO',
-    color: '#ca8a04',
-    description: '设置指定数字输出端口的高低电平',
-    properties: [
-      { name: 'io_no', displayName: 'IO 端口号', type: 'number', default: 0, required: true, placeholder: '0-15' },
-      { name: 'value', displayName: '输出值', type: 'select', default: true, required: true, options: [
-        { label: '高电平 (true)', value: 'true' },
-        { label: '低电平 (false)', value: 'false' }
-      ]}
-    ],
+  'motion.estop': {
+    type: 'motion.estop',
+    category: 'motion',
+    label: '全局急停',
+    icon: '🛑',
+    color: '#dc2626',
+    description: '紧急停止所有轴',
+    properties: [],
+    inputs: [],
+    outputs: [{ name: 'main', displayName: '完成' }],
+    defaults: {}
+  },
+
+  'motion.pause': {
+    type: 'motion.pause',
+    category: 'motion',
+    label: '暂停运动',
+    icon: '⏸️',
+    color: '#f59e0b',
+    description: '暂停所有轴的运动',
+    properties: [],
     inputs: [],
     outputs: [{ name: 'main', displayName: '完成' }, { name: 'error', displayName: '失败' }],
-    defaults: { io_no: 0, value: true }
+    defaults: {}
   },
 
-  'io.read-input': {
-    type: 'io.read-input',
-    category: 'io',
-    label: '读取 IO 输入',
-    icon: 'RI',
-    color: '#ca8a04',
-    description: '读取指定数字输入端口的当前状态',
-    properties: [
-      { name: 'io_no', displayName: 'IO 端口号', type: 'number', default: 0, required: true, placeholder: '0-15' }
-    ],
+  'motion.resume': {
+    type: 'motion.resume',
+    category: 'motion',
+    label: '继续运动',
+    icon: '▶️',
+    color: '#22c55e',
+    description: '恢复暂停的运动',
+    properties: [],
     inputs: [],
-    outputs: [{ name: 'main', displayName: '输入值' }, { name: 'error', displayName: '失败' }],
-    defaults: { io_no: 0 }
+    outputs: [{ name: 'main', displayName: '完成' }, { name: 'error', displayName: '失败' }],
+    defaults: {}
   },
 
-  'io.read-output': {
-    type: 'io.read-output',
-    category: 'io',
-    label: '读取 IO 输出',
-    icon: 'RO',
-    color: '#ca8a04',
-    description: '读取指定数字输出端口的当前状态',
-    properties: [
-      { name: 'io_no', displayName: 'IO 端口号', type: 'number', default: 0, required: true, placeholder: '0-15' }
-    ],
+  'motion.reset': {
+    type: 'motion.reset',
+    category: 'motion',
+    label: '复位',
+    icon: '🔄',
+    color: '#3b82f6',
+    description: '复位控制器报警',
+    properties: [],
     inputs: [],
-    outputs: [{ name: 'main', displayName: '输出值' }, { name: 'error', displayName: '失败' }],
-    defaults: { io_no: 0 }
+    outputs: [{ name: 'main', displayName: '完成' }, { name: 'error', displayName: '失败' }],
+    defaults: {}
   },
 
   // ──── 流程控制 ────────────────────────────────────────────
@@ -433,36 +318,17 @@ export const NODE_DEFINITIONS: Record<string, NodeDefinition> = {
     inputs: [],
     outputs: [{ name: 'main', displayName: '变量值' }],
     defaults: { varName: '' }
-  },
-
-  // ──── 相机 ────────────────────────────────────────────────
-  'camera.capture': {
-    type: 'camera.capture',
-    category: 'camera',
-    label: '拍照',
-    icon: '📸',
-    color: '#0891b2',
-    description: '触发相机采集一张图像',
-    properties: [
-      { name: 'savePath', displayName: '保存路径', type: 'string', default: '', required: false, placeholder: '留空使用默认路径' }
-    ],
-    inputs: [],
-    outputs: [{ name: 'main', displayName: '图像路径' }],
-    defaults: {}
   }
 }
 
-/** 获取所有节点类型 ID 列表 */
 export function getAllNodeTypes(): string[] {
   return Object.keys(NODE_DEFINITIONS)
 }
 
-/** 按分类获取节点定义 */
 export function getNodeDefinitionsByCategory(category: NodeCategory): NodeDefinition[] {
   return Object.values(NODE_DEFINITIONS).filter((d) => d.category === category)
 }
 
-/** 根据类型 ID 获取定义 */
 export function getNodeDefinition(type: string): NodeDefinition | undefined {
   return NODE_DEFINITIONS[type]
 }

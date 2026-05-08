@@ -29,7 +29,7 @@ class MotionConfig(BaseModel):
     controller_model: str = "QomoTech406V2"
     transport: Literal["ethernet", "rs232", "rs485", "can", "ethercat"] = "ethernet"
     controller_ip: str = "192.168.0.11"
-    enable_axes: list[str] = ["X", "Y", "Z", "R", "U"]
+    enable_axes: list[str] = ["X", "Y", "Z", "U", "R"]
     axis_count: Literal[3, 5] = 5
 
     # 对齐前端 axes（0=X,1=Y,2=Z,3=U,4=R）

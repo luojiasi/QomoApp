@@ -8,23 +8,23 @@ import type {
   NodeRunStatus
 } from '../types/selfProcessTypes'
 import { generateId } from '../utils/selfProcessUtils'
+import { getBackendApiUrl } from '../utils/toBackendApiCall'
+import { AXIS_NAMES } from '../utils/motionApi'
 import { resolveValue, type ResolverContext } from './expressionResolver'
 
-// ──── API 端点映射 ──────────────────────────────────────────────
+// ──── API 端点映射（新后端 FastAPI） ──────────────────────────────
 const NODE_API_MAP: Record<string, { endpoint: string; method: string }> = {
-  'motion.connect': { endpoint: '/api/motion/connect', method: 'POST' },
-  'motion.disconnect': { endpoint: '/api/motion/disconnect', method: 'POST' },
-  'motion.move-abs': { endpoint: '/api/motion/axis/move-abs', method: 'POST' },
-  'motion.move-rel': { endpoint: '/api/motion/axis/move-rel', method: 'POST' },
-  'motion.rotate-u': { endpoint: '/api/motion/axis/U轴旋转的角度', method: 'POST' },
-  'motion.rotate-r': { endpoint: '/api/motion/axis/R轴旋转的圈数', method: 'POST' },
-  'motion.zero': { endpoint: '/api/motion/axis/zero', method: 'POST' },
-  'motion.stop': { endpoint: '/api/motion/emergency-stop', method: 'POST' },
-  'motion.get-position': { endpoint: '/api/motion/position/{axis_no}', method: 'GET' },
-  'motion.set-params': { endpoint: '/api/motion/axes/params', method: 'POST' },
-  'io.set-output': { endpoint: '/api/motion/io/output', method: 'POST' },
-  'io.read-input': { endpoint: '/api/motion/io/input/{io_no}', method: 'GET' },
-  'io.read-output': { endpoint: '/api/motion/io/output/{io_no}', method: 'GET' }
+  'motion.connect': { endpoint: 'motion/connect', method: 'POST' },
+  'motion.disconnect': { endpoint: 'motion/disconnect', method: 'POST' },
+  'motion.move-abs': { endpoint: 'motion/move/abs', method: 'POST' },
+  'motion.move-rel': { endpoint: 'motion/move/linear', method: 'POST' },
+  'motion.move-linear': { endpoint: 'motion/move/linear', method: 'POST' },
+  'motion.home': { endpoint: 'motion/home', method: 'POST' },
+  'motion.stop': { endpoint: 'motion/stop', method: 'POST' },
+  'motion.estop': { endpoint: 'motion/estop', method: 'POST' },
+  'motion.pause': { endpoint: 'motion/pause', method: 'POST' },
+  'motion.resume': { endpoint: 'motion/resume', method: 'POST' },
+  'motion.reset': { endpoint: 'motion/reset', method: 'POST' }
 }
 
 // ──── 错误类型 ──────────────────────────────────────────────────
@@ -414,7 +414,7 @@ export function createWorkflowEngine(deps: WorkflowEngineDeps) {
     deps.addLog('info', `执行节点「${node.label}」(${node.type})`, node.id)
 
     const type = node.type
-    if (type.startsWith('motion.') || type.startsWith('io.')) {
+    if (type.startsWith('motion.')) {
       return await executeApiNode(node)
     }
     switch (type) {
@@ -446,27 +446,46 @@ export function createWorkflowEngine(deps: WorkflowEngineDeps) {
     }
 
     const { endpoint, method } = apiDef
-    const config = resolveValue(
+    const rawConfig = resolveValue(
       { ...node.config },
       buildResolverContext(node.id)
     ) as Record<string, unknown>
+
+    // axis_no → axis 兼容映射（旧 workflow JSON 过渡）
+    if (rawConfig.axis_no !== undefined && rawConfig.axis === undefined) {
+      const axisNo = Number(rawConfig.axis_no)
+      if (axisNo >= 0 && axisNo < AXIS_NAMES.length) {
+        rawConfig.axis = AXIS_NAMES[axisNo]
+      }
+      delete rawConfig.axis_no
+    }
+    // motion.move-rel: 单轴相对运动 → 映射为 move/linear relative
+    let body: Record<string, unknown> = { ...rawConfig }
+    if (node.type === 'motion.move-rel') {
+      body = {
+        axes: [rawConfig.axis ?? 'X'],
+        positions: [rawConfig.delta ?? 0],
+        relative: true
+      }
+      if (rawConfig.speed !== undefined) (body as Record<string, unknown>).speed = rawConfig.speed
+    }
     const timeout = 30
 
+    // 替换路径参数（如 {axis_no}，仅兼容旧映射）
     let resolvedEndpoint = endpoint
-    for (const [key, val] of Object.entries(config)) {
+    for (const [key, val] of Object.entries(rawConfig)) {
       resolvedEndpoint = resolvedEndpoint.replace(`{${key}}`, encodeURIComponent(String(val)))
     }
 
     let timeoutId: ReturnType<typeof setTimeout> | null = null
     try {
-      const baseUrl = 'http://127.0.0.1:5000'
       const controller = new AbortController()
       timeoutId = setTimeout(() => controller.abort(), timeout * 1000)
       activeAbortController = controller
 
-      const url = new URL(`${baseUrl}${resolvedEndpoint}`)
+      const url = new URL(getBackendApiUrl(resolvedEndpoint))
       if (method === 'GET') {
-        for (const [key, val] of Object.entries(config)) {
+        for (const [key, val] of Object.entries(rawConfig)) {
           if (!resolvedEndpoint.includes(`{${key}}`)) {
             url.searchParams.set(key, String(val))
           }
@@ -480,10 +499,10 @@ export function createWorkflowEngine(deps: WorkflowEngineDeps) {
       }
 
       if (method !== 'GET') {
-        options.body = JSON.stringify(config)
+        options.body = JSON.stringify(body)
       }
 
-      deps.addLog('info', `调用 API: ${method} ${resolvedEndpoint}`, node.id, { config })
+      deps.addLog('info', `调用 API: ${method} ${resolvedEndpoint}`, node.id, { body })
 
       const response = await fetch(url.toString(), options)
       const data = await parseResponseBody(response)

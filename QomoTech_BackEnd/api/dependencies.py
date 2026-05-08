@@ -9,6 +9,11 @@ from drivers.camera_driver import CameraDriver
 from drivers.rs232_driver import Rs232Driver
 from drivers.zmotion_driver import ZMotionDriver
 
+from drivers.driver_rs232 import 串口驱动
+from config.rs232_config import 串口配置实例
+串口实例 = 串口驱动(串口配置实例)
+def 获取串口实例() -> 串口驱动: return 串口实例
+
 
 rs232_driver = Rs232Driver(rs232_config)
 camera_driver = CameraDriver()
@@ -43,6 +48,8 @@ def get_rs232_driver():
 
 def get_camera_driver():
     return camera_driver
+
+
 
 
 

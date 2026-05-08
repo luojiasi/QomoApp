@@ -27,8 +27,6 @@ function getActionLabel(target: string): string {
   switch (target) {
     case 'ControllerSettings':
       return '控制器详细设置'
-    case 'DetailedRs232Send':
-      return '激光器详细设置'
     default:
       return target
   }

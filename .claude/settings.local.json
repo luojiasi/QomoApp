@@ -13,5 +13,6 @@
       "Bash(Get-ChildItem -Path \"D:\\\\Qomo\\\\QomoTech\\\\QomoTech_FrontEnd_new\" -Force)",
       "Bash(Select-Object Name, FullName)"
     ]
-  }
+  },
+  "skipWebFetchPreflight": true
 }

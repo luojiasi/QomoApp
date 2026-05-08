@@ -32,7 +32,7 @@ class ZMotionDriver(BaseDriver):
 
     MAX_AXES = 6
     _AXIS_FLOAT_FIELDS = ("units", "lspeed", "speed", "accel", "decel", "sramp")
-    _AXIS_NAME_BY_NO = {0: "x", 1: "y", 2: "z", 3: "r", 4: "u"}
+    _AXIS_NAME_BY_NO = {0: "x", 1: "y", 2: "z", 3: "u", 4: "r"}
     _STATIC_INT_FIELDS: dict[str, str] = {
         "axis_type": "ZAux_Direct_GetAtype",
         "merge": "ZAux_Direct_GetMerge",

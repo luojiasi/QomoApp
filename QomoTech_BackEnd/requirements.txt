@@ -6,3 +6,6 @@ python-multipart
 numpy
 pyserial
 opencv-python
+# 与 uvicorn/anyio 链兼容：不完整 venv 时避免 ModuleNotFoundError
+sniffio
+a2wsgi

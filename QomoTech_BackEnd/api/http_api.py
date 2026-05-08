@@ -23,7 +23,7 @@ from api.schemas import (
     Rs232SerialSessionRequest,
     StartProgramControlRequest,
 )
-from config.app_config import app_config
+from config.app_config import 应用配置实例
 from config.motion_config import motion_config
 from config.product4P_config import (
     Product4PCenterRotation,
@@ -227,7 +227,7 @@ def laser_apply(payload: LaserApplyRequest) -> ApiResponse:
 
 @http_router.get("/api/logs/download")
 def download_logs() -> FileResponse:
-    log_file = Path(app_config.log_dir) / "backend.log"
+    log_file = Path(应用配置实例.日志配置.日志目录) / "backend.log"
     if not log_file.exists():
         raise HTTPException(status_code=404, detail="日志文件不存在")
     return FileResponse(path=log_file, filename=log_file.name, media_type="text/plain")

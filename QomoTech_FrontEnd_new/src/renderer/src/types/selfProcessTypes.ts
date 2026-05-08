@@ -4,7 +4,7 @@ export type LogLevel = 'info' | 'warn' | 'error' | 'debug'
 
 export type WorkflowRunStatus = 'running' | 'paused' | 'completed' | 'failed' | 'idle'
 
-export type NodeCategory = 'workflowSystem'|'motion' | 'io' | 'flow' | 'camera' | 'laser'
+export type NodeCategory = 'workflowSystem' | 'motion' | 'flow'
 
 /** 节点参数定义（用于动态表单） */
 export interface NodeProperty {
