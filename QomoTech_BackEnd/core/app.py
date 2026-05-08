@@ -27,13 +27,13 @@ async def 应用生命周期(app: FastAPI):
 
     日志.info("QomoTech 服务启动中...")
 
-    # from services.motion_control.motion_service import MotionService
-    # 运动服务 = MotionService.获取实例()
-    # try:
-    #     日志.info(f'启动运动服务')
-    #     await 运动服务.启动()
-    # except Exception as exc:
-    #     日志.warning(f"运动服务启动失败（可在连接后重试）: {exc}")
+    from services.MotionService import MotionService
+    运动服务 = MotionService.获取实例()
+    try:
+        日志.info(f'启动运动服务')
+        await 运动服务.启动()
+    except Exception as exc:
+        日志.warning(f"运动服务启动失败（可在连接后重试）: {exc}")
 
     # from services.communicate_control.rs232.rs232_service import Rs232Service
     # rs232服务 = Rs232Service.获取实例()
@@ -92,9 +92,11 @@ def 创建应用() -> FastAPI:
     #     camera_ws_路由, camera_http_路由,
     #     rs232_http_路由, rs232_ws_路由,
     # )
+    from routers.http.motion_http import 路由 as motion_http_路由
+    from routers.websocket.motion_ws import 路由 as motion_ws_路由
     from routers.http.rs232_http import 路由 as rs232_http_路由
-    # app.include_router(motion_http_路由)
-    # app.include_router(motion_ws_路由)
+    app.include_router(motion_http_路由)
+    app.include_router(motion_ws_路由)
     # app.include_router(camera_ws_路由)
     # app.include_router(camera_http_路由)
     app.include_router(rs232_http_路由)

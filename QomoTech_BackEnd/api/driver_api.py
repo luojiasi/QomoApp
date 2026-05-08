@@ -18,7 +18,7 @@ from api.schemas import (
 from drivers.zmotion_driver import ZMotionDriver
 
 
-router = APIRouter(prefix="/api", tags=["driver"])
+router = APIRouter(prefix="/apiqweqwe", tags=["driver"])
 
 
 def _apply_axis_speed_if_present(motion: ZMotionDriver, axis_no: int, speed: float | None) -> bool:

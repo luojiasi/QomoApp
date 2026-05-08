@@ -151,6 +151,14 @@ def _handle_exc(exc: Exception) -> HTTPException:
 
 def _diag_dict(svc: CameraService) -> Dict[str, Any]:
     diag = svc.获取诊断()
+    if diag is None:
+        return {
+            "initialized": False,
+            "connected": False,
+            "streaming": False,
+            "selected_index": None,
+            "last_error": "CameraService 未启动",
+        }
     return {
         "initialized": diag.initialized,
         "connected": diag.connected,
