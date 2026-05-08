@@ -18,7 +18,7 @@ else:
 
 class AppConfig(BaseSettings):
     app_name: str = "QomoTech Backend"
-    version: str = "0.1.0"
+    version: str = "1.0.0"
     host: str = "0.0.0.0"
     port: int = 5000
     debug: bool = False

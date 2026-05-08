@@ -1,0 +1,139 @@
+{
+  "id": "moscmf608b00",
+  "name": "单行入口",
+  "description": "",
+  "nodes": [
+    {
+      "id": "moscmgi0xady",
+      "type": "workflowSystem.singleStart",
+      "label": "单一入口",
+      "position": {
+        "x": 60,
+        "y": 20
+      },
+      "config": {},
+      "description": ""
+    },
+    {
+      "id": "mosfhfbtg00e",
+      "type": "motion.get-position",
+      "label": "获取轴位置",
+      "position": {
+        "x": -60,
+        "y": 180
+      },
+      "config": {
+        "axis_no": 0
+      },
+      "description": ""
+    },
+    {
+      "id": "motbxoyru3mo",
+      "type": "flow.condition",
+      "label": "条件判断",
+      "position": {
+        "x": -120,
+        "y": 460
+      },
+      "config": {
+        "leftOperand": "$prev.data.result.data.mpos",
+        "operator": "eq",
+        "rightOperand": "$prev.data.result.data.idle"
+      },
+      "description": ""
+    },
+    {
+      "id": "motc5krqyo8u",
+      "type": "motion.get-position",
+      "label": "获取轴位置",
+      "position": {
+        "x": 180,
+        "y": 240
+      },
+      "config": {
+        "axis_no": "2"
+      },
+      "description": ""
+    },
+    {
+      "id": "motcyfr669xs",
+      "type": "flow.delay",
+      "label": "延时等待",
+      "position": {
+        "x": 100,
+        "y": 580
+      },
+      "config": {
+        "seconds": 1
+      },
+      "description": ""
+    },
+    {
+      "id": "motni0aemsfu",
+      "type": "flow.delay",
+      "label": "延时等待",
+      "position": {
+        "x": -200,
+        "y": 300
+      },
+      "config": {
+        "seconds": 1
+      },
+      "description": ""
+    }
+  ],
+  "edges": [
+    {
+      "id": "mosfkb6f2hck",
+      "source": "moscmgi0xady",
+      "target": "mosfhfbtg00e",
+      "sourceHandle": "main"
+    },
+    {
+      "id": "motc84cp2c53",
+      "source": "motc5krqyo8u",
+      "target": "motbxoyru3mo",
+      "sourceHandle": "main",
+      "targetHandle": "compare"
+    },
+    {
+      "id": "motc89kgkezm",
+      "source": "moscmgi0xady",
+      "target": "motc5krqyo8u",
+      "sourceHandle": "main"
+    },
+    {
+      "id": "motcyhc8ogho",
+      "source": "motbxoyru3mo",
+      "target": "motcyfr669xs",
+      "sourceHandle": "false"
+    },
+    {
+      "id": "motcyj8vi0zx",
+      "source": "motcyfr669xs",
+      "target": "mosfhfbtg00e",
+      "sourceHandle": "main"
+    },
+    {
+      "id": "motcyklavecw",
+      "source": "motcyfr669xs",
+      "target": "motc5krqyo8u",
+      "sourceHandle": "main"
+    },
+    {
+      "id": "motni1zjr9q0",
+      "source": "mosfhfbtg00e",
+      "target": "motni0aemsfu",
+      "sourceHandle": "main"
+    },
+    {
+      "id": "motni32ty4ku",
+      "source": "motni0aemsfu",
+      "target": "motbxoyru3mo",
+      "sourceHandle": "main",
+      "targetHandle": "input"
+    }
+  ],
+  "createdAt": "2026-05-05T08:10:40.584Z",
+  "updatedAt": "2026-05-06T06:03:15.638Z"
+}

@@ -69,15 +69,13 @@ def 主函数(配置=None):
 
     import uvicorn
     from core.app import app
+    日志.info('获取服务器配置中...')
     服务配置 = 配置.get("服务", {}) if 配置 else {}
     host = 服务配置.get("host")
     port = 服务配置.get("port")
     reload_enabled = bool(服务配置.get("debug")) and not getattr(sys, "frozen", False)
-    日志.info('获取服务器配置中...')
-
-
+    
     uvicorn.run(app if not reload_enabled else "core.app:app", host=host, port=port, reload=reload_enabled)
-    日志.info('服务器启动成功')
 
 
 

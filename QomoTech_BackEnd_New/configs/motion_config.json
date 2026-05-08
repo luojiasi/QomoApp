@@ -1,0 +1,93 @@
+{
+  "controller": {
+    "ip": "192.168.0.11",
+    "timeout_ms": 3000,
+    "heartbeat_interval_s": 5,
+    "watchdog_timeout_s": 5.0
+  },
+  "axis_map": {
+    "X": 0,
+    "Y": 1,
+    "Z": 2,
+    "U": 3,
+    "R": 4
+  },
+  "axes": {
+    "X": {
+      "max_speed": 5000,
+      "accel": 500,
+      "decel": 500,
+      "soft_limit_pos": 300.0,
+      "soft_limit_neg": 0.0,
+      "home_speed": 500,
+      "home_direction": -1,
+      "home_mode": 0,
+      "pulse_per_unit": 1000.0,
+      "atype": 1,
+      "enabled": true
+    },
+    "Y": {
+      "max_speed": 5000,
+      "accel": 500,
+      "decel": 500,
+      "soft_limit_pos": 300.0,
+      "soft_limit_neg": 0.0,
+      "home_speed": 500,
+      "home_direction": -1,
+      "home_mode": 0,
+      "pulse_per_unit": 1000.0,
+      "atype": 1,
+      "enabled": true
+    },
+    "Z": {
+      "max_speed": 3000,
+      "accel": 300,
+      "decel": 300,
+      "soft_limit_pos": 200.0,
+      "soft_limit_neg": 0.0,
+      "home_speed": 300,
+      "home_direction": -1,
+      "home_mode": 0,
+      "pulse_per_unit": 1000.0,
+      "atype": 1,
+      "enabled": true
+    },
+    "U": {
+      "max_speed": 3600,
+      "accel": 600,
+      "decel": 600,
+      "soft_limit_pos": 360.0,
+      "soft_limit_neg": -360.0,
+      "home_speed": 600,
+      "home_direction": -1,
+      "home_mode": 0,
+      "pulse_per_unit": 100.0,
+      "atype": 1,
+      "enabled": true
+    },
+    "R": {
+      "max_speed": 3600,
+      "accel": 600,
+      "decel": 600,
+      "soft_limit_pos": 360.0,
+      "soft_limit_neg": -360.0,
+      "home_speed": 600,
+      "home_direction": -1,
+      "home_mode": 0,
+      "pulse_per_unit": 100.0,
+      "atype": 1,
+      "enabled": true
+    }
+  },
+  "safety": {
+    "estop_command": "CANCEL(0,2)",
+    "require_home_before_run": false,
+    "max_feed_override": 200,
+    "min_feed_override": 0
+  },
+  "monitor": {
+    "status_poll_ms": 50,
+    "max_subscribers": 16,
+    "queue_size": 5
+  }
+}

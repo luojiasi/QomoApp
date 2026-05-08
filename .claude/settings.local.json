@@ -7,7 +7,11 @@
       "WebFetch(domain:github.com)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(curl -s \"https://api.github.com/repos/n8n-io/n8n/contents/packages/core/src/execution-engine\")",
-      "Bash(python -c \"import json,sys; data=json.load\\(sys.stdin\\); [print\\(d['name']\\) for d in data]\")"
+      "Bash(python -c \"import json,sys; data=json.load\\(sys.stdin\\); [print\\(d['name']\\) for d in data]\")",
+      "Bash(dir D:QomoQomoTechQomoTech_BackEnd_New *)",
+      "Bash(./venv/Scripts/python.exe *)",
+      "Bash(Get-ChildItem -Path \"D:\\\\Qomo\\\\QomoTech\\\\QomoTech_FrontEnd_new\" -Force)",
+      "Bash(Select-Object Name, FullName)"
     ]
   }
 }

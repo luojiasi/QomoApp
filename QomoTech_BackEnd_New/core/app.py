@@ -14,8 +14,37 @@ from utils.logger import 获取日志记录器
 @asynccontextmanager
 async def 应用生命周期(app: FastAPI):
     """应用启动/关闭时的生命周期管理。"""
+
+
     日志.info("QomoTech 服务启动中...")
+
+    from services.motion_control.motion_service import MotionService
+    运动服务 = MotionService.获取实例()
+    try:
+        日志.info(f'启动运动服务')
+        await 运动服务.启动()
+    except Exception as exc:
+        日志.warning(f"运动服务启动失败（可在连接后重试）: {exc}")
+
+    from services.communicate_control.rs232.rs232_service import Rs232Service
+    rs232服务 = Rs232Service.获取实例()
+    try:
+        日志.info(f'启动RS232服务')
+        await rs232服务.启动()
+    except Exception as exc:
+        日志.warning(f"RS232 服务启动失败: {exc}")
+
     yield
+
+    try:
+        await 运动服务.停止()
+    except Exception as exc:
+        日志.warning(f"运动服务停止异常: {exc}")
+
+    try:
+        await rs232服务.停止()
+    except Exception as exc:
+        日志.warning(f"RS232 服务停止异常: {exc}")
     日志.info("QomoTech 服务已关闭")
 
 
@@ -36,11 +65,26 @@ def 创建应用() -> FastAPI:
         allow_methods=["*"],                                # 允许的 HTTP 方法，* = GET/POST/PUT/DELETE 全放行
         allow_headers=["*"],                                # 允许的请求头，* = 不限制
     )
-
+    日志.info('拉起服务成功')
+    print('查看接口文档http://127.0.0.1:5000/docs#/')
+    print('查看接口文档http://127.0.0.1:5000/redoc#/')
     # 注册路由
-    from routers import http_路由, ws_路由
+    from routers import (
+        http_路由, ws_路由,
+        motion_http_路由, motion_ws_路由,
+        camera_ws_路由, camera_http_路由,
+        rs232_http_路由, rs232_ws_路由,
+    )
     app.include_router(http_路由)
     app.include_router(ws_路由)
+    app.include_router(motion_http_路由)
+    app.include_router(motion_ws_路由)
+    app.include_router(camera_ws_路由)
+    app.include_router(camera_http_路由)
+    app.include_router(rs232_http_路由)
+    app.include_router(rs232_ws_路由)
+    日志.info('注册路由成功')
 
     return app
 app = 创建应用()
+
