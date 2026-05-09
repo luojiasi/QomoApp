@@ -28,7 +28,7 @@ hiddenimports += [
 
 a = Analysis(
     ['run.py'],
-    pathex=[str(Path(__file__).parent)],
+    pathex=[str(Path(".").resolve())],
     binaries=[],
     datas=[
         # zauxdll + zmotion.dll（zauxdll 的 C 依赖）放到脚本同目录

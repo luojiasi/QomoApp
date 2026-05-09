@@ -26,6 +26,7 @@ import {
 } from '../types/recipeSettings'
 import { cloneSettings } from '../utils/settings'
 import { createSettingsSaveResult } from './settingsStoreUtils'
+import { RECIPE_STORAGE_KEYS } from '../configs/storageKeys'
 
 function getNextSequence(items: { id: string }[], prefix: string): number {
   return (
@@ -35,18 +36,6 @@ function getNextSequence(items: { id: string }[], prefix: string): number {
     }, 0) + 1
   )
 }
-
-const RECIPE_STORAGE_KEYS = {
-  mainRecipes: 'qomotech.recipe.main-recipes',
-  laserPowerRecipes: 'qomotech.recipe.laser-power-recipes',
-  blackeningRecipes: 'qomotech.recipe.blackening-recipes',
-  horizontalFormulaRecipes: 'qomotech.recipe.horizontal-formula-recipes',
-  verticalFormulaRecipes: 'qomotech.recipe.vertical-formula-recipes',
-  machiningRecipes: 'qomotech.recipe.machining-recipes',
-  mainRecipeDetails: 'qomotech.recipe.main-recipe-details',
-  selectedMainRecipeId: 'qomotech.recipe.selected-main-recipe-id',
-  filter: 'qomotech.recipe.filter'
-} as const
 
 type ProcessRecipeWithFormulaDetails<T extends MachiningProcessRecipe> = T & {
   horizontalFormulaRecipe: SharedFormulaRecipe | null

@@ -1,4 +1,6 @@
 import type { ReservePageDefinition } from '../types/settings'
+import type { AccountInfo } from '../types/auth'
+import type { LicenseStatus } from '../types/license'
 
 export const reservePageDefinitions: ReservePageDefinition[] = [
   {
@@ -57,3 +59,35 @@ export {
   RS232_STOP_BITS_OPTIONS,
   rs232ApiContracts
 } from './rs232Settings'
+
+export { defaultCameraSettings } from './cameraSettings'
+
+export {
+  QOMO5P_PROJECT_VERSION,
+  DEFAULT_ENTITY_BASE_HEIGHT,
+  createDefaultViewport,
+  createDefaultLayer,
+  createDefaultWelding
+} from './qomo5pSettings'
+
+export const DEFAULT_ADMIN_ACCOUNT: AccountInfo = {
+  username: 'admin',
+  password: 'admin123'
+}
+
+export const DEFAULT_USER_ACCOUNT: AccountInfo = {
+  username: 'user',
+  password: '123456'
+}
+
+export const createDefaultLicenseStatus = (): LicenseStatus => ({
+  valid: false,
+  code: 'missing',
+  message: '当前设备尚未激活，请输入密钥。',
+  requiresActivation: true,
+  deviceFingerprint: '',
+  activatedAt: null,
+  expireAt: null,
+  licenseId: null,
+  remainingDays: null
+})

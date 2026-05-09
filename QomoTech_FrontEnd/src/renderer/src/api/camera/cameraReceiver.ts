@@ -22,9 +22,9 @@ const DEFAULT_QUALITY = 50
 const TARGET_DISPLAY_FPS = 120
 const DISPLAY_FRAME_INTERVAL_MS = Math.floor(1000 / TARGET_DISPLAY_FPS)
 const WS_RECONNECT_MS = 120
+import { CAMERA_SETTINGS_STORAGE_KEY } from '../../configs/storageKeys'
+
 const FRAME_QUEUE_SIZE = 3
-const URL_CACHE_SIZE = 3
-const CAMERA_SETTINGS_STORAGE_KEY = 'qomotech-camera-settings'
 
 const loadedFrameQueue: string[] = []
 const staleFrameUrlCache: string[] = []

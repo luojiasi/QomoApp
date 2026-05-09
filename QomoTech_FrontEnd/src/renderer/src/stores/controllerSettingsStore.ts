@@ -6,15 +6,12 @@ import type {
   ControllerParameters,
   SettingsSaveResult
 } from '../types/settings'
-import { HOME_STATE_KEY, type HomeState } from '../types/auth'
+import { type HomeState } from '../types/auth'
+import { CONTROLLER_SETTINGS_STORAGE_KEY, HOME_STATE_KEY } from '../configs/storageKeys'
 import { cloneSettings } from '../utils/settings'
 import { setMotionAllAxesParamsWithControllerSettings } from '../api/motion'
 import { createSettingsSaveResult } from './settingsStoreUtils'
 
-
-
-/** 与 `qomotech-auth` 等并列，供 Application → Local Storage 查看 */
-export const CONTROLLER_SETTINGS_STORAGE_KEY = 'qomotech-controller-settings'
 
 const PERSIST_DEBOUNCE_MS = 800
 const DRIVER_SYNC_DEBOUNCE_MS = 1000

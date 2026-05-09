@@ -98,7 +98,7 @@ const onRefreshClick = async (): Promise<void> => {
 
 const syncLocalProduct4PCenterRotationOnStartup = async (): Promise<void> => {
   const centerRotation = auxiliaryFunctionPanelStore.loadAxisCenterCalibCenterBasedXYSum()
-  const payload = {Xoffset: Number(centerRotation.Xoffset),Yoffset: Number(centerRotation.Yoffset),Zoffset: Number(centerRotation.Zoffset)}
+  const payload = {Xoffset: Number(centerRotation.X),Yoffset: Number(centerRotation.Y),Zoffset: Number(centerRotation.Z)}
   if (
     !Number.isFinite(payload.Xoffset) ||
     !Number.isFinite(payload.Yoffset) ||

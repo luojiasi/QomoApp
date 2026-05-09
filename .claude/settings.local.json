@@ -15,7 +15,8 @@
       "Bash(Get-ChildItem -Path \"D:\\\\Qomo\\\\QomoTech\\\\QomoTech_BackEnd\\\\drivers\" -Recurse -Name)",
       "Bash(Select-Object -First 50)",
       "Bash(npm run *)",
-      "Bash(python *)"
+      "Bash(python *)",
+      "Bash(Get-ChildItem *)"
     ]
   },
   "skipWebFetchPreflight": true

@@ -3,7 +3,8 @@ import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref } from 'vue'
 import CameraPic from '../components/Camera/cameraPic.vue'
 import { useNotification } from '../composables/useNotification'
-import { CAMERA_SETTINGS_STORAGE_KEY, useCameraSettingsStore } from '../stores/cameraSettingsStore'
+import { CAMERA_SETTINGS_STORAGE_KEY } from '../configs/storageKeys'
+import { useCameraSettingsStore } from '../stores/cameraSettingsStore'
 import {
   bootstrapCameraSettings,
   disconnectCamera,

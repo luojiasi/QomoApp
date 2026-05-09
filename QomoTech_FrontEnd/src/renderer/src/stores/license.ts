@@ -1,18 +1,9 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { LicenseActivationResult, LicenseStatus } from '../types/license'
+import { createDefaultLicenseStatus } from '../configs/settings'
 
-const createEmptyStatus = (): LicenseStatus => ({
-  valid: false,
-  code: 'missing',
-  message: '当前设备尚未激活，请输入密钥。',
-  requiresActivation: true,
-  deviceFingerprint: '',
-  activatedAt: null,
-  expireAt: null,
-  licenseId: null,
-  remainingDays: null
-})
+const createEmptyStatus = createDefaultLicenseStatus
 
 export const useLicenseStore = defineStore('license', () => {
   const status = ref<LicenseStatus>(createEmptyStatus())

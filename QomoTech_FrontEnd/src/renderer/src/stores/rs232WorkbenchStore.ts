@@ -8,8 +8,7 @@ import type {
 } from '../types/settings'
 import { cloneSettings } from '../utils/settings'
 import { createSettingsSaveResult } from './settingsStoreUtils'
-
-export const RS232_WORKBENCH_STORAGE_KEY = 'qomotech-rs232-workbench'
+import { RS232_WORKBENCH_STORAGE_KEY } from '../configs/storageKeys'
 
 const PERSIST_DEBOUNCE_MS = 400
 

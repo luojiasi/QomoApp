@@ -554,9 +554,9 @@ const handleAxisCenterCalib = async()=>{
     console.log(axisCenterCalibZ+"axisCenterCalibZ")
 
     const centerRotationResult = {
-      Xoffset: axisCenterCalibX,
-      Yoffset: axisCenterCalibY,
-      Zoffset: axisCenterCalibZ,
+      X: axisCenterCalibX,
+      Y: axisCenterCalibY,
+      Z: axisCenterCalibZ,
     }
     auxiliaryFunctionPanelStore.saveAxisCenterCalibCenterBasedXYSum(centerRotationResult)
 
@@ -880,15 +880,15 @@ function handleSaveQuickMoveToPosition(): void {
             <div v-if="axisCenterCalibCenterBasedXYSum" class="mt-2 grid grid-cols-2 gap-2 lg:grid-cols-4">
               <div class="rounded-lg border border-(--app-border) bg-(--app-card) px-3 py-2">
                 <p class="text-xs text-(--app-text-muted)">X补偿值</p>
-                <p class="mt-1 text-sm text-(--app-text-primary)">{{ axisCenterCalibCenterBasedXYSum.Xoffset.toFixed(3) }}</p>
+                <p class="mt-1 text-sm text-(--app-text-primary)">{{ axisCenterCalibCenterBasedXYSum.X.toFixed(3) }}</p>
               </div>
               <div class="rounded-lg border border-(--app-border) bg-(--app-card) px-3 py-2">
                 <p class="text-xs text-(--app-text-muted)">Y补偿值</p>
-                <p class="mt-1 text-sm text-(--app-text-primary)">{{ axisCenterCalibCenterBasedXYSum.Yoffset.toFixed(3) }}</p>
+                <p class="mt-1 text-sm text-(--app-text-primary)">{{ axisCenterCalibCenterBasedXYSum.Y.toFixed(3) }}</p>
               </div>
               <div class="rounded-lg border border-(--app-border) bg-(--app-card) px-3 py-2">
                 <p class="text-xs text-(--app-text-muted)">Z补偿值</p>
-                <p class="mt-1 text-sm text-(--app-text-primary)">{{ axisCenterCalibCenterBasedXYSum.Zoffset.toFixed(3) }}</p>
+                <p class="mt-1 text-sm text-(--app-text-primary)">{{ axisCenterCalibCenterBasedXYSum.Z.toFixed(3) }}</p>
               </div>
             </div>
             <p v-else class="mt-2 text-xs text-(--app-text-muted)">请先完成全部采样点的 XY 位置记录</p>

@@ -1,13 +1,8 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { AccountInfo, AuthStorage, LoginResult } from '../types/auth'
-import { AUTH_STORAGE_KEY } from '../types/auth'
-
-
-
-const DEFAULT_ADMIN_ACCOUNT: AccountInfo = {username: 'admin',password: 'admin123'}
-
-const DEFAULT_USER_ACCOUNT: AccountInfo = {username: 'user',password: '123456'}
+import { AUTH_STORAGE_KEY } from '../configs/storageKeys'
+import { DEFAULT_ADMIN_ACCOUNT, DEFAULT_USER_ACCOUNT } from '../configs/settings'
 
 const getDefaultAuthState = (): AuthStorage => ({username: '',isAdmin: false,isUser: true,userAccount: { ...DEFAULT_USER_ACCOUNT }})
 

@@ -3,27 +3,10 @@ import { defineStore } from 'pinia'
 import type { CameraSettingsState, SettingsSaveResult } from '../types/settings'
 import { cloneSettings } from '../utils/settings'
 import { createSettingsSaveResult } from './settingsStoreUtils'
-
-export const CAMERA_SETTINGS_STORAGE_KEY = 'qomotech-camera-settings'
+import { CAMERA_SETTINGS_STORAGE_KEY } from '../configs/storageKeys'
+import { defaultCameraSettings } from '../configs/settings'
 
 const PERSIST_DEBOUNCE_MS = 400
-
-const defaultCameraSettings: CameraSettingsState = {
-  cameraIndex: 0,
-  autoExposure: true,
-  exposureTime: 1000,
-  frameSpeedLevel: 1,
-  frameSpeedAutoTune: true,
-  frameSpeedTune: 1,
-  mirrorHorizontal: false,
-  mirrorVertical: false,
-  autoWhiteBalance: true,
-  whiteBalanceRGain: 21,
-  whiteBalanceGGain: 22,
-  whiteBalanceBGain: 16,
-  frameTimeoutMs: 1000,
-  frameQuality: 90
-}
 
 function isCameraSettingsShape(data: unknown): data is CameraSettingsState {
   if (!data || typeof data !== 'object') return false

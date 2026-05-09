@@ -32,10 +32,14 @@ import { parseDxfToQomoEntities } from '@renderer/utils/Qomo5P/QomoDxf'
 import { parseQomoProject, serializeQomoProject } from '@renderer/utils/Qomo5P/QomoProject'
 import { downloadTextFile } from '@renderer/utils/Qomo5P/QomoProject'
 
-const QOMO5P_DRAFT_KEY = 'qomo-5p-draft'
-const PROJECT_VERSION = '1.0.0'
-const CENTER_ROTATION_STORAGE_KEY = 'qomotech-4p-center-rotation'
-const DEFAULT_ENTITY_BASE_HEIGHT = 60
+import { QOMO5P_DRAFT_KEY, CENTER_ROTATION_STORAGE_KEY } from '../configs/storageKeys'
+import {
+  QOMO5P_PROJECT_VERSION,
+  DEFAULT_ENTITY_BASE_HEIGHT,
+  createDefaultViewport,
+  createDefaultLayer,
+  createDefaultWelding
+} from '../configs/settings'
 
 const deepClone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T
 
@@ -47,27 +51,6 @@ type QomoSnapshot = {
   projectMeta: QomoProjectMeta
 }
 
-const createDefaultViewport = (): QomoViewport => ({
-  zoom: 10,
-  panX: 400,
-  panY: 300,
-  width: 800,
-  height: 600
-})
-
-const createDefaultLayer = (): QomoLayer => ({
-  id: '0',
-  name: 'default',
-  visible: true,
-  entityCount: 0
-})
-
-const createDefaultWelding = (): QomoWeldingBase => ({
-  id: 'default-welding',
-  name: '默认焊接',
-  openAngle: 0.54,
-  openSize: 1
-})
 
 const getUnifiedBaseHeight = () => {
   if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') return DEFAULT_ENTITY_BASE_HEIGHT
@@ -96,7 +79,7 @@ const isPoint = (point: Point | undefined): point is Point =>
 const createEmptyMeta = (projectName = 'untitled'): QomoProjectMeta => {
   const now = new Date().toISOString()
   return {
-    version: PROJECT_VERSION,
+    version: QOMO5P_PROJECT_VERSION,
     sourceFileName: projectName,
     createdAt: now,
     importedAt: now,
