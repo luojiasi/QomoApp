@@ -1,5 +1,5 @@
+import { IO_MAP_GROUP_COUNT } from './constants'
 import {
-  IO_MAP_GROUP_COUNT,
   type ControllerAxisCount,
   type ControllerAxisDriverRead,
   type ControllerAxisSettings,

@@ -5,8 +5,7 @@ import { cloneSettings } from '../utils/settings'
 import { createSettingsSaveResult } from './settingsStoreUtils'
 import { CAMERA_SETTINGS_STORAGE_KEY } from '../configs/storageKeys'
 import { defaultCameraSettings } from '../configs/settings'
-
-const PERSIST_DEBOUNCE_MS = 400
+import { LIGHT_SETTINGS_PERSIST_DEBOUNCE_MS as PERSIST_DEBOUNCE_MS } from '../configs/constants'
 
 function isCameraSettingsShape(data: unknown): data is CameraSettingsState {
   if (!data || typeof data !== 'object') return false

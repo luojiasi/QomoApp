@@ -9,8 +9,7 @@ import type {
 import { cloneSettings } from '../utils/settings'
 import { createSettingsSaveResult } from './settingsStoreUtils'
 import { RS232_WORKBENCH_STORAGE_KEY } from '../configs/storageKeys'
-
-const PERSIST_DEBOUNCE_MS = 400
+import { LIGHT_SETTINGS_PERSIST_DEBOUNCE_MS as PERSIST_DEBOUNCE_MS } from '../configs/constants'
 
 function isRs232WorkbenchShape(data: unknown): data is Rs232WorkbenchState {
   if (!data || typeof data !== 'object') return false

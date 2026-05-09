@@ -11,10 +11,10 @@ import { CONTROLLER_SETTINGS_STORAGE_KEY, HOME_STATE_KEY } from '../configs/stor
 import { cloneSettings } from '../utils/settings'
 import { setMotionAllAxesParamsWithControllerSettings } from '../api/motion'
 import { createSettingsSaveResult } from './settingsStoreUtils'
-
-
-const PERSIST_DEBOUNCE_MS = 800
-const DRIVER_SYNC_DEBOUNCE_MS = 1000
+import {
+  HEAVY_SETTINGS_PERSIST_DEBOUNCE_MS as PERSIST_DEBOUNCE_MS,
+  DRIVER_SYNC_DEBOUNCE_MS
+} from '../configs/constants'
 
 function normalizeControllerParameters(payload: ControllerParameters): ControllerParameters {
   const ac = payload.communication.axisCount

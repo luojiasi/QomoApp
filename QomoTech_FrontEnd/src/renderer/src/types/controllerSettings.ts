@@ -80,9 +80,6 @@ export type IOMapDriverRead = IOMapEntry
 /** @deprecated 使用 IOMapEntry */
 export type IOMapSettings = IOMapEntry
 
-/** 固定 9 组数字量 I/O */
-export const IO_MAP_GROUP_COUNT = 9 as const
-
 export type IOMapNineGroups = [
   IOMapEntry,
   IOMapEntry,
