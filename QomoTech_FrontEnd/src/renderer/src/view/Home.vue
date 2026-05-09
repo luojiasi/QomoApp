@@ -23,7 +23,7 @@ const auxiliaryFunctionPanelStore = useAuxiliaryFunctionPanelStore()
 
 
 // 需要用的时候添加的routers
-import { deviceFeatureRoutes } from '../configs/settings'
+import { deviceFeatureRoutes } from '../router'
 const featureLinks = deviceFeatureRoutes
 
 // 全局显示状态

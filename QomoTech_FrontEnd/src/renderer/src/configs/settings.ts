@@ -26,8 +26,6 @@ export const reservePageDefinitions: ReservePageDefinition[] = [
   }
 ]
 
-export { deviceFeatureRoutes } from './router'
-
 export {
   AXIS_TAB_LABELS,
   applyControllerAxisCount,

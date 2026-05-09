@@ -1,9 +1,6 @@
 import { computed } from 'vue'
-import {
-  createControllerSections,
-  createRecipeSections,
-  deviceFeatureRoutes
-} from '../configs/settings'
+import { createControllerSections, createRecipeSections } from '../configs/settings'
+import { deviceFeatureRoutes } from '../router'
 import { useControllerSettingsStore } from '../stores/controllerSettingsStore'
 import { useRecipeSettingsStore } from '../stores/recipeSettingsStore'
 import { useReservePagesStore } from '../stores/settings'
