@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref,watch} from 'vue'
-import SvgIcon from '../../components/Others/SvgIcon.vue'
+import SvgIcon from '../../components/ui/SvgIcon.vue'
 import { setMotionIoOutput } from '../../api/motion'
 import { zeroMotionAxis,moveMotionAxisRel,getMotionIoInput, getMotionIoOutputsStatus } from '../../api/motion'
 import { waitControllerConnected } from '../../api/hardware'

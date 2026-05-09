@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import CollapsiblePanelHeader from '../../components/Others/CollapsiblePanelHeader.vue'
+import CollapsiblePanelHeader from '../../components/ui/CollapsiblePanelHeader.vue'
 import OutputComponent from './OutputComponent.vue'
 import { useHardwareState } from '../../api/hardware'
 // import {

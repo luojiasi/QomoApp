@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import SvgIcon from '../components/Others/SvgIcon.vue'
+import SvgIcon from '../components/ui/SvgIcon.vue'
 import RecipeDetailFieldPanel from '../features/recipe/RecipeDetailFieldPanel.vue'
 import RecipeLibrarySection from '../features/recipe/RecipeLibrarySection.vue'
 import RecipeEditorCard from '../features/recipe/RecipeEditorCard.vue'

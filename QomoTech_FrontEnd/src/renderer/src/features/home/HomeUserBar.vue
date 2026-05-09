@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
-import SvgIcon from './SvgIcon.vue'
+import SvgIcon from '../../components/ui/SvgIcon.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()

@@ -1,17 +1,17 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted } from 'vue'
-import RouteTabs from '../components/Others/RouteTabs.vue'
-import HomeUserBar from '../components/Others/HomeUserBar.vue'
+import RouteTabs from '../components/ui/RouteTabs.vue'
+import HomeUserBar from '../features/home/HomeUserBar.vue'
 import RecipeParameterPanel from '../features/recipe/HomeRecipeParameterPanel.vue'
 import DriverControlPanel from '../features/controller-panels/DriverControlPanel.vue'
 import LaserControlPanel from '../features/controller-panels/LaserControlPanel.vue'
 import CameraControlPanel from '../features/camera/CameraControlPanel.vue'
 import AuxiliaryFunctionPanel from '../features/controller-panels/AuxiliaryFunctionPanel.vue'
-import HomeOperationHelp from '../components/Others/HomeOperationHelp.vue'
-import StratProgramRunning from '../components/Others/StratProgramRunning.vue'
+import HomeOperationHelp from '../features/home/HomeOperationHelp.vue'
+import StratProgramRunning from '../features/home/StratProgramRunning.vue'
 import CameraPic from '../features/camera/cameraPic.vue'
-import ShowAndDrawInHome from '../components/Others/showAndDrawInHome.vue'
-import TaskProgressAside from '../components/Others/TaskProgressAside.vue'
+import ShowAndDrawInHome from '../features/home/showAndDrawInHome.vue'
+import TaskProgressAside from '../features/home/TaskProgressAside.vue'
 import ControllerSettings from './ControllerSettings.vue'
 import { parseRs232SessionFromLocalStorage } from '../stores/rs232WorkbenchStore'
 import { syncRs232Workbench } from '../api/device/rs232'
@@ -39,7 +39,7 @@ import { useQomo5PStore } from '../stores/qomo5pEditor'
 const qomo5pStore = useQomo5PStore()
 
 import { bootstrapControllerOnce } from '../api/motion'
-import StatusIndicators from '../components/Others/StatusIndicators.vue'
+import StatusIndicators from '../components/ui/StatusIndicators.vue'
 import { getStartProgramStatusWsUrl } from '../api/core/baseWs'
 import { subscribeGlobalKeyboard } from '../utils/globalKeyboard'
 import { useHardwareState } from '../api/hardware'
@@ -57,7 +57,7 @@ import {
 } from '../api/motion'
 import type { QomoEntityWithSurface } from '../types/Qomo5P'
 import DetailedRs232Send from './DetailedRs232Send.vue'
-import SvgIcon from '@/components/Others/SvgIcon.vue'
+import SvgIcon from '@/components/ui/SvgIcon.vue'
 
 
 
