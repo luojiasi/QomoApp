@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import SvgIcon from '../components/Others/SvgIcon.vue'
-import RecipeDetailFieldPanel from '../components/Recipe/RecipeDetailFieldPanel.vue'
-import RecipeLibrarySection from '../components/Recipe/RecipeLibrarySection.vue'
-import RecipeEditorCard from '../components/Recipe/RecipeEditorCard.vue'
-import RecipeTopologyDiagram from '../components/Recipe/RecipeTopologyDiagram.vue'
+import RecipeDetailFieldPanel from '../features/recipe/RecipeDetailFieldPanel.vue'
+import RecipeLibrarySection from '../features/recipe/RecipeLibrarySection.vue'
+import RecipeEditorCard from '../features/recipe/RecipeEditorCard.vue'
+import RecipeTopologyDiagram from '../features/recipe/RecipeTopologyDiagram.vue'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRecipeManagementPage } from '../composables/useSettingsPages'
 import { useNotification } from '../composables/useNotification'

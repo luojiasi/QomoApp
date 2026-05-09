@@ -2,7 +2,7 @@
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import RouteTabs from '../components/Others/RouteTabs.vue'
 import HomeUserBar from '../components/Others/HomeUserBar.vue'
-import RecipeParameterPanel from '../components/Recipe/HomeRecipeParameterPanel.vue'
+import RecipeParameterPanel from '../features/recipe/HomeRecipeParameterPanel.vue'
 import DriverControlPanel from '../components/Controller/DriverControlPanel.vue'
 import LaserControlPanel from '../components/Others/LaserControlPanel.vue'
 import CameraControlPanel from '../components/Camera/CameraControlPanel.vue'

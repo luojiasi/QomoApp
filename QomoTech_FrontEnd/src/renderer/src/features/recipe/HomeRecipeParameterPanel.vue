@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import CollapsiblePanelHeader from '../Others/CollapsiblePanelHeader.vue'
+import CollapsiblePanelHeader from '../../components/Others/CollapsiblePanelHeader.vue'
 import { useRecipeSettingsStore } from '../../stores/recipeSettingsStore'
 import { useQomo5PStore } from '../../stores/qomo5pEditor'
 import { storeToRefs } from 'pinia'
