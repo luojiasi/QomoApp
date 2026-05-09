@@ -148,7 +148,7 @@ export function useMotionExecute(options: UseMotionExecuteOptions = {}) {
     onlineCommandPending.value = true
     try {
       const res = await apiCall<Record<string, unknown> | string>(
-        'motion/online-command',
+        'motion/cmd',
         'POST',
         { command } as Record<string, unknown>
       )

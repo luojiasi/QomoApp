@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import CollapsiblePanelHeader from '../Others/CollapsiblePanelHeader.vue'
 import OutputComponent from './OutputComponent.vue'
-import { useControllerSettingsStore } from '../../stores/controllerSettingsStore'
+import { useHardwareState } from '../../api/hardware'
 // import {
 //   emergencyStopMotion,
 //   moveMotionAxisAbs,
@@ -12,7 +12,7 @@ import { useControllerSettingsStore } from '../../stores/controllerSettingsStore
 // } from '../api/motion'
 // import { useNotification } from '../composables/useNotification'
 
-const controllerStore = useControllerSettingsStore()
+const { mposition } = useHardwareState()
 // const { success, error } = useNotification()
 
 const emit = defineEmits<{(e: 'open-right-panel', target: string): void}>()
@@ -57,12 +57,11 @@ const isDriverPanelExpanded = ref(true)
 
 const axisMposLabels = computed(() => {
   const axisNames = ['X', 'Y', 'Z', 'U', 'R']
-  return axisNames.map((name, axisNo) => {
-    const axis = controllerStore.controllerSettings.axes.find((a) => a.axisNo === axisNo)
-    const mpos = axis ? Number(axis.mpos) : NaN
+  return axisNames.map((name) => {
+    const v = mposition.value[name]
     return {
       name,
-      value: Number.isFinite(mpos) ? mpos.toFixed(3) : '-'
+      value: v != null && Number.isFinite(v) ? v.toFixed(3) : '-'
     }
   })
 })

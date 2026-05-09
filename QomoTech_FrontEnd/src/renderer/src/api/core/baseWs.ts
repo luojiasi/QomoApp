@@ -27,5 +27,5 @@ export const getCameraStreamWsUrl = () => {
 
 export const getStartProgramStatusWsUrl = () => {
   const baseUrl = getBackendWsBaseUrl()
-  return baseUrl ? `${baseUrl}/api/startProgram/ws` : '/api/startProgram/ws'
+  return baseUrl ? `${baseUrl}/ws/program/status` : '/ws/program/status'
 }

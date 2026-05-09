@@ -4,16 +4,13 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useNotification } from '@/composables/useNotification'
 import { useLicenseStore } from '../stores/license'
-// import { useControllerSettingsStore } from '../stores/controllerSettingsStore'
-import { useBackendStatus } from '../composables/useBackendStatus'
-// import { bootstrapControllerOnce } from '../api/motion'
+import StatusIndicators from '../components/Others/StatusIndicators.vue'
 const { success, error } = useNotification()
 
 
 const router = useRouter()
 const authStore = useAuthStore()
 const licenseStore = useLicenseStore()
-// const controllerSettingsStore = useControllerSettingsStore()
 
 const username = ref('')
 const password = ref('')
@@ -25,12 +22,12 @@ const password = ref('')
 
 
 
-const { backendStatus, backendDotClass, startPolling } = useBackendStatus()
+const statusRef = ref<InstanceType<typeof StatusIndicators> | null>(null)
 
 
 
 
-const canLogin = computed(() => backendStatus.value.state === 'running')
+const canLogin = computed(() => statusRef.value?.backendReady ?? false)
 
 const handleLogin = async () => {
   const licenseStatus = await licenseStore.refreshStatus()
@@ -42,7 +39,7 @@ const handleLogin = async () => {
   }
 
   if (!canLogin.value) {
-    error(backendStatus.value.message || '后台未就绪，请稍后重试')
+    error(statusRef.value?.backendMessage || '后台未就绪，请稍后重试')
     return
   }
 
@@ -75,7 +72,6 @@ const handleLogin = async () => {
 
 onMounted(async () => {
   const licenseStatus = await licenseStore.refreshStatus()
-  await startPolling()
 
   if (!licenseStatus.valid) {
     await router.push('/license')
@@ -90,8 +86,7 @@ onMounted(async () => {
         <div class="mb-8 text-center">
           <h1 class="app-text-primary text-3xl font-bold">QomoTech</h1>
           <div class="app-text-secondary mt-2 flex items-center justify-center gap-2 text-sm">
-            <span class="h-2 w-2 rounded-full" :class="backendDotClass" />
-            <span>{{ backendStatus.message }}</span>
+            <StatusIndicators ref="statusRef" show-message />
           </div>
           <p class="app-text-muted mt-2 text-xs">
             剩余使用时间：{{ licenseStore.status.remainingDays }}天

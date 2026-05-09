@@ -194,6 +194,7 @@ class MotionService:
         self._断言safety().准入_停止类(当前)
         if 当前 in (运动状态.ESTOP, 运动状态.ALARM):
             self._状态机.触发(状态事件.RESET)
+        日志.info(f"复位完成（原状态: {当前.value}）")
         await self._刷新快照()
 
     # ==================================================================
@@ -347,6 +348,7 @@ class MotionService:
         gate = self._断言safety()
         cfg = gate.校验轴名(轴名)
         await adapter.单轴停止(cfg.axis_no, 取消_全部)
+        日志.info(f"停止点动 {轴名}#{cfg.axis_no}")
         # 停止后仍可能有其它轴在动，状态由 monitor 决策；这里仅做硬停
         await self._刷新快照()
 
@@ -660,6 +662,16 @@ class MotionService:
     # 暂停 / 继续 / 停止 / 急停
     # ==================================================================
 
+    def 暂停状态采集(self) -> None:
+        """暂停 StatusMonitor 状态采集（程序执行时调用，避免与 DLL 竞态）。"""
+        if self._monitor is not None:
+            self._monitor.暂停()
+
+    def 恢复状态采集(self) -> None:
+        """恢复 StatusMonitor 状态采集。"""
+        if self._monitor is not None:
+            self._monitor.恢复()
+
     async def 暂停(self) -> None:
         """软暂停：保存当前 FEED_OVERRIDE 并设为 0。"""
         self._保证已启动()
@@ -672,6 +684,7 @@ class MotionService:
             self._保存的倍率 = _默认进给倍率
         await adapter.设置进给倍率(0.0)
         self._状态机.触发(状态事件.PAUSE)
+        日志.info(f"已暂停（保存倍率={self._保存的倍率}）")
         await self._刷新快照()
 
     async def 继续(self) -> None:
@@ -681,6 +694,7 @@ class MotionService:
         恢复值 = self._保存的倍率 if self._保存的倍率 > 0 else _默认进给倍率
         await adapter.设置进给倍率(恢复值)
         self._状态机.触发(状态事件.RESUME)
+        日志.info(f"已继续（恢复倍率={恢复值}）")
         await self._刷新快照()
 
     async def 停止运动(self) -> None:
@@ -697,6 +711,7 @@ class MotionService:
             self._状态机.触发(状态事件.STOP)
         except RuntimeError:
             self._状态机.触发(状态事件.STOP, 强制=True)
+        日志.info("已停止运动")
         await self._刷新快照()
 
     async def 急停(self) -> None:
@@ -709,6 +724,7 @@ class MotionService:
             日志.error(f"急停 DLL 调用失败: {exc}")
             # 急停必须落地状态机
         self._状态机.触发(状态事件.ESTOP, 强制=True)
+        日志.warning("已执行急停")
         await self._刷新快照()
 
     # ==================================================================
@@ -733,6 +749,7 @@ class MotionService:
         if not 结果.get("success"):
             self._状态机.触发(状态事件.STOP, 强制=True)
         await self._刷新快照()
+        日志.info(f"U轴旋转角度 参数={旋转参数} → {结果.get('message', 'OK')}")
         return 结果
 
     async def U轴旋转角度(self, 旋转角度: float) -> Dict[str, Any]:
@@ -751,11 +768,14 @@ class MotionService:
         if not 结果.get("success"):
             self._状态机.触发(状态事件.STOP, 强制=True)
         await self._刷新快照()
+        日志.info(f"U轴旋转到角度={旋转角度}° → {结果.get('message', 'OK')}")
         return 结果
 
     async def U轴是否到达旋转角度(self, 旋转角度: float, 容差: float = 0.001) -> bool:
         self._保证已启动()
-        return await self._断言adapter().U轴是否到达旋转角度(旋转角度, 容差)
+        结果 = await self._断言adapter().U轴是否到达旋转角度(旋转角度, 容差)
+        日志.debug(f"U轴是否到达 {旋转角度}°（容差={容差}）: {结果}")
+        return 结果
 
     async def R轴旋转的圈数(self, 旋转参数: Dict[str, Any]) -> Dict[str, Any]:
         self._保证已启动()
@@ -773,6 +793,7 @@ class MotionService:
         if not 结果.get("success"):
             self._状态机.触发(状态事件.STOP, 强制=True)
         await self._刷新快照()
+        日志.info(f"R轴旋转圈数 参数={旋转参数} → {结果.get('message', 'OK')}")
         return 结果
 
     async def R轴一直进行旋转(self, R轴旋转速度: Optional[float] = None) -> Dict[str, Any]:
@@ -791,11 +812,14 @@ class MotionService:
         if not 结果.get("success"):
             self._状态机.触发(状态事件.STOP, 强制=True)
         await self._刷新快照()
+        日志.info(f"R轴持续旋转 速度={R轴旋转速度} → {结果.get('message', 'OK')}")
         return 结果
 
     async def 获取R轴的当前位置(self) -> float:
         self._保证已启动()
-        return await self._断言adapter().获取R轴的当前位置()
+        值 = await self._断言adapter().获取R轴的当前位置()
+        日志.debug(f"R轴当前位置: {值}")
+        return 值
 
     # ==================================================================
     # IO（透传 adapter）
@@ -804,22 +828,31 @@ class MotionService:
     async def 设置输出(self, io号: int, 值: bool) -> None:
         self._保证已启动()
         await self._断言adapter().设置输出(io号, 值)
+        日志.info(f"设置输出 OUT[{io号}] = {值}")
 
     async def 读_输出(self, io号: int) -> bool:
         self._保证已启动()
-        return await self._断言adapter().读_输出(io号)
+        结果 = await self._断言adapter().读_输出(io号)
+        日志.debug(f"读输出 OUT[{io号}] = {结果}")
+        return 结果
 
     async def 批量读_输出(self, io起: int = 0, io止: int = 8) -> Dict[int, bool]:
         self._保证已启动()
-        return await self._断言adapter().批量读_输出(io起, io止)
+        结果 = await self._断言adapter().批量读_输出(io起, io止)
+        日志.debug(f"批量读输出 [{io起}..{io止}) = {结果}")
+        return 结果
 
     async def 读_输入(self, io号: int) -> bool:
         self._保证已启动()
-        return await self._断言adapter().读_输入(io号)
+        结果 = await self._断言adapter().读_输入(io号)
+        日志.debug(f"读输入 IN[{io号}] = {结果}")
+        return 结果
 
     async def 批量读_输入(self, io起: int = 0, io止: int = 8) -> Dict[int, bool]:
         self._保证已启动()
-        return await self._断言adapter().批量读_输入(io起, io止)
+        结果 = await self._断言adapter().批量读_输入(io起, io止)
+        日志.debug(f"批量读输入 [{io起}..{io止}) = {结果}")
+        return 结果
 
     # ==================================================================
     # 轴参数（透传 adapter）
@@ -831,6 +864,7 @@ class MotionService:
         gate = self._断言safety()
         cfg = gate.校验轴名(轴名)
         await self._断言adapter().写入轴参数(cfg.axis_no, **字段)
+        日志.info(f"写入轴参数 {轴名}#{cfg.axis_no}: {字段}")
 
     async def 批量设置轴参数(self, 参数表: Dict[str, Dict[str, Any]]) -> None:
         """按轴名批量下发：{轴名: {字段: 值}}。"""
@@ -842,10 +876,12 @@ class MotionService:
             cfg = gate.校验轴名(轴名)
             转换后[cfg.axis_no] = 字段们
         await adapter.批量设置轴参数(转换后)
+        日志.info(f"批量设置轴参数: {list(参数表.keys())}")
 
     async def 重新下发所有轴(self) -> None:
         self._保证已启动()
         await self._断言adapter().重新下发所有轴()
+        日志.info("所有轴配置已重新下发")
 
     async def 设置反向间隙(
         self,
@@ -861,6 +897,7 @@ class MotionService:
         await self._断言adapter().设置反向间隙(
             cfg.axis_no, 启用, 距离_脉冲, 速度, 加速度,
         )
+        日志.info(f"反向间隙 {轴名}#{cfg.axis_no} 启用={启用} 距离={距离_脉冲}")
 
     async def 设置软限位(
         self,
@@ -872,18 +909,21 @@ class MotionService:
         gate = self._断言safety()
         cfg = gate.校验轴名(轴名)
         await self._断言adapter().设置软限位(cfg.axis_no, 正限位, 负限位)
+        日志.info(f"软限位 {轴名}#{cfg.axis_no} 正={正限位} 负={负限位}")
 
     async def 清除轴错误(self, 轴名: str) -> None:
         self._保证已启动()
         gate = self._断言safety()
         cfg = gate.校验轴名(轴名)
         await self._断言adapter().清除轴错误(cfg.axis_no)
+        日志.info(f"轴错误已清除 {轴名}#{cfg.axis_no}")
 
     async def 轴位置清零(self, 轴名: str) -> None:
         self._保证已启动()
         gate = self._断言safety()
         cfg = gate.校验轴名(轴名)
         await self._断言adapter().轴位置清零(cfg.axis_no)
+        日志.info(f"位置已清零 {轴名}#{cfg.axis_no}")
 
     # ==================================================================
     # 状态读取（透传 adapter）
@@ -893,24 +933,32 @@ class MotionService:
         self._保证已启动()
         gate = self._断言safety()
         cfg = gate.校验轴名(轴名)
-        return await self._断言adapter().读_dpos(cfg.axis_no)
+        值 = await self._断言adapter().读_dpos(cfg.axis_no)
+        日志.debug(f"读 DPOS {轴名}#{cfg.axis_no} = {值}")
+        return 值
 
     async def 读_mpos(self, 轴名: str) -> float:
         self._保证已启动()
         gate = self._断言safety()
         cfg = gate.校验轴名(轴名)
-        return await self._断言adapter().读_mpos(cfg.axis_no)
+        值 = await self._断言adapter().读_mpos(cfg.axis_no)
+        日志.debug(f"读 MPOS {轴名}#{cfg.axis_no} = {值}")
+        return 值
 
     async def 读_idle(self, 轴名: str) -> bool:
         self._保证已启动()
         gate = self._断言safety()
         cfg = gate.校验轴名(轴名)
-        return await self._断言adapter().读_idle(cfg.axis_no)
+        值 = await self._断言adapter().读_idle(cfg.axis_no)
+        日志.debug(f"读 IDLE {轴名}#{cfg.axis_no} = {值}")
+        return 值
 
     async def 读全部轴状态(self) -> Dict[str, Dict[str, Any]]:
         """对应老 driver.get_axes_status —— 返回 {axis_no: {字段...}} dict。"""
         self._保证已启动()
-        return await self._断言adapter().读全部轴状态()
+        数据 = await self._断言adapter().读全部轴状态()
+        日志.debug(f"读全部轴状态: {list(数据.keys())}")
+        return 数据
 
     # ==================================================================
     # 等待 / 位置查询（透传 adapter）
@@ -922,15 +970,21 @@ class MotionService:
         self._保证已启动()
         gate = self._断言safety()
         cfg = gate.校验轴名(轴名)
-        return await self._断言adapter().等待静止(cfg.axis_no, 超时秒, 轮询间隔秒)
+        结果 = await self._断言adapter().等待静止(cfg.axis_no, 超时秒, 轮询间隔秒)
+        日志.info(f"等待静止 {轴名}#{cfg.axis_no} 超时={超时秒}s → {'已静止' if 结果 else '超时'}")
+        return 结果
 
     async def 取_xy_实际位置(self) -> tuple[float, float]:
         self._保证已启动()
-        return await self._断言adapter().取_xy_实际位置()
+        x, y = await self._断言adapter().取_xy_实际位置()
+        日志.debug(f"XY 实际位置: ({x}, {y})")
+        return x, y
 
     async def 取_z_实际位置(self) -> float:
         self._保证已启动()
-        return await self._断言adapter().取_z_实际位置()
+        z = await self._断言adapter().取_z_实际位置()
+        日志.debug(f"Z 实际位置: {z}")
+        return z
 
     async def 绝对运动并设速度(
         self, 轴名: str, 位置: float, 速度: float,
@@ -987,6 +1041,7 @@ class MotionService:
             self._状态机.触发(状态事件.STOP, 强制=True)
             raise
         await self._刷新快照()
+        日志.info(f"连续插补XY 完成（路径点数={len(路径点)} merge={merge_enable}）")
         return True
 
     async def 连续插补运动(
@@ -1010,6 +1065,7 @@ class MotionService:
             self._状态机.触发(状态事件.STOP, 强制=True)
             raise
         await self._刷新快照()
+        日志.info(f"连续插补 {[c.axis_name for c in cfgs]} 完成（路径点数={len(路径点)}）")
         return True
 
     # ==================================================================
@@ -1019,7 +1075,9 @@ class MotionService:
     async def 执行命令(self, 命令: str) -> str:
         """ZAux_Execute —— 任意 BAS 表达式，仅在已连接时可用。"""
         self._保证已启动()
-        return await self._断言adapter().执行命令(命令)
+        结果 = await self._断言adapter().执行命令(命令)
+        日志.info(f"执行命令: {命令} → {结果}")
+        return 结果
 
     # ==================================================================
     # 内部辅助

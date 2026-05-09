@@ -242,15 +242,11 @@ class 相机适配器:
             st = await asyncio.to_thread(cam.set_vertical_mirror, bool(settings["mirror_vertical"]))
             if st != 0:
                 errors.append(f"mirror_vertical 失败({st})")
-        if "auto_white_balance" in settings:
-            st = await asyncio.to_thread(cam.set_auto_white_balance, bool(settings["auto_white_balance"]))
-            if st != 0:
-                errors.append(f"auto_white_balance 失败({st})")
-        if settings.get("once"):
-            st = await asyncio.to_thread(cam.once_white_balance)
-            if st != 0:
-                errors.append(f"once_white_balance 失败({st})")
         if all(k in settings for k in ("r_gain", "g_gain", "b_gain")):
+            # 设手动增益前先关闭自动白平衡，否则 SDK 会报错 -3
+            st = await asyncio.to_thread(cam.set_auto_white_balance, False)
+            if st != 0:
+                errors.append(f"关闭自动白平衡失败({st})")
             st = await asyncio.to_thread(
                 cam.set_white_balance_gain,
                 int(settings["r_gain"]),
@@ -258,7 +254,15 @@ class 相机适配器:
                 int(settings["b_gain"]),
             )
             if st != 0:
-                errors.append(f"白平衡增益失败({st})")
+                日志.warning(f"白平衡增益失败({st})，该相机可能不支持手动增益，跳过")
+        elif "auto_white_balance" in settings:
+            st = await asyncio.to_thread(cam.set_auto_white_balance, bool(settings["auto_white_balance"]))
+            if st != 0:
+                errors.append(f"auto_white_balance 失败({st})")
+        if settings.get("once"):
+            st = await asyncio.to_thread(cam.once_white_balance)
+            if st != 0:
+                errors.append(f"once_white_balance 失败({st})")
 
         if errors:
             raise CameraError("；".join(errors))
@@ -279,6 +283,7 @@ class 相机适配器:
             st = await asyncio.to_thread(cam.set_exposure_time, int(exposure_time))
             if st != 0:
                 raise CameraError(f"设置曝光时间失败: {st}")
+        日志.debug(f"曝光参数已设置 auto={auto_exposure} time={exposure_time}")
 
     async def 设置帧率(
         self,
@@ -297,6 +302,7 @@ class 相机适配器:
             st = await asyncio.to_thread(cam.set_frame_speed_tune, float(tune))
             if st != 0:
                 raise CameraError(f"设置帧率微调失败: {st}")
+        日志.debug(f"帧率参数已设置 level={speed_level} tune={tune}")
 
     async def 设置镜像(
         self,
@@ -314,6 +320,7 @@ class 相机适配器:
             st = await asyncio.to_thread(cam.set_vertical_mirror, bool(vertical))
             if st != 0:
                 raise CameraError(f"设置垂直镜像失败: {st}")
+        日志.debug(f"镜像参数已设置 horizontal={horizontal} vertical={vertical}")
 
     async def 设置白平衡(
         self,
@@ -341,6 +348,7 @@ class 相机适配器:
             )
             if st != 0:
                 raise CameraError(f"设置白平衡增益失败: {st}")
+        日志.debug(f"白平衡参数已设置 auto={auto_white_balance} once={once} gain=({r_gain},{g_gain},{b_gain})")
 
     # ------------------------------------------------------------------
     # 诊断 / 元信息

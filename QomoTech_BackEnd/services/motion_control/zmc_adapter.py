@@ -234,7 +234,16 @@ class ZMC适配器:
         """建链 + 下发全部轴参数 + 刷新静态字段缓存。"""
         实际ip = ip or self._配置.controller_ip
         日志.info(f"连接 ZMC 控制器 {实际ip}")
-        await self._执行(lambda: self._同步_连接(实际ip))
+        try:
+            await asyncio.wait_for(
+                self._执行(lambda: self._同步_连接(实际ip)),
+                timeout=self._配置.connect_timeout_s,
+            )
+        except asyncio.TimeoutError:
+            raise ZMCError(
+                "ZAux_OpenEth", -1,
+                f"控制器 {实际ip} 连接超时（{self._配置.connect_timeout_s} 秒）",
+            )
         self._已连接 = True
         try:
             await self._执行(self._同步_初始化所有轴)

@@ -43,12 +43,8 @@ const controllerSettingsStore = useControllerSettingsStore()
 import { useQomo5PStore } from '../stores/qomo5pEditor'
 const qomo5pStore = useQomo5PStore()
 
-// 个人觉得只是用来初始化驱动器的参数
 import { bootstrapControllerOnce } from '../api/motion'
-import { useBackendStatus } from '../composables/useBackendStatus'
-const { backendDotClass, startPolling } = useBackendStatus()
-
-
+import StatusIndicators from '../components/Others/StatusIndicators.vue'
 import { getStartProgramStatusWsUrl } from '../api/core/baseWs'
 import { subscribeGlobalKeyboard } from '../utils/globalKeyboard'
 import { useHardwareState } from '../api/hardware'
@@ -784,12 +780,6 @@ onUnmounted(() => {
 onMounted(async () => {
   programStatusWsReconnectEnabled = true
 
-  // 监听后台连接状态（用于右上角彩色指示）
-  await startPolling()
-
-
-
-
 
   // 进入这个页面就下发一次参数
   await controllerSettingsStore.loadControllerSettings()
@@ -830,10 +820,7 @@ onMounted(async () => {
     <div class="home-toolbar">
       <RouteTabs :links="featureLinks" :show-home-link="false" />
       <div class="home-toolbar-sep" />
-      <div class="flex items-center gap-1">
-        <span class="h-2 w-2 rounded-full" :class="backendDotClass" />
-        <span class="text-xs text-(--app-text-secondary)">后台</span>
-      </div>
+      <StatusIndicators />
       <div class="home-toolbar-sep" />
       <button @click="onRefreshClick">
         <SvgIcon icon-name="icon-refresh" class-name=" text-sm" />

@@ -1,24 +1,33 @@
 import type { ControllerParameters } from '../../types/settings'
 import { defaultControllerParameters } from '../../configs/settings'
-import { connectMotionWithControllerSettings } from './connect'
+import { connectMotionWithControllerSettings, setMotionAllAxesParamsWithControllerSettings } from './connect'
 import { isControllerConnected } from '../hardware'
 
 export interface BackendBootstrapResult {
   success: boolean
   message: string
-  data?: { hardware?: any; motion?: any }
+  data?: { hardware?: any; motion?: any; params?: any }
 }
 
 let controllerBootstrapDone = false
 let controllerBootstrapPromise: Promise<BackendBootstrapResult> | null = null
 
 const reconnectControllerSingleton = async (controllerSettings: ControllerParameters): Promise<BackendBootstrapResult> => {
+  // 1. 连接控制器（仅发 IP）
   const connectRes = await connectMotionWithControllerSettings(controllerSettings)
-  if (connectRes?.success) {
-    controllerBootstrapDone = true
-    return { success: true, message: '已重连控制器（Motion）单例。', data: { motion: connectRes } }
+  if (!connectRes?.success) {
+    return { success: false, message: connectRes?.message || '控制器连接失败，请检查硬件连接。', data: { motion: connectRes } }
   }
-  return { success: false, message: connectRes?.message || '控制器单例重连失败，请检查硬件连接。', data: { motion: connectRes } }
+
+  // 2. 连接成功后下发轴参数
+  const paramsRes = await setMotionAllAxesParamsWithControllerSettings(controllerSettings)
+  if (!paramsRes?.success) {
+    console.warn('[bootstrap] 连接成功但轴参数下发失败', paramsRes?.message)
+    return { success: true, message: '已连接控制器，但轴参数下发失败。', data: { motion: connectRes, params: paramsRes } }
+  }
+
+  controllerBootstrapDone = true
+  return { success: true, message: '已重连控制器并下发轴参数。', data: { motion: connectRes, params: paramsRes } }
 }
 
 export const bootstrapControllerOnce = async (controllerSettings: ControllerParameters = defaultControllerParameters): Promise<BackendBootstrapResult> => {

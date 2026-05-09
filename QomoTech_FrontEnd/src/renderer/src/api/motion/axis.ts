@@ -24,6 +24,9 @@ type MoveMotionAxisRelOptions = { speed?: number; controllerSettings?: Controlle
 // 内部辅助
 // ------------------------------------------------------------------
 
+/** 轴号 → 轴名映射 */
+const AXIS_NO_TO_NAME: Record<number, string> = { 0: 'X', 1: 'Y', 2: 'Z', 3: 'U', 4: 'R' }
+
 const isPositiveFiniteNumber = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value) && value > 0
 
@@ -38,48 +41,44 @@ const pickAxisSpeed = (axisNo: number, options?: { speed?: number; controllerSet
 // API
 // ------------------------------------------------------------------
 
-export const getMotionPosition = async (axis: MotionAxis): Promise<ApiCallResult<{ axis: MotionAxis; position_mm: number }>> =>
-  apiCall(`motion/position/${axis}`, 'GET')
+export const getMotionPosition = async (axis: MotionAxis): Promise<ApiCallResult<number>> =>
+  apiCall<number>(`motion/dpos/${axis}`, 'GET')
 
-export const emergencyStopMotion = async (axisNo: number): Promise<ApiCallResult<Record<string, unknown>>> =>
-  apiCall('motion/emergency-stop', 'POST', { axis_no: axisNo } as unknown as Record<string, unknown>)
+export const emergencyStopMotion = async (): Promise<ApiCallResult<Record<string, unknown>>> =>
+  apiCall('motion/estop', 'POST')
 
-export const zeroMotionAxis = async (axisNo: number): Promise<ApiCallResult<Record<string, unknown>>> =>
-  apiCall('motion/axis/zero', 'POST', { axis_no: Number(axisNo) } as unknown as Record<string, unknown>)
-
-import { setMotionAllAxesParams } from './connect'
-
-const pushAxisSpeed = async (axisNo: number, speed: number): Promise<ApiCallResult<Record<string, unknown>>> =>
-  setMotionAllAxesParams({ params_by_axis: { [axisNo]: { speed } } })
+export const zeroMotionAxis = async (axisNo: number): Promise<ApiCallResult<Record<string, unknown>>> => {
+  const axisName = AXIS_NO_TO_NAME[axisNo]
+  if (!axisName) return { success: false, message: `未知轴号: ${axisNo}` }
+  return apiCall('motion/axis/zero', 'POST', { axis: axisName } as unknown as Record<string, unknown>)
+}
 
 export const moveMotionAxisAbs = async (axisNo: number, targetMm: number, options?: MoveMotionAxisAbsOptions): Promise<ApiCallResult<Record<string, unknown>>> => {
   const axisNoInt = Number(axisNo)
+  const axisName = AXIS_NO_TO_NAME[axisNoInt]
+  if (!axisName) return { success: false, message: `未知轴号: ${axisNoInt}` }
+
+  const body: Record<string, unknown> = { axis: axisName, position: targetMm }
   const selectedSpeed = pickAxisSpeed(axisNoInt, options)
+  if (typeof selectedSpeed === 'number') body.speed = selectedSpeed
 
-  if (typeof selectedSpeed === 'number') {
-    const speedRes = await pushAxisSpeed(axisNoInt, selectedSpeed)
-    if (!speedRes?.success) return speedRes as ApiCallResult<Record<string, unknown>>
-  }
-
-  return apiCall('motion/axis/move-abs', 'POST', {
-    axis_no: axisNoInt,
-    target_mm: targetMm,
-  } as unknown as Record<string, unknown>)
+  return apiCall('motion/move/abs', 'POST', body as unknown as Record<string, unknown>)
 }
 
 export const moveMotionAxisRel = async (axisNo: number, deltaMm: number, options?: MoveMotionAxisRelOptions): Promise<ApiCallResult<Record<string, unknown>>> => {
   const axisNoInt = Number(axisNo)
-  const selectedSpeed = pickAxisSpeed(axisNoInt, options)
+  const axisName = AXIS_NO_TO_NAME[axisNoInt]
+  if (!axisName) return { success: false, message: `未知轴号: ${axisNoInt}` }
 
-  return apiCall('motion/axis/move-rel', 'POST', {
-    axis_no: axisNoInt,
-    delta_mm: deltaMm,
-    ...(typeof selectedSpeed === 'number' ? { speed: selectedSpeed } : {}),
-  } as unknown as Record<string, unknown>)
+  const body: Record<string, unknown> = { axis: axisName, position: deltaMm }
+  const selectedSpeed = pickAxisSpeed(axisNoInt, options)
+  if (typeof selectedSpeed === 'number') body.speed = selectedSpeed
+
+  return apiCall('motion/move/rel', 'POST', body as unknown as Record<string, unknown>)
 }
 
 export const rotateUAxisByAngle = async (payload: UAxisRotateRequestPayload): Promise<ApiCallResult<Record<string, unknown>>> =>
-  apiCall('motion/axis/U轴旋转的角度', 'POST', payload as unknown as Record<string, unknown>)
+  apiCall('motion/u/rotate-by-params', 'POST', { params: payload } as unknown as Record<string, unknown>)
 
 export const rotateRAxisByTurns = async (payload: RAxisRotateRequestPayload): Promise<ApiCallResult<Record<string, unknown>>> =>
-  apiCall('motion/axis/R轴旋转的圈数', 'POST', payload as unknown as Record<string, unknown>)
+  apiCall('motion/r/rotate-turns', 'POST', { params: payload } as unknown as Record<string, unknown>)

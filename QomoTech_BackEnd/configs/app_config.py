@@ -21,7 +21,7 @@ class 软件配置模型(BaseSettings):
 class 服务配置模型(BaseSettings):
     主机地址: str = "0.0.0.0"
     端口号: int = 5000
-    调试模式: bool = True
+    调试模式: bool = False
     允许跨域: list[str] = Field(default_factory=lambda: ["*"])
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", env_prefix="QOMO_")
 

@@ -105,8 +105,10 @@ class CameraService:
 
     async def 枚举设备(self) -> List[设备信息]:
         async with self._服务锁:
-            self._准入(相机状态.IDLE)
-            return await self._adapter.枚举设备()
+            self._准入(相机状态.IDLE, 相机状态.CONNECTED)
+            设备列表 = await self._adapter.枚举设备()
+            日志.info(f"枚举相机设备: {[d.name for d in 设备列表]}")
+            return 设备列表
 
     async def 连接(self, index: int = 0) -> 设备信息:
         async with self._服务锁:
@@ -119,6 +121,7 @@ class CameraService:
                 raise CameraError(f"连接相机失败: {exc}") from exc
 
             self._状态机.触发(相机事件.CONNECT)
+            日志.info(f"相机连接成功 index={index}")
 
             # 连接后若有缓存的引导参数，立即下发
             if self._引导参数缓存:
@@ -144,6 +147,7 @@ class CameraService:
 
             self._状态机.触发(相机事件.DISCONNECT)
             self._刷新快照()
+            日志.info("相机已断开")
 
     async def 是否已连接(self) -> bool:
         return self._状态机.当前 == 相机状态.CONNECTED
@@ -159,9 +163,11 @@ class CameraService:
     ) -> bytes:
         async with self._服务锁:
             self._准入(相机状态.CONNECTED)
-            return await self._adapter.取_jpeg(
+            数据 = await self._adapter.取_jpeg(
                 timeout_ms=timeout_ms, quality=quality,
             )
+            日志.debug(f"取帧成功 size={len(数据)}B quality={quality}")
+            return 数据
 
     # ==================================================================
     # 参数设置
@@ -186,6 +192,7 @@ class CameraService:
             await self._adapter.设置曝光(
                 auto_exposure=auto_exposure, exposure_time=exposure_time,
             )
+            日志.info(f"设置曝光 auto={auto_exposure} time={exposure_time}")
 
     async def 设置帧率(
         self,
@@ -199,6 +206,7 @@ class CameraService:
             await self._adapter.设置帧率(
                 speed_level=speed_level, auto_tune=auto_tune, tune=tune,
             )
+            日志.info(f"设置帧率 level={speed_level} auto_tune={auto_tune} tune={tune}")
 
     async def 设置镜像(
         self,
@@ -211,6 +219,7 @@ class CameraService:
             await self._adapter.设置镜像(
                 horizontal=horizontal, vertical=vertical,
             )
+            日志.info(f"设置镜像 horizontal={horizontal} vertical={vertical}")
 
     async def 设置白平衡(
         self,
@@ -230,6 +239,7 @@ class CameraService:
                 g_gain=g_gain,
                 b_gain=b_gain,
             )
+            日志.info(f"设置白平衡 auto={auto_white_balance} once={once} gain=({r_gain},{g_gain},{b_gain})")
 
     # ==================================================================
     # 状态 / 诊断

@@ -8,7 +8,7 @@ import time
 from collections import deque
 from typing import Any, Literal
 
-from config.rs232_config import Rs232Config
+from configs.rs232_config import 串口配置实例
 
 try:
     import serial
@@ -26,7 +26,7 @@ except ImportError:  # pragma: no cover
 class 串口驱动:
     """单路 RS232：进程内单例，对接 pyserial。"""
 
-    def __init__(self, 配置: Rs232Config) -> None:
+    def __init__(self, 配置: 串口配置实例) -> None:
         self._配置 = 配置
         self._日志 = logging.getLogger("qomotech.rs232")
         self._锁 = threading.RLock()
@@ -145,13 +145,19 @@ class 串口驱动:
         缓冲区 = bytearray()
         轮询间隔秒 = self._配置.read_thread_poll_ms / 1000.0
         while not self._读线程停止.is_set():
-            串口 = self._串口
+            with self._锁:
+                串口 = self._串口
             if 串口 is None or not 串口.is_open:
                 time.sleep(轮询间隔秒)
                 continue
             try:
+                # 非阻塞模式：只在有数据时才调 ReadFile，避免驱动 Bug
                 可读字节数 = getattr(串口, "in_waiting", 0) or 0
-                块 = 串口.read(max(1, int(可读字节数)))
+                if 可读字节数 <= 0:
+                    块 = b""
+                else:
+                    读取字节数 = min(int(可读字节数), 65536)
+                    块 = 串口.read(读取字节数)
             except (serial.SerialException, ValueError, OSError) as 错误:
                 self._日志.warning("RS232 读取错误: %s", 错误)
                 time.sleep(轮询间隔秒)
@@ -199,6 +205,7 @@ class 串口驱动:
         try:
             新串口 = self._打开串口对象(端口配置)
         except (serial.SerialException, ValueError, OSError) as 错误:
+            self._日志.warning("打开串口失败: %s", 错误)
             return False, f"打开串口失败: {错误}"
 
         接收模式: 发送模式 = 接收配置.get("mode", "ascii")
@@ -212,6 +219,9 @@ class 串口驱动:
             self._接收行队列 = deque(maxlen=最大行数)
             self._编码 = str(端口配置.get("encoding", "utf-8"))
             self._显示时间戳 = bool(接收配置.get("showTimestamp", False))
+            # 非阻塞模式：只在 in_waiting>0 确认有数据时才调 ReadFile
+            # 避免 ELTIMA 等虚拟串口驱动在等待数据时触发访问违例
+            新串口.timeout = 0
             self._串口 = 新串口
             self._当前端口 = str(端口配置["portName"])
 
@@ -223,6 +233,7 @@ class 串口驱动:
             daemon=True,
         )
         self._读线程.start()
+        self._日志.info("串口已打开 %s @ %s baud", 端口配置["portName"], 端口配置.get("baudRate"))
         return True, "串口已打开"
 
     def 关闭(self) -> bool:
@@ -234,12 +245,14 @@ class 串口驱动:
         with self._锁:
             串口 = self._串口
             self._串口 = None
+            端口名 = self._当前端口
             self._当前端口 = None
         if 串口 is not None:
             try:
                 串口.close()
-            except Exception:
-                pass
+                self._日志.info("串口 %s 已关闭", 端口名)
+            except Exception as exc:
+                self._日志.warning("关闭串口 %s 异常: %s", 端口名, exc)
         return True
 
     def _构建发送字节(self, 发送配置: dict[str, Any]) -> tuple[bytes | None, str]:
@@ -276,4 +289,6 @@ class 串口驱动:
                 串口.flush()
             except (serial.SerialException, ValueError, OSError) as 错误:
                 return False, f"发送失败: {错误}"
+        模式 = 发送配置.get("mode", "ascii")
+        self._日志.info("RS232 发送 %s (%d 字节)", 模式, len(数据))
         return True, "已发送"

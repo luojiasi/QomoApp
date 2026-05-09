@@ -1,7 +1,7 @@
 import math
 from typing import Any, Dict, List, Optional, TypedDict, Union
 from core.calc_offset_ljs import 采样圆弧上的点
-from config.product4P_config import 读取存储的4P旋转中心补偿值
+from configs.product4P_config import 读取存储的4P旋转中心补偿值
 
 
 class Point3DDict(TypedDict):

@@ -65,6 +65,7 @@ class MotionConfig(BaseModel):
     controller_model: str = "QomoTech406V2"
     transport: Literal["ethernet", "rs232", "rs485", "can", "ethercat"] = "ethernet"
     controller_ip: str = "192.168.0.11"
+    connect_timeout_s: float = Field(default=5.0, gt=0, description="ZAux_OpenEth 连接超时秒数，超时后快速返回 502 避免前端卡死")
     enable_axes: list[str] = ["X", "Y", "Z", "U", "R"]
     axis_count: Literal[3, 5] = 5
 

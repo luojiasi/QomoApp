@@ -5,34 +5,16 @@ import { AUTH_STORAGE_KEY } from '../types/auth'
 
 
 
-const DEFAULT_ADMIN_ACCOUNT: AccountInfo = {
-  username: 'admin',
-  password: 'admin123'
-}
+const DEFAULT_ADMIN_ACCOUNT: AccountInfo = {username: 'admin',password: 'admin123'}
 
-const DEFAULT_USER_ACCOUNT: AccountInfo = {
-  username: 'user',
-  password: '123456'
-}
+const DEFAULT_USER_ACCOUNT: AccountInfo = {username: 'user',password: '123456'}
 
-const getDefaultAuthState = (): AuthStorage => ({
-  username: '',
-  isAdmin: false,
-  isUser: true,
-  userAccount: { ...DEFAULT_USER_ACCOUNT }
-})
+const getDefaultAuthState = (): AuthStorage => ({username: '',isAdmin: false,isUser: true,userAccount: { ...DEFAULT_USER_ACCOUNT }})
 
 const loadAuthState = (): AuthStorage => {
-  if (typeof window === 'undefined') {
-    return getDefaultAuthState()
-  }
-
+  if (typeof window === 'undefined') return getDefaultAuthState()
   const savedState = window.localStorage.getItem(AUTH_STORAGE_KEY)
-
-  if (!savedState) {
-    return getDefaultAuthState()
-  }
-
+  if (!savedState) return getDefaultAuthState()
   try {
     return {
       ...getDefaultAuthState(),

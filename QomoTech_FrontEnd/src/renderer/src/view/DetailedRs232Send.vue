@@ -281,6 +281,9 @@ onMounted(async () => {
   await rs232Store.loadRs232Workbench()
   await loadDetectedPorts()
 })
+onMounted(async () => {
+  await handleCloseSerial()
+})
 
 </script>
 

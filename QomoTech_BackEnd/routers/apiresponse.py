@@ -1,4 +1,4 @@
-"""路由层统一 HTTP 响应体模型（与 api.schemas.ApiResponse 字段对齐）。"""
+"""路由层统一 HTTP 响应体模型。"""
 
 from __future__ import annotations
 

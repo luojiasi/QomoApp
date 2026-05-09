@@ -6,14 +6,13 @@ import time
 import threading
 from typing import Any
 
-from api.dependencies import hardware_status_poller
 from core.calc_offset_ljs import OffsetEndpointCalculator
+from services.MotionService import MotionService
 from core.program_status_ws import notify_program_status_changed
-from core.zmotion_adapter import ZMotionAdapter
-from config.product4P_config import 读取存储的4P旋转中心补偿值
+from core.sync_motion import SyncMotion
+from configs.product4P_config import 读取存储的4P旋转中心补偿值
 from core.calc_rotation import 计算点绕坐标轴旋转,计算实体绕坐标轴旋转后的实体点
-from drivers.rs232_driver import Rs232Driver
-from drivers.zmotion_driver import ZMotionDriver
+from services.communicate_control.rs232_adapter import 串口驱动
 
 logger = logging.getLogger("qomotech.start_program")
 _PROGRAM_RUN_LOCK = threading.Lock()
@@ -22,7 +21,7 @@ _program_running = False
 _program_paused = False
 _program_abort_requested = False
 _program_skip_requested = False
-_current_motion_ref: ZMotionDriver | None = None
+_current_motion_ref: SyncMotion | None = None
 # 暂停运动的激光状态
 _laser_resume_required = False
 _program_total_tasks = 0
@@ -44,7 +43,7 @@ def get_program_status() -> dict[str, Any]:
         }
 
 
-def 清除运行输出(controller: ZMotionAdapter) -> None:
+def 清除运行输出(controller: SyncMotion) -> None:
     try:
         controller.stop_axis_motion([0, 1, 2, 3, 4 ,5 ])
         controller.open_output(0, 0)
@@ -54,7 +53,7 @@ def 清除运行输出(controller: ZMotionAdapter) -> None:
 
 
 def 跳过任务时处理并回到目标Z轴位置(
-    controller: ZMotionAdapter,
+    controller: SyncMotion,
     *,
     z_target: float | None,
     speed: float,
@@ -87,20 +86,20 @@ def 跳过任务时处理并回到目标Z轴位置(
     return "skip"
 
 
-def 程序请求暂停(motion: ZMotionDriver | None = None) -> dict[str, Any]:
+def 程序请求暂停() -> dict[str, Any]:
     global _program_paused, _laser_resume_required
     with _PROGRAM_CTRL_LOCK:
         if not _program_running:
             return {"success": False, "message": "当前没有运行中的程序"}
         _program_paused = True
-    m = motion or _current_motion_ref
+    m = _current_motion_ref
     if m and m.is_connected():
         # 记录暂停前激光状态：仅当暂停前激光已开，恢复时才重开，避免误触发。
         laser_was_on = bool(m.get_output(2))
         _laser_resume_required = laser_was_on
         if laser_was_on:
             m.set_output(2, False)
-        m.emergency_stop_all_axes([0, 1, 2, 3 , 4 , 5])
+        m.emergency_stop_all_axes()
     notify_program_status_changed(force=True)
     return {"success": True, "message": "已暂停"}
 
@@ -119,40 +118,41 @@ def 程序请求恢复运行() -> dict[str, Any]:
     return {"success": True, "message": "已继续运行"}
 
 
-def 程序请求急停(motion: ZMotionDriver | None = None) -> dict[str, Any]:
+def 程序请求急停() -> dict[str, Any]:
     global _program_abort_requested, _program_paused, _laser_resume_required
     with _PROGRAM_CTRL_LOCK:
         _program_abort_requested = True
         _program_paused = False
         _laser_resume_required = False
-    m = motion or _current_motion_ref
+    m = _current_motion_ref
     if m and m.is_connected():
         m.set_output(0, False)
         m.set_output(2, False)
-        m.emergency_stop_all_axes([0, 1, 2, 3 , 4 , 5])
+        m.emergency_stop_all_axes()
     notify_program_status_changed(force=True)
     return {"success": True, "message": "已急停"}
 
 
-def 程序请求跳过任务(motion: ZMotionDriver | None = None) -> dict[str, Any]:
+def 程序请求跳过任务() -> dict[str, Any]:
     global _program_skip_requested
     with _PROGRAM_CTRL_LOCK:
         if not _program_running:
             return {"success": False, "message": "当前没有运行中的程序"}
         _program_skip_requested = True
-    m = motion or _current_motion_ref
+    m = _current_motion_ref
     if m and m.is_connected():
-        m.emergency_stop_all_axes([0, 1, 2, 3 , 4 , 5])
+        m.emergency_stop_all_axes()
     notify_program_status_changed(force=True)
     return {"success": True, "message": "已请求跳过当前任务"}
 
 
-def 程序请求复位(motion: ZMotionDriver) -> dict[str, Any]:
-    if not motion.is_connected():
+def 程序请求复位() -> dict[str, Any]:
+    m = _current_motion_ref
+    if not m or not m.is_connected():
         return {"success": False, "message": "motion 控制器未连接"}
     failed: list[int] = []
     for axis_no in _ALARM_CLEAR_AXIS_NOS:
-        if not motion.clear_axis_error(int(axis_no)):
+        if not m.clear_axis_error(int(axis_no)):
             failed.append(int(axis_no))
     if failed:
         return {"success": False, "message": f"部分轴清除报警失败: {failed}"}
@@ -197,7 +197,7 @@ def 更新程序任务运行进程(
     notify_program_status_changed()
 
 
-def _rebuild_xy_path_from_current(original_points_run: list[dict[str, Any]],controller: ZMotionAdapter,) -> list[dict[str, Any]]:
+def _rebuild_xy_path_from_current(original_points_run: list[dict[str, Any]],controller: SyncMotion,) -> list[dict[str, Any]]:
     x0, y0 = controller.get_xy_dpos_mm()
 
     conv: list[tuple[float, float]] = []
@@ -223,7 +223,7 @@ def _rebuild_xy_path_from_current(original_points_run: list[dict[str, Any]],cont
         return head + [{"x": conv[best_i][0], "y": conv[best_i][1]}]
     return head + rest
 
-def _safe_poll_idle(controller: ZMotionAdapter, axis_no: int, timeout_count: int = 2000, sleep_s: float = 0.02) -> dict[str, Any]:
+def _safe_poll_idle(controller: SyncMotion, axis_no: int, timeout_count: int = 2000, sleep_s: float = 0.02) -> dict[str, Any]:
     """安全轮询轴静止状态，返回 {"success": bool, "notMoving": bool, "skip": bool, "abort": bool}"""
     for _ in range(timeout_count):
         if _abort_pending():
@@ -243,7 +243,7 @@ def _safe_poll_idle(controller: ZMotionAdapter, axis_no: int, timeout_count: int
     return {"success": False, "notMoving": False, "message": "等待轴静止超时"}
 
 
-def _safe_poll_xy_idle(controller: ZMotionAdapter, timeout_count: int = 2000, sleep_s: float = 0.02) -> dict[str, Any]:
+def _safe_poll_xy_idle(controller: SyncMotion, timeout_count: int = 2000, sleep_s: float = 0.02) -> dict[str, Any]:
     """安全轮询 XY 双轴静止状态，返回 {"success": bool, "skip": bool, "abort": bool}"""
     for _ in range(timeout_count):
         if _abort_pending():
@@ -323,22 +323,24 @@ def 判断是否都是圆或者圆弧(*, entities: Any) -> bool:
 
 
 
-def execute_start_program(*,motion: ZMotionDriver,recipe_payload: dict[str, Any],entities: list[dict[str, Any]],rs232: Rs232Driver | None = None,rs232_open: dict[str, Any] | None = None,) -> dict[str, Any]:
+def execute_start_program(*,recipe_payload: dict[str, Any],entities: list[dict[str, Any]],rs232: 串口驱动 | None = None,rs232_open: dict[str, Any] | None = None,) -> dict[str, Any]:
     """
     根据是否闭合来确定是往返运动？
     """
     global _program_running, _current_motion_ref, _program_abort_requested, _program_skip_requested, _program_paused, _laser_resume_required
     global _program_total_tasks, _program_current_task_index, _program_current_task_jindubaifenbi
-    if not motion.is_connected():
+
+    controller = SyncMotion()
+    if not controller.is_connected():
         return {"success": False, "message": "motion 控制器未连接", "data": {"connected": False}}
 
     if not _PROGRAM_RUN_LOCK.acquire(blocking=False):
         return {"success": False, "message": "程序正在执行中（重复触发被拒绝）", "data": None}
 
     try:
-        hardware_status_poller.pause()
+        MotionService.获取实例().暂停状态采集()
         if rs232_open is None and rs232 is not None:
-            rs232_open = rs232.get_preferred_session()
+            rs232_open = rs232.获取首选会话()
 
         所有任务列表 = OffsetEndpointCalculator.calc_xy_points(entities,0)
         if not 所有任务列表:
@@ -350,14 +352,13 @@ def execute_start_program(*,motion: ZMotionDriver,recipe_payload: dict[str, Any]
             _program_abort_requested = False
             _program_skip_requested = False
             _laser_resume_required = False
-            _current_motion_ref = motion
+            _current_motion_ref = controller
         更新程序任务运行进程(
             total_tasks=len(所有任务列表),
             current_task_index=0,
             current_task_jindubaifenbi=0.0,
         )
 
-        controller = ZMotionAdapter(motion)
         for 当前任务索引 in range(len(所有任务列表)):
             更新程序任务运行进程(
                 current_task_index=当前任务索引 + 1,
@@ -401,7 +402,7 @@ def execute_start_program(*,motion: ZMotionDriver,recipe_payload: dict[str, Any]
         logger.exception("execute_start_program failed")
         return {"success": False,"message": f"程序执行异常","data": {"error": "运行报错"},}
     finally:
-        hardware_status_poller.resume()
+        MotionService.获取实例().恢复状态采集()
         with _PROGRAM_CTRL_LOCK:
             _program_running = False
             _current_motion_ref = None
@@ -419,7 +420,7 @@ def execute_start_program(*,motion: ZMotionDriver,recipe_payload: dict[str, Any]
 
 # ===============================================================================================================
 def _ensure_rs232_before_laser(
-    rs232: Rs232Driver | None,
+    rs232: 串口驱动 | None,
     rs232_open: dict[str, Any] | None,
     power: str,
     frequency: str,
@@ -446,10 +447,10 @@ def _ensure_rs232_before_laser(
         return False
 
     target_port_name = str(port.get("portName", "")).strip()
-    current_port_name = rs232.current_port_name() or ""
-    need_reopen = (not rs232.is_connected()) or (bool(target_port_name) and current_port_name != target_port_name)
+    current_port_name = rs232.当前端口名() or ""
+    need_reopen = (not rs232.是否已连接()) or (bool(target_port_name) and current_port_name != target_port_name)
     if need_reopen:
-        ok, msg = rs232.open_session(port, receive)
+        ok, msg = rs232.打开会话(port, receive)
         if not ok:
             logger.error("RS232 打开失败: %s", msg)
             return False
@@ -466,17 +467,17 @@ def _ensure_rs232_before_laser(
     for idx, payload in enumerate(send_payloads):
         send_cfg = base_send_cfg.copy()
         send_cfg["payload"] = payload
-        ok2, msg2 = rs232.send(send_cfg)
+        ok2, msg2 = rs232.发送(send_cfg)
         if not ok2:
             logger.error("RS232 参数发送失败（payload=%s）: %s", payload, msg2)
             return False
         if idx < len(send_payloads) - 1:
             time.sleep(0.5)
-    rs232.close()
+    rs232.关闭()
     return True
 
 # 暂时弃用方法，因为和xiumianLoop功能重复
-def wangFuLoop(originalPointsNum: int,recipe_payload: dict[str, Any],controller: ZMotionAdapter,entities: list[dict[str, Any]],*,rs232: Rs232Driver | None = None,rs232_open: dict[str, Any] | None = None,) -> bool | str:  # True / False / "skip" / "abort"
+def wangFuLoop(originalPointsNum: int,recipe_payload: dict[str, Any],controller: SyncMotion,entities: list[dict[str, Any]],*,rs232: 串口驱动 | None = None,rs232_open: dict[str, Any] | None = None,) -> bool | str:  # True / False / "skip" / "abort"
     """
     这个目的是进行往复运动，而不是到下一个的起始点
     """
@@ -844,7 +845,7 @@ def wangFuLoop(originalPointsNum: int,recipe_payload: dict[str, Any],controller:
                     return "abort"
     return True
 # 每条直线切两次
-def 修面和切片的程序(originalPointsNum: int,recipe_payload: dict[str, Any],controller: ZMotionAdapter,entities: list[dict[str, Any]],*,rs232: Rs232Driver | None = None,rs232_open: dict[str, Any] | None = None,) -> bool | str:  # True / False / "skip" / "abort"
+def 修面和切片的程序(originalPointsNum: int,recipe_payload: dict[str, Any],controller: SyncMotion,entities: list[dict[str, Any]],*,rs232: 串口驱动 | None = None,rs232_open: dict[str, Any] | None = None,) -> bool | str:  # True / False / "skip" / "abort"
     """
     这个是单独拿出来的修面但是要和实际去相匹配
     """
@@ -1149,7 +1150,7 @@ def 修面和切片的程序(originalPointsNum: int,recipe_payload: dict[str, An
 
     return True
 
-def 用旋转轴去切圆(originalPointsNum: int,recipe_payload: dict[str, Any],controller: ZMotionAdapter,entities: list[dict[str, Any]],*,rs232: Rs232Driver | None = None,rs232_open: dict[str, Any] | None = None,) -> bool | str:  # True / False / "skip" / "abort"
+def 用旋转轴去切圆(originalPointsNum: int,recipe_payload: dict[str, Any],controller: SyncMotion,entities: list[dict[str, Any]],*,rs232: 串口驱动 | None = None,rs232_open: dict[str, Any] | None = None,) -> bool | str:  # True / False / "skip" / "abort"
     """
     这个是单独拿出来用作R轴切圆
     """
@@ -1433,7 +1434,7 @@ def 用旋转轴去切圆(originalPointsNum: int,recipe_payload: dict[str, Any],
 
     return True
 
-def 进行4P切产品(originalPointsNum: int,recipe_payload: dict[str, Any],controller: ZMotionAdapter,entities: list[dict[str, Any]],*,rs232: Rs232Driver | None = None,rs232_open: dict[str, Any] | None = None,) -> bool | str:  # True / False / "skip" / "abort"
+def 进行4P切产品(originalPointsNum: int,recipe_payload: dict[str, Any],controller: SyncMotion,entities: list[dict[str, Any]],*,rs232: 串口驱动 | None = None,rs232_open: dict[str, Any] | None = None,) -> bool | str:  # True / False / "skip" / "abort"
     """
     这个是单独拿出来用作R轴切圆
     """

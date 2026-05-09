@@ -11,7 +11,11 @@
       "Bash(dir D:QomoQomoTechQomoTech_BackEnd_New *)",
       "Bash(./venv/Scripts/python.exe *)",
       "Bash(Get-ChildItem -Path \"D:\\\\Qomo\\\\QomoTech\\\\QomoTech_FrontEnd_new\" -Force)",
-      "Bash(Select-Object Name, FullName)"
+      "Bash(Select-Object Name, FullName)",
+      "Bash(Get-ChildItem -Path \"D:\\\\Qomo\\\\QomoTech\\\\QomoTech_BackEnd\\\\drivers\" -Recurse -Name)",
+      "Bash(Select-Object -First 50)",
+      "Bash(npm run *)",
+      "Bash(python *)"
     ]
   },
   "skipWebFetchPreflight": true
