@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useSelfProcessStore } from '../stores/selfProcessStores'
-import FlowTaskPanel from '../components/workflow/FlowTaskPanel.vue'
-import FlowCanvas from '../components/workflow/FlowCanvas.vue'
-import FlowNodeConfig from '../components/workflow/FlowNodeConfig.vue'
-import FlowLogPanel from '../components/workflow/FlowLogPanel.vue'
-import FlowCanvasConfig from '../components/workflow/FlowCanvasConfig.vue'
-import MotionController from '../components/workflow/MotionController.vue'
+import FlowTaskPanel from '../features/workflow/FlowTaskPanel.vue'
+import FlowCanvas from '../features/workflow/FlowCanvas.vue'
+import FlowNodeConfig from '../features/workflow/FlowNodeConfig.vue'
+import FlowLogPanel from '../features/workflow/FlowLogPanel.vue'
+import FlowCanvasConfig from '../features/workflow/FlowCanvasConfig.vue'
+import MotionController from '../features/workflow/MotionController.vue'
 import CameraPic from '@/components/Camera/cameraPic.vue'
 
 const store = useSelfProcessStore()

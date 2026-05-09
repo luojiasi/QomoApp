@@ -43,8 +43,8 @@ const tabs: { id: AuxiliaryTabId; label: string }[] = [
 // ================================五轴校准================================================
 
 
-const axisNameByNo: MotionAxis[] = ['X', 'Y', 'Z', 'R', 'U']
-const axisCenterCalibDisplayAxes: MotionAxis[] = ['X', 'Y', 'Z', 'R', 'U']
+const axisNameByNo: MotionAxis[] = ['X', 'Y', 'Z', 'U', 'R']
+const axisCenterCalibDisplayAxes: MotionAxis[] = ['X', 'Y', 'Z', 'U', 'R']
 
 onMounted(() => {
   auxiliaryFunctionPanelStore.loadAxisCenterCalibCenterBasedXYSum()
