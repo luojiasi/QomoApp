@@ -1,8 +1,10 @@
 import { readonly, ref } from 'vue'
 import { apiCall } from '../core/base'
 import { getCameraStreamWsUrl } from '../core/baseWs'
+import { WsClient } from '../core/wsClient'
 import { bootstrapCameraSettings, initSdkEnumAndConnectIndex0 } from './camera'
 import type { CameraSettingsState } from '../../types/settings'
+import { CAMERA_SETTINGS_STORAGE_KEY } from '../../configs/storageKeys'
 
 const frameUrl = ref('')
 const running = ref(false)
@@ -14,17 +16,14 @@ let connecting = false
 let ensureTimer: ReturnType<typeof setInterval> | null = null
 let displayLoopActive = false
 let displayRafId: number | null = null
-let wsReconnectTimer: ReturnType<typeof setTimeout> | null = null
-let ws: WebSocket | null = null
 
 const DEFAULT_TIMEOUT_MS = 1200
 const DEFAULT_QUALITY = 50
 const TARGET_DISPLAY_FPS = 120
 const DISPLAY_FRAME_INTERVAL_MS = Math.floor(1000 / TARGET_DISPLAY_FPS)
 const WS_RECONNECT_MS = 120
-import { CAMERA_SETTINGS_STORAGE_KEY } from '../../configs/storageKeys'
-
 const FRAME_QUEUE_SIZE = 3
+const URL_CACHE_SIZE = 32
 
 const loadedFrameQueue: string[] = []
 const staleFrameUrlCache: string[] = []
@@ -124,12 +123,6 @@ function clearLoadedFrameQueue(): void {
   loadedFrameQueue.length = 0
 }
 
-function clearWsReconnectTimer(): void {
-  if (wsReconnectTimer === null) return
-  clearTimeout(wsReconnectTimer)
-  wsReconnectTimer = null
-}
-
 function pushStaleObjectUrl(url: string): void {
   if (!url) return
   staleFrameUrlCache.push(url)
@@ -162,22 +155,6 @@ function cleanupDisplayFrameState(): void {
   clearLoadedFrameQueue()
 }
 
-function stopStreamWs(): void {
-  clearWsReconnectTimer()
-  if (ws !== null) {
-    ws.onopen = null
-    ws.onmessage = null
-    ws.onerror = null
-    ws.onclose = null
-    ws.close()
-    ws = null
-  }
-}
-
-function isWsOpen(): boolean {
-  return ws !== null && ws.readyState === WebSocket.OPEN
-}
-
 function enqueueFrameObjectUrl(url: string): void {
   loadedFrameQueue.push(url)
   while (loadedFrameQueue.length > FRAME_QUEUE_SIZE) {
@@ -191,42 +168,18 @@ function enqueueDecodedFrame(blob: Blob): void {
   enqueueFrameObjectUrl(objectUrl)
 }
 
-function scheduleWsReconnect(delayMs: number): void {
-  if (!running.value || !connected.value) return
-  if (isWsOpen()) return
-  clearWsReconnectTimer()
-  wsReconnectTimer = setTimeout(() => {
-    wsReconnectTimer = null
-    connectStreamWs()
-  }, delayMs)
-}
-
-function buildWsUrl(): string {
-  return getCameraStreamWsUrl()
-}
-
-function connectStreamWs(): void {
-  if (!running.value || !connected.value) return
-  if (ws !== null && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return
-
-  try {
-    ws = new WebSocket(buildWsUrl())
-  } catch (e) {
-    lastError.value = e instanceof Error ? e.message : 'websocket connect failed'
-    scheduleWsReconnect(WS_RECONNECT_MS)
-    return
-  }
-
-  ws.binaryType = 'blob'
-
-  ws.onopen = () => {
+const streamWsClient = new WsClient({
+  url: getCameraStreamWsUrl,
+  reconnectMs: WS_RECONNECT_MS,
+  binaryType: 'blob',
+  shouldReconnect: () => running.value && connected.value,
+  onOpen: (ws) => {
     lastError.value = ''
     // 新后端不读 URL query 参数，需通过 WS JSON 指令设置推流参数
-    ws?.send(JSON.stringify({ cmd: 'set_quality', quality: DEFAULT_QUALITY }))
-    ws?.send(JSON.stringify({ cmd: 'set_timeout', timeout_ms: DEFAULT_TIMEOUT_MS }))
-  }
-
-  ws.onmessage = (evt: MessageEvent<ArrayBuffer | Blob | string>) => {
+    ws.send(JSON.stringify({ cmd: 'set_quality', quality: DEFAULT_QUALITY }))
+    ws.send(JSON.stringify({ cmd: 'set_timeout', timeout_ms: DEFAULT_TIMEOUT_MS }))
+  },
+  onMessage: (evt: MessageEvent<ArrayBuffer | Blob | string>) => {
     if (!running.value) return
     if (typeof evt.data === 'string') {
       try {
@@ -243,18 +196,20 @@ function connectStreamWs(): void {
     const blob =
       evt.data instanceof Blob ? evt.data : new Blob([evt.data as ArrayBuffer], { type: 'image/jpeg' })
     enqueueDecodedFrame(blob)
+  },
+  onError: (e) => {
+    lastError.value = e instanceof Error ? (e.message ?? 'websocket stream error') : 'websocket stream error'
   }
+})
 
-  ws.onerror = () => {
-    lastError.value = 'websocket stream error'
-  }
+function connectStreamWs(): void {
+  if (!running.value || !connected.value) return
+  if (streamWsClient.isOpen) return
+  streamWsClient.connect()
+}
 
-  ws.onclose = () => {
-    ws = null
-    if (running.value && connected.value) {
-      scheduleWsReconnect(WS_RECONNECT_MS)
-    }
-  }
+function stopStreamWs(): void {
+  streamWsClient.close()
 }
 
 function displayLoopTick(ts: number): void {

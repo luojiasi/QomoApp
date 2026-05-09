@@ -1,5 +1,6 @@
 import { readonly, ref } from 'vue'
 import { getBackendWsBaseUrl } from './core/baseWs'
+import { WsClient } from './core/wsClient'
 import { useGlobalCameraReceiverState } from './camera/cameraReceiver'
 
 interface AxisSnapshot {
@@ -24,6 +25,8 @@ interface MotionStatusSnapshot {
   error: string | null
 }
 
+const HARDWARE_WS_RECONNECT_MS = 1000
+
 const controllerState = ref<string>('DISCONNECTED')
 const controllerConnected = ref(false)
 const axes = ref<AxisSnapshot[]>([])
@@ -35,8 +38,6 @@ const messageCount = ref(0)
 
 const cameraReceiver = useGlobalCameraReceiverState()
 
-let ws: WebSocket | null = null
-let wsReconnectTimer: ReturnType<typeof setTimeout> | null = null
 let started = false
 
 function buildWsUrl(): string {
@@ -44,48 +45,14 @@ function buildWsUrl(): string {
   return base ? `${base}/ws/motion/status` : '/ws/motion/status'
 }
 
-function clearWsReconnectTimer(): void {
-  if (wsReconnectTimer !== null) {
-    clearTimeout(wsReconnectTimer)
-    wsReconnectTimer = null
-  }
-}
-
-function scheduleReconnect(): void {
-  clearWsReconnectTimer()
-  wsReconnectTimer = setTimeout(() => {
-    wsReconnectTimer = null
-    connectWs()
-  }, 1000)
-}
-
-function connectWs(): void {
-  if (ws) {
-    ws.onopen = null
-    ws.onmessage = null
-    ws.onerror = null
-    ws.onclose = null
-    ws.close()
-    ws = null
-  }
-
-  lastError.value = ''
-  wsConnected.value = false
-
-  try {
-    ws = new WebSocket(buildWsUrl())
-  } catch (e: any) {
-    lastError.value = e?.message ?? 'WebSocket connection failed'
-    scheduleReconnect()
-    return
-  }
-
-  ws.onopen = () => {
+const wsClient = new WsClient({
+  url: buildWsUrl,
+  reconnectMs: HARDWARE_WS_RECONNECT_MS,
+  onOpen: () => {
     wsConnected.value = true
     lastError.value = ''
-  }
-
-  ws.onmessage = (ev: MessageEvent) => {
+  },
+  onMessage: (ev: MessageEvent) => {
     try {
       const data = JSON.parse(ev.data) as MotionStatusSnapshot
       if ((data as any).error) {
@@ -101,26 +68,16 @@ function connectWs(): void {
     } catch (e: any) {
       lastError.value = `parse error: ${e?.message ?? String(e)}`
     }
-  }
-
-  ws.onerror = () => {
-    lastError.value = 'WebSocket error'
-  }
-
-  ws.onclose = () => {
+  },
+  onError: (e: unknown) => {
+    if (e instanceof Error) lastError.value = e.message ?? 'WebSocket error'
+    else lastError.value = 'WebSocket error'
+  },
+  onClose: () => {
     wsConnected.value = false
     controllerConnected.value = false
-    ws = null
-    scheduleReconnect()
   }
-}
-
-
-
-
-
-
-
+})
 
 ///===========================
 /// ── 启动/停止 ──
@@ -129,20 +86,16 @@ function connectWs(): void {
 export function startHardwareMonitor(): void {
   if (started) return
   started = true
-  connectWs()
+  lastError.value = ''
+  wsConnected.value = false
+  wsClient.connect()
 }
+
 export function stopHardwareMonitor(): void {
   started = false
-  clearWsReconnectTimer()
-  if (ws) {
-    ws.onopen = null
-    ws.onmessage = null
-    ws.onerror = null
-    ws.onclose = null
-    ws.close()
-    ws = null
-  }
+  wsClient.close()
 }
+
 ///=================================
 /// ── 组件用（返回 readonly ref） ──
 ///=================================
