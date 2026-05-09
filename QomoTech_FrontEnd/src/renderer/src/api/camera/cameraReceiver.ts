@@ -1,5 +1,5 @@
 import { readonly, ref } from 'vue'
-import { getBackendApiUrl } from '../core/base'
+import { apiCall } from '../core/base'
 import { getCameraStreamWsUrl } from '../core/baseWs'
 import { bootstrapCameraSettings, initSdkEnumAndConnectIndex0 } from './camera'
 import type { CameraSettingsState } from '../../types/settings'
@@ -94,14 +94,11 @@ async function ensureCameraConnected(): Promise<void> {
   if (connecting) return
   connecting = true
   try {
-    const statusResp = await fetch(getBackendApiUrl('camera/status'), { method: 'GET' })
-    if (statusResp.ok) {
-      const statusJson = (await statusResp.json()) as { success?: boolean; data?: { connected?: boolean } }
-      if (statusJson?.success && statusJson.data?.connected) {
-        connected.value = true
-        lastError.value = ''
-        return
-      }
+    const statusRes = await apiCall<{ connected?: boolean }>('camera/status', 'GET')
+    if (statusRes.success && statusRes.data?.connected) {
+      connected.value = true
+      lastError.value = ''
+      return
     }
     connected.value = false
     await pushLocalCameraSettingsBeforeConnect()
