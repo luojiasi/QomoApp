@@ -111,7 +111,7 @@ const homeStatusClass = computed(() => {
  * 约定：未压限位时为 true，压到上限位后变为 false。
  */
  const getAxisLimitInputNo = (AxisNum:number,fwd_in:boolean): number | null => {
-  const axis = controllerStore.controllerSettings.axes.find((a) => a.axisNo === AxisNum)
+  const axis = controllerStore.controllerSettings.axes.find((a) => a.axis_no === AxisNum)
   if (!axis) return null
   let n = -1
   if (fwd_in){

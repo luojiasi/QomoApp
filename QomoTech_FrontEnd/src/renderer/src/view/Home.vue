@@ -115,7 +115,7 @@ const syncLocalProduct4PCenterRotationOnStartup = async (): Promise<void> => {
 const axisStatusLabels = computed(()=>{
   const axisNames = ['X', 'Y', 'Z', 'R', 'U']
   return axisNames.map((name, axisNo) => {
-    const axis = controllerSettingsStore.controllerSettings.axes.find((a) => a.axisNo === axisNo)
+    const axis = controllerSettingsStore.controllerSettings.axes.find((a) => a.axis_no === axisNo)
     const status = axis ? Number(axis.axisstatus) : NaN
     if (!Number.isFinite(status)) {
       return {

@@ -33,7 +33,7 @@ const isPositiveFiniteNumber = (value: unknown): value is number =>
 const pickAxisSpeed = (axisNo: number, options?: { speed?: number; controllerSettings?: ControllerParameters }): number | undefined => {
   const explicitSpeed = options?.speed
   if (isPositiveFiniteNumber(explicitSpeed)) return explicitSpeed
-  const savedSpeed = options?.controllerSettings?.axes.find((a) => a.axisNo === axisNo)?.speed
+  const savedSpeed = options?.controllerSettings?.axes.find((a) => a.axis_no === axisNo)?.speed
   return isPositiveFiniteNumber(savedSpeed) ? savedSpeed : undefined
 }
 

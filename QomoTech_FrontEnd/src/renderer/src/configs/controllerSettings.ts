@@ -1,5 +1,6 @@
 import { IO_MAP_GROUP_COUNT } from './constants'
 import {
+  type AxisMergeParams,
   type ControllerAxisCount,
   type ControllerAxisDriverRead,
   type ControllerAxisSettings,
@@ -32,6 +33,14 @@ const defaultDriverRead: ControllerAxisDriverRead = {
   endmove_speed: 0
 }
 
+/** 后端 motion_config.MergeParams 的默认值 */
+export const defaultAxisMergeParams = (): AxisMergeParams => ({
+  corner_mode: 0,
+  decel_angle: 15.0,
+  stop_angle: 45.0,
+  zxmooth: 0.0
+})
+
 function createAxis(
   input: ControllerAxisUserInput,
   driver: Partial<ControllerAxisDriverRead> = {}
@@ -45,14 +54,18 @@ const defaultIoMapNineGroups: IOMapNineGroups = Array.from({ length: IO_MAP_GROU
   defaultIoEntry()
 ) as IOMapNineGroups
 
-/** 轴切换按钮文案：三轴 XYZ，五轴 XYZRU */
+/** 轴切换按钮文案：三轴 XYZ，五轴 XYZUR */
 export const AXIS_TAB_LABELS: Record<ControllerAxisCount, readonly string[]> = {
   3: ['X', 'Y', 'Z'],
   5: ['X', 'Y', 'Z', 'U', 'R']
 } as const
 
+/** 与后端 motion_config.MotionConfig.enable_axes 对齐 */
+const enableAxesByCount = (count: ControllerAxisCount): string[] =>
+  count === 3 ? ['X', 'Y', 'Z'] : ['X', 'Y', 'Z', 'U', 'R']
+
 /**
- * 按轴数量裁剪或补齐轴参数，并同步 enableAxes / axisCount。
+ * 按轴数量裁剪或补齐轴参数，并同步 enable_axes / axis_count。
  * 保留已有轴数据；不足时从默认模板按轴号补齐。
  */
 export function applyControllerAxisCount(
@@ -66,156 +79,81 @@ export function applyControllerAxisCount(
   const nextAxes: ControllerAxisSettings[] = []
   for (let i = 0; i < n; i++) {
     const base = prev[i] ?? cloneSettings(template[i])
-    nextAxes.push({ ...cloneSettings(base), axisNo: i })
+    nextAxes.push({ ...cloneSettings(base), axis_no: i })
   }
   out.axes = nextAxes
   out.communication = {
     ...out.communication,
-    axisCount: count,
-    enableAxes: count === 3 ? ['X', 'Y', 'Z'] : ['X', 'Y', 'Z', 'U', 'R']
+    axis_count: count,
+    enable_axes: enableAxesByCount(count)
   }
   return out
 }
 
-/** 五轴：0 X、1 Y、2 Z、3 R、4 U；可配置项见类型 ControllerAxisUserInput，其余为驱动器回读占位 */
+/** 按轴号生成默认值（与后端 MotionAxisConfig() 默认一致） */
+function makeDefaultAxis(axis_no: number, axis_name: string): ControllerAxisSettings {
+  return createAxis({
+    axis_no,
+    axis_name,
+    axis_type: 1,
+    units: 2000,
+    speed: 20,
+    lspeed: 20,
+    accel: 500000,
+    decel: 500000,
+    sramp: 200,
+    creep: 10,
+    merge: 0,
+    fwd_in: -1,
+    rev_in: -1,
+    merge_params: defaultAxisMergeParams(),
+    backlash: 5,
+    backlash_enable: false
+  })
+}
+
+/** 五轴：0 X、1 Y、2 Z、3 U、4 R；与后端 motion_config 默认实例一致 */
 export const defaultControllerParameters: ControllerParameters = {
   communication: {
-    controllerModel: 'QomoTech406V2',
+    controller_model: 'QomoTech406V2',
     transport: 'ethernet',
-    ipAddress: '192.168.0.11',
-    enableAxes: ['X', 'Y', 'Z', 'U', 'R'],
-    axisCount: 5
+    controller_ip: '192.168.0.11',
+    connect_timeout_s: 5.0,
+    enable_axes: ['X', 'Y', 'Z', 'U', 'R'],
+    axis_count: 5
   },
   axes: [
-    createAxis({
-      axisNo: 0,
-      axisName: 'X 轴',
-      axisType: 1,
-      units: 2000,
-      speed: 20,
-      lspeed: 20,
-      creep: 10,
-      accel: 500000,
-      decel: 500000,
-      merge: 0,
-      sramp: 200,
-      fwd_in: -1,
-      rev_in: -1,
-      corner_mode: 0,
-      decel_angle: 15,
-      stop_angle: 45,
-      zxmooth: 0,
-      backlash: 5,
-      backlash_enable: false
-    }),
-    createAxis({
-      axisNo: 1,
-      axisName: 'Y 轴',
-      axisType: 1,
-      units: 2000,
-      speed: 20,
-      lspeed: 20,
-      creep: 10,
-      accel: 500000,
-      decel: 500000,
-      merge: 0,
-      sramp: 200,
-      fwd_in: -1,
-      rev_in: -1,
-      corner_mode: 0,
-      decel_angle: 15,
-      stop_angle: 45,
-      zxmooth: 0,
-      backlash: 5,
-      backlash_enable: false
-    }),
-    createAxis({
-      axisNo: 2,
-      axisName: 'Z 轴',
-      axisType: 1,
-      units: 2000,
-      speed: 20,
-      lspeed: 20,
-      creep: 10,
-      accel: 500000,
-      decel: 500000,
-      merge: 0,
-      sramp: 200,
-      fwd_in: -1,
-      rev_in: -1,
-      corner_mode: 0,
-      decel_angle: 15,
-      stop_angle: 45,
-      zxmooth: 0,
-      backlash: 5,
-      backlash_enable: false
-    }),
-    createAxis({
-      axisNo: 3,
-      axisName: 'U 轴',
-      axisType: 1,
-      units: 2000,
-      speed: 20,
-      lspeed: 20,
-      creep: 10,
-      accel: 500000,
-      decel: 500000,
-      merge: 0,
-      sramp: 200,
-      fwd_in: -1,
-      rev_in: -1,
-      corner_mode: 0,
-      decel_angle: 15,
-      stop_angle: 45,
-      zxmooth: 0,
-      backlash: 10,
-      backlash_enable: false
-    }),
-    createAxis({
-      axisNo: 4,
-      axisName: 'R 轴',
-      axisType: 1,
-      units: 2000,
-      speed: 20,
-      lspeed: 20,
-      creep: 10,
-      accel: 500000,
-      decel: 500000,
-      merge: 0,
-      sramp: 200,
-      fwd_in: -1,
-      rev_in: -1,
-      corner_mode: 0,
-      decel_angle: 15,
-      stop_angle: 45,
-      zxmooth: 0,
-      backlash: 5,
-      backlash_enable: false
-    })
+    makeDefaultAxis(0, 'X'),
+    makeDefaultAxis(1, 'Y'),
+    makeDefaultAxis(2, 'Z'),
+    makeDefaultAxis(3, 'U'),
+    makeDefaultAxis(4, 'R')
   ],
   ioMap: defaultIoMapNineGroups
 }
 
 const userInputFields = (axis: ControllerAxisSettings): ParameterSection['fields'] => [
-  { key: 'axisNo', label: '轴号', value: axis.axisNo },
-  { key: 'axisName', label: '轴名称', value: axis.axisName },
-  { key: 'axisType', label: '轴类型', value: axis.axisType },
-  { key: 'units', label: '脉冲当量', value: axis.units },
+  { key: 'axis_no', label: '轴号', value: axis.axis_no },
+  { key: 'axis_name', label: '轴名称', value: axis.axis_name },
+  { key: 'axis_type', label: 'ATYPE 轴类型', value: axis.axis_type },
+  { key: 'units', label: '脉冲当量 units', value: axis.units },
   { key: 'speed', label: '运行速度', value: axis.speed },
-  { key: 'lspeed', label: '启动速度', value: axis.lspeed },
-  { key: 'creep', label: '爬行速度', value: axis.creep },
+  { key: 'lspeed', label: '起跳速度 lspeed', value: axis.lspeed },
+  { key: 'creep', label: '爬行速度 creep（回零用）', value: axis.creep },
   { key: 'accel', label: '加速度', value: axis.accel },
   { key: 'decel', label: '减速度', value: axis.decel },
-  { key: 'merge', label: '连续插补', value: axis.merge },
-  { key: 'sramp', label: '加减速曲线', value: axis.sramp },
-  { key: 'fwd_in', label: '正限位输入', value: axis.fwd_in },
-  { key: 'rev_in', label: '负限位输入', value: axis.rev_in },
-  { key: 'corner_mode', label: '拐角模式', value: axis.corner_mode },
-  { key: 'decel_angle', label: '拐角减速开始', value: axis.decel_angle },
-  { key: 'stop_angle', label: '拐角减速结束', value: axis.stop_angle },
-  { key: 'zxmooth', label: '倒角半径', value: axis.zxmooth },
-  { key: 'backlash', label: '反向间隙补偿', value: axis.backlash },
-  { key: 'backlash_enable', label: '是否反向间隙', value: axis.backlash_enable }
+  { key: 'sramp', label: 'S 曲线时间 sramp', value: axis.sramp },
+  { key: 'merge', label: '连续插补 merge（0/1）', value: axis.merge },
+  { key: 'fwd_in', label: '正限位输入 fwd_in（-1=禁用）', value: axis.fwd_in },
+  { key: 'rev_in', label: '负限位输入 rev_in（-1=禁用）', value: axis.rev_in },
+  // —— merge_params 子模型（key 保持扁平名，渲染层自行寻址 axis.merge_params.xxx） ——
+  { key: 'corner_mode', label: '拐角模式 corner_mode', value: axis.merge_params.corner_mode },
+  { key: 'decel_angle', label: '拐角减速开始 decel_angle', value: axis.merge_params.decel_angle },
+  { key: 'stop_angle', label: '拐角强制停止 stop_angle', value: axis.merge_params.stop_angle },
+  { key: 'zxmooth', label: '拐角圆滑半径 zxmooth', value: axis.merge_params.zxmooth },
+  // —— 前端独有（通过 /axis/backlash 单独下发）——
+  { key: 'backlash', label: '反向间隙补偿（前端独有）', value: axis.backlash },
+  { key: 'backlash_enable', label: '启用反向间隙（前端独有）', value: axis.backlash_enable }
 ]
 
 const driverReadFields = (axis: ControllerAxisSettings): ParameterSection['fields'] => [
@@ -243,35 +181,36 @@ export const createControllerSections = (settings: ControllerParameters): Parame
   const communication: ParameterSection = {
     id: 'controller-communication',
     title: '通讯参数',
-    description: 'QomoTech406V2 连接方式与 IP。',
+    description: '与后端 motion_config.MotionConfig 字段对齐。',
     fields: [
-      { key: 'controllerModel', label: '控制器型号', value: settings.communication.controllerModel },
+      { key: 'controller_model', label: '控制器型号', value: settings.communication.controller_model },
       { key: 'transport', label: '通讯方式', value: settings.communication.transport },
-      { key: 'ipAddress', label: 'IP 地址', value: settings.communication.ipAddress },
+      { key: 'controller_ip', label: 'IP 地址', value: settings.communication.controller_ip },
+      { key: 'connect_timeout_s', label: '连接超时（秒）', value: settings.communication.connect_timeout_s },
       {
-        key: 'enableAxes',
+        key: 'enable_axes',
         label: '启用轴',
-        value: settings.communication.enableAxes.join(', ')
+        value: settings.communication.enable_axes.join(', ')
       },
       {
-        key: 'axisCount',
+        key: 'axis_count',
         label: '轴数量',
-        value: settings.communication.axisCount
+        value: settings.communication.axis_count
       }
     ]
   }
 
   const axisSections: ParameterSection[] = settings.axes.flatMap((axis) => [
     {
-      id: `controller-axis-${axis.axisNo}-input`,
-      title: `${axis.axisName} · 可配置（写入）`,
+      id: `controller-axis-${axis.axis_no}-input`,
+      title: `${axis.axis_name} · 可配置（写入）`,
       description:
         '以下为需保存的参数；对接驱动器后由业务层写入控制器，与驱动器回读分离。',
       fields: userInputFields(axis)
     },
     {
-      id: `controller-axis-${axis.axisNo}-driver`,
-      title: `${axis.axisName} · 驱动器回读（只读）`,
+      id: `controller-axis-${axis.axis_no}-driver`,
+      title: `${axis.axis_name} · 驱动器回读（只读）`,
       description: '由驱动器/控制器实时读取的状态，界面仅展示。',
       fields: driverReadFields(axis)
     }

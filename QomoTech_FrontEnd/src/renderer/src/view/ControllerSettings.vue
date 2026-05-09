@@ -38,10 +38,11 @@ const controllerStore = useControllerSettingsStore()
 const { sections } = useControllerSettingsPage()
 const { success, error } = useNotification()
 
+/** 与后端 motion_config.MotionAxisConfig 平铺字段名一致；merge_params 子字段不在此列表，单独处理 */
 const USER_AXIS_KEYS = [
-  'axisNo',
-  'axisName',
-  'axisType',
+  'axis_no',
+  'axis_name',
+  'axis_type',
   'units',
   'speed',
   'lspeed',
@@ -52,26 +53,34 @@ const USER_AXIS_KEYS = [
   'sramp',
   'fwd_in',
   'rev_in',
-  'corner_mode',
-  'decel_angle',
-  'stop_angle',
-  'zxmooth',
   'backlash',
   'backlash_enable'
 ] as const satisfies readonly (keyof ControllerAxisUserInput)[]
 
-function userNumberKey(field: ParameterField): keyof Omit<ControllerAxisUserInput, 'axisName'> {
-  return field.key as keyof Omit<ControllerAxisUserInput, 'axisName'>
+/** merge_params 嵌套子字段名（与后端 MergeParams 一致） */
+const MERGE_PARAM_KEYS = ['corner_mode', 'decel_angle', 'stop_angle', 'zxmooth'] as const
+type MergeParamKey = (typeof MERGE_PARAM_KEYS)[number]
+
+function isMergeParamField(field: ParameterField): boolean {
+  return (MERGE_PARAM_KEYS as readonly string[]).includes(field.key)
+}
+
+function mergeParamKey(field: ParameterField): MergeParamKey {
+  return field.key as MergeParamKey
+}
+
+function userNumberKey(field: ParameterField): keyof Omit<ControllerAxisUserInput, 'axis_name' | 'merge_params'> {
+  return field.key as keyof Omit<ControllerAxisUserInput, 'axis_name' | 'merge_params'>
 }
 
 function isBacklashEnableField(field: ParameterField): boolean {
   return field.key === 'backlash_enable'
 }
 
-const axisCountValue = computed(() => controllerStore.controllerSettings.communication.axisCount)
+const axisCountValue = computed(() => controllerStore.controllerSettings.communication.axis_count)
 
 const axisTabLabels = computed(
-  () => AXIS_TAB_LABELS[controllerStore.controllerSettings.communication.axisCount]
+  () => AXIS_TAB_LABELS[controllerStore.controllerSettings.communication.axis_count]
 )
 
 async function handleAxisCountChange(count: ControllerAxisCount): Promise<void> {
@@ -167,6 +176,8 @@ function resetCurrentAxisUserInput(): void {
   for (const k of USER_AXIS_KEYS) {
     ;(ax as unknown as Record<string, unknown>)[k] = def[k]
   }
+  // 同步 merge_params 子模型
+  ax.merge_params = { ...def.merge_params }
   success('已重置', `已恢复当前轴可配置项为默认值（轴 ${idx}）`)
 }
 
@@ -193,7 +204,15 @@ function formatSettingValueMax4Decimals(value: unknown, unit?: string): string {
 
 function normalizeAxisNumberInput(axisIdx: number, fieldKey: string): void {
   const ax = controllerStore.controllerSettings.axes[axisIdx] as any
-  const v = Number(ax?.[fieldKey])
+  if (!ax) return
+  // merge_params 嵌套字段单独处理
+  if ((MERGE_PARAM_KEYS as readonly string[]).includes(fieldKey)) {
+    const v = Number(ax.merge_params?.[fieldKey])
+    if (!Number.isFinite(v)) return
+    ax.merge_params[fieldKey] = roundToMaxDecimals(v)
+    return
+  }
+  const v = Number(ax[fieldKey])
   if (!Number.isFinite(v)) return
   ax[fieldKey] = roundToMaxDecimals(v)
 }
@@ -409,7 +428,7 @@ const {
         <div class="app-card rounded-2xl p-5 text-center shadow-sm">
           <p class="app-text-secondary text-sm">控制器型号</p>
           <p class="app-text-primary mt-2 text-2xl font-semibold">
-            {{ controllerStore.controllerSettings.communication.controllerModel }}
+            {{ controllerStore.controllerSettings.communication.controller_model }}
           </p>
         </div>
 
@@ -680,8 +699,8 @@ const {
                         class="px-3 py-1.5 align-middle"
                       >
                         <input
-                          v-if="field.key === 'axisName'"
-                          v-model="controllerStore.controllerSettings.axes[axisIdx].axisName"
+                          v-if="field.key === 'axis_name'"
+                          v-model="controllerStore.controllerSettings.axes[axisIdx].axis_name"
                           type="text"
                           class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-2 py-1 text-xs outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
                         />
@@ -693,6 +712,14 @@ const {
                           <option :value="false">否</option>
                           <option :value="true">是</option>
                         </select>
+                        <input
+                          v-else-if="isMergeParamField(field)"
+                          v-model.number="controllerStore.controllerSettings.axes[axisIdx].merge_params[mergeParamKey(field)]"
+                          type="number"
+                          :step="0.0001"
+                          @blur="normalizeAxisNumberInput(axisIdx, field.key)"
+                          class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-2 py-1 text-xs outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
+                        />
                         <input
                           v-else
                           v-model.number="controllerStore.controllerSettings.axes[axisIdx][userNumberKey(field)]"
@@ -807,8 +834,8 @@ const {
                         class="px-3 py-1.5 align-middle"
                       >
                         <input
-                          v-if="field.key === 'axisName'"
-                          v-model="controllerStore.controllerSettings.axes[axisIdx].axisName"
+                          v-if="field.key === 'axis_name'"
+                          v-model="controllerStore.controllerSettings.axes[axisIdx].axis_name"
                           type="text"
                           class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-2 py-1 text-xs outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
                         />
@@ -820,6 +847,14 @@ const {
                           <option :value="false">否</option>
                           <option :value="true">是</option>
                         </select>
+                        <input
+                          v-else-if="isMergeParamField(field)"
+                          v-model.number="controllerStore.controllerSettings.axes[axisIdx].merge_params[mergeParamKey(field)]"
+                          type="number"
+                          :step="0.0001"
+                          @blur="normalizeAxisNumberInput(axisIdx, field.key)"
+                          class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-2 py-1 text-xs outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
+                        />
                         <input
                           v-else
                           v-model.number="controllerStore.controllerSettings.axes[axisIdx][userNumberKey(field)]"
@@ -1074,8 +1109,8 @@ const {
                         class="px-3 py-1.5 align-middle"
                       >
                         <input
-                          v-if="field.key === 'axisName'"
-                          v-model="controllerStore.controllerSettings.axes[axisIdx].axisName"
+                          v-if="field.key === 'axis_name'"
+                          v-model="controllerStore.controllerSettings.axes[axisIdx].axis_name"
                           type="text"
                           class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-2 py-1 text-xs outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
                         />
@@ -1087,6 +1122,14 @@ const {
                           <option :value="false">否</option>
                           <option :value="true">是</option>
                         </select>
+                        <input
+                          v-else-if="isMergeParamField(field)"
+                          v-model.number="controllerStore.controllerSettings.axes[axisIdx].merge_params[mergeParamKey(field)]"
+                          type="number"
+                          :step="0.0001"
+                          @blur="normalizeAxisNumberInput(axisIdx, field.key)"
+                          class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-2 py-1 text-xs outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
+                        />
                         <input
                           v-else
                           v-model.number="controllerStore.controllerSettings.axes[axisIdx][userNumberKey(field)]"
@@ -1147,8 +1190,8 @@ const {
                         class="px-3 py-1.5 align-middle"
                       >
                         <input
-                          v-if="field.key === 'axisName'"
-                          v-model="controllerStore.controllerSettings.axes[axisIdx].axisName"
+                          v-if="field.key === 'axis_name'"
+                          v-model="controllerStore.controllerSettings.axes[axisIdx].axis_name"
                           type="text"
                           class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-2 py-1 text-xs outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
                         />
@@ -1160,6 +1203,14 @@ const {
                           <option :value="false">否</option>
                           <option :value="true">是</option>
                         </select>
+                        <input
+                          v-else-if="isMergeParamField(field)"
+                          v-model.number="controllerStore.controllerSettings.axes[axisIdx].merge_params[mergeParamKey(field)]"
+                          type="number"
+                          :step="0.0001"
+                          @blur="normalizeAxisNumberInput(axisIdx, field.key)"
+                          class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-2 py-1 text-xs outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
+                        />
                         <input
                           v-else
                           v-model.number="controllerStore.controllerSettings.axes[axisIdx][userNumberKey(field)]"

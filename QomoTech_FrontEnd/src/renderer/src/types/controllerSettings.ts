@@ -1,44 +1,68 @@
-// 控制器和上位机之间的通讯方式（网口、串口、CAN、EtherCAT 等）
+// 控制器和上位机之间的通讯方式（与后端 motion_config.MotionConfig.transport 对齐）
 export type ControllerTransport = 'ethernet' | 'rs232' | 'rs485' | 'can' | 'ethercat'
-// 步进/伺服常用的脉冲输出模式（脉冲+方向、双脉冲、正交编码器等）
-export type ControllerPulseMode = 'pulse_direction' | 'double_pulse' | 'quadrature'
-// 回零时轴先往正方向还是负方向去找原点
-export type ControllerHomeDirection = 'positive' | 'negative'
-// 原点等数字量信号是高电平有效还是低电平有效
-export type ControllerSignalLevel = 'high' | 'low'
 
-/** 仅支持三轴（XYZ）或五轴（XYZRU） */
+/** 仅支持三轴（XYZ）或五轴（XYZUR），与后端 axis_count Literal[3,5] 对齐 */
 export type ControllerAxisCount = 3 | 5
 
+/**
+ * 通讯参数。字段名与后端 motion_config.MotionConfig 1:1 对齐：
+ * controller_model / transport / controller_ip / connect_timeout_s / enable_axes / axis_count
+ */
 export interface ControllerCommunicationSettings {
-  controllerModel: 'ZMC406-V2' | 'QomoTech406V2'
+  controller_model: string
   transport: ControllerTransport
-  ipAddress: string
-  enableAxes: string[] // 启用轴列表，与 axisCount 一致：3 时为 X/Y/Z，5 时为 X/Y/Z/R/U
-  /** 轴数量，仅允许 3 或 5 */
-  axisCount: ControllerAxisCount
+  controller_ip: string
+  /** 后端 ZAux_OpenEth 连接超时秒数 */
+  connect_timeout_s: number
+  enable_axes: string[]
+  axis_count: ControllerAxisCount
 }
 
-/** 用户可写入 / 持久化的轴参数（其余字段由驱动器回读） */
+/**
+ * 连续轨迹合并参数（对应后端 motion_config.MergeParams）。
+ * 仅在 axis.merge=1 时由 ZAux SDK 实际生效。
+ */
+export interface AxisMergeParams {
+  /** ZAux_Direct_SetCornerMode 拐角处理位标志 */
+  corner_mode: number
+  /** ZAux_Direct_SetDecelAngle 开始减速的拐角阈值（rad） */
+  decel_angle: number
+  /** ZAux_Direct_SetStopAngle 强制停止的拐角阈值（rad） */
+  stop_angle: number
+  /** ZAux_Direct_SetZsmooth 拐角圆滑半径 */
+  zxmooth: number
+}
+
+/**
+ * 单轴用户可配置参数（与后端 motion_config.MotionAxisConfig 字段一一对应）。
+ * 注意：backlash / backlash_enable 是前端独有 UI 字段，后端通过 /api/motion/axis/backlash 单独设置，
+ *       不放在 axis batch 配置里（不会随 buildMotionAllAxesParamsRequestPayload 下发）。
+ */
 export interface ControllerAxisUserInput {
-  axisNo: number
-  axisName: string
-  axisType: number
+  axis_no: number
+  axis_name: string
+  /** ATYPE: 1=方向脉冲, 4=正交编码器, 65=EtherCAT */
+  axis_type: number
   units: number
   speed: number
   lspeed: number
-  creep: number
   accel: number
   decel: number
-  merge: number
   sramp: number
+  creep: number
+  /** 0 / 1 连续轨迹合并开关 */
+  merge: number
+  /** -1 = 禁用 */
   fwd_in: number
+  /** -1 = 禁用 */
   rev_in: number
-  corner_mode: number
-  decel_angle: number
-  stop_angle: number
-  zxmooth: number
+  /** 嵌套结构对齐后端 merge_params 子模型 */
+  merge_params: AxisMergeParams
+
+  // —— 以下为前端独有 UI 字段（不会进入后端 axis 批量配置）——
+  /** 反向间隙补偿距离（脉冲），通过 /api/motion/axis/backlash 单独下发 */
   backlash: number
+  /** 是否启用反向间隙，通过 /api/motion/axis/backlash 单独下发 */
   backlash_enable: boolean
 }
 
@@ -95,6 +119,6 @@ export type IOMapNineGroups = [
 export interface ControllerParameters {
   communication: ControllerCommunicationSettings
   axes: ControllerAxisSettings[]
-  /** 固定 9 组：输入可控制，输出为驱动器回读 */
+  /** 固定 9 组 I/O，前端 UI 状态。后端按需通过 /api/motion/io/* 接口读写 */
   ioMap: IOMapNineGroups
 }

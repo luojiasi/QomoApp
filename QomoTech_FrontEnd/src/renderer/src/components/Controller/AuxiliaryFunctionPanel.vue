@@ -133,7 +133,7 @@ const axisCenterCalibActiveStepIndex = computed(() => {
 
 const axisCenterCalibLivePositions = computed(() =>
   axisNameByNo.map((name, axisNo) => {
-    const axis = controllerStore.controllerSettings.axes.find((item) => item.axisNo === axisNo)
+    const axis = controllerStore.controllerSettings.axes.find((item) => item.axis_no === axisNo)
     const mpos = Number(axis?.mpos)
     return {
       name,
@@ -144,7 +144,7 @@ const axisCenterCalibLivePositions = computed(() =>
 
 const axisCenterCalibCurrentAngleText = computed(() => {
   const axisNo = axisCenterCalibRotationAxisNo.value
-  const axis = controllerStore.controllerSettings.axes.find((item) => item.axisNo === axisNo)
+  const axis = controllerStore.controllerSettings.axes.find((item) => item.axis_no === axisNo)
   const mpos = Number(axis?.mpos)
   const units = Number(axis?.units)
   if (!Number.isFinite(mpos) || !Number.isFinite(units) || units <= 0) return '-'
@@ -186,7 +186,7 @@ function getAxisCenterCalibSampleClass(state: AxisCenterCalibSampleState): strin
 }
 
 function getAxisPosition(axisNo: number): number | null {
-  const axis = controllerStore.controllerSettings.axes.find((item) => item.axisNo === axisNo)
+  const axis = controllerStore.controllerSettings.axes.find((item) => item.axis_no === axisNo)
   const mpos = Number(axis?.mpos)
   return Number.isFinite(mpos) ? mpos : null
 }

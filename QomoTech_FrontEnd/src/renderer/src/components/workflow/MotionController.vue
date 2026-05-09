@@ -20,7 +20,7 @@ const moveStepUnit = computed(() => urMode.value ? '°/圈' : 'mm')
 
 const xyzAxisPositions = computed(() =>
   ['X', 'Y', 'Z', 'U', 'R'].map((name, axisNo) => {
-    const axis = controllerStore.controllerSettings.axes.find((item) => item.axisNo === axisNo)
+    const axis = controllerStore.controllerSettings.axes.find((item) => item.axis_no === axisNo)
     const mpos = axis ? Number(axis.mpos) : NaN
     return {
       name,

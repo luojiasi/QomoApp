@@ -9,7 +9,8 @@ export const CAMERA_SETTINGS_STORAGE_KEY = 'qomotech-camera-settings'
 export const RS232_WORKBENCH_STORAGE_KEY = 'qomotech-rs232-workbench'
 
 // ─── 控制器 ─────────────────────────────────────
-export const CONTROLLER_SETTINGS_STORAGE_KEY = 'qomotech-controller-settings'
+// v2: 字段重构对齐后端 motion_config（snake_case + merge_params 嵌套），旧 v1 数据自动失效
+export const CONTROLLER_SETTINGS_STORAGE_KEY = 'qomotech-controller-settings-v2'
 
 // ─── 辅助功能面板 ───────────────────────────────
 export const AUXILIARY_FUNCTION_PANEL_QUICK_MOVE_TO_POSITION_STORAGE_KEY = 'AuxiliaryFunctionPanel_quickMoveToPosition'

@@ -45,6 +45,7 @@ export interface ReservePageDefinition {
 }
 
 export type {
+  AxisMergeParams,
   ControllerAxisCount,
   ControllerAxisDriverRead,
   ControllerAxisSettings,
