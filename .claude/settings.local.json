@@ -16,7 +16,8 @@
       "Bash(Select-Object -First 50)",
       "Bash(npm run *)",
       "Bash(python *)",
-      "Bash(Get-ChildItem *)"
+      "Bash(Get-ChildItem *)",
+      "Bash(npx vue-tsc *)"
     ]
   },
   "skipWebFetchPreflight": true

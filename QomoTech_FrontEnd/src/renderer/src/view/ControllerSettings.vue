@@ -165,7 +165,7 @@ function resetCurrentAxisUserInput(): void {
   const ax = controllerStore.controllerSettings.axes[idx]
   const def = defaultControllerParameters.axes[idx]
   for (const k of USER_AXIS_KEYS) {
-    ;(ax as Record<string, unknown>)[k] = def[k]
+    ;(ax as unknown as Record<string, unknown>)[k] = def[k]
   }
   success('已重置', `已恢复当前轴可配置项为默认值（轴 ${idx}）`)
 }
