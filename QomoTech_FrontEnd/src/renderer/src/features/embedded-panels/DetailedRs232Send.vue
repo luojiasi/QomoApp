@@ -5,15 +5,15 @@ import {
   createRs232Sections,
   RS232_COM_PORT_OPTIONS,
   RS232_SEND_MODE_OPTIONS,
-} from '../configs/settings'
-import { useNotification } from '../composables/useNotification'
-import { useReservePages } from '../composables/useSettingsPages'
-import { useReservePagesStore } from '../stores/settings'
-import { RS232_WORKBENCH_STORAGE_KEY } from '../configs/storageKeys'
-import { useRs232WorkbenchStore } from '../stores/rs232WorkbenchStore'
-import type { Rs232QuickCommand, Rs232SendMode, Rs232SendRequest, Rs232SerialSessionRequest } from '../types/settings'
-import { formatSettingValue } from '../utils/settings'
-import { useRs232Polling } from '../composables/useRs232Polling'
+} from '../../configs/settings'
+import { useNotification } from '../../composables/useNotification'
+import { useReservePages } from '../../composables/useSettingsPages'
+import { useReservePagesStore } from '../../stores/settings'
+import { RS232_WORKBENCH_STORAGE_KEY } from '../../configs/storageKeys'
+import { useRs232WorkbenchStore } from '../../stores/rs232WorkbenchStore'
+import type { Rs232QuickCommand, Rs232SendMode, Rs232SendRequest, Rs232SerialSessionRequest } from '../../types/settings'
+import { formatSettingValue } from '../../utils/settings'
+import { useRs232Polling } from '../../composables/useRs232Polling'
 import {
   closeRs232,
   fetchRs232Buffer,
@@ -21,7 +21,7 @@ import {
   openRs232,
   sendRs232,
   type Rs232PortInfo
-} from '../api/device/rs232'
+} from '../../api/device/rs232'
 const props = defineProps<{
   embedded?: boolean
 }>()

@@ -1,23 +1,23 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { AXIS_TAB_LABELS, defaultControllerParameters } from '../configs/settings'
-import { useControllerSettingsPage } from '../composables/useSettingsPages'
-import { useNotification } from '../composables/useNotification'
-import { useControllerSettingsStore } from '../stores/controllerSettingsStore'
+import { AXIS_TAB_LABELS, defaultControllerParameters } from '../../configs/settings'
+import { useControllerSettingsPage } from '../../composables/useSettingsPages'
+import { useNotification } from '../../composables/useNotification'
+import { useControllerSettingsStore } from '../../stores/controllerSettingsStore'
 import type {
   ControllerAxisCount,
   ControllerAxisUserInput,
   ParameterField,
   ParameterSection
-} from '../types/settings'
-import { cloneSettings, formatSettingValue } from '../utils/settings'
+} from '../../types/settings'
+import { cloneSettings, formatSettingValue } from '../../utils/settings'
 import {
   moveMotionAxisAbs,
   moveMotionAxisRel,
   rotateRAxisByTurns,
   rotateUAxisByAngle
-} from '../api/motion'
-import { useMotionExecute } from '../api/motion'
+} from '../../api/motion'
+import { useMotionExecute } from '../../api/motion'
 
 const props = defineProps<{
   /**

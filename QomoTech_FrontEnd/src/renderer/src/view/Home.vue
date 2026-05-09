@@ -12,7 +12,7 @@ import StratProgramRunning from '../features/home/StratProgramRunning.vue'
 import CameraPic from '../features/camera/cameraPic.vue'
 import ShowAndDrawInHome from '../features/home/showAndDrawInHome.vue'
 import TaskProgressAside from '../features/home/TaskProgressAside.vue'
-import ControllerSettings from './ControllerSettings.vue'
+import ControllerSettings from '../features/embedded-panels/ControllerSettings.vue'
 import { parseRs232SessionFromLocalStorage } from '../stores/rs232WorkbenchStore'
 import { syncRs232Workbench } from '../api/device/rs232'
 
@@ -56,7 +56,7 @@ import {
   syncProduct4PCenterRotation
 } from '../api/motion'
 import type { QomoEntityWithSurface } from '../types/Qomo5P'
-import DetailedRs232Send from './DetailedRs232Send.vue'
+import DetailedRs232Send from '../features/embedded-panels/DetailedRs232Send.vue'
 import SvgIcon from '@/components/ui/SvgIcon.vue'
 
 
