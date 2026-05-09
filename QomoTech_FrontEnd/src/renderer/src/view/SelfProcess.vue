@@ -7,7 +7,7 @@ import FlowNodeConfig from '../features/workflow/FlowNodeConfig.vue'
 import FlowLogPanel from '../features/workflow/FlowLogPanel.vue'
 import FlowCanvasConfig from '../features/workflow/FlowCanvasConfig.vue'
 import MotionController from '../features/workflow/MotionController.vue'
-import CameraPic from '@/components/Camera/cameraPic.vue'
+import CameraPic from '@/features/camera/cameraPic.vue'
 
 const store = useSelfProcessStore()
 const sidePanelTab = ref<'log' | 'config' | 'canvasConfig' | 'motionController'>('config')

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref } from 'vue'
-import CollapsiblePanelHeader from '../Others/CollapsiblePanelHeader.vue'
+import CollapsiblePanelHeader from '../../components/Others/CollapsiblePanelHeader.vue'
 import { useNotification } from '../../composables/useNotification'
 import { useCameraSettingsStore } from '../../stores/cameraSettingsStore'
 import {

@@ -29,7 +29,7 @@
 <script setup lang="ts">
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import CameraPic from './components/Camera/cameraPic.vue'
+import CameraPic from './features/camera/cameraPic.vue'
 import NotificationToast from './components/Others/NotificationToast.vue'
 import {
   registerNotificationToast,
