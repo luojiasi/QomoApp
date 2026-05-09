@@ -1,6 +1,7 @@
 import type { ReservePageDefinition } from '../types/settings'
-import type { AccountInfo } from '../types/auth'
 import type { LicenseStatus } from '../types/license'
+
+export { DEFAULT_ADMIN_ACCOUNT, DEFAULT_USER_ACCOUNT } from './auth'
 
 export const reservePageDefinitions: ReservePageDefinition[] = [
   {
@@ -67,16 +68,6 @@ export {
   createDefaultLayer,
   createDefaultWelding
 } from './qomo5pSettings'
-
-export const DEFAULT_ADMIN_ACCOUNT: AccountInfo = {
-  username: 'admin',
-  password: 'admin123'
-}
-
-export const DEFAULT_USER_ACCOUNT: AccountInfo = {
-  username: 'user',
-  password: '123456'
-}
 
 export const createDefaultLicenseStatus = (): LicenseStatus => ({
   valid: false,

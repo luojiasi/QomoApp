@@ -1,24 +1,9 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import type { AccountInfo, AuthStorage, LoginResult } from '../types/auth'
+import type { AccountInfo, LoginResult } from '../types/auth'
 import { AUTH_STORAGE_KEY } from '../configs/storageKeys'
-import { DEFAULT_ADMIN_ACCOUNT, DEFAULT_USER_ACCOUNT } from '../configs/settings'
-
-const getDefaultAuthState = (): AuthStorage => ({username: '',isAdmin: false,isUser: true,userAccount: { ...DEFAULT_USER_ACCOUNT }})
-
-const loadAuthState = (): AuthStorage => {
-  if (typeof window === 'undefined') return getDefaultAuthState()
-  const savedState = window.localStorage.getItem(AUTH_STORAGE_KEY)
-  if (!savedState) return getDefaultAuthState()
-  try {
-    return {
-      ...getDefaultAuthState(),
-      ...JSON.parse(savedState)
-    }
-  } catch {
-    return getDefaultAuthState()
-  }
-}
+import { DEFAULT_ADMIN_ACCOUNT } from '../configs/auth'
+import { loadAuthState } from '../utils/auth'
 
 export const useAuthStore = defineStore('auth', () => {
   const savedState = loadAuthState()
