@@ -6,7 +6,7 @@ import { notify } from './composables/useNotification'
 import pinia from './stores/pinia'
 import App from './App.vue'
 import router from './router'
-import { startGlobalCameraReceiver } from './utils/cameraReceiver'
+import { startGlobalCameraReceiver } from './api/cameraReceiver'
 import { createApp } from 'vue'
 
 applySavedTheme()

@@ -29,7 +29,7 @@ from typing import Iterable, List, Optional, Sequence, Set
 
 from configs.motion_config import MotionAxisConfig, MotionConfig
 from services.motion_control.config_loader import 加载运动配置
-from services.motion_control.models import 运动状态
+from services.motion_control.motion_models import 运动状态
 
 
 class SafetyViolation(Exception):

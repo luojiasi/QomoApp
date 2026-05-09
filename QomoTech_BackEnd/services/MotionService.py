@@ -45,7 +45,7 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence
 
 from services.motion_control.config_loader import 加载运动配置
 from configs.motion_config import MotionConfig
-from services.motion_control.models import 运动状态, 状态快照, 轴快照
+from services.motion_control.motion_models import 运动状态, 状态快照, 轴快照
 from services.motion_control.safe_controller import 安全控制器, SafetyViolation
 from services.motion_control.state_machine import 状态机, 状态事件
 from services.motion_control.status_monitor import StatusMonitor

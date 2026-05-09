@@ -1,24 +1,24 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted } from 'vue'
-import RouteTabs from '../components/RouteTabs.vue'
-import HomeUserBar from '../components/HomeUserBar.vue'
-import RecipeParameterPanel from '../components/HomeRecipeParameterPanel.vue'
-import DriverControlPanel from '../components/DriverControlPanel.vue'
-import LaserControlPanel from '../components/LaserControlPanel.vue'
-import CameraControlPanel from '../components/CameraControlPanel.vue'
-import AuxiliaryFunctionPanel from '../components/AuxiliaryFunctionPanel.vue'
-import HomeOperationHelp from '../components/HomeOperationHelp.vue'
-import StratProgramRunning from '../components/StratProgramRunning.vue'
-import CameraPic from '../components/cameraPic.vue'
-import ShowAndDrawInHome from '../components/showAndDrawInHome.vue'
-import TaskProgressAside from '../components/TaskProgressAside.vue'
+import RouteTabs from '../components/Others/RouteTabs.vue'
+import HomeUserBar from '../components/Others/HomeUserBar.vue'
+import RecipeParameterPanel from '../components/Recipe/HomeRecipeParameterPanel.vue'
+import DriverControlPanel from '../components/Controller/DriverControlPanel.vue'
+import LaserControlPanel from '../components/Others/LaserControlPanel.vue'
+import CameraControlPanel from '../components/Camera/CameraControlPanel.vue'
+import AuxiliaryFunctionPanel from '../components/Controller/AuxiliaryFunctionPanel.vue'
+import HomeOperationHelp from '../components/Others/HomeOperationHelp.vue'
+import StratProgramRunning from '../components/Others/StratProgramRunning.vue'
+import CameraPic from '../components/Camera/cameraPic.vue'
+import ShowAndDrawInHome from '../components/Others/showAndDrawInHome.vue'
+import TaskProgressAside from '../components/Others/TaskProgressAside.vue'
 import ControllerSettings from './ControllerSettings.vue'
 import { parseRs232SessionFromLocalStorage } from '../stores/rs232WorkbenchStore'
-import { syncRs232Workbench } from '../utils/rs232Api'
+import { syncRs232Workbench } from '../api/rs232'
 
 // 新添加的用于创建图形的方法
-import ShowAndDrawInHome_new from '../components/showAndDrawInHome_new.vue'
-import HomeOperationHelp_new from '../components/HomeOperationHelp_new.vue'
+import ShowAndDrawInHome_new from '../components/Others/showAndDrawInHome_new.vue'
+import HomeOperationHelp_new from '../components/Others/HomeOperationHelp_new.vue'
 const newWayToCreateGraphic = ref(true)
 
 // 用于获取读取保存的位置进行快速移动
@@ -44,32 +44,12 @@ import { useQomo5PStore } from '../stores/qomo5pEditor'
 const qomo5pStore = useQomo5PStore()
 
 // 个人觉得只是用来初始化驱动器的参数
-import { bootstrapControllerOnce } from '../utils/backendBootstrap'
-import { getDesktopBackendRuntimeStatus, type BackendRuntimeStatus } from '../utils/desktopBridge'
-const backendStatus = ref<BackendRuntimeStatus>({
-  state: 'starting',
-  isReachable: false,
-  message: '正在检测后台服务...'
-})
-const BACKEND_POLL_MS = 2000
-let backendPollTimer: ReturnType<typeof setInterval> | undefined
-const refreshBackendStatus = async (): Promise<void> => {
-  backendStatus.value = await getDesktopBackendRuntimeStatus()
-}
-const backendDotClass = computed(() => {
-  switch (backendStatus.value.state) {
-    case 'running':
-      return 'bg-green-500'
-    case 'starting':
-    case 'restarting':
-      return 'bg-yellow-500'
-    default:
-      return 'bg-red-500'
-  }
-})
+import { bootstrapControllerOnce } from '../api/bootstrap'
+import { useBackendStatus } from '../composables/useBackendStatus'
+const { backendDotClass, startPolling } = useBackendStatus()
 
 
-import { getStartProgramStatusWsUrl } from '../utils/toBackendApiCall'
+import { getStartProgramStatusWsUrl } from '../api/base'
 import { subscribeGlobalKeyboard } from '../utils/globalKeyboard'
 import {
   setMotionIoOutput,
@@ -83,10 +63,10 @@ import {
   getHardwareStatus,
   zeroMotionAxis,
   syncProduct4PCenterRotation
-} from '../utils/motionApi'
+} from '../api/motion'
 import type { QomoEntityWithSurface } from '../types/Qomo5P'
 import DetailedRs232Send from './DetailedRs232Send.vue'
-import SvgIcon from '@/components/SvgIcon.vue'
+import SvgIcon from '@/components/Others/SvgIcon.vue'
 
 
 
@@ -101,59 +81,6 @@ import SvgIcon from '@/components/SvgIcon.vue'
 
 
 
-
-type ControllerRuntimeState = 'checking' | 'connected' | 'disconnected'
-const controllerStatus = ref<{ state: ControllerRuntimeState, isConnected: boolean, message: string }>({
-  state: 'checking',
-  isConnected: false,
-  message: '正在检测控制器连接...'
-})
-
-const CONTROLLER_POLL_MS = 2000
-let controllerPollTimer: ReturnType<typeof setInterval> | undefined
-
-const controllerDotClass = computed(() => {
-  switch (controllerStatus.value.state) {
-    case 'connected':
-      return 'bg-green-500'
-    case 'checking':
-      return 'bg-yellow-500'
-    default:
-      return 'bg-red-500'
-  }
-})
-
-const refreshControllerStatus = async (): Promise<void> => {
-  // 后台没起来时，硬件状态不可用（避免频繁失败请求）
-  if (backendStatus.value.state !== 'running') {
-    controllerStatus.value = {
-      state: 'disconnected',
-      isConnected: false,
-      message: '后台未连接，控制器状态不可用'
-    }
-    return
-  }
-
-  const res = await getHardwareStatus()
-  const isConnected = Boolean(res?.success && res?.data?.state?.motion_connected)
-  if (isConnected) {
-    controllerStatus.value = {
-      state: 'connected',
-      isConnected: true,
-      message: '控制器已连接'
-    }
-  } else {
-    const backendReason = res?.data?.state?.motion_last_error
-      ?? res?.data?.motion_driver_status?.last_error
-      ?? res?.message
-    const resolvedMessage = backendReason ? String(backendReason) : '控制器未连接'
-    controllerStatus.value = {
-      state: 'disconnected',
-      isConnected: false,
-      message: resolvedMessage
-    }
-  }
-}
 
 const onRefreshClick = async (): Promise<void> => {
   const result = await bootstrapControllerOnce(controllerSettingsStore.controllerSettings)
@@ -851,25 +778,13 @@ onUnmounted(() => {
   unsubscribeKeyboard()
   stopProgramStatusWebSocket()
   stopProgramElapsedTimer()
-
-  if (backendPollTimer) {
-    clearInterval(backendPollTimer)
-    backendPollTimer = undefined
-  }
-  if (controllerPollTimer) {
-    clearInterval(controllerPollTimer)
-    controllerPollTimer = undefined
-  }
 })
 
 onMounted(async () => {
   programStatusWsReconnectEnabled = true
 
-  // 监听后台/控制器连接状态（用于右上角彩色指示）
-  await refreshBackendStatus()
-  await refreshControllerStatus()
-  backendPollTimer = setInterval(() => {void refreshBackendStatus()}, BACKEND_POLL_MS)
-  controllerPollTimer = setInterval(() => {void refreshControllerStatus()}, CONTROLLER_POLL_MS)
+  // 监听后台连接状态（用于右上角彩色指示）
+  await startPolling()
 
 
 
@@ -917,8 +832,6 @@ onMounted(async () => {
       <div class="flex items-center gap-1">
         <span class="h-2 w-2 rounded-full" :class="backendDotClass" />
         <span class="text-xs text-(--app-text-secondary)">后台</span>
-        <span class="h-2 w-2 rounded-full" :class="controllerDotClass" />
-        <span class="text-xs text-(--app-text-secondary)">控制器</span>
       </div>
       <div class="home-toolbar-sep" />
       <button @click="onRefreshClick">

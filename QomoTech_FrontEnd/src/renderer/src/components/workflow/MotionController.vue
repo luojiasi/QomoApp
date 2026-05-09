@@ -1,20 +1,17 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useControllerSettingsStore } from '../../stores/controllerSettingsStore'
 import {
   moveMotionAxisRel,
   rotateRAxisByTurns,
-  rotateUAxisByAngle,
-  subscribeHardwareStatus,
-  type HardwareStatusPayload
-} from '../../utils/motionApi'
+  rotateUAxisByAngle
+} from '../../api/motion'
 
 const controllerStore = useControllerSettingsStore()
 
 const moveStep = ref(1)
 const movingAxis = ref(false)
 const urMode = ref(false)
-let unsubscribeHardwareStatus: (() => void) | null = null
 
 const horizontalAxis = computed(() => urMode.value ? { no: 4, name: 'R' } : { no: 0, name: 'X' })
 const verticalAxis = computed(() => urMode.value ? { no: 3, name: 'U' } : { no: 1, name: 'Y' })
@@ -31,19 +28,6 @@ const xyzAxisPositions = computed(() =>
     }
   })
 )
-
-function applyMotionStatusToAxes(statusData: Record<string, Record<string, unknown>>): void {
-  const axes = controllerStore.controllerSettings.axes
-  if (!axes.length) return
-
-  for (const axis of axes) {
-    const status = statusData[String(axis.axisNo)]
-    if (!status || typeof status !== 'object') continue
-
-    const mpos = Number(status.mpos)
-    if (Number.isFinite(mpos)) axis.mpos = mpos
-  }
-}
 
 function getAxisSpeed(axisNo: number): number {
   const value = Number(controllerStore.controllerSettings.axes[axisNo]?.speed)
@@ -90,24 +74,6 @@ async function moveAxisByDirection(axisNo: number, distance: number): Promise<vo
   }
 }
 
-onMounted(() => {
-  unsubscribeHardwareStatus = subscribeHardwareStatus((res) => {
-    if (!res?.success || !res.data || typeof res.data !== 'object') return
-    const payload = res.data as HardwareStatusPayload
-    const axisData = payload.state?.motion_axis_feedback ?? payload.motion_driver_status?.axis_status
-    if (!axisData || typeof axisData !== 'object') return
-    applyMotionStatusToAxes(axisData as Record<string, Record<string, unknown>>)
-  }, {
-    autoStart: true,
-    intervalMs: 50,
-    runImmediately: true
-  })
-})
-
-onUnmounted(() => {
-  unsubscribeHardwareStatus?.()
-  unsubscribeHardwareStatus = null
-})
 </script>
 
 <template>

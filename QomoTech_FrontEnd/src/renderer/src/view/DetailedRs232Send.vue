@@ -19,7 +19,7 @@ import {
   openRs232,
   sendRs232,
   type Rs232PortInfo
-} from '../utils/rs232Api'
+} from '../api/rs232'
 const props = defineProps<{
   /**
    * 是否作为嵌入式面板展示（例如显示在 Home 右侧）。

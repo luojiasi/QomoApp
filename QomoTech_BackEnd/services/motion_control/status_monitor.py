@@ -23,7 +23,7 @@ import threading
 import time
 from typing import Callable, Dict, List, Optional
 
-from services.motion_control.models import 运动状态, 状态快照, 轴快照
+from services.motion_control.motion_models import 运动状态, 状态快照, 轴快照
 from services.motion_control.state_machine import 状态机, 状态事件
 from services.motion_control.zmc_adapter import ZMC适配器, ZMCError, 轴读数
 from utils.logger import 获取日志记录器

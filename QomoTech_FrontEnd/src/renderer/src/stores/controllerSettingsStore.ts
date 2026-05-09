@@ -8,7 +8,7 @@ import type {
 } from '../types/settings'
 import { HOME_STATE_KEY, type HomeState } from '../types/auth'
 import { cloneSettings } from '../utils/settings'
-import { setMotionAllAxesParamsWithControllerSettings } from '../utils/motionApi'
+import { setMotionAllAxesParamsWithControllerSettings } from '../api/motion'
 import { createSettingsSaveResult } from './settingsStoreUtils'
 
 

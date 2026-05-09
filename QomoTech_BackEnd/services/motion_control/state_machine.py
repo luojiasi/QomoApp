@@ -17,7 +17,7 @@ import threading
 from enum import Enum
 from typing import Callable, List, Optional
 
-from services.motion_control.models import 运动状态
+from services.motion_control.motion_models import 运动状态
 from utils.logger import 获取日志记录器
 
 日志 = 获取日志记录器("StateMachine")

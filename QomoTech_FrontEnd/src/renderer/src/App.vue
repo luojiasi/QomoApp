@@ -29,8 +29,8 @@
 <script setup lang="ts">
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import CameraPic from './components/cameraPic.vue'
-import NotificationToast from './components/NotificationToast.vue'
+import CameraPic from './components/Camera/cameraPic.vue'
+import NotificationToast from './components/Others/NotificationToast.vue'
 import {
   registerNotificationToast,
   type NotificationToastExpose
@@ -40,7 +40,7 @@ import { useLicenseStore } from './stores/license'
 import { useControllerSettingsStore } from './stores/controllerSettingsStore'
 import { dispatchGlobalKeyboard } from './utils/globalKeyboard'
 import { parseRs232SessionFromLocalStorage } from './stores/rs232WorkbenchStore'
-import { syncRs232Workbench } from './utils/rs232Api' 
+import { syncRs232Workbench } from './api/rs232'
 import type { HomeState } from './types/auth'
 const toastRef = ref<InstanceType<typeof NotificationToast> | null>(null)
 const router = useRouter()

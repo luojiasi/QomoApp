@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { AXIS_TAB_LABELS, defaultControllerParameters } from '../configs/settings'
 import { useControllerSettingsPage } from '../composables/useSettingsPages'
 import { useNotification } from '../composables/useNotification'
@@ -15,11 +15,9 @@ import {
   moveMotionAxisAbs,
   moveMotionAxisRel,
   rotateRAxisByTurns,
-  rotateUAxisByAngle,
-  subscribeHardwareStatus,
-  type HardwareStatusPayload
-} from '../utils/motionApi'
-import { useMotionExecute } from '../utils/motionExecute'
+  rotateUAxisByAngle
+} from '../api/motion'
+import { useMotionExecute } from '../api/motionExecute'
 
 const props = defineProps<{
   /**
@@ -136,87 +134,8 @@ const ioOutSection = computed(
   () => sections.value.find((s) => s.id === 'controller-io-map-out') ?? null
 )
 
-type AxisStatusRaw = Record<string, unknown>
-let unsubscribeHardwareStatus: (() => void) | null = null
-
-function setAxisNumberField(axis: Record<string, unknown>, key: string, raw: unknown): void {
-  const n = Number(raw)
-  if (Number.isFinite(n)) axis[key] = n
-}
-
-function applyAxisReadback(statusData: Record<string, AxisStatusRaw>): void {
-  for (const axis of controllerStore.controllerSettings.axes as Array<Record<string, unknown>>) {
-    const status = statusData[String(axis.axisNo)]
-    if (!status || typeof status !== 'object') continue
-
-    setAxisNumberField(axis, 'dpos', status.dpos)
-    setAxisNumberField(axis, 'mpos', status.mpos)
-    setAxisNumberField(axis, 'endmove', status.endmove)
-    setAxisNumberField(axis, 'fs_limit', status.fs_limit)
-    setAxisNumberField(axis, 'rs_limit', status.rs_limit)
-    setAxisNumberField(axis, 'mspeed', status.mspeed)
-    setAxisNumberField(axis, 'mtype', status.mtype)
-    setAxisNumberField(axis, 'ntype', status.ntype)
-    setAxisNumberField(axis, 'vp_speed', status.vp_speed)
-    setAxisNumberField(axis, 'axisstatus', status.axisstatus ?? status.axis_status)
-    setAxisNumberField(axis, 'move_mark', status.move_mark)
-    setAxisNumberField(axis, 'move_curmark', status.move_curmark)
-    setAxisNumberField(axis, 'axis_stopforeason', status.axis_stopforeason)
-    setAxisNumberField(axis, 'move_buffered', status.move_buffered)
-    setAxisNumberField(axis, 'force_speed', status.force_speed)
-    setAxisNumberField(axis, 'startmove_speed', status.startmove_speed)
-    setAxisNumberField(axis, 'endmove_speed', status.endmove_speed)
-
-    if (typeof status.idle === 'boolean') {
-      axis.idle = status.idle ? 1 : 0
-    } else {
-      setAxisNumberField(axis, 'idle', status.idle)
-    }
-  }
-}
-
-function applyIoReadback(payload?: HardwareStatusPayload): void {
-  const ioMapFromState = Array.isArray(payload?.state?.motion_io_map)
-    ? payload?.state?.motion_io_map
-    : null
-  const ioInputs = payload?.motion_driver_status?.io?.inputs
-  const ioOutputs = payload?.motion_driver_status?.io?.outputs
-  if (!ioMapFromState && !ioInputs && !ioOutputs) return
-
-  for (let i = 0; i < controllerStore.controllerSettings.ioMap.length; i += 1) {
-    const row = controllerStore.controllerSettings.ioMap[i]
-    if (!row) continue
-    const stateRow = ioMapFromState?.[i]
-    if (typeof stateRow?.digitalIn === 'boolean') row.digitalIn = stateRow.digitalIn
-    if (typeof stateRow?.digitalOut === 'boolean') row.digitalOut = stateRow.digitalOut
-    if (ioInputs && typeof ioInputs[String(i)] === 'boolean') row.digitalIn = ioInputs[String(i)]!
-    if (ioOutputs && typeof ioOutputs[String(i)] === 'boolean') row.digitalOut = ioOutputs[String(i)]!
-  }
-}
-
 onMounted(async () => {
   await controllerStore.loadControllerSettings()
-
-  unsubscribeHardwareStatus = subscribeHardwareStatus((res) => {
-    if (!res?.success || !res.data || typeof res.data !== 'object') return
-    const payload = res.data as HardwareStatusPayload
-    const axisFromState = payload.state?.motion_axis_feedback
-    const axisFromDriver = payload.motion_driver_status?.axis_status
-    const axisData = axisFromState ?? axisFromDriver
-    if (axisData && typeof axisData === 'object') {
-      applyAxisReadback(axisData as Record<string, AxisStatusRaw>)
-    }
-    applyIoReadback(payload)
-  }, {
-    autoStart: true,
-    intervalMs: 200,
-    runImmediately: true,
-  })
-})
-
-onUnmounted(() => {
-  unsubscribeHardwareStatus?.()
-  unsubscribeHardwareStatus = null
 })
 
 const saving = ref(false)

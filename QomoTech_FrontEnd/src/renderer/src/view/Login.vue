@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useNotification } from '@/composables/useNotification'
 import { useLicenseStore } from '../stores/license'
 // import { useControllerSettingsStore } from '../stores/controllerSettingsStore'
-import { getDesktopBackendRuntimeStatus, type BackendRuntimeStatus } from '../utils/desktopBridge'
-// import { bootstrapControllerOnce } from '../utils/backendBootstrap'
+import { useBackendStatus } from '../composables/useBackendStatus'
+// import { bootstrapControllerOnce } from '../api/bootstrap'
 const { success, error } = useNotification()
 
 
@@ -25,27 +25,7 @@ const password = ref('')
 
 
 
-// 获取控制器状态
-
-const backendStatus = ref<BackendRuntimeStatus>({
-  state: 'starting',
-  isReachable: false,
-  message: '正在检测后台服务...'
-})
-
-const BACKEND_POLL_MS = 2000
-let backendPollTimer: ReturnType<typeof setInterval> | undefined
-
-const refreshBackendStatus = async () => backendStatus.value = await getDesktopBackendRuntimeStatus()
-
-const backendDotClass = computed(() => {
-  switch (backendStatus.value.state) {
-    case 'running':
-      return 'bg-green-500'
-    default:
-      return 'bg-red-500'
-  }
-})
+const { backendStatus, backendDotClass, startPolling } = useBackendStatus()
 
 
 
@@ -95,20 +75,10 @@ const handleLogin = async () => {
 
 onMounted(async () => {
   const licenseStatus = await licenseStore.refreshStatus()
-  await refreshBackendStatus()
-  backendPollTimer = setInterval(() => {
-    void refreshBackendStatus()
-  }, BACKEND_POLL_MS)
+  await startPolling()
 
   if (!licenseStatus.valid) {
     await router.push('/license')
-  }
-})
-
-onUnmounted(() => {
-  if (backendPollTimer) {
-    clearInterval(backendPollTimer)
-    backendPollTimer = undefined
   }
 })
 </script>

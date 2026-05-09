@@ -1171,7 +1171,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useNotification } from '@renderer/composables/useNotification'
 import QomoCanvas from '@renderer/components/Qomo5P/QomoCanvas.vue'
 import Qomo3DPreview from '@renderer/components/Qomo5P/Qomo3DPreview.vue'
-import CreateDiamondParamsDetails from '@renderer/components/CreateDiamondParamsDetails.vue'
+import CreateDiamondParamsDetails from '@renderer/components/Others/CreateDiamondParamsDetails.vue'
 import { dispatchQomoTo5PAction } from '@renderer/utils/Qomo5P/QomoTo5P'
 import { dispatchQomoToCanvasAction, DrawingShapeTools } from '@renderer/utils/Qomo5P/QomoToCanvas'
 import {
