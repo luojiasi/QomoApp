@@ -16,11 +16,6 @@ import ControllerSettings from './ControllerSettings.vue'
 import { parseRs232SessionFromLocalStorage } from '../stores/rs232WorkbenchStore'
 import { syncRs232Workbench } from '../api/device/rs232'
 
-// 新添加的用于创建图形的方法
-import ShowAndDrawInHome_new from '../components/Others/showAndDrawInHome_new.vue'
-import HomeOperationHelp_new from '../components/Others/HomeOperationHelp_new.vue'
-const newWayToCreateGraphic = ref(true)
-
 // 用于获取读取保存的位置进行快速移动
 import { useAuxiliaryFunctionPanelStore } from '../stores/auxiliaryFunctionPanelStore'
 const auxiliaryFunctionPanelStore = useAuxiliaryFunctionPanelStore()
@@ -906,9 +901,7 @@ onMounted(async () => {
         class="absolute left-1/2 top-16 bottom-8 z-20 flex min-h-0 w-120 max-w-[calc(100vw-2rem)] flex-col p-3"
         aria-label="操作帮助区域"
       >
-      <!-- 方便进行测试新添加的创建图形的方法 -->
-        <HomeOperationHelp v-if="!newWayToCreateGraphic"/>
-        <HomeOperationHelp_new v-else />
+        <HomeOperationHelp />
       </aside>
     </div>
     
@@ -919,10 +912,7 @@ onMounted(async () => {
       >
         <CameraPic object-fit="cover" />
 
-        <!-- 方便进行测试新添加的创建图形的方法 -->
-        <ShowAndDrawInHome :scale="1" :upper-opening-mm="recipeUpperOpeningMm"  v-if="!newWayToCreateGraphic"/>
-        <ShowAndDrawInHome_new
-          v-else
+        <ShowAndDrawInHome
           :scale="1"
           :upper-opening-mm="recipeUpperOpeningMm"
           :xy-offset="homeXyOffset"
