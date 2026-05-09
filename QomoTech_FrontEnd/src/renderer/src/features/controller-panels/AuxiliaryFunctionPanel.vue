@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import CollapsiblePanelHeader from '../Others/CollapsiblePanelHeader.vue'
+import CollapsiblePanelHeader from '../../components/Others/CollapsiblePanelHeader.vue'
 import { useControllerSettingsStore } from '../../stores/controllerSettingsStore'
 import { useAuxiliaryFunctionPanelStore } from '../../stores/auxiliaryFunctionPanelStore'
 import {

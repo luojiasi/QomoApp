@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref } from 'vue'
-import CollapsiblePanelHeader from './CollapsiblePanelHeader.vue'
+import CollapsiblePanelHeader from '../../components/Others/CollapsiblePanelHeader.vue'
 import { useRs232WorkbenchStore } from '../../stores/rs232WorkbenchStore'
 import { applyLaserParams, type LaserApplyPayload } from '../../api/device/laser'
 import { closeRs232, openRs232, sendRs232 } from '../../api/device/rs232'
