@@ -1,109 +1,99 @@
 <template>
   <div class="ws-debug">
     <header>
-      <h1>/ws/motion/status</h1>
-      <span :class="['dot', dotClass]"></span>
-      <span class="status-text">{{ stateText }}</span>
-      <span class="count">收到 {{ messageCount }} 帧</span>
+      <h1>api/hardware.ts — WS 硬件状态监控</h1>
     </header>
 
+    <!-- 模块状态 -->
     <div class="conn-bar">
-      <label>
-        Host
-        <input
-          v-model="hostInput"
-          placeholder="127.0.0.1:5000"
-          @keyup.enter="reconnect"
-        />
-      </label>
-      <label>
-        Path
-        <input v-model="pathInput" @keyup.enter="reconnect" />
-      </label>
-      <label class="tls">
-        <input v-model="useTls" type="checkbox" />
-        wss
-      </label>
-      <button class="btn primary" @click="reconnect">连接</button>
-      <button class="btn" @click="useDevProxy">用 Vite 代理</button>
+      <span class="badge" :class="wsDotClass">WS {{ wsText }}</span>
+      <span class="badge" :class="ctrlDotClass">控制器 {{ ctrlText }}</span>
+      <span class="badge" :class="camDotClass">相机 {{ camText }}</span>
+      <span class="count">已接收 {{ state.messageCount.value }} 帧</span>
+      <span v-if="state.lastError.value" class="err">错误: {{ state.lastError.value }}</span>
     </div>
 
+        <!-- 相机画面 -->
+    <div class="camera-section">
+      <div class="card camera-card">
+        <div class="card-title">
+          相机画面
+          <span class="cam-rec" :class="{ on: camState.connected.value }">●</span>
+          <span v-if="camState.lastError.value" class="err">错误: {{ camState.lastError.value }}</span>
+        </div>
+        <img
+          v-if="camState.frameUrl.value"
+          :src="camState.frameUrl.value"
+          alt="camera stream"
+          class="camera-img"
+        />
+        <p v-else class="muted">等待相机画面...</p>
+      </div>
+    </div>
+
+    <!-- 操作 -->
     <div class="conn-bar">
       <label>
         控制器 IP
-        <input
-          v-model="controllerIp"
-          placeholder="192.168.0.11"
-          @keyup.enter="connectController"
-        />
+        <input v-model="controllerIp" placeholder="192.168.0.11" @keyup.enter="connectController" />
       </label>
-      <button class="btn primary" :disabled="ctlBusy" @click="connectController">
-        连接控制器
-      </button>
-      <button class="btn" :disabled="ctlBusy" @click="disconnectController">
-        断开控制器
-      </button>
-      <span v-if="ctlMessage" :class="['ctl-msg', ctlOk ? 'ok' : 'err']">
-        {{ ctlMessage }}
-      </span>
+      <button class="btn primary" :disabled="ctlBusy" @click="connectController">连接控制器</button>
+      <button class="btn" :disabled="ctlBusy" @click="disconnectController">断开控制器</button>
+      <span v-if="ctlMessage" :class="['ctl-msg', ctlOk ? 'ok' : 'err']">{{ ctlMessage }}</span>
     </div>
 
-    <div class="meta">
-      <div><b>URL:</b> {{ wsUrl }}</div>
-      <div><b>readyState:</b> {{ readyState }} ({{ stateText }})</div>
-      <div v-if="lastError" class="err"><b>error:</b> {{ lastError }}</div>
-      <div v-if="closeInfo" class="err"><b>closed:</b> {{ closeInfo }}</div>
-    </div>
-
-    <section v-if="snapshot" class="grid">
+    <!-- 基本信息 -->
+    <section class="grid">
       <div class="card">
-        <div class="card-title">基本</div>
-        <div><b>state:</b> {{ snapshot.state }}</div>
-        <div><b>timestamp:</b> {{ snapshot.timestamp }}</div>
-        <div><b>error:</b> {{ snapshot.error ?? 'null' }}</div>
+        <div class="card-title">控制器状态</div>
+        <div><b>state:</b> {{ state.controllerState.value }}</div>
+        <div><b>connected:</b> {{ state.controllerConnected.value }}</div>
       </div>
 
       <div class="card">
+        <div class="card-title">WS 连接</div>
+        <div><b>connected:</b> {{ state.wsConnected.value }}</div>
+        <div><b>lastError:</b> {{ state.lastError.value || 'null' }}</div>
+        <div><b>messageCount:</b> {{ state.messageCount.value }}</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">相机状态 (cameraReceiver)</div>
+        <div><b>connected:</b> {{ state.cameraConnected.value }}</div>
+      </div>
+    </section>
+
+    <!-- position (dpos) -->
+    <section class="grid">
+      <div class="card">
         <div class="card-title">position (dpos)</div>
-        <pre>{{ formatRecord(snapshot.position) }}</pre>
+        <pre>{{ formatRecord(state.position.value) }}</pre>
       </div>
 
       <div class="card">
         <div class="card-title">mposition (mpos)</div>
-        <pre>{{ formatRecord(snapshot.mposition) }}</pre>
+        <pre>{{ formatRecord(state.mposition.value) }}</pre>
       </div>
+    </section>
 
-      <div class="card">
-        <div class="card-title">idle</div>
-        <pre>{{ formatRecord(snapshot.idle) }}</pre>
-      </div>
-
-      <div class="card">
-        <div class="card-title">alarms</div>
-        <pre>{{ formatRecord(snapshot.alarms) }}</pre>
-      </div>
-
-      <div class="card">
-        <div class="card-title">enabled</div>
-        <pre>{{ formatRecord(snapshot.enabled) }}</pre>
-      </div>
-
+    <!-- 轴表格 -->
+    <section>
       <div class="card axes">
-        <div class="card-title">axes</div>
-        <table>
+        <div class="card-title">axes ({{ state.axes.value.length }} 轴)</div>
+        <table v-if="state.axes.value.length">
           <thead>
             <tr>
               <th>name</th>
-              <th>id</th>
+              <th>axis_id</th>
               <th>dpos</th>
               <th>mpos</th>
               <th>idle</th>
-              <th>alarm</th>
+              <th>alarm_code</th>
               <th>enabled</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="ax in snapshot.axes" :key="ax.axis_id">
+            <tr v-for="ax in state.axes.value" :key="ax.axis_id">
               <td>{{ ax.name }}</td>
               <td>{{ ax.axis_id }}</td>
               <td>{{ ax.dpos }}</td>
@@ -114,141 +104,88 @@
             </tr>
           </tbody>
         </table>
-      </div>
-
-      <div class="card raw">
-        <div class="card-title">raw JSON</div>
-        <pre>{{ rawJson }}</pre>
+        <p v-else class="muted">暂无轴数据</p>
       </div>
     </section>
 
-    <p v-else class="empty">等待第一帧数据...（如果一直在等，请检查后端是否启动 + 看上面的 readyState/error）</p>
+    <!-- 原始 JSON -->
+    <section>
+      <div class="card raw">
+        <div class="card-title">原始 JSON</div>
+        <pre>{{ rawJson }}</pre>
+      </div>
+    </section>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
+import { useHardwareState } from './api/hardware'
+import { useGlobalCameraReceiverState } from './api/camera/cameraReceiver'
+import { getBackendApiUrl } from './api/core/base'
 
-interface AxisSnapshot {
-  name: string
-  axis_id: number
-  dpos: number
-  mpos: number
-  idle: boolean
-  alarm_code: number
-  enabled: boolean
-}
+const state = useHardwareState()
+const camState = useGlobalCameraReceiverState()
 
-interface MotionStatusSnapshot {
-  state: string
-  position: Record<string, number>
-  mposition: Record<string, number>
-  idle: Record<string, boolean>
-  alarms: Record<string, number>
-  enabled: Record<string, boolean>
-  axes: AxisSnapshot[]
-  timestamp: number
-  error: string | null
-}
+const wsDotClass = computed(() =>
+  state.wsConnected.value ? 'on' : state.lastError.value ? 'off' : 'pending'
+)
+const wsText = computed(() =>
+  state.wsConnected.value ? '已连接' : state.lastError.value ? '断开' : '等待'
+)
+const ctrlDotClass = computed(() =>
+  state.controllerConnected.value ? 'on' : 'off'
+)
+const ctrlText = computed(() =>
+  state.controllerConnected.value ? '已连接' : state.controllerState.value === 'DISCONNECTED' ? '未连接' : state.controllerState.value
+)
+const camDotClass = computed(() =>
+  state.cameraConnected.value ? 'on' : 'off'
+)
+const camText = computed(() =>
+  state.cameraConnected.value ? '已连接' : '未连接'
+)
 
-const snapshot = ref<MotionStatusSnapshot | null>(null)
-const messageCount = ref(0)
-const readyState = ref<number>(WebSocket.CLOSED)
-const lastError = ref<string>('')
-const closeInfo = ref<string>('')
+const formatRecord = (r: Record<string, unknown>): string =>
+  Object.keys(r).length ? JSON.stringify(r, null, 2) : '{}'
 
-const STORAGE_KEY = 'wsDebug.config.v1'
-
-interface PersistedConfig {
-  host: string
-  path: string
-  useTls: boolean
-}
-
-const loadConfig = (): PersistedConfig => {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return JSON.parse(raw)
-  } catch {
-    /* ignore */
+const rawJson = computed(() => {
+  const obj = {
+    controllerState: state.controllerState.value,
+    controllerConnected: state.controllerConnected.value,
+    wsConnected: state.wsConnected.value,
+    messageCount: state.messageCount.value,
+    lastError: state.lastError.value,
+    position: state.position.value,
+    mposition: state.mposition.value,
+    axes: state.axes.value,
+    cameraConnected: state.cameraConnected.value,
   }
-  return { host: '127.0.0.1:5000', path: '/ws/motion/status', useTls: false }
-}
+  return JSON.stringify(obj, null, 2)
+})
 
-const initial = loadConfig()
-const hostInput = ref(initial.host)
-const pathInput = ref(initial.path)
-const useTls = ref(initial.useTls)
+// 控制器连接/断开
+const controllerIp = ref(localStorage.getItem('wsDebug.controllerIp') ?? '192.168.0.11')
+const ctlMessage = ref('')
+const ctlOk = ref(true)
+const ctlBusy = ref(false)
 
-const buildWsUrl = (): string => {
-  const host = hostInput.value.trim() || '127.0.0.1:5000'
-  let path = pathInput.value.trim() || '/ws/motion/status'
-  if (!path.startsWith('/')) path = `/${path}`
-  const proto = useTls.value ? 'wss:' : 'ws:'
-  return `${proto}//${host}${path}`
-}
-
-const wsUrl = ref(buildWsUrl())
-
-const persistConfig = (): void => {
-  try {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({
-        host: hostInput.value,
-        path: pathInput.value,
-        useTls: useTls.value
-      })
-    )
-  } catch {
-    /* ignore */
-  }
-}
-
-const useDevProxy = (): void => {
-  hostInput.value = window.location.host
-  pathInput.value = '/ws/motion/status'
-  useTls.value = window.location.protocol === 'https:'
-  reconnect()
-}
-
-const CTL_KEY = 'wsDebug.controllerIp.v1'
-const controllerIp = ref<string>(localStorage.getItem(CTL_KEY) ?? '192.168.0.11')
-const ctlMessage = ref<string>('')
-const ctlOk = ref<boolean>(true)
-const ctlBusy = ref<boolean>(false)
-
-const httpBase = (): string => {
-  const host = hostInput.value.trim() || '127.0.0.1:5000'
-  const proto = useTls.value ? 'https:' : 'http:'
-  return `${proto}//${host}`
-}
-
-const callMotion = async (
-  endpoint: '/connect' | '/disconnect',
-  body?: Record<string, unknown>
-): Promise<void> => {
+async function callMotion(endpoint: '/connect' | '/disconnect', body?: Record<string, unknown>): Promise<void> {
   ctlBusy.value = true
   ctlMessage.value = '请求中...'
   ctlOk.value = true
   try {
-    const resp = await fetch(`${httpBase()}/api/motion${endpoint}`, {
+    const resp = await fetch(`${getBackendApiUrl('motion' + endpoint)}`, {
       method: 'POST',
       headers: body ? { 'Content-Type': 'application/json' } : {},
-      body: body ? JSON.stringify(body) : undefined
+      body: body ? JSON.stringify(body) : undefined,
     })
     const text = await resp.text()
     let payload: any = text
-    try {
-      payload = JSON.parse(text)
-    } catch {
-      /* not json */
-    }
+    try { payload = JSON.parse(text) } catch { /* not json */ }
     if (!resp.ok) {
       ctlOk.value = false
-      ctlMessage.value = `${resp.status} ${resp.statusText}: ${
-        payload?.detail ?? text
-      }`
+      ctlMessage.value = `${resp.status}: ${payload?.detail ?? text}`
     } else {
       ctlOk.value = true
       ctlMessage.value = payload?.message ?? '成功'
@@ -261,106 +198,16 @@ const callMotion = async (
   }
 }
 
-const connectController = (): void => {
+function connectController(): void {
   const ip = controllerIp.value.trim()
-  if (!ip) {
-    ctlOk.value = false
-    ctlMessage.value = '请输入控制器 IP'
-    return
-  }
-  localStorage.setItem(CTL_KEY, ip)
+  if (!ip) { ctlMessage.value = '请输入控制器 IP'; ctlOk.value = false; return }
+  localStorage.setItem('wsDebug.controllerIp', ip)
   void callMotion('/connect', { ip })
 }
 
-const disconnectController = (): void => {
+function disconnectController(): void {
   void callMotion('/disconnect')
 }
-
-const stateText = computed(() => {
-  switch (readyState.value) {
-    case WebSocket.CONNECTING:
-      return 'CONNECTING'
-    case WebSocket.OPEN:
-      return 'OPEN'
-    case WebSocket.CLOSING:
-      return 'CLOSING'
-    default:
-      return 'CLOSED'
-  }
-})
-
-const dotClass = computed(() => {
-  if (readyState.value === WebSocket.OPEN) return 'on'
-  if (readyState.value === WebSocket.CONNECTING) return 'pending'
-  return 'off'
-})
-
-const formatRecord = (r: Record<string, unknown> | undefined): string =>
-  r ? JSON.stringify(r, null, 2) : '{}'
-
-const rawJson = computed(() =>
-  snapshot.value ? JSON.stringify(snapshot.value, null, 2) : ''
-)
-
-let ws: WebSocket | null = null
-
-const connect = (): void => {
-  if (ws) {
-    try {
-      ws.close()
-    } catch {
-      /* ignore */
-    }
-    ws = null
-  }
-  lastError.value = ''
-  closeInfo.value = ''
-  wsUrl.value = buildWsUrl()
-  readyState.value = WebSocket.CONNECTING
-
-  try {
-    ws = new WebSocket(wsUrl.value)
-  } catch (e: any) {
-    lastError.value = e?.message ?? String(e)
-    readyState.value = WebSocket.CLOSED
-    return
-  }
-
-  ws.onopen = () => {
-    readyState.value = WebSocket.OPEN
-  }
-  ws.onmessage = (ev) => {
-    try {
-      snapshot.value = JSON.parse(ev.data)
-      messageCount.value += 1
-    } catch (e: any) {
-      lastError.value = `parse: ${e?.message ?? String(e)}`
-    }
-  }
-  ws.onerror = () => {
-    lastError.value = 'WebSocket error（一般是连接失败/被拒绝，看 Console & Network）'
-  }
-  ws.onclose = (ev) => {
-    readyState.value = WebSocket.CLOSED
-    closeInfo.value = `code=${ev.code} reason="${ev.reason}" wasClean=${ev.wasClean}`
-  }
-}
-
-function reconnect(): void {
-  persistConfig()
-  connect()
-}
-
-onMounted(() => {
-  connect()
-})
-
-onBeforeUnmount(() => {
-  if (ws) {
-    ws.close()
-    ws = null
-  }
-})
 </script>
 
 <style scoped>
@@ -382,31 +229,30 @@ h1 {
   font-size: 18px;
   margin: 0;
 }
-.dot {
-  width: 10px;
-  height: 10px;
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.badge::before {
+  content: '';
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  display: inline-block;
 }
-.dot.on {
-  background: #16a34a;
-  box-shadow: 0 0 6px #16a34a;
-}
-.dot.pending {
-  background: #f59e0b;
-}
-.dot.off {
-  background: #9ca3af;
-}
-.status-text {
-  font-size: 13px;
-  color: #4b5563;
-}
+.badge.on::before { background: #16a34a; box-shadow: 0 0 6px #16a34a; }
+.badge.off::before { background: #9ca3af; }
+.badge.pending::before { background: #f59e0b; }
 .count {
   margin-left: auto;
   font-size: 13px;
   color: #6b7280;
 }
+.err { color: #b91c1c; font-size: 12px; }
 .btn {
   padding: 4px 10px;
   font-size: 12px;
@@ -415,17 +261,10 @@ h1 {
   border-radius: 4px;
   cursor: pointer;
 }
-.btn:hover {
-  background: #f3f4f6;
-}
-.btn.primary {
-  background: #2563eb;
-  color: #fff;
-  border-color: #2563eb;
-}
-.btn.primary:hover {
-  background: #1d4ed8;
-}
+.btn:hover { background: #f3f4f6; }
+.btn.primary { background: #2563eb; color: #fff; border-color: #2563eb; }
+.btn.primary:hover { background: #1d4ed8; }
+.btn[disabled] { opacity: 0.5; cursor: not-allowed; }
 .conn-bar {
   display: flex;
   flex-wrap: wrap;
@@ -438,60 +277,23 @@ h1 {
   margin-bottom: 10px;
   font-size: 12px;
 }
-.conn-bar label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: #374151;
-}
-.conn-bar input[type='text'],
-.conn-bar input:not([type]) {
+.conn-bar label { display: flex; align-items: center; gap: 6px; color: #374151; }
+.conn-bar input {
   padding: 4px 8px;
   border: 1px solid #d1d5db;
   border-radius: 4px;
   font-size: 12px;
   font-family: inherit;
 }
-.conn-bar label:nth-of-type(1) input {
-  width: 180px;
-}
-.conn-bar label:nth-of-type(2) input {
-  width: 220px;
-}
-.conn-bar .tls {
-  cursor: pointer;
-}
-.btn[disabled] {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-.ctl-msg {
-  font-size: 12px;
-  margin-left: 4px;
-}
-.ctl-msg.ok {
-  color: #15803d;
-}
-.ctl-msg.err {
-  color: #b91c1c;
-}
-.meta {
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  padding: 8px 12px;
-  font-size: 12px;
-  margin-bottom: 12px;
-  line-height: 1.7;
-  word-break: break-all;
-}
-.meta .err {
-  color: #b91c1c;
-}
+.conn-bar label input { width: 180px; }
+.ctl-msg { font-size: 12px; margin-left: 4px; }
+.ctl-msg.ok { color: #15803d; }
+.ctl-msg.err { color: #b91c1c; }
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 12px;
+  margin-bottom: 12px;
 }
 .card {
   background: #fff;
@@ -499,6 +301,7 @@ h1 {
   border-radius: 6px;
   padding: 10px 12px;
   font-size: 12px;
+  margin-bottom: 12px;
 }
 .card-title {
   font-weight: 600;
@@ -515,26 +318,17 @@ h1 {
   font-size: 12px;
   line-height: 1.4;
 }
-.axes {
-  grid-column: 1 / -1;
-}
 .axes table {
   width: 100%;
   border-collapse: collapse;
   font-size: 12px;
 }
-.axes th,
-.axes td {
+.axes th, .axes td {
   border: 1px solid #e5e7eb;
   padding: 4px 8px;
   text-align: left;
 }
-.axes th {
-  background: #f3f4f6;
-}
-.raw {
-  grid-column: 1 / -1;
-}
+.axes th { background: #f3f4f6; }
 .raw pre {
   max-height: 240px;
   overflow: auto;
@@ -543,8 +337,11 @@ h1 {
   padding: 8px;
   border-radius: 4px;
 }
-.empty {
-  color: #6b7280;
-  font-size: 14px;
-}
+.muted { color: #6b7280; font-size: 13px; }
+.camera-section { margin-bottom: 12px; }
+.camera-card { margin-bottom: 0; }
+.camera-img { width: 100%; max-height: 360px; object-fit: contain; background: #000; border-radius: 4px; margin-top: 8px; }
+.cam-rec { font-size: 16px; margin-left: 8px; color: #9ca3af; }
+.cam-rec.on { color: #dc2626; animation: pulse 1.5s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 </style>

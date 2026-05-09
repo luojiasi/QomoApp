@@ -5,12 +5,10 @@ import CollapsiblePanelHeader from '../Others/CollapsiblePanelHeader.vue'
 import { useNotification } from '../../composables/useNotification'
 import { useCameraSettingsStore } from '../../stores/cameraSettingsStore'
 import {
+  bootstrapCameraSettings,
   disconnectCamera,
-  initSdkEnumAndConnectIndex0,
-  setCameraExposure,
-  setCameraFrameSpeed,
-  setCameraWhiteBalance
-} from '../../api/camera'
+  initSdkEnumAndConnectIndex0
+} from '../../api/camera/camera'
 
 const { success, error, info } = useNotification()
 
@@ -25,6 +23,8 @@ const appliedBaselineAutoExposure = ref<boolean | null>(null)
 const appliedBaselineAutoWhiteBalance = ref<boolean | null>(null)
 const appliedBaselineExposureTime = ref<number | null>(null)
 const appliedBaselineFrameSpeedLevel = ref<number | null>(null)
+const appliedBaselineMirrorHorizontal = ref<boolean | null>(null)
+const appliedBaselineMirrorVertical = ref<boolean | null>(null)
 
 const EPS = 1e-6
 function clampInt(value: unknown, min: number, max: number, fallback: number): number {
@@ -45,7 +45,9 @@ const hasPendingApplyChanges = computed(() => {
     Boolean(cameraSettings.value.autoExposure) !== Boolean(appliedBaselineAutoExposure.value) ||
     Boolean(cameraSettings.value.autoWhiteBalance) !== Boolean(appliedBaselineAutoWhiteBalance.value) ||
     !numericEqual(Number(cameraSettings.value.exposureTime), appliedBaselineExposureTime.value) ||
-    !numericEqual(Number(cameraSettings.value.frameSpeedLevel), appliedBaselineFrameSpeedLevel.value)
+    !numericEqual(Number(cameraSettings.value.frameSpeedLevel), appliedBaselineFrameSpeedLevel.value) ||
+    Boolean(cameraSettings.value.mirrorHorizontal) !== Boolean(appliedBaselineMirrorHorizontal.value) ||
+    Boolean(cameraSettings.value.mirrorVertical) !== Boolean(appliedBaselineMirrorVertical.value)
   )
 })
 
@@ -54,6 +56,8 @@ function syncBaselineFromForm(): void {
   appliedBaselineAutoWhiteBalance.value = Boolean(cameraSettings.value.autoWhiteBalance)
   appliedBaselineExposureTime.value = Number(cameraSettings.value.exposureTime)
   appliedBaselineFrameSpeedLevel.value = Number(cameraSettings.value.frameSpeedLevel)
+  appliedBaselineMirrorHorizontal.value = Boolean(cameraSettings.value.mirrorHorizontal)
+  appliedBaselineMirrorVertical.value = Boolean(cameraSettings.value.mirrorVertical)
   baselineLoaded.value = true
 }
 
@@ -67,13 +71,30 @@ async function handleApply(): Promise<void> {
   try {
     info('正在应用相机参数，请稍后...')
 
-    // 与 CameraSettings.vue 一致：应用参数前释放并重连，避免驱动不刷新的情况
+    // 1. 先断开，让相机进入 IDLE 状态
     const releaseRes = await disconnectCamera()
     if (!releaseRes.success) {
       error('应用失败', releaseRes.message ?? '释放相机失败')
       return
     }
 
+    // 2. 在 IDLE 状态下缓存引导参数，connect 时后端自动下发
+    const bootstrapRes = await bootstrapCameraSettings({
+      auto_exposure: Boolean(cameraSettings.value.autoExposure),
+      exposure_time: clampInt(cameraSettings.value.exposureTime, 0, 65535, 1000),
+      speed_level: cameraSettings.value.frameSpeedLevel,
+      auto_tune: Boolean(cameraSettings.value.frameSpeedAutoTune),
+      tune: Number(cameraSettings.value.frameSpeedTune),
+      mirror_horizontal: Boolean(cameraSettings.value.mirrorHorizontal),
+      mirror_vertical: Boolean(cameraSettings.value.mirrorVertical),
+      auto_white_balance: Boolean(cameraSettings.value.autoWhiteBalance),
+    })
+    if (!bootstrapRes.success) {
+      error('应用失败', bootstrapRes.message ?? '缓存引导参数失败')
+      return
+    }
+
+    // 3. 重连，后端 connect() 中自动下发缓存的引导参数
     const reconnectRes = await initSdkEnumAndConnectIndex0()
     if (!reconnectRes.success) {
       error('应用失败', reconnectRes.message ?? '重连相机失败')
@@ -81,35 +102,8 @@ async function handleApply(): Promise<void> {
     }
     cameraSettings.value.cameraIndex = 0
 
-    const resExposure = await setCameraExposure({
-      auto_exposure: Boolean(cameraSettings.value.autoExposure),
-      exposure_time: clampInt(cameraSettings.value.exposureTime, 0, 65535, 1000)
-    })
-    if (!resExposure.success) {
-      error('应用失败', resExposure.message ?? '曝光参数下发失败')
-      return
-    }
-
-    const resFrameSpeed = await setCameraFrameSpeed({
-      speed_level: cameraSettings.value.frameSpeedLevel,
-      auto_tune: Boolean(cameraSettings.value.frameSpeedAutoTune),
-      tune: Number(cameraSettings.value.frameSpeedTune)
-    })
-    if (!resFrameSpeed.success) {
-      error('应用失败', resFrameSpeed.message ?? '帧率参数下发失败')
-      return
-    }
-
-    const resWb = await setCameraWhiteBalance({
-      auto_white_balance: Boolean(cameraSettings.value.autoWhiteBalance)
-    })
-    if (!resWb.success) {
-      error('应用失败', resWb.message ?? '白平衡参数下发失败')
-      return
-    }
-
     syncBaselineFromForm()
-    success('应用成功', '相机参数已应用（已释放并重连）')
+    success('应用成功', '参数已缓存并在重连后自动下发')
   } finally {
     applying.value = false
   }
@@ -171,6 +165,16 @@ async function handleApply(): Promise<void> {
               <option :value="true">开启</option>
               <option :value="false">关闭</option>
             </select>
+          </label>
+
+          <label class="col-span-1 flex min-w-0 flex-row items-center gap-2 rounded-lg border border-(--app-border) px-3 py-2">
+            <input id="mirror-h" v-model="cameraSettings.mirrorHorizontal" type="checkbox" class="h-4 w-4" />
+            <span class="text-xs text-(--app-text-muted)">水平镜像</span>
+          </label>
+
+          <label class="col-span-1 flex min-w-0 flex-row items-center gap-2 rounded-lg border border-(--app-border) px-3 py-2">
+            <input id="mirror-v" v-model="cameraSettings.mirrorVertical" type="checkbox" class="h-4 w-4" />
+            <span class="text-xs text-(--app-text-muted)">垂直镜像</span>
           </label>
         </div>
       </div>

@@ -1,10 +1,9 @@
-import { apiCall, withApiQuery, type ApiCallResult } from './base'
+import { apiCall, withApiQuery, type ApiCallResult } from '../core/base'
 
 export interface CameraDeviceInfo {
-  list_index: number
-  devIndex: number
-  usbAddress: number
+  index: number
   name: string
+  serial?: string
 }
 
 export interface CameraStatusPayload {

@@ -11,7 +11,7 @@ import Login from './view/Login.vue'
 import RecipeManagement from './view/RecipeManagement.vue'
 import DetailedRs232Send from './view/DetailedRs232Send.vue'
 import Production from './view/Production.vue'
-import { getDesktopBackendRuntimeStatus } from './api/desktopBridge'
+import { getDesktopBackendRuntimeStatus } from './api/core/desktopBridge'
 import Create5P from './view/Create5P.vue'
 import SelfProcess from './view/SelfProcess.vue'
 

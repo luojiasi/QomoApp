@@ -1,5 +1,5 @@
-import { apiCall, type ApiCallResult } from './base'
-import type { LaserTransmissionMode } from '../types/settings'
+import { apiCall, type ApiCallResult } from '../core/base'
+import type { LaserTransmissionMode } from '../../types/settings'
 
 export interface LaserApplyPayload {
   laserManufacturer?: string
@@ -9,7 +9,5 @@ export interface LaserApplyPayload {
   transmissionMode?: LaserTransmissionMode
 }
 
-export const applyLaserParams = async (
-  payload: LaserApplyPayload
-): Promise<ApiCallResult<unknown>> =>
+export const applyLaserParams = async (payload: LaserApplyPayload): Promise<ApiCallResult<unknown>> =>
   apiCall('laser/apply', 'POST', payload as unknown as Record<string, unknown>)

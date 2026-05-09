@@ -63,36 +63,6 @@ export const withApiQuery = (endpoint: string, queryParams: ApiQueryParams = nul
 export const getCameraStreamUrl = (queryParams: ApiQueryParams = null) =>
   withApiQuery('camera/frame', queryParams)
 
-export const getBackendWsBaseUrl = () => {
-  const baseUrl = getBackendBaseUrl()
-
-  if (!baseUrl) {
-    if (typeof window === 'undefined') return ''
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    return `${protocol}//${window.location.host}`
-  }
-
-  if (baseUrl.startsWith('https://')) {
-    return baseUrl.replace(/^https:\/\//, 'wss://')
-  }
-
-  if (baseUrl.startsWith('http://')) {
-    return baseUrl.replace(/^http:\/\//, 'ws://')
-  }
-
-  return baseUrl
-}
-
-export const getCameraStreamWsUrl = () => {
-  const baseUrl = getBackendWsBaseUrl()
-  return baseUrl ? `${baseUrl}/api/camera/ws` : '/api/camera/ws'
-}
-
-export const getStartProgramStatusWsUrl = () => {
-  const baseUrl = getBackendWsBaseUrl()
-  return baseUrl ? `${baseUrl}/api/startProgram/ws` : '/api/startProgram/ws'
-}
-
 export const apiCall = async <T = any>(endpoint: string, method: HttpMethod = 'GET', data: ApiPayload = null, queryParams: ApiQueryParams = null): Promise<ApiCallResult<T>> => {
   const url = method === 'GET' ? withApiQuery(endpoint, queryParams) : getBackendApiUrl(endpoint)
 

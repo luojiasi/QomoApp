@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import {
   createRs232Sections,
   RS232_COM_PORT_OPTIONS,
@@ -12,6 +12,7 @@ import { useReservePagesStore } from '../stores/settings'
 import { RS232_WORKBENCH_STORAGE_KEY, useRs232WorkbenchStore } from '../stores/rs232WorkbenchStore'
 import type { Rs232QuickCommand, Rs232SendMode, Rs232SendRequest, Rs232SerialSessionRequest } from '../types/settings'
 import { formatSettingValue } from '../utils/settings'
+import { useRs232Polling } from '../composables/useRs232Polling'
 import {
   closeRs232,
   fetchRs232Buffer,
@@ -19,19 +20,12 @@ import {
   openRs232,
   sendRs232,
   type Rs232PortInfo
-} from '../api/rs232'
+} from '../api/device/rs232'
 const props = defineProps<{
-  /**
-   * 是否作为嵌入式面板展示（例如显示在 Home 右侧）。
-   * 嵌入模式下不显示全页标题与「返回首页」卡片区。
-   */
   embedded?: boolean
 }>()
 
 const emit = defineEmits<{
-  /**
-   * 嵌入模式下请求关闭右侧面板。
-   */
   (e: 'back'): void
 }>()
 
@@ -59,9 +53,6 @@ const loadingPorts = ref(false)
 const busyOpenClose = ref(false)
 const busySend = ref(false)
 
-let bufferPollTimer: ReturnType<typeof setInterval> | null = null
-let autoSendTimer: ReturnType<typeof setInterval> | null = null
-
 const portNameOptions = computed(() => {
   const set = new Set<string>([...RS232_COM_PORT_OPTIONS])
   for (const p of portsFromApi.value) {
@@ -70,20 +61,6 @@ const portNameOptions = computed(() => {
   return Array.from(set)
 })
 
-function stopBufferPoll(): void {
-  if (bufferPollTimer !== null) {
-    clearInterval(bufferPollTimer)
-    bufferPollTimer = null
-  }
-}
-
-function startBufferPoll(): void {
-  stopBufferPoll()
-  bufferPollTimer = setInterval(() => {
-    void pollReceiveBuffer()
-  }, 250)
-}
-
 async function pollReceiveBuffer(): Promise<void> {
   const res = await fetchRs232Buffer(false)
   if (res.success && res.data && typeof res.data.text === 'string') {
@@ -91,21 +68,16 @@ async function pollReceiveBuffer(): Promise<void> {
   }
 }
 
-function stopAutoSend(): void {
-  if (autoSendTimer !== null) {
-    clearInterval(autoSendTimer)
-    autoSendTimer = null
-  }
-}
-
-function restartAutoSend(): void {
-  stopAutoSend()
-  if (!serialConnected.value || !workbench.value.send.autoSend) return
-  const ms = Math.max(50, workbench.value.send.autoSendIntervalMs)
-  autoSendTimer = setInterval(() => {
-    void doSend({ silentSuccess: true })
-  }, ms)
-}
+useRs232Polling({
+  serialConnected,
+  autoSendEnabled: computed(() => workbench.value.send.autoSend),
+  autoSendIntervalMs: computed(() => workbench.value.send.autoSendIntervalMs),
+  onPollBuffer: pollReceiveBuffer,
+  onAutoSend: async () => {
+    if (!serialConnected.value) return
+    await sendRs232(buildSendPayload())
+  },
+})
 
 function buildOpenPayload(): Rs232SerialSessionRequest {
   return {
@@ -149,8 +121,6 @@ async function handleOpenSerial(): Promise<void> {
     serialConnected.value = true
     success('已连接', res.message ?? '已连接后端并启动接收')
     await pollReceiveBuffer()
-    startBufferPoll()
-    restartAutoSend()
   } finally {
     busyOpenClose.value = false
   }
@@ -159,8 +129,7 @@ async function handleOpenSerial(): Promise<void> {
 async function handleCloseSerial(): Promise<void> {
   busyOpenClose.value = true
   try {
-    stopBufferPoll()
-    stopAutoSend()
+    serialConnected.value = false
     const res = await closeRs232()
     serialConnected.value = false
     if (!res.success) {
@@ -194,14 +163,6 @@ async function doSend(options?: { silentSuccess?: boolean }): Promise<void> {
     busySend.value = false
   }
 }
-
-watch(
-  () =>
-    [serialConnected.value, workbench.value.send.autoSend, workbench.value.send.autoSendIntervalMs] as const,
-  () => {
-    restartAutoSend()
-  }
-)
 
 function modeLabel(mode: Rs232SendMode): string {
   return mode === 'hex' ? 'HEX' : 'ASCII'
@@ -321,14 +282,6 @@ onMounted(async () => {
   await loadDetectedPorts()
 })
 
-onUnmounted(() => {
-  stopBufferPoll()
-  stopAutoSend()
-  if (serialConnected.value) {
-    void closeRs232()
-    serialConnected.value = false
-  }
-})
 </script>
 
 <template>

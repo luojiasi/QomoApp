@@ -6,9 +6,8 @@ import { useNotification } from '@renderer/composables/useNotification'
 import { useQomo5PStore } from '../../stores/qomo5pEditor'
 import { storeToRefs } from 'pinia'
 import type { Point, QomoArcSurfacesEntity } from '@renderer/types/Qomo5P'
-import { useControllerSettingsStore } from '../../stores/controllerSettingsStore'
-// import { getMotionIoInput, moveMotionAxisRel, zeroMotionAxis } from '../api/motion'
-const controllerStore = useControllerSettingsStore()
+import { useHardwareState } from '../../api/hardware'
+const { mposition } = useHardwareState()
 
 const isHelpPanelExpanded = ref(true)
 
@@ -397,12 +396,11 @@ const addEntityFromWizard = () => {
 
 const axisMposLabels = computed(() => {
   const axisNames = ['X', 'Y']
-  return axisNames.map((name, axisNo) => {
-    const axis = controllerStore.controllerSettings.axes.find((a) => a.axisNo === axisNo)
-    const mpos = axis ? Number(axis.mpos) : NaN
+  return axisNames.map((name) => {
+    const v = mposition.value[name]
     return {
       name,
-      value: Number.isFinite(mpos) ? mpos.toFixed(3) : '-'
+      value: v != null && Number.isFinite(v) ? v.toFixed(3) : '-'
     }
   })
 })

@@ -6,7 +6,7 @@ import { useNotification } from '@/composables/useNotification'
 import { useLicenseStore } from '../stores/license'
 // import { useControllerSettingsStore } from '../stores/controllerSettingsStore'
 import { useBackendStatus } from '../composables/useBackendStatus'
-// import { bootstrapControllerOnce } from '../api/bootstrap'
+// import { bootstrapControllerOnce } from '../api/motion'
 const { success, error } = useNotification()
 
 

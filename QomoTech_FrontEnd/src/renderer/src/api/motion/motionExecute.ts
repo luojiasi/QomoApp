@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { apiCall } from './base'
+import { apiCall } from '../core/base'
 
 export type CommonOnlineCommand = {
   description: string

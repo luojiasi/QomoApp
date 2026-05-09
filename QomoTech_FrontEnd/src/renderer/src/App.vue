@@ -40,7 +40,7 @@ import { useLicenseStore } from './stores/license'
 import { useControllerSettingsStore } from './stores/controllerSettingsStore'
 import { dispatchGlobalKeyboard } from './utils/globalKeyboard'
 import { parseRs232SessionFromLocalStorage } from './stores/rs232WorkbenchStore'
-import { syncRs232Workbench } from './api/rs232'
+import { syncRs232Workbench } from './api/device/rs232'
 import type { HomeState } from './types/auth'
 const toastRef = ref<InstanceType<typeof NotificationToast> | null>(null)
 const router = useRouter()

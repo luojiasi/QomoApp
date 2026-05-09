@@ -1,5 +1,5 @@
 import { computed, ref, onUnmounted } from 'vue'
-import { getDesktopBackendRuntimeStatus, type BackendRuntimeStatus } from '../api/desktopBridge'
+import { getDesktopBackendRuntimeStatus, type BackendRuntimeStatus } from '../api/core/desktopBridge'
 
 const BACKEND_POLL_MS = 2000
 

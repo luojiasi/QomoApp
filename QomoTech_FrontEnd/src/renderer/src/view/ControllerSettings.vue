@@ -17,7 +17,7 @@ import {
   rotateRAxisByTurns,
   rotateUAxisByAngle
 } from '../api/motion'
-import { useMotionExecute } from '../api/motionExecute'
+import { useMotionExecute } from '../api/motion'
 
 const props = defineProps<{
   /**

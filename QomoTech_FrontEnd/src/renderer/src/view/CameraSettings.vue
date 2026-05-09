@@ -5,6 +5,7 @@ import CameraPic from '../components/Camera/cameraPic.vue'
 import { useNotification } from '../composables/useNotification'
 import { CAMERA_SETTINGS_STORAGE_KEY, useCameraSettingsStore } from '../stores/cameraSettingsStore'
 import {
+  bootstrapCameraSettings,
   disconnectCamera,
   fetchCameraDevices,
   getCameraStatus,
@@ -15,7 +16,7 @@ import {
   setCameraWhiteBalance,
   type CameraDeviceInfo,
   type CameraStatusPayload
-} from '../api/camera'
+} from '../api/camera/camera'
 
 const { success, error } = useNotification()
 const cameraStore = useCameraSettingsStore()
@@ -72,6 +73,21 @@ async function loadStatus(): Promise<void> {
 async function handleConnect(): Promise<void> {
   busy.value = true
   try {
+    // 先缓存当前界面参数为引导参数，connect 时后端自动下发
+    await bootstrapCameraSettings({
+      auto_exposure: Boolean(cameraSettings.value.autoExposure),
+      exposure_time: clampInt(cameraSettings.value.exposureTime, 0, 65535, 1000),
+      speed_level: cameraSettings.value.frameSpeedLevel,
+      auto_tune: Boolean(cameraSettings.value.frameSpeedAutoTune),
+      tune: clampFloat(cameraSettings.value.frameSpeedTune, 0, 1, 1),
+      mirror_horizontal: Boolean(cameraSettings.value.mirrorHorizontal),
+      mirror_vertical: Boolean(cameraSettings.value.mirrorVertical),
+      auto_white_balance: Boolean(cameraSettings.value.autoWhiteBalance),
+      r_gain: clampInt(cameraSettings.value.whiteBalanceRGain, 0, 65535, 21),
+      g_gain: clampInt(cameraSettings.value.whiteBalanceGGain, 0, 65535, 22),
+      b_gain: clampInt(cameraSettings.value.whiteBalanceBGain, 0, 65535, 16),
+    })
+
     const res = await initSdkEnumAndConnectIndex0()
     if (!res.success || !res.data) {
       error('连接失败', res.message ?? '')
@@ -79,7 +95,7 @@ async function handleConnect(): Promise<void> {
     }
     cameraSettings.value.cameraIndex = 0
     applyStatus(res.data)
-    success('相机连接成功', '已按流程完成：初始化SDK -> 枚举设备 -> 选择index=0 -> 打开预览')
+    success('相机连接成功', '引导参数已缓存，连接后自动下发')
   } finally {
     busy.value = false
   }
@@ -225,7 +241,7 @@ onMounted(async () => {
             </span>
           </div>
             <p class="app-text-secondary mt-2 text-sm">
-            图像通过 `WS /api/camera/ws` 持续推流刷新。
+            图像通过 `WS /ws/camera/stream` 持续推流刷新。
           </p>
           <div class="mt-4 overflow-hidden rounded-xl border border-(--app-border) bg-(--app-card-soft)">
             <div class="flex min-h-[360px] items-center justify-center">
@@ -259,8 +275,8 @@ onMounted(async () => {
                 v-model.number="cameraSettings.cameraIndex"
                 class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
               >
-                <option v-for="item in cameraDevices" :key="item.list_index" :value="item.list_index">
-                  {{ item.name }} | index={{ item.list_index }}
+                <option v-for="item in cameraDevices" :key="item.index" :value="item.index">
+                  {{ item.name }} | index={{ item.index }}
                 </option>
                 <option v-if="cameraDevices.length === 0" :value="cameraSettings.cameraIndex">
                   Camera {{ cameraSettings.cameraIndex }}

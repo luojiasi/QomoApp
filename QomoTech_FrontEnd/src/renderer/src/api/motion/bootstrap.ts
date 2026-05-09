@@ -1,7 +1,7 @@
-import type { ControllerParameters } from '../types/settings'
-import { apiCall } from './base'
-import { defaultControllerParameters } from '../configs/settings'
-import { connectMotionWithControllerSettings } from './motion'
+import type { ControllerParameters } from '../../types/settings'
+import { defaultControllerParameters } from '../../configs/settings'
+import { connectMotionWithControllerSettings } from './connect'
+import { isControllerConnected } from '../hardware'
 
 export interface BackendBootstrapResult {
   success: boolean
@@ -11,11 +11,6 @@ export interface BackendBootstrapResult {
 
 let controllerBootstrapDone = false
 let controllerBootstrapPromise: Promise<BackendBootstrapResult> | null = null
-
-const checkControllerSingletonConnected = async (): Promise<boolean> => {
-  const statusRes = await apiCall('hardware/status', 'GET')
-  return Boolean(statusRes?.success && statusRes?.data?.state?.motion_connected)
-}
 
 const reconnectControllerSingleton = async (controllerSettings: ControllerParameters): Promise<BackendBootstrapResult> => {
   const connectRes = await connectMotionWithControllerSettings(controllerSettings)
@@ -27,17 +22,15 @@ const reconnectControllerSingleton = async (controllerSettings: ControllerParame
 }
 
 export const bootstrapControllerOnce = async (controllerSettings: ControllerParameters = defaultControllerParameters): Promise<BackendBootstrapResult> => {
-  if (controllerBootstrapDone) {
-    const stillConnected = await checkControllerSingletonConnected()
-    if (!stillConnected) return reconnectControllerSingleton(controllerSettings)
+  if (controllerBootstrapDone && isControllerConnected()) {
     return { success: true, message: '控制器单实例已初始化，无需重复连接。' }
   }
   if (controllerBootstrapPromise) return controllerBootstrapPromise
 
   controllerBootstrapPromise = (async () => {
-    const connected = await checkControllerSingletonConnected()
-    if (connected) {
-      return reconnectControllerSingleton(controllerSettings)
+    if (isControllerConnected()) {
+      controllerBootstrapDone = true
+      return { success: true, message: '控制器已连接，跳过重复连接。' }
     }
     return reconnectControllerSingleton(controllerSettings)
   })()

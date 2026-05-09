@@ -2,8 +2,8 @@
 import { computed, onMounted, ref,watch} from 'vue'
 import SvgIcon from '../Others/SvgIcon.vue'
 import { setMotionIoOutput } from '../../api/motion'
-import { apiCall } from '../../api/base'
-import { zeroMotionAxis,moveMotionAxisRel,getMotionIoInput, getHardwareStatus } from '../../api/motion'
+import { zeroMotionAxis,moveMotionAxisRel,getMotionIoInput, getMotionIoOutputsStatus } from '../../api/motion'
+import { waitControllerConnected } from '../../api/hardware'
 import { useAuxiliaryFunctionPanelStore } from '../../stores/auxiliaryFunctionPanelStore'
 const auxiliaryFunctionPanelStore = useAuxiliaryFunctionPanelStore()
 
@@ -15,13 +15,7 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 // 用来等待连接控制器之后执行自动回零
 const waitMotionConnected = async (timeoutMs = 15000, pollMs = 300): Promise<boolean> => {
-  const startAt = Date.now()
-  while (Date.now() - startAt < timeoutMs) {
-    const statusRes = await getHardwareStatus()
-    if (statusRes?.success && statusRes.data?.state?.motion_connected) return true
-    await sleep(pollMs)
-  }
-  return false
+  return waitControllerConnected(timeoutMs, pollMs)
 }
 
 const props = defineProps<{
@@ -44,17 +38,14 @@ watch(() => props.motionIoMap, (ioMap) => {
 })
 
 const handleSkip = async () => {
-  const result = await apiCall('hardware/status', 'GET')
-  if (!result?.success) return
-  const state = result.data?.state
-  if (!state) return
+  const result = await getMotionIoOutputsStatus(0, 3)
+  if (!result?.success || !result.data) return
 
-  const ioMap = Array.isArray(state.motion_io_map) ? state.motion_io_map : []
-  console.log(ioMap)
+  const outputs = result.data
   outPut.value = {
-    output0: Boolean(ioMap[0]?.digitalOut),
-    output1: Boolean(ioMap[1]?.digitalOut),
-    output2: Boolean(ioMap[2]?.digitalOut)
+    output0: Boolean(outputs['0']),
+    output1: Boolean(outputs['1']),
+    output2: Boolean(outputs['2'])
   }
 }
 

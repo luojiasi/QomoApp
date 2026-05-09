@@ -214,7 +214,7 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { useControllerSettingsStore } from '@renderer/stores/controllerSettingsStore'
+import { useHardwareState } from '@renderer/api/hardware'
 import { useQomo5PStore } from '@renderer/stores/qomo5pEditor'
 import type { OpenDirectionType, Point, QomoEntityWithSurface } from '@renderer/types/Qomo5P'
 import {
@@ -241,19 +241,12 @@ const props = withDefaults(
 const store = useQomo5PStore()
 const { viewport, layers, entities } = storeToRefs(store)
 
-const controllerStore = useControllerSettingsStore()
+const { mposition } = useHardwareState()
 /** 轴 0/1 的编码器反馈（mm），仅作用于实体绘制；十字线不参与平移 */
-const machineMposXY = computed(() => {
-  const axes = controllerStore.controllerSettings.axes
-  const ax = axes.find((a) => a.axisNo === 0)
-  const ay = axes.find((a) => a.axisNo === 1)
-  const x = ax != null ? Number(ax.mpos) : NaN
-  const y = ay != null ? Number(ay.mpos) : NaN
-  return {
-    x: Number.isFinite(x) ? x : 0,
-    y: Number.isFinite(y) ? y : 0
-  }
-})
+const machineMposXY = computed(() => ({
+  x: Number.isFinite(mposition.value.X) ? mposition.value.X : 0,
+  y: Number.isFinite(mposition.value.Y) ? mposition.value.Y : 0
+}))
 const machineFollowTransform = computed(
   () => `translate(${machineMposXY.value.x} ${-machineMposXY.value.y})`
 )

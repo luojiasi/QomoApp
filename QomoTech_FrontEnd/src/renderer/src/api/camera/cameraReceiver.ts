@@ -1,7 +1,8 @@
 import { readonly, ref } from 'vue'
-import { getBackendApiUrl, getCameraStreamWsUrl } from './base'
+import { getBackendApiUrl } from '../core/base'
+import { getCameraStreamWsUrl } from '../core/baseWs'
 import { bootstrapCameraSettings, initSdkEnumAndConnectIndex0 } from './camera'
-import type { CameraSettingsState } from '../types/settings'
+import type { CameraSettingsState } from '../../types/settings'
 
 const frameUrl = ref('')
 const running = ref(false)
@@ -77,8 +78,14 @@ async function pushLocalCameraSettingsBeforeConnect(): Promise<void> {
     auto_exposure: settings.autoExposure,
     exposure_time: settings.exposureTime,
     speed_level: settings.frameSpeedLevel,
+    auto_tune: settings.frameSpeedAutoTune,
+    tune: settings.frameSpeedTune,
     mirror_horizontal: settings.mirrorHorizontal,
     mirror_vertical: settings.mirrorVertical,
+    auto_white_balance: settings.autoWhiteBalance,
+    r_gain: settings.whiteBalanceRGain,
+    g_gain: settings.whiteBalanceGGain,
+    b_gain: settings.whiteBalanceBGain,
   })
   if (!res.success) { lastError.value = res.message ?? '同步相机本地参数失败' }
 }
@@ -198,10 +205,7 @@ function scheduleWsReconnect(delayMs: number): void {
 }
 
 function buildWsUrl(): string {
-  const wsUrl = new URL(getCameraStreamWsUrl(), window.location.href)
-  wsUrl.searchParams.set('timeout_ms', String(DEFAULT_TIMEOUT_MS))
-  wsUrl.searchParams.set('quality', String(DEFAULT_QUALITY))
-  return wsUrl.toString()
+  return getCameraStreamWsUrl()
 }
 
 function connectStreamWs(): void {
@@ -220,6 +224,9 @@ function connectStreamWs(): void {
 
   ws.onopen = () => {
     lastError.value = ''
+    // 新后端不读 URL query 参数，需通过 WS JSON 指令设置推流参数
+    ws?.send(JSON.stringify({ cmd: 'set_quality', quality: DEFAULT_QUALITY }))
+    ws?.send(JSON.stringify({ cmd: 'set_timeout', timeout_ms: DEFAULT_TIMEOUT_MS }))
   }
 
   ws.onmessage = (evt: MessageEvent<ArrayBuffer | Blob | string>) => {
@@ -283,8 +290,8 @@ export function startGlobalCameraReceiver(): void {
   running.value = true
   void ensureCameraConnected().then(() => {
     if (connected.value) {
-      connectStreamWs()
-      startDisplayLoop()
+      connectStreamWs()  // WS 推流
+      startDisplayLoop() // 显示循环
     }
   })
 

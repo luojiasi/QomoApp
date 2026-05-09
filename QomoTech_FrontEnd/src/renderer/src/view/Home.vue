@@ -14,7 +14,7 @@ import ShowAndDrawInHome from '../components/Others/showAndDrawInHome.vue'
 import TaskProgressAside from '../components/Others/TaskProgressAside.vue'
 import ControllerSettings from './ControllerSettings.vue'
 import { parseRs232SessionFromLocalStorage } from '../stores/rs232WorkbenchStore'
-import { syncRs232Workbench } from '../api/rs232'
+import { syncRs232Workbench } from '../api/device/rs232'
 
 // 新添加的用于创建图形的方法
 import ShowAndDrawInHome_new from '../components/Others/showAndDrawInHome_new.vue'
@@ -44,13 +44,14 @@ import { useQomo5PStore } from '../stores/qomo5pEditor'
 const qomo5pStore = useQomo5PStore()
 
 // 个人觉得只是用来初始化驱动器的参数
-import { bootstrapControllerOnce } from '../api/bootstrap'
+import { bootstrapControllerOnce } from '../api/motion'
 import { useBackendStatus } from '../composables/useBackendStatus'
 const { backendDotClass, startPolling } = useBackendStatus()
 
 
-import { getStartProgramStatusWsUrl } from '../api/base'
+import { getStartProgramStatusWsUrl } from '../api/core/baseWs'
 import { subscribeGlobalKeyboard } from '../utils/globalKeyboard'
+import { useHardwareState } from '../api/hardware'
 import {
   setMotionIoOutput,
   moveMotionAxisRel,
@@ -60,7 +61,6 @@ import {
   getStartProgramStatus,
   startProgramControl,
   moveMotionAxisAbs,
-  getHardwareStatus,
   zeroMotionAxis,
   syncProduct4PCenterRotation
 } from '../api/motion'
@@ -287,8 +287,10 @@ type XYMotionOffset = { x: number; y: number }
 const homeXyOffset = ref<XYMotionOffset>({ x: 0, y: 0 })
 const runTrigger = ref(false)
 
-function resolveXYMotionOffsetFromHardwareStatus(result: Awaited<ReturnType<typeof getHardwareStatus>>): XYMotionOffset {
-  const positions = result?.data?.state?.motion_positions
+const { mposition: wsMposition } = useHardwareState()
+
+function resolveXYMotionOffsetFromHardwareState(): XYMotionOffset {
+  const positions = wsMposition.value
   const rawX = positions?.X ?? positions?.x ?? positions?.['0']
   const rawY = positions?.Y ?? positions?.y ?? positions?.['1']
   const x = Number(rawX)
@@ -458,8 +460,7 @@ async function onRunClick(): Promise<void> {
     //   entities: entities
     // }
     // 用于新的取图形的方式然后传递给后端
-    const hardwareStatus = await getHardwareStatus()
-    const xyOffset = resolveXYMotionOffsetFromHardwareStatus(hardwareStatus)
+    const xyOffset = resolveXYMotionOffsetFromHardwareState()
     homeXyOffset.value = xyOffset
     runTrigger.value =true 
     const offsetEntities = offsetEntitiesByXYMpos(entities, xyOffset.x, xyOffset.y)
