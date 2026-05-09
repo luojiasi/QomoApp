@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref } from 'vue'
-import CollapsiblePanelHeader from '../../components/ui/CollapsiblePanelHeader.vue'
+import ControlPanelBase from '../controller-panels/ControlPanelBase.vue'
 import { useNotification } from '../../composables/useNotification'
 import { useCameraSettingsStore } from '../../stores/cameraSettingsStore'
 import {
@@ -111,13 +111,12 @@ async function handleApply(): Promise<void> {
 </script>
 
 <template>
-  <div
-    class="flex min-h-0 shrink-0 flex-col rounded-2xl border border-(--app-border) bg-(--app-card) p-4 shadow-[0_6px_14px_-6px_rgba(15,23,42,0.14)] transition-[min-height] duration-200 dark:shadow-[0_6px_16px_-6px_rgba(0,0,0,0.42)]"
+  <ControlPanelBase
+    v-model:expanded="isCameraPanelExpanded"
+    title="相机参数面板"
     :class="isCameraPanelExpanded ? 'min-h-[min(180px,40vh)]' : ''"
   >
-    <CollapsiblePanelHeader v-model:expanded="isCameraPanelExpanded" title="相机参数面板" />
-
-    <div v-show="isCameraPanelExpanded" class="mt-4 flex-1 space-y-3 overflow-y-auto pr-1">
+    <template #default>
       <div
         class="rounded-xl border border-(--app-border) bg-(--app-card-soft) p-3 shadow-sm shadow-slate-900/5 ring-1 ring-slate-950/4 dark:shadow-md dark:shadow-black/25 dark:ring-white/5"
       >
@@ -178,19 +177,21 @@ async function handleApply(): Promise<void> {
           </label>
         </div>
       </div>
-    </div>
+    </template>
 
-    <div class="mt-4 flex w-full gap-3">
-      <button
-        v-if="hasPendingApplyChanges"
-        type="button"
-        class="inline-flex w-full flex-1 items-center justify-center rounded-xl border border-emerald-500/35 bg-emerald-950/35 px-4 py-2.5 text-sm font-medium text-emerald-100/95 transition hover:bg-emerald-950/55 disabled:opacity-50"
-        :disabled="applying"
-        @click="handleApply"
-      >
-        {{ applying ? '应用中...' : '应用' }}
-      </button>
-    </div>
-  </div>
+    <template #footer>
+      <div class="mt-4 flex w-full gap-3">
+        <button
+          v-if="hasPendingApplyChanges"
+          type="button"
+          class="inline-flex w-full flex-1 items-center justify-center rounded-xl border border-emerald-500/35 bg-emerald-950/35 px-4 py-2.5 text-sm font-medium text-emerald-100/95 transition hover:bg-emerald-950/55 disabled:opacity-50"
+          :disabled="applying"
+          @click="handleApply"
+        >
+          {{ applying ? '应用中...' : '应用' }}
+        </button>
+      </div>
+    </template>
+  </ControlPanelBase>
 </template>
 

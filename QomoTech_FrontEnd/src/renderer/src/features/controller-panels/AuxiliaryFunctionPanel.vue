@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import CollapsiblePanelHeader from '../../components/ui/CollapsiblePanelHeader.vue'
+import ControlPanelBase from './ControlPanelBase.vue'
 import { useControllerSettingsStore } from '../../stores/controllerSettingsStore'
 import { useAuxiliaryFunctionPanelStore } from '../../stores/auxiliaryFunctionPanelStore'
 import {
@@ -618,15 +618,12 @@ function handleSaveQuickMoveToPosition(): void {
 </script>
 
 <template>
-  <div
-    class="flex min-h-0 shrink-0 flex-col rounded-2xl border border-(--app-border) bg-(--app-card) p-4 shadow-[0_6px_14px_-6px_rgba(15,23,42,0.14)] transition-[min-height] duration-200 dark:shadow-[0_6px_16px_-6px_rgba(0,0,0,0.42)]"
+  <ControlPanelBase
+    v-model:expanded="isPanelExpanded"
+    title="辅助功能区"
     :class="isPanelExpanded ? 'min-h-[min(220px,44vh)]' : ''"
   >
-    <CollapsiblePanelHeader
-      v-model:expanded="isPanelExpanded"
-      title="辅助功能区"
-    />
-    <div v-show="isPanelExpanded" class="mt-4 flex-1 space-y-3 overflow-y-auto pr-1">
+    <template #default>
       <div
         class="rounded-xl border border-(--app-border) bg-(--app-card-soft) p-3 shadow-sm shadow-slate-900/5 ring-1 ring-slate-950/4 dark:shadow-md dark:shadow-black/25 dark:ring-white/5"
       >
@@ -1036,6 +1033,6 @@ function handleSaveQuickMoveToPosition(): void {
           </div>
         </div>
       </div>
-    </div>
-  </div>
+    </template>
+  </ControlPanelBase>
 </template>

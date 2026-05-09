@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import CollapsiblePanelHeader from '../../components/ui/CollapsiblePanelHeader.vue'
+import ControlPanelBase from './ControlPanelBase.vue'
 import OutputComponent from './OutputComponent.vue'
 import { useHardwareState } from '../../api/hardware'
 // import {
@@ -191,17 +191,15 @@ let ioMapForChild = ref<Array<{ digitalIn: boolean; digitalOut: boolean }>>([])
 </script>
 
 <template>
-  <div
-    class="flex min-h-0 shrink-0 flex-col rounded-2xl border border-(--app-border) bg-(--app-card) p-4 shadow-[0_6px_14px_-6px_rgba(15,23,42,0.14)] transition-[min-height] duration-200 dark:shadow-[0_6px_16px_-6px_rgba(0,0,0,0.42)]"
+  <ControlPanelBase
+    v-model:expanded="isDriverPanelExpanded"
+    title="控制驱动器面板"
+    action-target="ControllerSettings"
+    content-always-visible
     :class="isDriverPanelExpanded ? 'min-h-[min(250px,42vh)]' : ''"
+    @open-right-panel="(target) => emit('open-right-panel', target)"
   >
-    <CollapsiblePanelHeader
-      v-model:expanded="isDriverPanelExpanded"
-      title="控制驱动器面板"
-      action-target="ControllerSettings"
-      @open-right-panel="(target) => emit('open-right-panel', target)"
-    />
-    <div v-show="true" class="mt-4 flex-1 space-y-3 overflow-y-auto pr-1">
+    <template #default>
       <!-- <div
         class="rounded-xl border border-(--app-border) bg-(--app-card-soft) p-3 shadow-sm shadow-slate-900/5 ring-1 ring-slate-950/4 dark:shadow-md dark:shadow-black/25 dark:ring-white/5"
       >
@@ -308,6 +306,6 @@ let ioMapForChild = ref<Array<{ digitalIn: boolean; digitalOut: boolean }>>([])
       >
         <OutputComponent :motion-io-map="ioMapForChild" />
       </div>
-    </div>
-  </div>
+    </template>
+  </ControlPanelBase>
 </template>

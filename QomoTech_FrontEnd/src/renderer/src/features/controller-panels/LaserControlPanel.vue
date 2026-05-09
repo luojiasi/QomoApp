@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref } from 'vue'
-import CollapsiblePanelHeader from '../../components/ui/CollapsiblePanelHeader.vue'
+import ControlPanelBase from './ControlPanelBase.vue'
 import { useRs232WorkbenchStore } from '../../stores/rs232WorkbenchStore'
 import { applyLaserParams, type LaserApplyPayload } from '../../api/device/laser'
 import { closeRs232, openRs232, sendRs232 } from '../../api/device/rs232'
@@ -176,24 +176,15 @@ const emit = defineEmits<{(e: 'open-right-panel', target: string): void}>()
 </script>
 
 <template>
-  <div
-    class="flex min-h-0 shrink-0 flex-col rounded-2xl border border-(--app-border) bg-(--app-card) p-4 shadow-[0_6px_14px_-6px_rgba(15,23,42,0.14)] transition-[min-height] duration-200 dark:shadow-[0_6px_16px_-6px_rgba(0,0,0,0.42)]"
+  <ControlPanelBase
+    v-model:expanded="isLaserPanelExpanded"
+    title="激光面板"
+    action-target="DetailedRs232Send"
     :class="isLaserPanelExpanded ? 'min-h-[min(100px,46vh)]' : ''"
+    @open-right-panel="(target) => emit('open-right-panel', target)"
   >
-    <CollapsiblePanelHeader
-      v-model:expanded="isLaserPanelExpanded"
-      action-target="DetailedRs232Send"
-      @open-right-panel="(target) => emit('open-right-panel', target)"
-      title="激光面板"
-    />
-    <!-- <div v-show="isLaserPanelExpanded" class="mt-4 flex-1 space-y-3 overflow-y-auto pr-1">
-      <div
-        class="rounded-xl border border-(--app-border) bg-(--app-card-soft) p-3 shadow-sm shadow-slate-900/5 ring-1 ring-slate-950/4 dark:shadow-md dark:shadow-black/25 dark:ring-white/5"
-      >
-
-      </div>
-    </div> -->
-    <div class="grid grid-cols-3 gap-3" v-show="isLaserPanelExpanded">
+    <template #default>
+      <div class="grid grid-cols-3 gap-3">
       <!-- <label class="col-span-2 flex min-w-0 flex-col gap-1">
         <span class="text-xs text-(--app-text-muted)">激光厂家</span>
         <input
@@ -243,26 +234,30 @@ const emit = defineEmits<{(e: 'open-right-panel', target: string): void}>()
           class="w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm text-(--app-text-primary) shadow-inner shadow-slate-900/5 outline-none transition focus:border-sky-500/80 focus:shadow-[0_0_0_3px_rgba(14,165,233,0.15)] focus:ring-2 focus:ring-sky-400/25 dark:shadow-black/40"
         />
       </label>
-    </div>
-    <div class="mt-4 flex w-full gap-3">
-      <button
-        v-if="transmissionMode === 'RS232'"
-        type="button"
-        class="inline-flex w-full flex-1 items-center justify-center rounded-xl border border-sky-500/35 bg-sky-950/35 px-4 py-2.5 text-sm font-medium text-sky-100/95 transition hover:bg-sky-950/55 disabled:opacity-50"
-        :disabled="applying"
-        @click="handleOpenLaser"
-      >
-        {{ applying ? '打开中...' : '打开激光器' }}
-      </button>
-      <button
-        v-if="hasPendingApplyChanges"
-        type="button"
-        class="inline-flex w-full flex-1 items-center justify-center rounded-xl border border-emerald-500/35 bg-emerald-950/35 px-4 py-2.5 text-sm font-medium text-emerald-100/95 transition hover:bg-emerald-950/55 disabled:opacity-50"
-        :disabled="applying"
-        @click="handleApply"
-      >
-        {{ applying ? '应用中...' : '应用' }}
-      </button>
-    </div>
-  </div>
+      </div>
+    </template>
+
+    <template #footer>
+      <div class="mt-4 flex w-full gap-3">
+        <button
+          v-if="transmissionMode === 'RS232'"
+          type="button"
+          class="inline-flex w-full flex-1 items-center justify-center rounded-xl border border-sky-500/35 bg-sky-950/35 px-4 py-2.5 text-sm font-medium text-sky-100/95 transition hover:bg-sky-950/55 disabled:opacity-50"
+          :disabled="applying"
+          @click="handleOpenLaser"
+        >
+          {{ applying ? '打开中...' : '打开激光器' }}
+        </button>
+        <button
+          v-if="hasPendingApplyChanges"
+          type="button"
+          class="inline-flex w-full flex-1 items-center justify-center rounded-xl border border-emerald-500/35 bg-emerald-950/35 px-4 py-2.5 text-sm font-medium text-emerald-100/95 transition hover:bg-emerald-950/55 disabled:opacity-50"
+          :disabled="applying"
+          @click="handleApply"
+        >
+          {{ applying ? '应用中...' : '应用' }}
+        </button>
+      </div>
+    </template>
+  </ControlPanelBase>
 </template>
