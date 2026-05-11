@@ -1,6 +1,6 @@
 {
   "name": "QOMOTech",
-  "version": "3.0.2",
+  "version": "3.1.0",
   "description": "QOMOTech is a software for controlling the robot",
   "main": "./out/main/index.js",
   "author": "ljs_bestwriter",

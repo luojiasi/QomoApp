@@ -167,6 +167,9 @@ class ZMC适配器:
         self._最近错误码: Optional[int] = None
         # 静态字段缓存（连接后填充一次，减少每次状态读取的 DLL 调用）
         self._静态字段缓存: Dict[int, Dict[str, Any]] = {}
+        # 中止事件 —— 急停/停止时立即广播,连续插补循环检测到后主动退出
+        # 不依赖 IO worker 队列,避免长任务占用 worker 时急停无法及时执行
+        self._中止事件: threading.Event = threading.Event()
 
     # ------------------------------------------------------------------
     # 属性
@@ -1004,7 +1007,11 @@ class ZMC适配器:
         """对应 drivers ZMotionDriver.emergency_stop_all_axes / core stop_axis_motion。
 
         轴号列表=None 时停止配置中所有轴。
+        立即/全部停止时先广播中止事件,让正在跑的连续插补循环立刻退出 worker。
         """
+        # 立即/全部 取消 → 先广播,让连续插补循环立即看到并自停
+        if int(模式) in (取消_全部, 取消_立即):
+            self._中止事件.set()
         if 轴号列表 is None:
             轴号列表 = [cfg.axis_no for cfg in self._配置.axes.values()]
         n = len(轴号列表)
@@ -1019,7 +1026,12 @@ class ZMC适配器:
         await self.多轴停止(None, 模式)
 
     async def 急停(self) -> None:
-        """硬急停 —— 立即中断脉冲，跳过减速。"""
+        """硬急停 —— 立即中断脉冲，跳过减速。
+
+        关键设计:先广播中止事件(同步,瞬时),让连续插补循环立即 break 并自停;
+        然后再走 IO worker 调 DLL Cancel(此时 worker 已空闲)。
+        """
+        self._中止事件.set()
         await self.多轴停止(None, 取消_立即)
 
     # ==================================================================
@@ -1596,7 +1608,7 @@ class ZMC适配器:
         return 当前工程位移 * axis_units / 每圈脉冲数
 
     # ------------------------------------------------------------------
-    # 连续插补运动（移植 drivers/zmotion_driver.continuous_interpolation_move）
+    # 连续插补运动
     # ------------------------------------------------------------------
 
     async def 连续插补运动(
@@ -1605,12 +1617,12 @@ class ZMC适配器:
         路径点: Sequence[Any],
         *,
         merge_enable: bool = True,
-        auto_corner_decel: bool = False,
-        auto_small_circle_limit: bool = False,
+        auto_corner_decel: bool = True,
+        auto_small_circle_limit: bool = True,
         auto_corner_angle: bool = False,
         first_corner_angle_deg: float = 15.0,
         end_corner_angle_deg: float = 45.0,
-        small_circle_limit: float = 0.0,
+        small_circle_limit: float = 5.0,
         corner_radius: float = 0.0,
         start_move_speed: Optional[float] = None,
         end_move_speed: Optional[float] = None,
@@ -1620,11 +1632,19 @@ class ZMC适配器:
         done_timeout_s: float = 120.0,
         done_poll_interval_s: float = 0.02,
     ) -> bool:
-        """对应 drivers ZMotionDriver.continuous_interpolation_move。
+        """连续插补运动 —— 整条路径使用同一速度,实现段间速度真正连续。
 
-        路径点支持：
-          dict   {"x": <float>, "y": <float>, "z"?, "u"?, "r"?, "speed"?}
-          list/tuple  [v0, v1, ..., (speed)]   长度 ≥ len(轴号列表)，可在末位附加 speed
+        语义要点(2026 重构):
+          - 整条路径只在循环开始前设一次 FORCE_SPEED(= default_speed),不在
+            循环中切速。避免破坏 ZMC look-ahead 的速度规划,保证段间速度连续。
+          - 路径点字段中的 speed 会被**静默忽略**(向前兼容旧调用方,但不再生效)。
+          - MERGE 对所有参与轴开启,CORNER_MODE 默认 2+8(自动减速 + 小圆限速)。
+          - 大于 STOP_ANGLE 的拐角会按 ZMC 内置规划自动减速;小于 DECEL_ANGLE
+            的拐角不减速;之间按角度比例平滑过渡。
+
+        路径点支持:
+          dict   {"x": <float>, "y": <float>, "z"?, "u"?, "r"?, "speed"?(忽略)}
+          list/tuple  [v0, v1, ..., (speed,忽略)]   长度 ≥ len(轴号列表)
         """
         self._要求已连接()
         if len(轴号列表) < 2:
@@ -1655,12 +1675,26 @@ class ZMC适配器:
         return True
 
     def _同步_连续插补(self, **kw: Any) -> None:
-        """连续插补的同步实现（IO 线程内执行）。语义参考原 drivers 实现。"""
+        """连续插补的同步实现（IO 线程内执行）。
+
+        关键改动:
+          1. MERGE 对所有参与轴都开启(原代码只设主轴 → Y 轴 MERGE=0 → 段尾减速)
+          2. 整条路径只在循环开始前设一次 FORCE_SPEED,循环中不再切速
+          3. ⭐ 主循环不再大块持锁,改为每次 DLL 调用单独短锁,让 status_monitor
+             能在 5-20ms 的间隙拿到锁继续推 WebSocket
+          4. ⭐ 主循环每轮检查 self._中止事件,急停时立即 break 并自己调
+             CancelAxisList,无需等 IO worker 释放
+          5. wait_until_done 用 MovesBuffered+IDLE 双重判完成
+          6. finally 同时恢复 LSPEED 与 MERGE
+        """
+        if not self._已连接:
+            raise ZMCError("ContinuousInterp", -1, "控制器已断开")
         轴号列表: List[int] = kw["轴号列表"]
         路径点: List[Any] = kw["路径点"]
         n = len(轴号列表)
         轴数组 = (ctypes.c_int * n)(*轴号列表)
         主轴 = 轴号列表[0]
+        merge_on = bool(kw["merge_enable"])
 
         默认速度 = float(
             kw["default_speed"] if kw["default_speed"] is not None
@@ -1668,6 +1702,7 @@ class ZMC适配器:
                 self._配置.axis_no_to_name[主轴]
             ].speed
         )
+        self._校验浮点值(默认速度, "default_speed", 上下文="连续插补")
 
         模式 = 0
         if kw["auto_corner_decel"]:
@@ -1677,126 +1712,181 @@ class ZMC适配器:
         if kw["auto_corner_angle"]:
             模式 += 32
 
+        # ---- 进入插补前清空中止事件(允许本次完整运行) ----
+        self._中止事件.clear()
+
+        # 保存原始起跳速度 & MERGE 状态,finally 恢复(不持锁,纯内存读取)
+        原始Lspeed: Dict[int, float] = {}
+        原始Merge: Dict[int, int] = {}
+        for 轴号 in 轴号列表:
+            cfg = self._配置.axes[self._配置.axis_no_to_name[轴号]]
+            原始Lspeed[轴号] = cfg.lspeed
+            原始Merge[轴号] = int(cfg.merge)
+
+        # ---- 阶段一: 一次性下发所有参数(此处一段短锁,毫秒级) ----
         with self._锁:
             self._校验("ZAux_Direct_Base", self._dll.ZAux_Direct_Base(n, 轴数组), 备注="continuous")
-            # 保存原始起跳速度，连续插补期间设为 0 避免段间速度跳变
-            原始Lspeed: Dict[int, float] = {}
+            # (1) 所有参与轴下发轴参数,LSPEED=0 避免段间起跳台阶
             for 轴号 in 轴号列表:
                 cfg = self._配置.axes[self._配置.axis_no_to_name[轴号]]
-                原始Lspeed[轴号] = cfg.lspeed
-            try:
-                for 轴号 in 轴号列表:
-                    cfg = self._配置.axes[self._配置.axis_no_to_name[轴号]]
-                    for 名, 值 in (
-                        ("ZAux_Direct_SetUnits", cfg.units),
-                        ("ZAux_Direct_SetLspeed", 0.0),
-                        ("ZAux_Direct_SetSpeed", 默认速度),
-                        ("ZAux_Direct_SetAccel", cfg.accel),
-                        ("ZAux_Direct_SetDecel", cfg.decel),
-                        ("ZAux_Direct_SetSramp", cfg.sramp),
-                    ):
-                        fn = getattr(self._dll, 名)
-                        self._校验(名, fn(轴号, 值), 备注=f"axis={轴号}")
-
+                for 名, 值 in (
+                    ("ZAux_Direct_SetUnits", cfg.units),
+                    ("ZAux_Direct_SetLspeed", 0.0),
+                    ("ZAux_Direct_SetSpeed", 默认速度),
+                    ("ZAux_Direct_SetAccel", cfg.accel),
+                    ("ZAux_Direct_SetDecel", cfg.decel),
+                    ("ZAux_Direct_SetSramp", cfg.sramp),
+                ):
+                    fn = getattr(self._dll, 名)
+                    self._校验(名, fn(轴号, 值), 备注=f"axis={轴号}")
+            # (2) MERGE 对所有参与轴开启
+            for 轴号 in 轴号列表:
                 self._校验("ZAux_Direct_SetMerge",
-                           self._dll.ZAux_Direct_SetMerge(主轴, 1 if kw["merge_enable"] else 0),
-                           备注=f"axis={主轴}")
-                self._校验("ZAux_Direct_SetCornerMode",
-                           self._dll.ZAux_Direct_SetCornerMode(主轴, 模式),
-                           备注=f"axis={主轴}")
-                self._校验(
-                    "ZAux_Direct_SetDecelAngle",
-                    self._dll.ZAux_Direct_SetDecelAngle(
-                        主轴, float(kw["first_corner_angle_deg"]) * math.pi / 180,
-                    ),
-                    备注=f"axis={主轴}",
-                )
-                self._校验(
-                    "ZAux_Direct_SetStopAngle",
-                    self._dll.ZAux_Direct_SetStopAngle(
-                        主轴, float(kw["end_corner_angle_deg"]) * math.pi / 180,
-                    ),
-                    备注=f"axis={主轴}",
-                )
-                self._校验("ZAux_Direct_SetFullSpRadius",
-                           self._dll.ZAux_Direct_SetFullSpRadius(
-                               主轴, float(kw["small_circle_limit"])),
-                           备注=f"axis={主轴}")
-                self._校验("ZAux_Direct_SetZsmooth",
-                           self._dll.ZAux_Direct_SetZsmooth(
-                               主轴, float(kw["corner_radius"])),
-                           备注=f"axis={主轴}")
-                起点速度 = (
-                    float(默认速度 if kw["merge_enable"] else 0.0)
-                    if kw["start_move_speed"] is None else float(kw["start_move_speed"])
-                )
-                终点速度 = (
-                    float(默认速度 if kw["merge_enable"] else 0.0)
-                    if kw["end_move_speed"] is None else float(kw["end_move_speed"])
-                )
-                self._校验("ZAux_Direct_SetStartMoveSpeed",
-                           self._dll.ZAux_Direct_SetStartMoveSpeed(主轴, 起点速度),
-                           备注=f"axis={主轴}")
-                self._校验("ZAux_Direct_SetEndMoveSpeed",
-                           self._dll.ZAux_Direct_SetEndMoveSpeed(主轴, 终点速度),
-                           备注=f"axis={主轴}")
-                self._校验("ZAux_Direct_SetMovemark",
-                           self._dll.ZAux_Direct_SetMovemark(主轴, 0),
-                           备注=f"axis={主轴}")
-                self._校验("ZAux_Trigger", self._dll.ZAux_Trigger())
+                           self._dll.ZAux_Direct_SetMerge(轴号, 1 if merge_on else 0),
+                           备注=f"axis={轴号}")
+            # (3) 拐角/小圆/圆滑参数(只对主轴有效)
+            self._校验("ZAux_Direct_SetCornerMode",
+                       self._dll.ZAux_Direct_SetCornerMode(主轴, 模式), 备注=f"axis={主轴}")
+            self._校验("ZAux_Direct_SetDecelAngle",
+                       self._dll.ZAux_Direct_SetDecelAngle(
+                           主轴, float(kw["first_corner_angle_deg"]) * math.pi / 180,
+                       ), 备注=f"axis={主轴}")
+            self._校验("ZAux_Direct_SetStopAngle",
+                       self._dll.ZAux_Direct_SetStopAngle(
+                           主轴, float(kw["end_corner_angle_deg"]) * math.pi / 180,
+                       ), 备注=f"axis={主轴}")
+            self._校验("ZAux_Direct_SetFullSpRadius",
+                       self._dll.ZAux_Direct_SetFullSpRadius(
+                           主轴, float(kw["small_circle_limit"])), 备注=f"axis={主轴}")
+            self._校验("ZAux_Direct_SetZsmooth",
+                       self._dll.ZAux_Direct_SetZsmooth(
+                           主轴, float(kw["corner_radius"])), 备注=f"axis={主轴}")
+            # (4) 起点/终点速度
+            起点速度 = (
+                float(默认速度 if merge_on else 0.0)
+                if kw["start_move_speed"] is None else float(kw["start_move_speed"])
+            )
+            终点速度 = (
+                float(默认速度 if merge_on else 0.0)
+                if kw["end_move_speed"] is None else float(kw["end_move_speed"])
+            )
+            self._校验("ZAux_Direct_SetStartMoveSpeed",
+                       self._dll.ZAux_Direct_SetStartMoveSpeed(主轴, 起点速度), 备注=f"axis={主轴}")
+            self._校验("ZAux_Direct_SetEndMoveSpeed",
+                       self._dll.ZAux_Direct_SetEndMoveSpeed(主轴, 终点速度), 备注=f"axis={主轴}")
+            self._校验("ZAux_Direct_SetMovemark",
+                       self._dll.ZAux_Direct_SetMovemark(主轴, 0), 备注=f"axis={主轴}")
+            self._校验("ZAux_Trigger", self._dll.ZAux_Trigger())
+            # (5) 整条路径单一 FORCE_SPEED
+            self._校验("ZAux_Direct_SetForceSpeed",
+                       self._dll.ZAux_Direct_SetForceSpeed(主轴, 默认速度),
+                       备注=f"axis={主轴} 全路径单速")
 
-                # 解析路径点
-                段列表: List[tuple[List[float], float]] = []
-                for idx, 点 in enumerate(路径点):
-                    坐标, 段速度 = self._解析连续插补点(点, 轴号列表, 默认速度, idx)
-                    段列表.append((坐标, 段速度))
+        # ---- 阶段二: 解析路径点(无锁) ----
+        段列表: List[List[float]] = []
+        for idx, 点 in enumerate(路径点):
+            坐标, _段速度_忽略 = self._解析连续插补点(点, 轴号列表, 默认速度, idx)
+            段列表.append(坐标)
 
-                上次速度: Optional[float] = None
-                已推送 = 0
-                总数 = len(段列表)
-                while 已推送 < 总数:
+        被中止 = False
+        try:
+            # ---- 阶段三: 推送循环,每段短锁,响应中止事件 ----
+            已推送 = 0
+            总数 = len(段列表)
+            while 已推送 < 总数:
+                # ⭐ 中止事件优先检查
+                if self._中止事件.is_set():
+                    被中止 = True
+                    break
+                # 短锁: 读缓冲剩余 + 推一段
+                with self._锁:
                     ret_buf, 剩余_val = self._dll.ZAux_Direct_GetRemain_LineBuffer(主轴)
                     剩余 = int(剩余_val.value) if int(ret_buf) == 0 else 4096
-                    if 剩余 <= 0:
-                        time.sleep(max(float(kw["sleep_when_buffer_full_s"]), 0.001))
-                        continue
+                    if 剩余 > 0:
+                        位置数组 = (ctypes.c_float * n)(*段列表[已推送])
+                        self._校验("ZAux_Direct_MoveAbsSp",
+                                   self._dll.ZAux_Direct_MoveAbsSp(n, 轴数组, 位置数组),
+                                   备注=f"段={已推送}")
+                        已推送 += 1
+                        推送成功 = True
+                    else:
+                        推送成功 = False
+                # 锁外 sleep —— 给 status_monitor / 急停 让出锁窗口
+                if not 推送成功:
+                    time.sleep(max(float(kw["sleep_when_buffer_full_s"]), 0.001))
 
-                    坐标, 段速度 = 段列表[已推送]
-                    if 上次速度 != 段速度:
-                        self._校验("ZAux_Direct_SetForceSpeed",
-                                   self._dll.ZAux_Direct_SetForceSpeed(主轴, float(段速度)),
-                                   备注=f"axis={主轴}")
-                        上次速度 = 段速度
-                    位置数组 = (ctypes.c_float * n)(*坐标)
-                    self._校验("ZAux_Direct_MoveAbsSp",
-                               self._dll.ZAux_Direct_MoveAbsSp(n, 轴数组, 位置数组),
-                               备注=f"段={已推送}")
-                    已推送 += 1
+            if 被中止:
+                return
 
-                if not kw["wait_until_done"]:
+            if not kw["wait_until_done"]:
+                return
+
+            # ---- 阶段四: 等待完成,每轮短锁 + 响应中止事件 ----
+            起始 = time.time()
+            while True:
+                if not self._已连接:
+                    raise ZMCError("ContinuousInterp", -1, "控制器在插补中断开")
+                # ⭐ 中止事件优先检查
+                if self._中止事件.is_set():
+                    被中止 = True
                     return
-
-                起始 = time.time()
-                while True:
-                    ret_buf, 剩余_val = self._dll.ZAux_Direct_GetRemain_LineBuffer(主轴)
-                    剩余 = int(剩余_val.value) if int(ret_buf) == 0 else 4096
+                # 短锁: 读 MovesBuffered + 各轴 IDLE
+                with self._锁:
+                    ret_mb, mb_val = self._dll.ZAux_Direct_GetMovesBuffered(主轴)
+                    if int(ret_mb) == 0:
+                        缓冲已清空 = int(mb_val.value) == 0
+                    else:
+                        ret_buf, 剩余_val = self._dll.ZAux_Direct_GetRemain_LineBuffer(主轴)
+                        剩余 = int(剩余_val.value) if int(ret_buf) == 0 else 0
+                        缓冲已清空 = 剩余 >= 4090
                     全部空闲 = True
                     for 轴号 in 轴号列表:
                         ret_idle, idle_val = self._dll.ZAux_Direct_GetIfIdle(轴号)
                         if int(ret_idle) != 0:
                             continue
-                        if bool(int(idle_val.value)):
+                        # ZMC 约定: -1 = 停止 / 0 = 运动中
+                        if int(idle_val.value) == -1:
                             continue
                         全部空闲 = False
                         break
-                    if 剩余 >= 4094 and 全部空闲:
-                        return
-                    if time.time() - 起始 > float(kw["done_timeout_s"]):
-                        raise ZMCError("ContinuousInterp", -1, "等待完成超时")
-                    time.sleep(max(float(kw["done_poll_interval_s"]), 0.005))
-            finally:
-                for 轴号, 原值 in 原始Lspeed.items():
-                    self._dll.ZAux_Direct_SetLspeed(轴号, 原值)
+                if 缓冲已清空 and 全部空闲:
+                    return
+                if time.time() - 起始 > float(kw["done_timeout_s"]):
+                    raise ZMCError("ContinuousInterp", -1, "等待完成超时")
+                # 锁外 sleep —— 给 status_monitor / 急停 让出锁窗口
+                time.sleep(max(float(kw["done_poll_interval_s"]), 0.005))
+        finally:
+            # ---- 阶段五: 清理(短锁) ----
+            if self._已连接:
+                with self._锁:
+                    # 中止 → 主动调 DLL Cancel(立即模式),无需等 worker
+                    if 被中止:
+                        try:
+                            n_all = len(轴号列表)
+                            轴数组_全 = (ctypes.c_int * n_all)(*轴号列表)
+                            self._dll.ZAux_Direct_CancelAxisList(n_all, 轴数组_全, 取消_立即)
+                        except Exception as exc:
+                            日志.warning(f"中止时 CancelAxisList 失败: {exc}")
+                    # 恢复 LSPEED / MERGE
+                    for 轴号, 原值 in 原始Lspeed.items():
+                        try:
+                            self._dll.ZAux_Direct_SetLspeed(轴号, 原值)
+                        except Exception:
+                            pass
+                    for 轴号, 原值 in 原始Merge.items():
+                        try:
+                            self._dll.ZAux_Direct_SetMerge(轴号, int(原值))
+                        except Exception:
+                            pass
+
+    @staticmethod
+    def _校验浮点值(值: float, 名称: str, 上下文: str = "") -> float:
+        """验证浮点值合法（非 NaN/Inf），防止传递给 DLL 导致 segfault。"""
+        import math
+        if not math.isfinite(值):
+            上下文信息 = f" [{上下文}]" if 上下文 else ""
+            raise ValueError(f"{名称}={值} 无效 (NaN/Inf){上下文信息}")
+        return 值
 
     def _解析连续插补点(
         self,
@@ -1815,20 +1905,25 @@ class ZMC适配器:
                     raise ValueError(f"path_points[{idx}] 未配置的轴号: {轴号}")
                 # 同时兼容大小写键名（前端可能传 "X" 或 "x"）
                 if 轴名 in 点:
-                    坐标.append(float(点[轴名]))
+                    v = float(点[轴名])
                 elif 轴名.lower() in 点:
-                    坐标.append(float(点[轴名.lower()]))
+                    v = float(点[轴名.lower()])
                 else:
                     raise ValueError(f"path_points[{idx}] 缺少轴坐标 axis={轴号}")
+                self._校验浮点值(v, f"path_points[{idx}].{轴名}")
+                坐标.append(v)
             if "speed" in 点 and 点["speed"] is not None:
-                速度 = float(点["speed"])
+                速度 = self._校验浮点值(float(点["speed"]), f"path_points[{idx}].speed")
         elif isinstance(点, (list, tuple)):
             n = len(轴号列表)
             if len(点) < n:
                 raise ValueError(f"path_points[{idx}] 维度不足，至少需要 {n} 个坐标")
-            坐标 = [float(v) for v in 点[:n]]
+            for i, v in enumerate(点[:n]):
+                vf = float(v)
+                self._校验浮点值(vf, f"path_points[{idx}][{i}]")
+                坐标.append(vf)
             if len(点) >= n + 1 and 点[n] is not None:
-                速度 = float(点[n])
+                速度 = self._校验浮点值(float(点[n]), f"path_points[{idx}].speed")
         else:
             raise ValueError(f"path_points[{idx}] 类型不支持: {type(点)}")
         return 坐标, 速度
@@ -1838,78 +1933,75 @@ class ZMC适配器:
         路径点: Sequence[Any],
         速度: Optional[float] = None,
         *,
-        merge_enable: bool = False,
-        auto_corner_decel: bool = False,
-        auto_small_circle_limit: bool = False,
+        merge_enable: bool = True,
+        auto_corner_decel: bool = True,
+        auto_small_circle_limit: bool = True,
         auto_corner_angle: bool = False,
         decel_angle_deg: float = 15.0,
         stop_angle_deg: float = 45.0,
+        small_circle_limit: float = 5.0,
         wait_until_done: bool = True,
         done_timeout_s: float = 120.0,
         done_poll_interval_s: float = 0.02,
     ) -> bool:
-        """对应 core ZMotionAdapter.continuous_interpolation_move_adapter。
+        """XY 两轴连续插补 —— 整条路径使用同一速度,段间速度连续。
 
-        固定使用 X=0, Y=1 两轴；速度为统一进给速度（None 时按点位 speed 字段）。
+        语义要点(2026 重构):
+          - 整条路径使用同一速度: 优先用入参 速度,其次用路径点首段 speed,
+            最次回退到 X 轴 motion_config.speed
+          - 路径点的 speed 字段被静默忽略(向前兼容,不再生效)
+          - MERGE + CORNER_MODE(2+8) 默认开启,实现段间真正连续衔接
+          - 不再预先 SetSpeed —— 速度通过底层 SetForceSpeed 统一控制,
+            避免临时改 motion_config 速度后再恢复的竞态
         """
         self._要求已连接()
         if not 路径点:
             raise ValueError("path_points 不能为空")
 
         轴号列表 = [轴_X, 轴_Y]
-        # 速度统一处理：传了 speed 就把两轴 SPEED 同步成它
-        原速度: Dict[int, float] = {}
-        if 速度 is not None:
-            for 轴号 in 轴号列表:
-                try:
-                    原速度[轴号] = float(await self.读_参数("SPEED", 轴号))
-                except ZMCError:
-                    pass
-            try:
-                await self.批量设置轴参数({
-                    轴_X: {"speed": float(速度)},
-                    轴_Y: {"speed": float(速度)},
-                })
-            except ZMCError as exc:
-                raise ZMCError("连续插补XY-设置速度", -1, str(exc)) from exc
 
-        # 转换路径点
+        # 解析路径点为标准 dict 格式(speed 字段会在底层被忽略,这里保留只为日志)
         转换后: List[Dict[str, float]] = []
         for idx, 点 in enumerate(路径点):
-            seg_speed = self._取段速度(点, 速度, idx)
             if isinstance(点, dict):
                 if "x" not in 点 or "y" not in 点:
                     raise ValueError(f"path_points[{idx}] 必须包含 x/y")
-                转换后.append({"x": float(点["x"]), "y": float(点["y"]), "speed": seg_speed})
+                转换后.append({"x": float(点["x"]), "y": float(点["y"])})
             elif isinstance(点, (list, tuple)):
                 if len(点) < 2:
-                    raise ValueError(f"path_points[{idx}] 坐标不足：至少需要 [x, y]")
-                转换后.append({"x": float(点[0]), "y": float(点[1]), "speed": seg_speed})
+                    raise ValueError(f"path_points[{idx}] 坐标不足:至少需要 [x, y]")
+                转换后.append({"x": float(点[0]), "y": float(点[1])})
             else:
                 raise ValueError(f"path_points[{idx}] 类型不支持: {type(点)}")
 
-        try:
-            await self.连续插补运动(
-                轴号列表=轴号列表,
-                路径点=转换后,
-                merge_enable=merge_enable,
-                auto_corner_decel=auto_corner_decel,
-                auto_small_circle_limit=auto_small_circle_limit,
-                auto_corner_angle=auto_corner_angle,
-                first_corner_angle_deg=decel_angle_deg,
-                end_corner_angle_deg=stop_angle_deg,
-                wait_until_done=wait_until_done,
-                done_timeout_s=done_timeout_s,
-                done_poll_interval_s=done_poll_interval_s,
-            )
-        finally:
-            # 恢复速度（无论成功失败）
-            if 速度 is not None and 原速度:
-                参数表 = {轴号: {"speed": v} for 轴号, v in 原速度.items()}
-                try:
-                    await self.批量设置轴参数(参数表)
-                except ZMCError as exc:
-                    日志.warning(f"恢复 XY 速度失败: {exc}")
+        # 解析整条路径的统一速度
+        if 速度 is not None:
+            统一速度: Optional[float] = float(速度)
+        else:
+            # 尝试从首段路径点取 speed(向前兼容老调用方)
+            首段 = 路径点[0]
+            首段速度: Optional[float] = None
+            if isinstance(首段, dict) and 首段.get("speed") is not None:
+                首段速度 = float(首段["speed"])
+            elif isinstance(首段, (list, tuple)) and len(首段) >= 3 and 首段[2] is not None:
+                首段速度 = float(首段[2])
+            统一速度 = 首段速度  # 仍为 None 时让底层回退到 motion_config.speed
+
+        await self.连续插补运动(
+            轴号列表=轴号列表,
+            路径点=转换后,
+            merge_enable=merge_enable,
+            auto_corner_decel=auto_corner_decel,
+            auto_small_circle_limit=auto_small_circle_limit,
+            auto_corner_angle=auto_corner_angle,
+            first_corner_angle_deg=decel_angle_deg,
+            end_corner_angle_deg=stop_angle_deg,
+            small_circle_limit=small_circle_limit,
+            default_speed=统一速度,
+            wait_until_done=wait_until_done,
+            done_timeout_s=done_timeout_s,
+            done_poll_interval_s=done_poll_interval_s,
+        )
         return True
 
     @staticmethod

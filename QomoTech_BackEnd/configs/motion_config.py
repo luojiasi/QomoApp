@@ -23,16 +23,18 @@ class MergeParams(BaseModel):
     """连续轨迹合并参数 —— 仅在 axis.merge=1 时生效。
 
     对应 ZMC SDK：
-      corner_mode  → ZAux_Direct_SetCornerMode（拐角处理位标志）
-      decel_angle  → ZAux_Direct_SetDecelAngle（开始减速的拐角阈值，单位 rad）
-      stop_angle   → ZAux_Direct_SetStopAngle（强制停止的拐角阈值，单位 rad）
-      zxmooth      → ZAux_Direct_SetZsmooth（拐角圆滑半径）
+      corner_mode      → ZAux_Direct_SetCornerMode（拐角处理位标志，2=自动减速 / 8=小圆限速 / 32=ZSMOOTH 圆滑）
+      decel_angle      → ZAux_Direct_SetDecelAngle（开始减速的拐角阈值，单位 rad）
+      stop_angle       → ZAux_Direct_SetStopAngle（强制停止的拐角阈值，单位 rad）
+      zxmooth          → ZAux_Direct_SetZsmooth（拐角圆滑半径，配合 corner_mode bit 32 生效）
+      full_sp_radius   → ZAux_Direct_SetFullSpRadius（小圆限速参考半径，配合 corner_mode bit 8 生效）
     """
 
-    corner_mode: int = 0
-    decel_angle: float = 15.0
-    stop_angle: float = 45.0
+    corner_mode: int = 10               # 2(自动减速) + 8(小圆限速) —— 默认开启,保证连续插补速度连续
+    decel_angle: float = 15.0           # 度,内部转弧度
+    stop_angle: float = 45.0            # 度,内部转弧度
     zxmooth: float = Field(default=0.0, ge=0)
+    full_sp_radius: float = Field(default=5.0, ge=0)
 
 
 class MotionAxisConfig(BaseModel):
@@ -47,12 +49,12 @@ class MotionAxisConfig(BaseModel):
     axis_type: int = 1                                              # ATYPE: 1=方向脉冲, 4=正交编码器, 65=EtherCAT
     units: float = Field(default=2000.0, gt=0)                      # 脉冲当量（每工程单位的脉冲数）
     speed: float = Field(default=20.0, gt=0)                        # 目标速度（工程单位/秒）
-    lspeed: float = Field(default=20.0, ge=0)                       # 起跳速度
+    lspeed: float = Field(default=1.0, ge=0)                        # 起跳速度（连续插补内部会临时改为 0,这里只影响单段 move 的启动平滑度）
     accel: float = Field(default=500000.0, gt=0)                    # 加速度
     decel: float = Field(default=500000.0, gt=0)                    # 减速度
     sramp: float = Field(default=200.0, ge=0)                       # S 曲线时间
     creep: float = Field(default=10.0, ge=0)                        # 爬行速度（回零用）
-    merge: int = Field(default=0, ge=0, le=1)                       # 连续轨迹合并开关
+    merge: int = Field(default=1, ge=0, le=1)                       # 连续轨迹合并开关（默认开,配合 merge_params 实现段间速度连续）
     fwd_in: int = -1                                                # 正限位输入口（-1=禁用）
     rev_in: int = -1                                                # 负限位输入口（-1=禁用）
 

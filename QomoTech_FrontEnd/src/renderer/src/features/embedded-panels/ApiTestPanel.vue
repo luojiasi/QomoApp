@@ -1,6 +1,11 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
-import { useControllerSettingsStore } from '../../stores/controllerSettingsStore'
+import { reactive, ref } from 'vue'
+import { getBackendBaseUrl } from '../../api/core/base'
+
+function resolveUrl(path: string): string {
+  const base = getBackendBaseUrl()
+  return base ? `${base}${path}` : path
+}
 
 // ===========================================================================
 // 连续插补可视化编辑器
@@ -21,7 +26,7 @@ const contourPoints = ref<PathPoint[]>([
 ])
 const contourSpeed = ref(20)
 const contourMerge = ref(true)
-const contourAutoCornerDecel = ref(false)
+const contourAutoCornerDecel = ref(true)
 const contourDecelAngle = ref(15)
 const contourStopAngle = ref(45)
 const contourWaitDone = ref(true)
@@ -61,10 +66,12 @@ async function executeContour(): Promise<void> {
   if (contourMode.value === 'xy') {
     path = '/api/motion/move/contour-xy'
     body = {
-      path: contourPoints.value.map((p) => ({ x: p.X, y: p.Y, speed: p.speed })),
+      // 路径点的 speed 已被后端忽略,整条路径使用顶层 speed
+      path: contourPoints.value.map((p) => ({ x: p.X, y: p.Y })),
       speed: contourSpeed.value,
       merge_enable: contourMerge.value,
       auto_corner_decel: contourAutoCornerDecel.value,
+      auto_small_circle_limit: contourAutoCornerDecel.value,
       decel_angle_deg: contourDecelAngle.value,
       stop_angle_deg: contourStopAngle.value,
       wait_until_done: contourWaitDone.value,
@@ -75,10 +82,10 @@ async function executeContour(): Promise<void> {
     const axes = contourAxes.value
     body = {
       axes,
+      // 路径点的 speed 已被后端忽略,整条路径使用顶层 speed
       path: contourPoints.value.map((p) => {
         const pt: Record<string, number> = {}
         for (const ax of axes) pt[ax.toLowerCase()] = p[ax]
-        if (p.speed) pt.speed = p.speed
         return pt
       }),
       speed: contourSpeed.value,
@@ -92,7 +99,7 @@ async function executeContour(): Promise<void> {
   }
 
   try {
-    const res = await fetch(path, {
+    const res = await fetch(resolveUrl(path), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -148,9 +155,6 @@ const editedPaths = reactive<Record<string, string>>({})
 const editedBodies = reactive<Record<string, string>>({})
 const editedQueries = reactive<Record<string, string>>({})
 
-const store = useControllerSettingsStore()
-
-const ip = computed(() => store.controllerSettings.communication.controller_ip)
 
 function initEdited(key: string, def: ApiDef): void {
   if (!(key in editedPaths)) {
@@ -340,11 +344,11 @@ async function execApi(key: string): Promise<void> {
   try {
     let res: Response
     if (def.method === 'GET') {
-      res = await fetch(fullUrl)
+      res = await fetch(resolveUrl(fullUrl))
     } else {
       let bodyStr = (editedBodies[key] ?? '{}').trim()
       if (!bodyStr) bodyStr = '{}'
-      res = await fetch(path, {
+      res = await fetch(resolveUrl(path), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: bodyStr,
@@ -395,7 +399,7 @@ function toggleParams(key: string): void {
     <div class="rounded-xl border border-amber-500/30 bg-(--app-card) overflow-hidden">
       <div class="px-3 py-2 flex items-center gap-2 border-b border-amber-500/20 bg-amber-500/5">
         <span class="text-xs font-semibold text-amber-600">连续插补 可视化编辑器</span>
-        <span class="text-[9px] app-text-muted">测试专用 — 编辑路径点后直接发送</span>
+        <span class="text-[9px] app-text-muted">测试专用 — 整条路径使用顶部"全局速度",各段 speed 字段后端已忽略</span>
       </div>
 
       <div class="p-3 space-y-3">
@@ -443,7 +447,7 @@ function toggleParams(key: string): void {
                     {{ ax === 'X' || ax === 'Y' || ax === 'Z' ? '(mm)' : ax === 'U' ? '(°)' : '(圈)' }}
                   </span>
                 </th>
-                <th class="px-2 py-1.5 text-left font-semibold app-text-muted">Speed</th>
+                <th class="px-2 py-1.5 text-left font-semibold app-text-muted opacity-50" title="后端已忽略段速度,所有段使用顶部全局速度">Speed <span class="text-[8px]">(忽略)</span></th>
                 <th class="px-2 py-1.5 w-8"></th>
               </tr>
             </thead>
@@ -567,10 +571,11 @@ function toggleParams(key: string): void {
             JSON.stringify(
               contourMode === 'xy'
                 ? {
-                    path: contourPoints.map(p => ({ x: p.X, y: p.Y, speed: p.speed })),
+                    path: contourPoints.map(p => ({ x: p.X, y: p.Y })),
                     speed: contourSpeed,
                     merge_enable: contourMerge,
                     auto_corner_decel: contourAutoCornerDecel,
+                    auto_small_circle_limit: contourAutoCornerDecel,
                     decel_angle_deg: contourDecelAngle,
                     stop_angle_deg: contourStopAngle,
                     wait_until_done: contourWaitDone,
@@ -581,7 +586,6 @@ function toggleParams(key: string): void {
                     path: contourPoints.map(p => {
                       const pt: Record<string, number> = {}
                       for (const ax of contourAxes) pt[ax.toLowerCase()] = p[ax]
-                      if (p.speed) pt.speed = p.speed
                       return pt
                     }),
                     speed: contourSpeed,
@@ -623,13 +627,12 @@ function toggleParams(key: string): void {
         <span class="text-[10px] transition" :class="collapsed[group.name] ? 'rotate-0' : 'rotate-90'">▶</span>
         {{ group.name }}
         <span class="ml-auto text-[10px] font-normal opacity-40">{{ group.apis.length }} APIs</span>
-        <button
-          type="button"
-          class="ml-1 rounded border border-blue-500/30 px-1.5 py-0.5 text-[9px] text-blue-500 hover:bg-blue-500/10"
+        <span
+          class="ml-1 inline-block cursor-pointer rounded border border-blue-500/30 px-1.5 py-0.5 text-[9px] text-blue-500 hover:bg-blue-500/10"
           @click.stop="batchExec(group.apis)"
         >
           全部
-        </button>
+        </span>
       </button>
 
       <!-- api rows -->

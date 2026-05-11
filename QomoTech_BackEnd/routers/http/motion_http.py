@@ -150,13 +150,17 @@ class 二轴先动和三轴联动请求模型(BaseModel):
 
 
 class XY连续插补请求模型(BaseModel):
-    """连续插补 XY —— 路径点为 dict / list 任一形式。"""
+    """连续插补 XY —— 路径点为 dict / list 任一形式。
 
-    path: List[Any] = Field(..., description="路径点列表（dict 或 list）")
-    speed: Optional[float] = Field(default=None, gt=0)
+    注:整条路径使用单一 speed,路径点中的 speed 字段会被后端忽略
+    (向前兼容老前端,但实际生效的只有顶层 speed)。
+    """
+
+    path: List[Any] = Field(..., description="路径点列表（dict 或 list，speed 字段已忽略）")
+    speed: Optional[float] = Field(default=None, gt=0, description="整条路径统一速度(None=用 motion_config.speed)")
     merge_enable: bool = Field(True)
-    auto_corner_decel: bool = Field(False)
-    auto_small_circle_limit: bool = Field(False)
+    auto_corner_decel: bool = Field(True)
+    auto_small_circle_limit: bool = Field(True)
     auto_corner_angle: bool = Field(False)
     decel_angle_deg: float = Field(15.0, gt=0, le=181, description="开始减速的拐角阈值(度)")
     stop_angle_deg: float = Field(45.0, gt=0, le=181, description="强制停止的拐角阈值(度)")
@@ -166,13 +170,16 @@ class XY连续插补请求模型(BaseModel):
 
 
 class ContourMultiRequest(BaseModel):
-    """通用连续插补 —— 任意轴名集合。"""
+    """通用连续插补 —— 任意轴名集合。
+
+    注:整条路径使用单一 speed,路径点中的 speed 字段会被后端忽略。
+    """
 
     axes: List[str] = Field(..., min_length=1)
-    path: List[Any] = Field(..., description="路径点列表")
-    speed: Optional[float] = Field(default=None, gt=0)
-    merge_enable: bool = Field(False)
-    auto_corner_decel: bool = Field(False)
+    path: List[Any] = Field(..., description="路径点列表（speed 字段已忽略）")
+    speed: Optional[float] = Field(default=None, gt=0, description="整条路径统一速度")
+    merge_enable: bool = Field(True)
+    auto_corner_decel: bool = Field(True)
     decel_angle_deg: float = Field(15.0, gt=0, le=181)
     stop_angle_deg: float = Field(45.0, gt=0, le=181)
     wait_until_done: bool = Field(True)
@@ -539,12 +546,15 @@ async def 连续插补XY(req: XY连续插补请求模型):
 
 @路由.post("/move/contour", summary="通用多轴连续插补")
 async def 连续插补运动(req: ContourMultiRequest):
+    # 字段名对齐 adapter 签名:decel_angle_deg → first_corner_angle_deg、
+    # stop_angle_deg → end_corner_angle_deg(原有透传字段名不一致的 bug)
     kwargs: Dict[str, Any] = {
         "default_speed": req.speed,
         "merge_enable": req.merge_enable,
         "auto_corner_decel": req.auto_corner_decel,
-        "decel_angle_deg": req.decel_angle_deg,
-        "stop_angle_deg": req.stop_angle_deg,
+        "auto_small_circle_limit": True,                 # 默认开启小圆限速
+        "first_corner_angle_deg": req.decel_angle_deg,
+        "end_corner_angle_deg": req.stop_angle_deg,
         "wait_until_done": req.wait_until_done,
         "done_timeout_s": req.done_timeout_s,
     }

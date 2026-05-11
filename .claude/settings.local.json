@@ -18,7 +18,9 @@
       "Bash(python *)",
       "Bash(Get-ChildItem *)",
       "Bash(npx vue-tsc *)",
-      "Bash(awk 'NR==94,NR==497 {next} {print}' \"D:\\\\Qomo\\\\QomoTech\\\\QomoTech_FrontEnd\\\\src\\\\renderer\\\\src\\\\stores\\\\qomo5pEditor.ts\")"
+      "Bash(awk 'NR==94,NR==497 {next} {print}' \"D:\\\\Qomo\\\\QomoTech\\\\QomoTech_FrontEnd\\\\src\\\\renderer\\\\src\\\\stores\\\\qomo5pEditor.ts\")",
+      "WebFetch(domain:www.zmotion.com.cn)",
+      "WebFetch(domain:blog.csdn.net)"
     ]
   },
   "skipWebFetchPreflight": true
