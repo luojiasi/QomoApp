@@ -41,11 +41,11 @@ from utils.logger import 获取日志记录器
 # ==================================================================
 
 
-class CameraConnectRequest(BaseModel):
+class 相机连接请求模型(BaseModel):
     index: int = Field(default=0, ge=0)
 
 
-class CameraExposureRequest(BaseModel):
+class 相机曝光请求模型(BaseModel):
     auto_exposure: Optional[bool] = None
     exposure_time: Optional[int] = Field(default=None, ge=0)
 
@@ -56,7 +56,7 @@ class CameraExposureRequest(BaseModel):
         return self
 
 
-class CameraFrameSpeedRequest(BaseModel):
+class 相机帧率挡位请求模型(BaseModel):
     speed_level: Optional[Literal[0, 1, 2, 3]] = None
     auto_tune: bool = True
     tune: Optional[float] = Field(default=None, ge=0.0, le=1.0)
@@ -68,7 +68,7 @@ class CameraFrameSpeedRequest(BaseModel):
         return self
 
 
-class CameraMirrorRequest(BaseModel):
+class 相机镜像请求模型(BaseModel):
     horizontal: Optional[bool] = None
     vertical: Optional[bool] = None
 
@@ -79,7 +79,7 @@ class CameraMirrorRequest(BaseModel):
         return self
 
 
-class CameraWhiteBalanceRequest(BaseModel):
+class 相机白平衡请求模型(BaseModel):
     auto_white_balance: Optional[bool] = None
     once: bool = False
     r_gain: Optional[int] = Field(default=None, ge=0)
@@ -103,7 +103,7 @@ class CameraWhiteBalanceRequest(BaseModel):
         return self
 
 
-class CameraBootstrapSettingsRequest(BaseModel):
+class 相机首次连接引导参数请求模型(BaseModel):
     auto_exposure: Optional[bool] = None
     exposure_time: Optional[int] = Field(default=None, ge=0)
     speed_level: Optional[Literal[0, 1, 2, 3]] = None
@@ -191,7 +191,7 @@ async def 枚举设备():
 
 
 @路由.post("/connect", summary="连接相机")
-async def 连接相机(req: CameraConnectRequest):
+async def 连接相机(req: 相机连接请求模型):
     svc = _service()
     try:
         info = await svc.连接(req.index)
@@ -235,7 +235,7 @@ async def 相机状态():
 
 
 @路由.post("/bootstrap-settings", summary="缓存首次连接的引导参数")
-async def 设置引导参数(req: CameraBootstrapSettingsRequest):
+async def 设置引导参数(req: 相机首次连接引导参数请求模型):
     payload = req.model_dump(exclude_none=True)
     if not payload:
         raise HTTPException(
@@ -283,7 +283,7 @@ async def 取帧(
 
 
 @路由.post("/params/exposure", summary="设置曝光参数")
-async def 设置曝光(req: CameraExposureRequest):
+async def 设置曝光(req: 相机曝光请求模型):
     try:
         await _service().设置曝光(
             auto_exposure=req.auto_exposure,
@@ -295,7 +295,7 @@ async def 设置曝光(req: CameraExposureRequest):
 
 
 @路由.post("/params/frame-speed", summary="设置帧率参数")
-async def 设置帧率(req: CameraFrameSpeedRequest):
+async def 设置帧率(req: 相机帧率挡位请求模型):
     try:
         await _service().设置帧率(
             speed_level=req.speed_level,
@@ -308,7 +308,7 @@ async def 设置帧率(req: CameraFrameSpeedRequest):
 
 
 @路由.post("/params/mirror", summary="设置镜像")
-async def 设置镜像(req: CameraMirrorRequest):
+async def 设置镜像(req: 相机镜像请求模型):
     try:
         await _service().设置镜像(
             horizontal=req.horizontal, vertical=req.vertical,
@@ -319,7 +319,7 @@ async def 设置镜像(req: CameraMirrorRequest):
 
 
 @路由.post("/params/white-balance", summary="设置白平衡")
-async def 设置白平衡(req: CameraWhiteBalanceRequest):
+async def 设置白平衡(req: 相机白平衡请求模型):
     try:
         await _service().设置白平衡(
             auto_white_balance=req.auto_white_balance,

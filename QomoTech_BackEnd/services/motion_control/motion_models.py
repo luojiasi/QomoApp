@@ -81,6 +81,8 @@ class 状态快照:
 
     状态: 运动状态
     轴: Dict[str, 轴快照] = field(default_factory=dict)
+    io入: Dict[int, bool] = field(default_factory=dict)
+    io出: Dict[int, bool] = field(default_factory=dict)
     时间戳: float = field(default_factory=time.time)
     错误消息: Optional[str] = None
 
@@ -93,6 +95,8 @@ class 状态快照:
             "alarms": {名: ax.报警码 for 名, ax in self.轴.items()},
             "enabled": {名: ax.使能 for 名, ax in self.轴.items()},
             "axes": [ax.to_dict() for ax in self.轴.values()],
+            "io_in": {str(k): v for k, v in self.io入.items()},
+            "io_out": {str(k): v for k, v in self.io出.items()},
             "timestamp": self.时间戳,
             "error": self.错误消息,
         }

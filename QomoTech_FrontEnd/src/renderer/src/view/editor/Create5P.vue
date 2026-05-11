@@ -1180,8 +1180,8 @@ import {
   type QomoArcSurfacesEntity,
   type QomoBezierSurfacesEntity,
   type QomoEntityWithSurface
-} from '@renderer/types/Qomo5P'
-import { useQomo5PStore } from '../stores/qomo5pEditor'
+} from '../../types/Qomo5P'
+import { useQomo5PStore } from '../../stores/qomo5pEditor'
 import { storeToRefs } from 'pinia'
 import type { DiamondDetailParameters } from '@renderer/types/diamondTypes'
 import { diamondQuickAddConfigs } from '@renderer/configs/diamondConfigs'

@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import SvgIcon from '../components/ui/SvgIcon.vue'
-import RecipeDetailFieldPanel from '../features/recipe/RecipeDetailFieldPanel.vue'
-import RecipeLibrarySection from '../features/recipe/RecipeLibrarySection.vue'
-import RecipeEditorCard from '../features/recipe/RecipeEditorCard.vue'
-import RecipeTopologyDiagram from '../features/recipe/RecipeTopologyDiagram.vue'
+import SvgIcon from '../../components/ui/SvgIcon.vue'
+import RecipeDetailFieldPanel from '../../features/recipe/RecipeDetailFieldPanel.vue'
+import RecipeLibrarySection from '../../features/recipe/RecipeLibrarySection.vue'
+import RecipeEditorCard from '../../features/recipe/RecipeEditorCard.vue'
+import RecipeTopologyDiagram from '../../features/recipe/RecipeTopologyDiagram.vue'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { useRecipeManagementPage } from '../composables/useSettingsPages'
-import { useNotification } from '../composables/useNotification'
-import { useRecipeSettingsStore } from '../stores/recipeSettingsStore'
+import { useRecipeManagementPage } from '../../composables/useSettingsPages'
+import { useNotification } from '../../composables/useNotification'
+import { useRecipeSettingsStore } from '../../stores/recipeSettingsStore'
 import type {
   LaserPowerRecipe,
   LaserTransmissionMode,
@@ -15,8 +15,8 @@ import type {
   ProcessFormulaRecipe,
   RecipeStatus,
   VerticalProcessFormulaRecipe
-} from '../types/settings'
-import { cloneSettings, formatSettingValue } from '../utils/settings'
+} from '../../types/settings'
+import { cloneSettings, formatSettingValue } from '../../utils/settings'
 
 type ChildRecipeType = 'blackening' | 'machining'
 type EditorPanel =

@@ -2,9 +2,9 @@
 import { onMounted, ref,onUnmounted} from 'vue'
 import { useRouter } from 'vue-router'
 import { useNotification } from '@/composables/useNotification'
-import { useAuthStore } from '../stores/auth'
-import { useLicenseStore } from '../stores/license'
-import { subscribeGlobalKeyboard } from '../utils/globalKeyboard'
+import { useAuthStore } from '../../stores/auth'
+import { useLicenseStore } from '../../stores/license'
+import { subscribeGlobalKeyboard } from '../../utils/globalKeyboard'
 
 const unsubscribeKeyboard = subscribeGlobalKeyboard((e) => {
   if (e.repeat) return

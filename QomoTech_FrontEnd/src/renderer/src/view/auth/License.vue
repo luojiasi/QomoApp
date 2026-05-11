@@ -2,7 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useNotification } from '@/composables/useNotification'
-import { useLicenseStore } from '../stores/license'
+import { useLicenseStore } from '../../stores/license'
 
 const router = useRouter()
 const licenseStore = useLicenseStore()

@@ -25,10 +25,11 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Sequence
 
-from fastapi import APIRouter, HTTPException, Path, Query, status
+from fastapi import APIRouter, HTTPException, Path, Query, Request, status
 from pydantic import BaseModel, Field
 
 from services.MotionService import MotionService
+from services.motion_control.config_persistence import 保存到文件, 从文件加载
 from services.motion_control.safe_controller import SafetyViolation
 from services.motion_control.zmc_adapter import ZMCError
 from utils.logger import 获取日志记录器
@@ -43,7 +44,7 @@ from utils.logger import 获取日志记录器
 # ==================================================================
 
 
-class ConnectRequest(BaseModel):
+class 连接设备请求模型(BaseModel):
     ip: Optional[str] = Field(
         default=None,
         examples=["192.168.0.11"],
@@ -51,13 +52,13 @@ class ConnectRequest(BaseModel):
     )
 
 
-class HomeRequest(BaseModel):
+class 回零请求模型(BaseModel):
     axes: Optional[List[str]] = Field(
         default=None, description="要回零的轴名，不填则全轴"
     )
 
 
-class JogRequest(BaseModel):
+class 点动请求模型(BaseModel):
     axis: str = Field(..., examples=["X"], description="轴名 X/Y/Z/U/R")
     direction: int = Field(..., ge=-1, le=1, description="方向：1=正向，-1=负向")
     speed: Optional[float] = Field(
@@ -65,30 +66,30 @@ class JogRequest(BaseModel):
     )
 
 
-class JogStopRequest(BaseModel):
+class 点动暂停请求模型(BaseModel):
     axis: str = Field(..., examples=["X"])
 
 
-class AxisMoveRequest(BaseModel):
+class 轴运动请求模型(BaseModel):
     axis: str = Field(..., description="轴名")
     position: float = Field(..., description="目标位置")
     speed: Optional[float] = Field(default=None, gt=0)
 
 
-class AxisMoveWithSpeedRequest(BaseModel):
+class 轴运动带速度请求模型(BaseModel):
     axis: str = Field(..., description="轴名")
     position: float = Field(..., description="目标绝对位置")
     speed: float = Field(..., gt=0, description="本次运动速度（必填）")
 
 
-class LinearMoveRequest(BaseModel):
+class 直线插补请求模型(BaseModel):
     axes: List[str] = Field(..., description="轴名列表，如 ['X','Y','Z']")
     positions: List[float] = Field(..., description="对应目标位置列表")
     speed: Optional[float] = Field(default=None, gt=0)
     relative: bool = Field(False, description="True=相对位移，False=绝对位置")
 
 
-class CircleMoveRequest(BaseModel):
+class 圆心定圆弧请求模型(BaseModel):
     """圆心定 2 点圆弧。axes 必须是 2 个轴。"""
 
     axes: List[str] = Field(..., examples=[["X", "Y"]])
@@ -101,7 +102,7 @@ class CircleMoveRequest(BaseModel):
     relative: bool = Field(False, description="True=终点为相对偏移；False=绝对坐标")
 
 
-class Circle3PMoveRequest(BaseModel):
+class 三点圆弧请求模型(BaseModel):
     """三点圆弧（起点+中间点+终点）。axes 必须是 2 个轴。"""
 
     axes: List[str] = Field(..., examples=[["X", "Y"]])
@@ -113,7 +114,7 @@ class Circle3PMoveRequest(BaseModel):
     relative: bool = Field(False, description="True=中点/终点为相对偏移")
 
 
-class SpiralMoveRequest(BaseModel):
+class 螺旋插补请求模型(BaseModel):
     """螺旋插补 —— 3 或 4 轴，全部相对运动。"""
 
     axes: List[str] = Field(..., examples=[["X", "Y", "Z"]])
@@ -126,7 +127,7 @@ class SpiralMoveRequest(BaseModel):
     speed: Optional[float] = Field(default=None, gt=0)
 
 
-class FiveAxisLinearRequest(BaseModel):
+class 五轴联动直线请求模型(BaseModel):
     """五轴联动直线。positions 长度必须为 5（X/Y/Z/U/R 顺序）。"""
 
     positions: List[float] = Field(..., min_length=5, max_length=5)
@@ -134,7 +135,7 @@ class FiveAxisLinearRequest(BaseModel):
     relative: bool = Field(False)
 
 
-class ThreePlusTwoRequest(BaseModel):
+class 二轴先动和三轴联动请求模型(BaseModel):
     """3+2 定向加工：U/R 锁定 + XYZ 三轴联动。"""
 
     u_angle: float = Field(..., description="U 轴目标角度")
@@ -148,12 +149,12 @@ class ThreePlusTwoRequest(BaseModel):
     relative_xyz: bool = Field(False, description="True=XYZ 路径为相对位移")
 
 
-class ContourXYRequest(BaseModel):
+class XY连续插补请求模型(BaseModel):
     """连续插补 XY —— 路径点为 dict / list 任一形式。"""
 
     path: List[Any] = Field(..., description="路径点列表（dict 或 list）")
     speed: Optional[float] = Field(default=None, gt=0)
-    merge_enable: bool = Field(False)
+    merge_enable: bool = Field(True)
     auto_corner_decel: bool = Field(False)
     auto_small_circle_limit: bool = Field(False)
     auto_corner_angle: bool = Field(False)
@@ -173,41 +174,41 @@ class ContourMultiRequest(BaseModel):
     done_timeout_s: float = Field(120.0, gt=0)
 
 
-class MergeRequest(BaseModel):
+class 连续轨迹请求模型(BaseModel):
     axis: str = Field(..., examples=["X"], description="主导轴名")
 
 
-class URParamsRequest(BaseModel):
+class UR轴参数请求模型(BaseModel):
     """U/R 参数化旋转 —— 透传业务级参数 dict。"""
 
     params: Dict[str, Any] = Field(..., description="业务参数字典")
 
 
-class UAngleRequest(BaseModel):
+class U轴角度请求模型(BaseModel):
     angle: float = Field(..., description="目标角度（度）")
 
 
-class RContinuousRequest(BaseModel):
+class R轴持续旋转请求模型(BaseModel):
     speed: Optional[float] = Field(default=None, gt=0, description="R 轴持续旋转速度")
 
 
-class IoOutputRequest(BaseModel):
+class IO值请求模型(BaseModel):
     io: int = Field(..., ge=0, description="输出口编号")
     value: bool = Field(..., description="True=ON / False=OFF")
 
 
-class AxisParamsRequest(BaseModel):
+class 轴参数请求模型(BaseModel):
     axis: str = Field(..., description="轴名")
     fields: Dict[str, Any] = Field(..., description="参数字段表")
 
 
-class AxisParamsBatchRequest(BaseModel):
+class 批量设置轴参数请求模型(BaseModel):
     """批量设置：{轴名: {字段: 值}}。"""
 
     table: Dict[str, Dict[str, Any]] = Field(..., description="按轴名分组的参数表")
 
 
-class BacklashRequest(BaseModel):
+class 反向间隙请求模型(BaseModel):
     axis: str = Field(..., description="轴名")
     enable: bool = Field(..., description="是否启用反向间隙补偿")
     distance: float = Field(..., description="补偿距离（脉冲）")
@@ -215,17 +216,17 @@ class BacklashRequest(BaseModel):
     accel: Optional[float] = Field(default=None, gt=0)
 
 
-class SoftLimitRequest(BaseModel):
+class 软限位请求模型(BaseModel):
     axis: str = Field(..., description="轴名")
     max: Optional[float] = Field(default=None, description="正限位（不填=不修改）")
     min: Optional[float] = Field(default=None, description="负限位（不填=不修改）")
 
 
-class AxisOnlyRequest(BaseModel):
+class 单个轴名请求模型(BaseModel):
     axis: str = Field(..., description="轴名")
 
 
-class WaitIdleRequest(BaseModel):
+class 等待轴状态请求模型(BaseModel):
     axis: str = Field(..., description="轴名")
     timeout_s: float = Field(100.0, gt=0)
     poll_interval_s: float = Field(0.05, gt=0)
@@ -269,7 +270,7 @@ def _handle_exc(exc: Exception) -> HTTPException:
 
 
 @路由.post("/connect", summary="连接控制器")
-async def 连接(req: ConnectRequest):
+async def 连接(req: 连接设备请求模型):
     try:
         await _service().连接(req.ip)
         return _ok(f"已连接 {req.ip or '配置默认 IP'}")
@@ -362,7 +363,7 @@ async def 取z位置():
 
 
 @路由.post("/home", summary="指定轴回零（不填=全轴）")
-async def 回零(req: HomeRequest):
+async def 回零(req: 回零请求模型):
     try:
         await _service().归位(req.axes)
         return _ok("回零完成")
@@ -371,7 +372,7 @@ async def 回零(req: HomeRequest):
 
 
 @路由.post("/jog", summary="开始点动")
-async def 点动(req: JogRequest):
+async def 点动(req: 点动请求模型):
     try:
         await _service().点动(req.axis, req.direction, req.speed)
         return _ok(f"轴 {req.axis} 点动 dir={req.direction}")
@@ -380,7 +381,7 @@ async def 点动(req: JogRequest):
 
 
 @路由.post("/jog/stop", summary="停止点动")
-async def 停止点动(req: JogStopRequest):
+async def 停止点动(req: 点动暂停请求模型):
     try:
         await _service().停止点动(req.axis)
         return _ok(f"轴 {req.axis} 点动已停止")
@@ -389,7 +390,7 @@ async def 停止点动(req: JogStopRequest):
 
 
 @路由.post("/move/abs", summary="单轴绝对运动")
-async def 绝对运动(req: AxisMoveRequest):
+async def 绝对运动(req: 轴运动请求模型):
     try:
         await _service().绝对运动(req.axis, req.position, req.speed)
         return _ok(f"轴 {req.axis} → {req.position}")
@@ -398,7 +399,7 @@ async def 绝对运动(req: AxisMoveRequest):
 
 
 @路由.post("/move/rel", summary="单轴相对运动")
-async def 相对运动(req: AxisMoveRequest):
+async def 相对运动(req: 轴运动请求模型):
     try:
         await _service().相对运动(req.axis, req.position, req.speed)
         return _ok(f"轴 {req.axis} 相对 {req.position}")
@@ -407,7 +408,7 @@ async def 相对运动(req: AxisMoveRequest):
 
 
 @路由.post("/move/abs-with-speed", summary="单轴绝对运动并临时设速度")
-async def 绝对运动并设速度(req: AxisMoveWithSpeedRequest):
+async def 绝对运动并设速度(req: 轴运动带速度请求模型):
     try:
         await _service().绝对运动并设速度(req.axis, req.position, req.speed)
         return _ok(f"轴 {req.axis} → {req.position} @ {req.speed}")
@@ -421,7 +422,7 @@ async def 绝对运动并设速度(req: AxisMoveWithSpeedRequest):
 
 
 @路由.post("/move/linear", summary="多轴直线插补")
-async def 直线插补(req: LinearMoveRequest):
+async def 直线插补(req: 直线插补请求模型):
     if len(req.axes) != len(req.positions):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -435,7 +436,7 @@ async def 直线插补(req: LinearMoveRequest):
 
 
 @路由.post("/move/circle", summary="圆心定 2 点圆弧")
-async def 圆弧插补(req: CircleMoveRequest):
+async def 圆弧插补(req: 圆心定圆弧请求模型):
     if len(req.axes) != 2:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="圆弧插补必须 2 个轴"
@@ -451,7 +452,7 @@ async def 圆弧插补(req: CircleMoveRequest):
 
 
 @路由.post("/move/circle3p", summary="三点圆弧")
-async def 三点圆弧插补(req: Circle3PMoveRequest):
+async def 三点圆弧插补(req: 三点圆弧请求模型):
     if len(req.axes) != 2:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="圆弧插补必须 2 个轴"
@@ -467,7 +468,7 @@ async def 三点圆弧插补(req: Circle3PMoveRequest):
 
 
 @路由.post("/move/spiral", summary="螺旋插补")
-async def 螺旋插补(req: SpiralMoveRequest):
+async def 螺旋插补(req: 螺旋插补请求模型):
     if len(req.axes) not in (3, 4):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="螺旋插补需要 3 或 4 个轴"
@@ -484,7 +485,7 @@ async def 螺旋插补(req: SpiralMoveRequest):
 
 
 @路由.post("/move/5axis", summary="五轴联动直线插补（X/Y/Z/U/R 顺序）")
-async def 五轴联动直线(req: FiveAxisLinearRequest):
+async def 五轴联动直线(req: 五轴联动直线请求模型):
     try:
         await _service().五轴联动直线(req.positions, req.speed, req.relative)
         return _ok("五轴联动直线已下发")
@@ -493,7 +494,7 @@ async def 五轴联动直线(req: FiveAxisLinearRequest):
 
 
 @路由.post("/move/3p2", summary="3+2 定向加工（U/R 锁定 + XYZ 联动）")
-async def 三加二定向加工(req: ThreePlusTwoRequest):
+async def 三加二定向加工(req: 二轴先动和三轴联动请求模型):
     for idx, 段 in enumerate(req.xyz_path):
         if len(段) != 3:
             raise HTTPException(
@@ -512,7 +513,7 @@ async def 三加二定向加工(req: ThreePlusTwoRequest):
 
 
 @路由.post("/move/contour-xy", summary="连续插补 XY")
-async def 连续插补XY(req: ContourXYRequest):
+async def 连续插补XY(req: XY连续插补请求模型):
     try:
         await _service().连续插补XY(
             路径点=req.path, 速度=req.speed,
@@ -550,7 +551,7 @@ async def 连续插补运动(req: ContourMultiRequest):
 
 
 @路由.post("/merge/enable", summary="启用 MERGE（连续轨迹）")
-async def 启用连续轨迹(req: MergeRequest):
+async def 启用连续轨迹(req: 连续轨迹请求模型):
     try:
         await _service().启用连续轨迹(req.axis)
         return _ok(f"MERGE 已启用（主轴 {req.axis}）")
@@ -559,7 +560,7 @@ async def 启用连续轨迹(req: MergeRequest):
 
 
 @路由.post("/merge/disable", summary="关闭 MERGE")
-async def 关闭连续轨迹(req: MergeRequest):
+async def 关闭连续轨迹(req: 连续轨迹请求模型):
     try:
         await _service().关闭连续轨迹(req.axis)
         return _ok(f"MERGE 已关闭（主轴 {req.axis}）")
@@ -614,7 +615,7 @@ async def 急停():
 
 
 @路由.post("/u/rotate-by-params", summary="U 轴按业务参数旋转角度")
-async def U轴旋转的角度(req: URParamsRequest):
+async def U轴旋转的角度(req: UR轴参数请求模型):
     try:
         return _ok("OK", await _service().U轴旋转的角度(req.params))
     except Exception as exc:
@@ -622,7 +623,7 @@ async def U轴旋转的角度(req: URParamsRequest):
 
 
 @路由.post("/u/rotate-angle", summary="U 轴直接旋转到目标角度")
-async def U轴旋转角度(req: UAngleRequest):
+async def U轴旋转角度(req: U轴角度请求模型):
     try:
         return _ok("OK", await _service().U轴旋转角度(req.angle))
     except Exception as exc:
@@ -641,7 +642,7 @@ async def U轴是否到达旋转角度(
 
 
 @路由.post("/r/rotate-turns", summary="R 轴按业务参数旋转圈数")
-async def R轴旋转的圈数(req: URParamsRequest):
+async def R轴旋转的圈数(req: UR轴参数请求模型):
     try:
         return _ok("OK", await _service().R轴旋转的圈数(req.params))
     except Exception as exc:
@@ -649,7 +650,7 @@ async def R轴旋转的圈数(req: URParamsRequest):
 
 
 @路由.post("/r/rotate-cont", summary="R 轴持续旋转")
-async def R轴一直进行旋转(req: RContinuousRequest):
+async def R轴一直进行旋转(req: R轴持续旋转请求模型):
     try:
         return _ok("OK", await _service().R轴一直进行旋转(req.speed))
     except Exception as exc:
@@ -670,7 +671,7 @@ async def 获取R轴的当前位置():
 
 
 @路由.post("/io/output", summary="设置数字输出")
-async def 设置输出(req: IoOutputRequest):
+async def 设置输出(req: IO值请求模型):
     try:
         await _service().设置输出(req.io, req.value)
         return _ok(f"OUT[{req.io}] = {req.value}")
@@ -730,7 +731,7 @@ async def 批量读_输入(
 
 
 @路由.post("/axis/params", summary="写入单轴参数")
-async def 写入轴参数(req: AxisParamsRequest):
+async def 写入轴参数(req: 轴参数请求模型):
     try:
         await _service().写入轴参数(req.axis, **req.fields)
         return _ok(f"轴 {req.axis} 参数已下发", req.fields)
@@ -739,7 +740,7 @@ async def 写入轴参数(req: AxisParamsRequest):
 
 
 @路由.post("/axis/params/batch", summary="批量写入轴参数")
-async def 批量设置轴参数(req: AxisParamsBatchRequest):
+async def 批量设置轴参数(req: 批量设置轴参数请求模型):
     try:
         await _service().批量设置轴参数(req.table)
         return _ok("批量参数已下发", list(req.table.keys()))
@@ -757,7 +758,7 @@ async def 重新下发所有轴():
 
 
 @路由.post("/axis/backlash", summary="设置反向间隙补偿")
-async def 设置反向间隙(req: BacklashRequest):
+async def 设置反向间隙(req: 反向间隙请求模型):
     try:
         await _service().设置反向间隙(
             req.axis, req.enable, req.distance, req.speed, req.accel,
@@ -768,7 +769,7 @@ async def 设置反向间隙(req: BacklashRequest):
 
 
 @路由.post("/axis/soft-limit", summary="设置软限位（任填一/二）")
-async def 设置软限位(req: SoftLimitRequest):
+async def 设置软限位(req: 软限位请求模型):
     if req.max is None and req.min is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="max/min 至少填一个"
@@ -781,7 +782,7 @@ async def 设置软限位(req: SoftLimitRequest):
 
 
 @路由.post("/axis/clear-error", summary="清除单轴错误")
-async def 清除轴错误(req: AxisOnlyRequest):
+async def 清除轴错误(req: 单个轴名请求模型):
     try:
         await _service().清除轴错误(req.axis)
         return _ok(f"轴 {req.axis} 错误已清除")
@@ -790,7 +791,7 @@ async def 清除轴错误(req: AxisOnlyRequest):
 
 
 @路由.post("/axis/zero", summary="单轴位置清零（DPOS=MPOS=0）")
-async def 轴位置清零(req: AxisOnlyRequest):
+async def 轴位置清零(req: 单个轴名请求模型):
     try:
         await _service().轴位置清零(req.axis)
         return _ok(f"轴 {req.axis} 位置已清零")
@@ -804,7 +805,7 @@ async def 轴位置清零(req: AxisOnlyRequest):
 
 
 @路由.post("/wait-idle", summary="阻塞等待轴静止")
-async def 等待静止(req: WaitIdleRequest):
+async def 等待静止(req: 等待轴状态请求模型):
     try:
         ok = await _service().等待静止(req.axis, req.timeout_s, req.poll_interval_s)
         return _ok("已静止" if ok else "等待超时", ok)
@@ -818,3 +819,25 @@ async def 执行命令(req: CommandRequest):
         return _ok("OK", await _service().执行命令(req.command))
     except Exception as exc:
         raise _handle_exc(exc) from exc
+
+
+# ==================================================================
+# 11. 控制器设置持久化
+# ==================================================================
+
+
+@路由.get("/controller-settings", summary="读取控制器设置文件")
+async def 读取控制器设置():
+    data = 从文件加载()
+    return _ok("OK" if data else "无已保存的设置文件", data)
+
+
+@路由.post("/controller-settings", summary="保存控制器设置到文件并下发驱动器")
+async def 保存控制器设置(req: Request):
+    body = await req.json()
+    保存到文件(body)
+    try:
+        await _service().保存并下发控制器设置(body)
+        return _ok("控制器设置已保存并下发到驱动器")
+    except Exception:
+        return _ok("控制器设置已保存到文件，但下发驱动器失败（控制器可能未连接）")

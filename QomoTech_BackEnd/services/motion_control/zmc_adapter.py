@@ -81,7 +81,7 @@ from utils.logger import 获取日志记录器
 # 业务级 U/R 旋转默认机械参数（沿用 core/zmotion_adapter.py 历史实现）
 _U轴默认_每圈脉冲数 = 10000.0
 _U轴默认_电子齿轮比 = 1.0
-_U轴默认_减速比 = 1.0
+_U轴默认_减速比 = 100.0
 
 _R轴默认_步进角度 = 1.8
 _R轴默认_细分数 = 32.0
@@ -651,6 +651,27 @@ class ZMC适配器:
                         raise ZMCError(名, int(ret), f"axis={轴号}")
         await self._执行(_)
 
+        # 下发成功后同步内存配置，保证 读全部轴状态 返回实际值
+        轴名 = self._配置.axis_no_to_name.get(轴号)
+        if 轴名 is not None:
+            cfg = self._配置.axes[轴名]
+            if units is not None: cfg.units = units
+            if speed is not None: cfg.speed = speed
+            if lspeed is not None: cfg.lspeed = lspeed
+            if accel is not None: cfg.accel = accel
+            if decel is not None: cfg.decel = decel
+            if sramp is not None: cfg.sramp = sramp
+            if atype is not None: cfg.axis_type = atype
+            if merge is not None: cfg.merge = merge
+            if fwd_in is not None and int(fwd_in) >= 0: cfg.fwd_in = fwd_in
+            if rev_in is not None and int(rev_in) >= 0: cfg.rev_in = rev_in
+            # 同步静态缓存（读全部轴状态优先取缓存值）
+            cache = self._静态字段缓存.get(轴号, {})
+            if atype is not None: cache["axis_type"] = atype
+            if merge is not None: cache["merge"] = merge
+            if fwd_in is not None and int(fwd_in) >= 0: cache["fwd_in"] = fwd_in
+            if rev_in is not None and int(rev_in) >= 0: cache["rev_in"] = rev_in
+
     async def 批量设置轴参数(self, 参数表: Dict[int, Dict[str, Any]]) -> None:
         """对应 drivers/zmotion_driver.set_all_axes_params 多轴一次性下发。
 
@@ -1130,6 +1151,24 @@ class ZMC适配器:
                 ))
         return 结果
 
+    def _同步_批量读IO(self) -> tuple[Dict[int, bool], Dict[int, bool]]:
+        """同步版批量读 IO —— 由 status_monitor 线程直接调用。
+
+        与 IO 线程串行：共享同一把 RLock。单点读取失败时该点记为 False 不抛异常。
+        返回 (io_in, io_out) 字典。
+        """
+        if not self._已连接:
+            return {}, {}
+        入: Dict[int, bool] = {}
+        出: Dict[int, bool] = {}
+        with self._锁:
+            for io in range(self._配置.io_count):
+                ret_in, val_in = self._dll.ZAux_Direct_GetIn(io)
+                入[io] = int(val_in.value) != 0 if int(ret_in) == 0 else False
+                ret_out, val_out = self._dll.ZAux_Direct_GetOp(io)
+                出[io] = int(val_out.value) != 0 if int(ret_out) == 0 else False
+        return 入, 出
+
     async def 批量读取(self) -> List[轴读数]:
         """异步版批量读取 —— 一次性读所有配置轴的 DPOS/MPOS/IDLE。"""
         return await self._执行(self._同步_批量读取)
@@ -1549,8 +1588,7 @@ class ZMC适配器:
         r状态 = 状态.get(str(轴_R), {})
         当前工程位移 = float(r状态.get("mpos", 0.0))
         axis_units = float(r状态.get("units", 0.0))
-        if axis_units <= 0:
-            return 0.0
+        if axis_units <= 0: return 0.0
         每圈脉冲数 = (
             (360.0 / _R轴默认_步进角度) * _R轴默认_细分数 * _R轴默认_减速比
         )

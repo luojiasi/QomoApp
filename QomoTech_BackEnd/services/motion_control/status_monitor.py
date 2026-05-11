@@ -125,7 +125,8 @@ class StatusMonitor:
         if not 读数列表:
             return
 
-        快照 = self._构造快照(读数列表)
+        io入, io出 = self._adapter._同步_批量读IO()
+        快照 = self._构造快照(读数列表, io入, io出)
         self._检查完成事件(读数列表)
 
         try:
@@ -137,7 +138,7 @@ class StatusMonitor:
     # 快照构造 / 状态机驱动
     # ------------------------------------------------------------------
 
-    def _构造快照(self, 读数列表: List[轴读数]) -> 状态快照:
+    def _构造快照(self, 读数列表: List[轴读数], io入: Dict[int, bool], io出: Dict[int, bool]) -> 状态快照:
         轴号到名 = self._adapter.配置.axis_no_to_name
         轴字典: Dict[str, 轴快照] = {}
         for 读数 in 读数列表:
@@ -151,7 +152,7 @@ class StatusMonitor:
                 实际位置=读数.实际位置,
                 空闲=读数.空闲,
             )
-        return 状态快照(状态=self._状态机.当前, 轴=轴字典)
+        return 状态快照(状态=self._状态机.当前, 轴=轴字典, io入=io入, io出=io出)
 
     def _检查完成事件(self, 读数列表: List[轴读数]) -> None:
         """全部轴空闲 → 触发状态机 COMPLETE 把 MOVING/HOMING 归位 IDLE。

@@ -2,8 +2,8 @@
 import { computed, onMounted, ref,watch} from 'vue'
 import SvgIcon from '../../components/ui/SvgIcon.vue'
 import { setMotionIoOutput } from '../../api/motion'
-import { zeroMotionAxis,moveMotionAxisRel,getMotionIoInput, getMotionIoOutputsStatus } from '../../api/motion'
-import { waitControllerConnected } from '../../api/hardware'
+import { zeroMotionAxis,moveMotionAxisRel,getMotionIoInput } from '../../api/motion'
+import { useHardwareState, waitControllerConnected } from '../../api/hardware'
 import { useAuxiliaryFunctionPanelStore } from '../../stores/auxiliaryFunctionPanelStore'
 const auxiliaryFunctionPanelStore = useAuxiliaryFunctionPanelStore()
 
@@ -11,6 +11,7 @@ import { useNotification } from '@renderer/composables/useNotification'
 import { useControllerSettingsStore } from '../../stores/controllerSettingsStore'
 const { success, error } = useNotification()
 const controllerStore = useControllerSettingsStore()
+const { ioOut: wsIoOut } = useHardwareState()
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 // 用来等待连接控制器之后执行自动回零
@@ -18,51 +19,20 @@ const waitMotionConnected = async (timeoutMs = 15000, pollMs = 300): Promise<boo
   return waitControllerConnected(timeoutMs, pollMs)
 }
 
-const props = defineProps<{
-  motionIoMap: Array<{ digitalIn: boolean; digitalOut: boolean }>
-}>()
-
-
-const outPut = ref({
-  output0: false,
-  output1: false,
-  output2: false
-})
-watch(() => props.motionIoMap, (ioMap) => {
-  const next = Array.isArray(ioMap) ? ioMap : []
-  outPut.value = {
-    output0: Boolean(next[0]?.digitalOut),
-    output1: Boolean(next[1]?.digitalOut),
-    output2: Boolean(next[2]?.digitalOut)
-  }
-})
-
-const handleSkip = async () => {
-  const result = await getMotionIoOutputsStatus(0, 3)
-  if (!result?.success || !result.data) return
-
-  const outputs = result.data
-  outPut.value = {
-    output0: Boolean(outputs['0']),
-    output1: Boolean(outputs['1']),
-    output2: Boolean(outputs['2'])
-  }
-}
+// IO 输出 0/1/2 状态由 WS 实时驱动
+const ioOut0 = computed(() => Boolean(wsIoOut.value['0']))
+const ioOut1 = computed(() => Boolean(wsIoOut.value['1']))
+const ioOut2 = computed(() => Boolean(wsIoOut.value['2']))
 
 const handleOutput0 = async () => {
-  const result = await setMotionIoOutput(0, !outPut.value.output0)
-  if (!result?.success) return
-  outPut.value.output0 = !outPut.value.output0
+  await setMotionIoOutput(0, !ioOut0.value)
+  // 状态由下一帧 WS 推送确认
 }
 const handleOutput1 = async () => {
-  const result = await setMotionIoOutput(1, !outPut.value.output1)
-  if (!result?.success) return
-  outPut.value.output1 = !outPut.value.output1
+  await setMotionIoOutput(1, !ioOut1.value)
 }
 const handleOutput2 = async () => {
-  const result = await setMotionIoOutput(2, !outPut.value.output2)
-  if (!result?.success) return
-  outPut.value.output2 = !outPut.value.output2
+  await setMotionIoOutput(2, !ioOut2.value)
 }
 
 // 添加回零按钮 同时添加是否启动开机就自动回零
@@ -247,7 +217,7 @@ onMounted(async () => {
       @click="handleOutput0"
       :class="[
         'flex h-12 w-12 items-center justify-center rounded-lg border-2 shadow-sm transition-colors duration-200',
-        Boolean(motionIoMap?.[0]?.digitalOut)
+        ioOut0
           ? 'border-green-500 bg-green-500 text-white shadow-green-900/20'
           : 'border-(--app-border) bg-(--app-card-soft) text-(--app-text-muted) hover:border-sky-400/50 hover:text-(--app-text-secondary)'
       ]"
@@ -260,7 +230,7 @@ onMounted(async () => {
       @click="handleOutput1"
       :class="[
         'flex h-12 w-12 items-center justify-center rounded-lg border-2 shadow-sm transition-colors duration-200',
-        Boolean(motionIoMap?.[1]?.digitalOut)
+        ioOut1
           ? 'border-green-500 bg-green-500 text-white shadow-green-900/20'
           : 'border-(--app-border) bg-(--app-card-soft) text-(--app-text-muted) hover:border-sky-400/50 hover:text-(--app-text-secondary)'
       ]"
@@ -273,21 +243,13 @@ onMounted(async () => {
       @click="handleOutput2"
       :class="[
         'flex h-12 w-12 items-center justify-center rounded-lg border-2 shadow-sm transition-colors duration-200',
-        Boolean(motionIoMap?.[2]?.digitalOut)
+        ioOut2
           ? 'border-green-500 bg-green-500 text-white shadow-green-900/20'
           : 'border-(--app-border) bg-(--app-card-soft) text-(--app-text-muted) hover:border-sky-400/50 hover:text-(--app-text-secondary)'
       ]"
       @keydown.enter.prevent
     >
       <SvgIcon icon-name="icon-Point" class-name="text-2xl" />
-    </button>
-    <button
-      type="button"
-      @click="handleSkip"
-      class="flex h-12 w-12 items-center justify-center rounded-full border border-(--app-border) bg-(--app-card-soft) text-xs font-medium text-(--app-text-secondary) shadow-sm transition-colors hover:bg-slate-100/90 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-white/10"
-      @keydown.enter.prevent
-    >
-      跳过
     </button>
     <button
       type="button"

@@ -23,7 +23,7 @@ from routers.apiresponse import ApiResponse
 路由 = APIRouter(prefix="/api/product4p", tags=["4P 产品"])
 
 
-class CenterRotationRequest(BaseModel):
+class 中心旋转补偿请求模型(BaseModel):
     Xoffset: float = Field(default=0.0)
     Yoffset: float = Field(default=0.0)
     Zoffset: float = Field(default=0.0)
@@ -37,7 +37,7 @@ def 获取中心旋转补偿() -> ApiResponse:
 
 
 @路由.post("/center-rotation", response_model=ApiResponse)
-def 保存中心旋转补偿(payload: CenterRotationRequest) -> ApiResponse:
+def 保存中心旋转补偿(payload: 中心旋转补偿请求模型) -> ApiResponse:
     saved = 保存4P旋转中心的补偿值(
         Product4PCenterRotation(
             Xoffset=payload.Xoffset,

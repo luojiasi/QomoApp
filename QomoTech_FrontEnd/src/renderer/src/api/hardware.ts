@@ -21,6 +21,8 @@ interface MotionStatusSnapshot {
   alarms: Record<string, number>
   enabled: Record<string, boolean>
   axes: AxisSnapshot[]
+  io_in?: Record<string, boolean>
+  io_out?: Record<string, boolean>
   timestamp: number
   error: string | null
 }
@@ -32,6 +34,8 @@ const controllerConnected = ref(false)
 const axes = ref<AxisSnapshot[]>([])
 const position = ref<Record<string, number>>({})
 const mposition = ref<Record<string, number>>({})
+const ioIn = ref<Record<string, boolean>>({})
+const ioOut = ref<Record<string, boolean>>({})
 const wsConnected = ref(false)
 const lastError = ref('')
 const messageCount = ref(0)
@@ -65,6 +69,8 @@ const wsClient = new WsClient({
       position.value = data.position || {}
       mposition.value = data.mposition || {}
       axes.value = data.axes || []
+      ioIn.value = data.io_in || {}
+      ioOut.value = data.io_out || {}
     } catch (e: any) {
       lastError.value = `parse error: ${e?.message ?? String(e)}`
     }
@@ -107,6 +113,8 @@ export function useHardwareState() {
     axes: readonly(axes),
     position: readonly(position),
     mposition: readonly(mposition),
+    ioIn: readonly(ioIn),
+    ioOut: readonly(ioOut),
     cameraConnected: cameraReceiver.connected,
     lastError: readonly(lastError),
     messageCount: readonly(messageCount)

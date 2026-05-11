@@ -17,7 +17,8 @@
       "Bash(npm run *)",
       "Bash(python *)",
       "Bash(Get-ChildItem *)",
-      "Bash(npx vue-tsc *)"
+      "Bash(npx vue-tsc *)",
+      "Bash(awk 'NR==94,NR==497 {next} {print}' \"D:\\\\Qomo\\\\QomoTech\\\\QomoTech_FrontEnd\\\\src\\\\renderer\\\\src\\\\stores\\\\qomo5pEditor.ts\")"
     ]
   },
   "skipWebFetchPreflight": true

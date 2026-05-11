@@ -23,7 +23,7 @@ from routers.apiresponse import ApiResponse
 路由 = APIRouter(prefix="/api", tags=["系统管理"])
 
 
-class LaserApplyRequest(BaseModel):
+class 激光参数下发请求模型(BaseModel):
     laserManufacturer: str | None = None
     laserPower: float | None = None
     laserFrequency: float | None = None
@@ -32,7 +32,7 @@ class LaserApplyRequest(BaseModel):
 
 
 @路由.post("/laser/apply", response_model=ApiResponse)
-def 激光参数下发(payload: LaserApplyRequest) -> ApiResponse:
+def 激光参数下发(payload: 激光参数下发请求模型) -> ApiResponse:
     params = payload.model_dump(exclude_none=True)
     日志.info("激光参数下发: %s", params)
     return ApiResponse(success=True, message="激光参数已下发", data=None)

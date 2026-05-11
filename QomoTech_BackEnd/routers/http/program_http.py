@@ -31,7 +31,7 @@ from utils.logger import 获取日志记录器
 路由 = APIRouter(prefix="/api", tags=["程序运行"])
 
 
-class StartProgramPayload(BaseModel):
+class 开始程序参数请求模型(BaseModel):
     recipe_payload: Dict[str, Any] = Field(
         ..., description="主配方 + 子配方完整 payload",
     )
@@ -43,7 +43,7 @@ class StartProgramPayload(BaseModel):
     )
 
 
-class StartProgramControlPayload(BaseModel):
+class 开始程序控制请求模型(BaseModel):
     action: str = Field(
         ..., pattern=r"^(pause|resume|reset|estop|skip)$",
         description="控制动作：pause / resume / reset / estop / skip",
@@ -61,7 +61,7 @@ def _ok(message: str = "OK", data: Any = None) -> Dict[str, Any]:
 
 @路由.post("/startProgram", summary="启动程序")
 async def start_program(
-    payload: StartProgramPayload,
+    payload: 开始程序参数请求模型,
 ):
     """接收配方 + 实体，启动后台任务执行程序。"""
     if payload.recipe_payload is None or payload.entities is None:
@@ -135,7 +135,7 @@ def _dispatch_program_control(
 
 @路由.post("/startProgram/control", summary="控制程序运行（暂停/继续/复位/急停/跳过）")
 async def program_control(
-    payload: StartProgramControlPayload,
+    payload: 开始程序控制请求模型,
 ):
     result = await asyncio.to_thread(
         _dispatch_program_control, payload.action,

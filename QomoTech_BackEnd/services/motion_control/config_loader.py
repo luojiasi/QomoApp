@@ -23,15 +23,71 @@ from __future__ import annotations
 
 from typing import Iterable
 
-from configs.motion_config import MotionAxisConfig, MotionConfig, motion_config
+from configs.motion_config import MergeParams, MotionAxisConfig, MotionConfig, motion_config
+from services.motion_control.config_persistence import 从文件加载
+from utils.logger import 获取日志记录器
+
+日志 = 获取日志记录器("ConfigLoader")
+
+AXIS_ORDER = ["X", "Y", "Z", "U", "R"]
+
+
+def _从文件数据构建配置(data: dict) -> MotionConfig:
+    """将前端格式的控制器设置 dict 转换成 MotionConfig 实例。"""
+    comm = data.get("communication", {})
+    axes_data = data.get("axes", [])
+    axis_by_no = {a.get("axis_no"): a for a in axes_data if a.get("axis_no") is not None}
+
+    def _make_axis(no: int, name: str) -> MotionAxisConfig:
+        a = axis_by_no.get(no, {})
+        mp = a.get("merge_params", {}) or {}
+        return MotionAxisConfig(
+            axis_no=no,
+            axis_name=a.get("axis_name", name),
+            axis_type=a.get("axis_type", 1),
+            units=a.get("units", 2000),
+            speed=a.get("speed", 20),
+            lspeed=a.get("lspeed", 20),
+            accel=a.get("accel", 500000),
+            decel=a.get("decel", 500000),
+            sramp=a.get("sramp", 200),
+            creep=a.get("creep", 10),
+            merge=a.get("merge", 0),
+            fwd_in=a.get("fwd_in", -1),
+            rev_in=a.get("rev_in", -1),
+            merge_params=MergeParams(
+                corner_mode=mp.get("corner_mode", 0),
+                decel_angle=mp.get("decel_angle", 15.0),
+                stop_angle=mp.get("stop_angle", 45.0),
+                zxmooth=mp.get("zxmooth", 0.0),
+            ),
+        )
+
+    return MotionConfig(
+        controller_model=comm.get("controller_model", "QomoTech406V2"),
+        transport=comm.get("transport", "ethernet"),
+        controller_ip=comm.get("controller_ip", "192.168.0.11"),
+        connect_timeout_s=comm.get("connect_timeout_s", 5.0),
+        enable_axes=comm.get("enable_axes", ["X", "Y", "Z", "U", "R"]),
+        axis_count=comm.get("axis_count", 5),
+        x_axis=_make_axis(0, "X"),
+        y_axis=_make_axis(1, "Y"),
+        z_axis=_make_axis(2, "Z"),
+        u_axis=_make_axis(3, "U"),
+        r_axis=_make_axis(4, "R"),
+    )
 
 
 def 加载运动配置() -> MotionConfig:
-    """返回运动配置单例。
-
-    PR-1 阶段固定返回 configs.motion_config.motion_config；后续若改 JSON / 热更新
-    在此处替换实现，组件层无感知。
-    """
+    """优先从文件加载配置；文件不存在时回退硬编码默认值。"""
+    data = 从文件加载()
+    if data is not None:
+        try:
+            cfg = _从文件数据构建配置(data)
+            日志.info("已从文件加载控制器配置")
+            return cfg
+        except Exception as exc:
+            日志.warning(f"配置文件解析失败，使用默认配置: {exc}")
     return motion_config
 
 

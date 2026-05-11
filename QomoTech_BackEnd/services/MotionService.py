@@ -883,6 +883,43 @@ class MotionService:
         await self._断言adapter().重新下发所有轴()
         日志.info("所有轴配置已重新下发")
 
+    async def 保存并下发控制器设置(self, data: Dict[str, Any]) -> None:
+        """从控制器设置 dict 中提取轴参数并下发到驱动器。
+
+        参数 data 的格式与前端 ControllerParameters 一致：
+          { communication: {...}, axes: [{axis_no, units, speed, ...}, ...] }
+        """
+        映射 = self._配置.axis_no_to_name
+        参数表: Dict[str, Dict[str, Any]] = {}
+        for a in data.get("axes", []):
+            no = a.get("axis_no")
+            if no is None or no not in 映射:
+                continue
+            参数表[映射[no]] = {
+                "units": a.get("units"),
+                "lspeed": a.get("lspeed"),
+                "speed": a.get("speed"),
+                "accel": a.get("accel"),
+                "decel": a.get("decel"),
+                "sramp": a.get("sramp"),
+                "atype": a.get("axis_type"),
+                "merge": a.get("merge"),
+                "fwd_in": a.get("fwd_in"),
+                "rev_in": a.get("rev_in"),
+            }
+        if not 参数表:
+            日志.info("保存控制器设置：无可下发的轴参数")
+            return
+        try:
+            adapter = self._adapter
+            if adapter is None or not adapter.已连接:
+                日志.info("控制器未连接，跳过下发")
+                return
+            await self.批量设置轴参数(参数表)
+            日志.info("控制器设置已保存到文件并下发")
+        except Exception as exc:
+            日志.warning(f"控制器设置已保存到文件，但下发到驱动器失败: {exc}")
+
     async def 设置反向间隙(
         self,
         轴名: str,

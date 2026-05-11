@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref } from 'vue'
-import CameraPic from '../features/camera/cameraPic.vue'
-import { useNotification } from '../composables/useNotification'
-import { CAMERA_SETTINGS_STORAGE_KEY } from '../configs/storageKeys'
-import { useCameraSettingsStore } from '../stores/cameraSettingsStore'
+import CameraPic from '../../features/camera/cameraPic.vue'
+import { useNotification } from '../../composables/useNotification'
+import { CAMERA_SETTINGS_STORAGE_KEY } from '../../configs/storageKeys'
+import { useCameraSettingsStore } from '../../stores/cameraSettingsStore'
 import {
   bootstrapCameraSettings,
   disconnectCamera,
@@ -17,7 +17,7 @@ import {
   setCameraWhiteBalance,
   type CameraDeviceInfo,
   type CameraStatusPayload
-} from '../api/camera/camera'
+} from '../../api/camera/camera'
 
 const { success, error } = useNotification()
 const cameraStore = useCameraSettingsStore()

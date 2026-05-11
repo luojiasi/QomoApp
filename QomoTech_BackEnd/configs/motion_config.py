@@ -68,6 +68,7 @@ class MotionConfig(BaseModel):
     connect_timeout_s: float = Field(default=5.0, gt=0, description="ZAux_OpenEth 连接超时秒数，超时后快速返回 502 避免前端卡死")
     enable_axes: list[str] = ["X", "Y", "Z", "U", "R"]
     axis_count: Literal[3, 5] = 5
+    io_count: int = Field(default=9, ge=1, description="IO 点数（0 到 io_count-1），与前端 IO_MAP_GROUP_COUNT 对齐")
 
     x_axis: MotionAxisConfig = MotionAxisConfig(axis_no=0, axis_name="X")
     y_axis: MotionAxisConfig = MotionAxisConfig(axis_no=1, axis_name="Y")
