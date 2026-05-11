@@ -1,26 +1,50 @@
+import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import { defaultCameraSettings } from '../configs/settings'
-import { CAMERA_SETTINGS_STORAGE_KEY } from '../configs/storageKeys'
-import { LIGHT_SETTINGS_PERSIST_DEBOUNCE_MS } from '../configs/constants'
 import { isCameraSettingsShape, normalizeCameraSettings } from '../utils/cameraValidation'
-import { createPersistedSettings } from './settingsStoreUtils'
+import { cloneSettings } from '../utils/settings'
+import { getCameraSettingsFromFile, saveCameraSettingsToFile } from '../api/camera/camera'
+import type { CameraSettingsState } from '../types/settings'
+import { createSettingsSaveResult } from './settingsStoreUtils'
+import type { SettingsSaveResult } from '../types/settings'
 
 export const useCameraSettingsStore = defineStore('camera-settings', () => {
-  const persisted = createPersistedSettings({
-    storageKey: CAMERA_SETTINGS_STORAGE_KEY,
-    defaultValue: defaultCameraSettings,
-    validate: isCameraSettingsShape,
-    normalize: normalizeCameraSettings,
-    debounceMs: LIGHT_SETTINGS_PERSIST_DEBOUNCE_MS,
-    loadMessage: '已从本地存储加载相机参数。',
-    saveMessage: '相机参数已保存到本地存储。',
-    logTag: 'camera-settings'
-  })
+  const cameraSettings = ref<CameraSettingsState>(
+    normalizeCameraSettings(cloneSettings(defaultCameraSettings))
+  )
+
+  const loadCameraSettings = async (): Promise<SettingsSaveResult<CameraSettingsState>> => {
+    const res = await getCameraSettingsFromFile()
+    if (res?.success && res.data) {
+      const data = res.data as Record<string, unknown>
+      if (isCameraSettingsShape(data)) {
+        cameraSettings.value = cloneSettings(normalizeCameraSettings(data as CameraSettingsState))
+        return createSettingsSaveResult('已从服务端加载相机参数。', cameraSettings.value)
+      }
+    }
+    cameraSettings.value = normalizeCameraSettings(cloneSettings(defaultCameraSettings))
+    return createSettingsSaveResult('使用默认相机参数。', cameraSettings.value)
+  }
+
+  const saveToLocalStorageNow = async (): Promise<SettingsSaveResult<CameraSettingsState>> => {
+    const normalized = normalizeCameraSettings(cameraSettings.value)
+    cameraSettings.value = cloneSettings(normalized)
+    const res = await saveCameraSettingsToFile(normalized as unknown as Record<string, unknown>)
+    if (!res?.success) {
+      console.warn('[camera-settings] 保存到服务端失败', res?.message)
+    }
+    return createSettingsSaveResult('相机参数已保存。', cameraSettings.value)
+  }
+
+  const resetCameraSettings = async (): Promise<SettingsSaveResult<CameraSettingsState>> => {
+    cameraSettings.value = normalizeCameraSettings(cloneSettings(defaultCameraSettings))
+    return createSettingsSaveResult('相机参数已重置为默认值。', cameraSettings.value)
+  }
 
   return {
-    cameraSettings: persisted.state,
-    loadCameraSettings: persisted.load,
-    saveToLocalStorageNow: persisted.saveNow,
-    resetCameraSettings: persisted.reset
+    cameraSettings,
+    loadCameraSettings,
+    saveToLocalStorageNow,
+    resetCameraSettings
   }
 })

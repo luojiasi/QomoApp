@@ -23,6 +23,7 @@ from services.camera_control.CGcamera_adapter import (
     相机适配器,
     设备信息,
 )
+from services.camera_control import camera_persistence
 from utils.logger import 获取日志记录器
 
 日志 = 获取日志记录器("CameraService")
@@ -58,6 +59,7 @@ class CameraService:
         self._adapter: Optional[相机适配器] = None
         self._服务锁 = asyncio.Lock()
         self._引导参数缓存: Dict[str, Any] = {}
+        self._文件加载的设置: Dict[str, Any] = {}
         self._最新快照: 相机快照 = 相机快照.未初始化()
 
     # ==================================================================
@@ -65,10 +67,19 @@ class CameraService:
     # ==================================================================
 
     async def 启动(self) -> None:
-        """初始化相机 SDK + 适配器。"""
+        """初始化相机 SDK + 适配器；从文件加载已保存的设置。"""
         async with self._服务锁:
             if self._状态机.当前 != 相机状态.UNINITIALIZED:
                 return
+
+        # 从文件加载已保存的设置
+        try:
+            文件数据 = camera_persistence.从文件加载()
+            if 文件数据:
+                self._文件加载的设置 = 文件数据
+                日志.info("已从文件加载相机设置")
+        except Exception as exc:
+            日志.warning(f"从文件加载相机设置失败: {exc}")
 
         adapter = 相机适配器()
         try:
@@ -123,13 +134,14 @@ class CameraService:
             self._状态机.触发(相机事件.CONNECT)
             日志.info(f"相机连接成功 index={index}")
 
-            # 连接后若有缓存的引导参数，立即下发
-            if self._引导参数缓存:
+            # 连接后下发设置：优先用引导参数缓存，其次用文件加载的设置
+            待下发 = self._引导参数缓存 or self._文件加载的设置
+            if 待下发:
                 try:
-                    await self._adapter.设置引导参数(self._引导参数缓存)
-                    日志.info(f"引导参数已下发: {self._引导参数缓存}")
+                    await self._adapter.设置引导参数(待下发)
+                    日志.info(f"相机设置已下发: {待下发}")
                 except Exception as exc:
-                    日志.warning(f"引导参数下发失败: {exc}")
+                    日志.warning(f"相机设置下发失败: {exc}")
                 self._引导参数缓存.clear()
 
             self._刷新快照()
@@ -180,6 +192,24 @@ class CameraService:
                 self._引导参数缓存 = dict(settings)
             else:
                 await self._adapter.设置引导参数(settings)
+
+    async def 保存并下发设置(self, data: Dict[str, Any]) -> None:
+        """保存相机设置到文件；若已连接则立即下发到相机。"""
+        # 始终保存到文件
+        camera_persistence.保存到文件(data)
+        self._文件加载的设置 = dict(data)
+        日志.info("相机设置已保存到文件")
+
+        # 已连接时直接下发
+        async with self._服务锁:
+            if self._状态机.当前 != 相机状态.CONNECTED or self._adapter is None:
+                日志.info("相机未连接，跳过下发")
+                return
+            try:
+                await self._adapter.设置引导参数(data)
+                日志.info("相机设置已下发到相机")
+            except Exception as exc:
+                日志.warning(f"相机设置下发失败: {exc}")
 
     async def 设置曝光(
         self,

@@ -158,6 +158,8 @@ class XY连续插补请求模型(BaseModel):
     auto_corner_decel: bool = Field(False)
     auto_small_circle_limit: bool = Field(False)
     auto_corner_angle: bool = Field(False)
+    decel_angle_deg: float = Field(15.0, gt=0, le=181, description="开始减速的拐角阈值(度)")
+    stop_angle_deg: float = Field(45.0, gt=0, le=181, description="强制停止的拐角阈值(度)")
     wait_until_done: bool = Field(True)
     done_timeout_s: float = Field(120.0, gt=0)
     done_poll_interval_s: float = Field(0.02, gt=0)
@@ -170,6 +172,9 @@ class ContourMultiRequest(BaseModel):
     path: List[Any] = Field(..., description="路径点列表")
     speed: Optional[float] = Field(default=None, gt=0)
     merge_enable: bool = Field(False)
+    auto_corner_decel: bool = Field(False)
+    decel_angle_deg: float = Field(15.0, gt=0, le=181)
+    stop_angle_deg: float = Field(45.0, gt=0, le=181)
     wait_until_done: bool = Field(True)
     done_timeout_s: float = Field(120.0, gt=0)
 
@@ -521,6 +526,8 @@ async def 连续插补XY(req: XY连续插补请求模型):
             auto_corner_decel=req.auto_corner_decel,
             auto_small_circle_limit=req.auto_small_circle_limit,
             auto_corner_angle=req.auto_corner_angle,
+            decel_angle_deg=req.decel_angle_deg,
+            stop_angle_deg=req.stop_angle_deg,
             wait_until_done=req.wait_until_done,
             done_timeout_s=req.done_timeout_s,
             done_poll_interval_s=req.done_poll_interval_s,
@@ -533,8 +540,11 @@ async def 连续插补XY(req: XY连续插补请求模型):
 @路由.post("/move/contour", summary="通用多轴连续插补")
 async def 连续插补运动(req: ContourMultiRequest):
     kwargs: Dict[str, Any] = {
-        "速度": req.speed,
+        "default_speed": req.speed,
         "merge_enable": req.merge_enable,
+        "auto_corner_decel": req.auto_corner_decel,
+        "decel_angle_deg": req.decel_angle_deg,
+        "stop_angle_deg": req.stop_angle_deg,
         "wait_until_done": req.wait_until_done,
         "done_timeout_s": req.done_timeout_s,
     }

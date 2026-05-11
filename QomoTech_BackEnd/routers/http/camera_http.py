@@ -23,11 +23,12 @@ from __future__ import annotations
 
 from typing import Any, Dict, Literal, Optional
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, Request, status
 from fastapi.responses import Response
 from pydantic import BaseModel, Field, model_validator
 
 from services.camera_control.CGcamera_adapter import CameraError
+from services.camera_control import camera_persistence
 from services.CameraService import CameraService
 from utils.logger import 获取日志记录器
 
@@ -230,7 +231,7 @@ async def 相机状态():
 
 
 # ==================================================================
-# 2. 引导参数
+# 2. 引导参数 / 持久化
 # ==================================================================
 
 
@@ -247,6 +248,22 @@ async def 设置引导参数(req: 相机首次连接引导参数请求模型):
         return _ok("引导参数已缓存", payload)
     except Exception as exc:
         raise _handle_exc(exc) from exc
+
+
+@路由.get("/settings", summary="读取相机设置文件")
+async def 读取相机设置():
+    data = camera_persistence.从文件加载()
+    return _ok("OK" if data else "无已保存的设置文件", data)
+
+
+@路由.post("/settings", summary="保存相机设置到文件并下发相机")
+async def 保存相机设置(req: Request):
+    body = await req.json()
+    try:
+        await _service().保存并下发设置(body)
+        return _ok("相机设置已保存并下发到相机")
+    except Exception:
+        return _ok("相机设置已保存到文件，但下发失败（相机可能未连接）")
 
 
 # ==================================================================

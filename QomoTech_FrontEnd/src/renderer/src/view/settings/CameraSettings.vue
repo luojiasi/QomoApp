@@ -3,7 +3,6 @@ import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref } from 'vue'
 import CameraPic from '../../features/camera/cameraPic.vue'
 import { useNotification } from '../../composables/useNotification'
-import { CAMERA_SETTINGS_STORAGE_KEY } from '../../configs/storageKeys'
 import { useCameraSettingsStore } from '../../stores/cameraSettingsStore'
 import {
   bootstrapCameraSettings,
@@ -193,9 +192,9 @@ async function handleApplyWhiteBalance(once = false): Promise<void> {
   }
 }
 
-async function handleSaveLocalStorage(): Promise<void> {
+async function handleSaveSettings(): Promise<void> {
   await cameraStore.saveToLocalStorageNow()
-  success('已保存到本地存储', `键名 ${CAMERA_SETTINGS_STORAGE_KEY}`)
+  success('相机参数已保存')
 }
 
 onMounted(async () => {
@@ -217,9 +216,9 @@ onMounted(async () => {
               type="button"
               class="app-card-soft app-text-primary rounded-lg border border-(--app-border) px-3 py-2 text-sm font-medium transition hover:bg-(--app-card)"
               :disabled="busy"
-              @click="handleSaveLocalStorage"
+              @click="handleSaveSettings"
             >
-              保存本地参数
+              保存
             </button>
           <RouterLink
             to="/home"

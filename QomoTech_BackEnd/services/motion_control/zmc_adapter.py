@@ -43,6 +43,7 @@ from __future__ import annotations
 
 import asyncio
 import ctypes
+import math
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -1677,117 +1678,125 @@ class ZMC适配器:
             模式 += 32
 
         with self._锁:
-            self._校验("ZAux_Direct_Base",
-                       self._dll.ZAux_Direct_Base(n, 轴数组), 备注="continuous")
+            self._校验("ZAux_Direct_Base", self._dll.ZAux_Direct_Base(n, 轴数组), 备注="continuous")
+            # 保存原始起跳速度，连续插补期间设为 0 避免段间速度跳变
+            原始Lspeed: Dict[int, float] = {}
             for 轴号 in 轴号列表:
                 cfg = self._配置.axes[self._配置.axis_no_to_name[轴号]]
-                for 名, 值 in (
-                    ("ZAux_Direct_SetUnits", cfg.units),
-                    ("ZAux_Direct_SetLspeed", cfg.lspeed),
-                    ("ZAux_Direct_SetSpeed", cfg.speed),
-                    ("ZAux_Direct_SetAccel", cfg.accel),
-                    ("ZAux_Direct_SetDecel", cfg.decel),
-                    ("ZAux_Direct_SetSramp", cfg.sramp),
-                ):
-                    fn = getattr(self._dll, 名)
-                    self._校验(名, fn(轴号, 值), 备注=f"axis={轴号}")
-
-            self._校验("ZAux_Direct_SetMerge",
-                       self._dll.ZAux_Direct_SetMerge(主轴, 1 if kw["merge_enable"] else 0),
-                       备注=f"axis={主轴}")
-            self._校验("ZAux_Direct_SetCornerMode",
-                       self._dll.ZAux_Direct_SetCornerMode(主轴, 模式),
-                       备注=f"axis={主轴}")
-            self._校验(
-                "ZAux_Direct_SetDecelAngle",
-                self._dll.ZAux_Direct_SetDecelAngle(
-                    主轴, float(kw["first_corner_angle_deg"]) * 3.14 / 180,
-                ),
-                备注=f"axis={主轴}",
-            )
-            self._校验(
-                "ZAux_Direct_SetStopAngle",
-                self._dll.ZAux_Direct_SetStopAngle(
-                    主轴, float(kw["end_corner_angle_deg"]) * 3.14 / 180,
-                ),
-                备注=f"axis={主轴}",
-            )
-            self._校验("ZAux_Direct_SetFullSpRadius",
-                       self._dll.ZAux_Direct_SetFullSpRadius(
-                           主轴, float(kw["small_circle_limit"])),
-                       备注=f"axis={主轴}")
-            self._校验("ZAux_Direct_SetZsmooth",
-                       self._dll.ZAux_Direct_SetZsmooth(
-                           主轴, float(kw["corner_radius"])),
-                       备注=f"axis={主轴}")
-            起点速度 = (
-                float(默认速度 if kw["merge_enable"] else 0.0)
-                if kw["start_move_speed"] is None else float(kw["start_move_speed"])
-            )
-            终点速度 = (
-                float(默认速度 if kw["merge_enable"] else 0.0)
-                if kw["end_move_speed"] is None else float(kw["end_move_speed"])
-            )
-            self._校验("ZAux_Direct_SetStartMoveSpeed",
-                       self._dll.ZAux_Direct_SetStartMoveSpeed(主轴, 起点速度),
-                       备注=f"axis={主轴}")
-            self._校验("ZAux_Direct_SetEndMoveSpeed",
-                       self._dll.ZAux_Direct_SetEndMoveSpeed(主轴, 终点速度),
-                       备注=f"axis={主轴}")
-            self._校验("ZAux_Direct_SetMovemark",
-                       self._dll.ZAux_Direct_SetMovemark(主轴, 0),
-                       备注=f"axis={主轴}")
-            self._校验("ZAux_Trigger", self._dll.ZAux_Trigger())
-
-            # 解析路径点
-            段列表: List[tuple[List[float], float]] = []
-            for idx, 点 in enumerate(路径点):
-                坐标, 段速度 = self._解析连续插补点(点, 轴号列表, 默认速度, idx)
-                段列表.append((坐标, 段速度))
-
-            上次速度: Optional[float] = None
-            已推送 = 0
-            总数 = len(段列表)
-            while 已推送 < 总数:
-                ret_buf, 剩余_val = self._dll.ZAux_Direct_GetRemain_LineBuffer(主轴)
-                剩余 = int(剩余_val.value) if int(ret_buf) == 0 else 4096
-                if 剩余 <= 0:
-                    time.sleep(max(float(kw["sleep_when_buffer_full_s"]), 0.001))
-                    continue
-
-                坐标, 段速度 = 段列表[已推送]
-                if 上次速度 != 段速度:
-                    self._校验("ZAux_Direct_SetForceSpeed",
-                               self._dll.ZAux_Direct_SetForceSpeed(主轴, float(段速度)),
-                               备注=f"axis={主轴}")
-                    上次速度 = 段速度
-                位置数组 = (ctypes.c_float * n)(*坐标)
-                self._校验("ZAux_Direct_MoveAbsSp",
-                           self._dll.ZAux_Direct_MoveAbsSp(n, 轴数组, 位置数组),
-                           备注=f"段={已推送}")
-                已推送 += 1
-
-            if not kw["wait_until_done"]:
-                return
-
-            起始 = time.time()
-            while True:
-                ret_buf, 剩余_val = self._dll.ZAux_Direct_GetRemain_LineBuffer(主轴)
-                剩余 = int(剩余_val.value) if int(ret_buf) == 0 else 4096
-                全部空闲 = True
+                原始Lspeed[轴号] = cfg.lspeed
+            try:
                 for 轴号 in 轴号列表:
-                    ret_idle, idle_val = self._dll.ZAux_Direct_GetIfIdle(轴号)
-                    if int(ret_idle) != 0:
+                    cfg = self._配置.axes[self._配置.axis_no_to_name[轴号]]
+                    for 名, 值 in (
+                        ("ZAux_Direct_SetUnits", cfg.units),
+                        ("ZAux_Direct_SetLspeed", 0.0),
+                        ("ZAux_Direct_SetSpeed", 默认速度),
+                        ("ZAux_Direct_SetAccel", cfg.accel),
+                        ("ZAux_Direct_SetDecel", cfg.decel),
+                        ("ZAux_Direct_SetSramp", cfg.sramp),
+                    ):
+                        fn = getattr(self._dll, 名)
+                        self._校验(名, fn(轴号, 值), 备注=f"axis={轴号}")
+
+                self._校验("ZAux_Direct_SetMerge",
+                           self._dll.ZAux_Direct_SetMerge(主轴, 1 if kw["merge_enable"] else 0),
+                           备注=f"axis={主轴}")
+                self._校验("ZAux_Direct_SetCornerMode",
+                           self._dll.ZAux_Direct_SetCornerMode(主轴, 模式),
+                           备注=f"axis={主轴}")
+                self._校验(
+                    "ZAux_Direct_SetDecelAngle",
+                    self._dll.ZAux_Direct_SetDecelAngle(
+                        主轴, float(kw["first_corner_angle_deg"]) * math.pi / 180,
+                    ),
+                    备注=f"axis={主轴}",
+                )
+                self._校验(
+                    "ZAux_Direct_SetStopAngle",
+                    self._dll.ZAux_Direct_SetStopAngle(
+                        主轴, float(kw["end_corner_angle_deg"]) * math.pi / 180,
+                    ),
+                    备注=f"axis={主轴}",
+                )
+                self._校验("ZAux_Direct_SetFullSpRadius",
+                           self._dll.ZAux_Direct_SetFullSpRadius(
+                               主轴, float(kw["small_circle_limit"])),
+                           备注=f"axis={主轴}")
+                self._校验("ZAux_Direct_SetZsmooth",
+                           self._dll.ZAux_Direct_SetZsmooth(
+                               主轴, float(kw["corner_radius"])),
+                           备注=f"axis={主轴}")
+                起点速度 = (
+                    float(默认速度 if kw["merge_enable"] else 0.0)
+                    if kw["start_move_speed"] is None else float(kw["start_move_speed"])
+                )
+                终点速度 = (
+                    float(默认速度 if kw["merge_enable"] else 0.0)
+                    if kw["end_move_speed"] is None else float(kw["end_move_speed"])
+                )
+                self._校验("ZAux_Direct_SetStartMoveSpeed",
+                           self._dll.ZAux_Direct_SetStartMoveSpeed(主轴, 起点速度),
+                           备注=f"axis={主轴}")
+                self._校验("ZAux_Direct_SetEndMoveSpeed",
+                           self._dll.ZAux_Direct_SetEndMoveSpeed(主轴, 终点速度),
+                           备注=f"axis={主轴}")
+                self._校验("ZAux_Direct_SetMovemark",
+                           self._dll.ZAux_Direct_SetMovemark(主轴, 0),
+                           备注=f"axis={主轴}")
+                self._校验("ZAux_Trigger", self._dll.ZAux_Trigger())
+
+                # 解析路径点
+                段列表: List[tuple[List[float], float]] = []
+                for idx, 点 in enumerate(路径点):
+                    坐标, 段速度 = self._解析连续插补点(点, 轴号列表, 默认速度, idx)
+                    段列表.append((坐标, 段速度))
+
+                上次速度: Optional[float] = None
+                已推送 = 0
+                总数 = len(段列表)
+                while 已推送 < 总数:
+                    ret_buf, 剩余_val = self._dll.ZAux_Direct_GetRemain_LineBuffer(主轴)
+                    剩余 = int(剩余_val.value) if int(ret_buf) == 0 else 4096
+                    if 剩余 <= 0:
+                        time.sleep(max(float(kw["sleep_when_buffer_full_s"]), 0.001))
                         continue
-                    if bool(int(idle_val.value)):
-                        continue
-                    全部空闲 = False
-                    break
-                if 剩余 >= 4094 and 全部空闲:
+
+                    坐标, 段速度 = 段列表[已推送]
+                    if 上次速度 != 段速度:
+                        self._校验("ZAux_Direct_SetForceSpeed",
+                                   self._dll.ZAux_Direct_SetForceSpeed(主轴, float(段速度)),
+                                   备注=f"axis={主轴}")
+                        上次速度 = 段速度
+                    位置数组 = (ctypes.c_float * n)(*坐标)
+                    self._校验("ZAux_Direct_MoveAbsSp",
+                               self._dll.ZAux_Direct_MoveAbsSp(n, 轴数组, 位置数组),
+                               备注=f"段={已推送}")
+                    已推送 += 1
+
+                if not kw["wait_until_done"]:
                     return
-                if time.time() - 起始 > float(kw["done_timeout_s"]):
-                    raise ZMCError("ContinuousInterp", -1, "等待完成超时")
-                time.sleep(max(float(kw["done_poll_interval_s"]), 0.005))
+
+                起始 = time.time()
+                while True:
+                    ret_buf, 剩余_val = self._dll.ZAux_Direct_GetRemain_LineBuffer(主轴)
+                    剩余 = int(剩余_val.value) if int(ret_buf) == 0 else 4096
+                    全部空闲 = True
+                    for 轴号 in 轴号列表:
+                        ret_idle, idle_val = self._dll.ZAux_Direct_GetIfIdle(轴号)
+                        if int(ret_idle) != 0:
+                            continue
+                        if bool(int(idle_val.value)):
+                            continue
+                        全部空闲 = False
+                        break
+                    if 剩余 >= 4094 and 全部空闲:
+                        return
+                    if time.time() - 起始 > float(kw["done_timeout_s"]):
+                        raise ZMCError("ContinuousInterp", -1, "等待完成超时")
+                    time.sleep(max(float(kw["done_poll_interval_s"]), 0.005))
+            finally:
+                for 轴号, 原值 in 原始Lspeed.items():
+                    self._dll.ZAux_Direct_SetLspeed(轴号, 原值)
 
     def _解析连续插补点(
         self,
@@ -1833,6 +1842,8 @@ class ZMC适配器:
         auto_corner_decel: bool = False,
         auto_small_circle_limit: bool = False,
         auto_corner_angle: bool = False,
+        decel_angle_deg: float = 15.0,
+        stop_angle_deg: float = 45.0,
         wait_until_done: bool = True,
         done_timeout_s: float = 120.0,
         done_poll_interval_s: float = 0.02,
@@ -1885,6 +1896,8 @@ class ZMC适配器:
                 auto_corner_decel=auto_corner_decel,
                 auto_small_circle_limit=auto_small_circle_limit,
                 auto_corner_angle=auto_corner_angle,
+                first_corner_angle_deg=decel_angle_deg,
+                end_corner_angle_deg=stop_angle_deg,
                 wait_until_done=wait_until_done,
                 done_timeout_s=done_timeout_s,
                 done_poll_interval_s=done_poll_interval_s,

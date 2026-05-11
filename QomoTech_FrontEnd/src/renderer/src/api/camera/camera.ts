@@ -141,3 +141,15 @@ export const setCameraWhiteBalance = async (
 
 export const getCameraFrameUrl = (timeoutMs = 1000, quality = 90): string =>
   withApiQuery('camera/frame', { timeout_ms: timeoutMs, quality, t: Date.now() })
+
+// ------------------------------------------------------------------
+// 设置持久化（文件）
+// ------------------------------------------------------------------
+
+export const getCameraSettingsFromFile = async (): Promise<ApiCallResult<Record<string, unknown> | null>> =>
+  apiCall('camera/settings', 'GET')
+
+export const saveCameraSettingsToFile = async (
+  payload: Record<string, unknown>
+): Promise<ApiCallResult<Record<string, unknown>>> =>
+  apiCall('camera/settings', 'POST', payload)

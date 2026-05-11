@@ -2,6 +2,120 @@
 import { computed, reactive, ref } from 'vue'
 import { useControllerSettingsStore } from '../../stores/controllerSettingsStore'
 
+// ===========================================================================
+// 连续插补可视化编辑器
+// ===========================================================================
+const ALL_AXES = ['X', 'Y', 'Z', 'U', 'R'] as const
+type AxisName = (typeof ALL_AXES)[number]
+
+interface PathPoint {
+  X: number; Y: number; Z: number; U: number; R: number
+  speed: number
+}
+
+const contourMode = ref<'xy' | 'multi'>('xy')
+const contourAxes = ref<AxisName[]>(['X', 'Y'])
+const contourPoints = ref<PathPoint[]>([
+  { X: 0, Y: 0, Z: 0, U: 0, R: 0, speed: 20 },
+  { X: 10, Y: 10, Z: 0, U: 0, R: 0, speed: 20 },
+])
+const contourSpeed = ref(20)
+const contourMerge = ref(true)
+const contourAutoCornerDecel = ref(false)
+const contourDecelAngle = ref(15)
+const contourStopAngle = ref(45)
+const contourWaitDone = ref(true)
+const contourDoneTimeout = ref(120)
+const contourLoading = ref(false)
+const contourResult = ref<ApiResult>(null)
+
+function toggleContourAxis(ax: AxisName): void {
+  const idx = contourAxes.value.indexOf(ax)
+  if (idx === -1) {
+    if (contourAxes.value.length >= 5) return
+    contourAxes.value = [...contourAxes.value, ax]
+  } else {
+    if (contourAxes.value.length <= 1) return
+    contourAxes.value = contourAxes.value.filter((a) => a !== ax)
+  }
+}
+
+function addContourPoint(): void {
+  const last = contourPoints.value[contourPoints.value.length - 1]
+  contourPoints.value = [...contourPoints.value, { ...last }]
+}
+
+function removeContourPoint(idx: number): void {
+  if (contourPoints.value.length <= 1) return
+  contourPoints.value = contourPoints.value.filter((_, i) => i !== idx)
+}
+
+async function executeContour(): Promise<void> {
+  contourLoading.value = true
+  contourResult.value = null
+  const ts = Date.now()
+
+  let body: any
+  let path: string
+
+  if (contourMode.value === 'xy') {
+    path = '/api/motion/move/contour-xy'
+    body = {
+      path: contourPoints.value.map((p) => ({ x: p.X, y: p.Y, speed: p.speed })),
+      speed: contourSpeed.value,
+      merge_enable: contourMerge.value,
+      auto_corner_decel: contourAutoCornerDecel.value,
+      decel_angle_deg: contourDecelAngle.value,
+      stop_angle_deg: contourStopAngle.value,
+      wait_until_done: contourWaitDone.value,
+      done_timeout_s: contourDoneTimeout.value,
+    }
+  } else {
+    path = '/api/motion/move/contour'
+    const axes = contourAxes.value
+    body = {
+      axes,
+      path: contourPoints.value.map((p) => {
+        const pt: Record<string, number> = {}
+        for (const ax of axes) pt[ax.toLowerCase()] = p[ax]
+        if (p.speed) pt.speed = p.speed
+        return pt
+      }),
+      speed: contourSpeed.value,
+      merge_enable: contourMerge.value,
+      auto_corner_decel: contourAutoCornerDecel.value,
+      decel_angle_deg: contourDecelAngle.value,
+      stop_angle_deg: contourStopAngle.value,
+      wait_until_done: contourWaitDone.value,
+      done_timeout_s: contourDoneTimeout.value,
+    }
+  }
+
+  try {
+    const res = await fetch(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    const text = await res.text()
+    const ok = res.status >= 200 && res.status < 300
+    try {
+      const json = JSON.parse(text)
+      contourResult.value = { ok, text: JSON.stringify(json, null, 2), ts }
+    } catch {
+      contourResult.value = { ok, text, ts }
+    }
+  } catch (e: any) {
+    contourResult.value = { ok: false, text: `Fetch error: ${e?.message ?? String(e)}`, ts }
+  } finally {
+    contourLoading.value = false
+  }
+}
+
+// ===========================================================================
+// API definitions
+// ===========================================================================
+
 interface ApiDef {
   label: string
   method: 'GET' | 'POST'
@@ -275,6 +389,226 @@ function toggleParams(key: string): void {
 
 <template>
   <div class="space-y-2">
+    <!-- ================================================================= -->
+    <!-- 连续插补可视化编辑器 -->
+    <!-- ================================================================= -->
+    <div class="rounded-xl border border-amber-500/30 bg-(--app-card) overflow-hidden">
+      <div class="px-3 py-2 flex items-center gap-2 border-b border-amber-500/20 bg-amber-500/5">
+        <span class="text-xs font-semibold text-amber-600">连续插补 可视化编辑器</span>
+        <span class="text-[9px] app-text-muted">测试专用 — 编辑路径点后直接发送</span>
+      </div>
+
+      <div class="p-3 space-y-3">
+        <!-- 模式 + 轴选择 -->
+        <div class="flex flex-wrap items-center gap-4">
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] app-text-muted">模式:</span>
+            <label class="flex items-center gap-1 text-[10px]">
+              <input type="radio" v-model="contourMode" value="xy" class="accent-amber-500" /> contour-xy
+            </label>
+            <label class="flex items-center gap-1 text-[10px]">
+              <input type="radio" v-model="contourMode" value="multi" class="accent-amber-500" /> contour (多轴)
+            </label>
+          </div>
+          <div v-if="contourMode === 'multi'" class="flex items-center gap-1.5">
+            <span class="text-[10px] app-text-muted">轴:</span>
+            <button
+              v-for="ax in ALL_AXES"
+              :key="ax"
+              type="button"
+              class="rounded border px-1.5 py-0.5 text-[10px] font-medium transition"
+              :class="contourAxes.includes(ax)
+                ? 'border-amber-500/60 bg-amber-500/15 text-amber-600'
+                : 'border-(--app-border) app-text-muted hover:border-amber-500/30'"
+              @click="toggleContourAxis(ax)"
+            >
+              {{ ax }}
+            </button>
+          </div>
+        </div>
+
+        <!-- 路径点表格 -->
+        <div class="overflow-x-auto rounded-lg border border-(--app-border)">
+          <table class="w-full text-[10px] border-collapse">
+            <thead>
+              <tr class="bg-(--app-card-soft)">
+                <th class="px-2 py-1.5 text-left font-semibold app-text-muted w-8">#</th>
+                <th
+                  v-for="ax in (contourMode === 'xy' ? ['X', 'Y'] : contourAxes)"
+                  :key="ax"
+                  class="px-2 py-1.5 text-left font-semibold app-text-muted"
+                >
+                  {{ ax }}
+                  <span class="font-normal opacity-50">
+                    {{ ax === 'X' || ax === 'Y' || ax === 'Z' ? '(mm)' : ax === 'U' ? '(°)' : '(圈)' }}
+                  </span>
+                </th>
+                <th class="px-2 py-1.5 text-left font-semibold app-text-muted">Speed</th>
+                <th class="px-2 py-1.5 w-8"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="(pt, i) in contourPoints"
+                :key="i"
+                class="border-t border-(--app-border)/60 hover:bg-(--app-card-soft)/50"
+              >
+                <td class="px-2 py-1 app-text-muted">{{ i }}</td>
+                <td
+                  v-for="ax in (contourMode === 'xy' ? ['X', 'Y'] : contourAxes)"
+                  :key="ax"
+                  class="px-1 py-1"
+                >
+                  <input
+                    v-model.number="pt[ax]"
+                    type="number"
+                    step="0.01"
+                    class="w-full rounded border border-(--app-border) bg-(--app-input-bg) px-1.5 py-0.5 text-[10px] text-center outline-none ring-amber-500/30 focus:border-amber-500/50 focus:ring-1"
+                  />
+                </td>
+                <td class="px-1 py-1">
+                  <input
+                    v-model.number="pt.speed"
+                    type="number"
+                    step="0.1"
+                    min="0.1"
+                    class="w-16 rounded border border-(--app-border) bg-(--app-input-bg) px-1.5 py-0.5 text-[10px] text-center outline-none ring-amber-500/30 focus:border-amber-500/50 focus:ring-1"
+                  />
+                </td>
+                <td class="px-1 py-1 text-center">
+                  <button
+                    type="button"
+                    class="text-[10px] text-red-400 hover:text-red-300 transition disabled:opacity-20"
+                    :disabled="contourPoints.length <= 1"
+                    @click="removeContourPoint(i)"
+                    title="删除此点"
+                  >
+                    ✕
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 增删点 + 参数 -->
+        <div class="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            class="rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[10px] font-medium text-amber-600 hover:bg-amber-500/20 transition"
+            @click="addContourPoint"
+          >
+            + 添加路径点
+          </button>
+
+          <div class="flex items-center gap-1.5">
+            <label class="text-[10px] app-text-muted">全局速度:</label>
+            <input
+              v-model.number="contourSpeed"
+              type="number" step="0.1" min="0.1"
+              class="w-20 rounded border border-(--app-border) bg-(--app-input-bg) px-1.5 py-0.5 text-[10px] text-center outline-none ring-amber-500/30 focus:border-amber-500/50 focus:ring-1"
+            />
+          </div>
+
+          <label class="flex items-center gap-1 text-[10px] cursor-pointer">
+            <input type="checkbox" v-model="contourMerge" class="accent-amber-500 h-3 w-3" /> MERGE
+          </label>
+
+          <label class="flex items-center gap-1 text-[10px] cursor-pointer">
+            <input type="checkbox" v-model="contourAutoCornerDecel" class="accent-amber-500 h-3 w-3" /> 拐角减速
+          </label>
+
+          <template v-if="contourAutoCornerDecel">
+            <div class="flex items-center gap-1.5">
+              <label class="text-[10px] app-text-muted">减速角°:</label>
+              <input
+                v-model.number="contourDecelAngle"
+                type="number" step="1" min="1" max="180"
+                class="w-14 rounded border border-(--app-border) bg-(--app-input-bg) px-1 py-0.5 text-[10px] text-center outline-none ring-amber-500/30 focus:border-amber-500/50 focus:ring-1"
+              />
+            </div>
+            <div class="flex items-center gap-1.5">
+              <label class="text-[10px] app-text-muted">停止角°:</label>
+              <input
+                v-model.number="contourStopAngle"
+                type="number" step="1" min="1" max="181"
+                class="w-14 rounded border border-(--app-border) bg-(--app-input-bg) px-1 py-0.5 text-[10px] text-center outline-none ring-amber-500/30 focus:border-amber-500/50 focus:ring-1"
+              />
+            </div>
+          </template>
+
+          <label class="flex items-center gap-1 text-[10px] cursor-pointer">
+            <input type="checkbox" v-model="contourWaitDone" class="accent-amber-500 h-3 w-3" /> 等待完成
+          </label>
+
+          <div v-if="contourWaitDone" class="flex items-center gap-1.5">
+            <label class="text-[10px] app-text-muted">超时(s):</label>
+            <input
+              v-model.number="contourDoneTimeout"
+              type="number" step="1" min="1"
+              class="w-16 rounded border border-(--app-border) bg-(--app-input-bg) px-1.5 py-0.5 text-[10px] text-center outline-none ring-amber-500/30 focus:border-amber-500/50 focus:ring-1"
+            />
+          </div>
+
+          <button
+            type="button"
+            class="ml-auto rounded border border-amber-500/60 bg-amber-500/80 px-3 py-1 text-[11px] font-semibold text-white hover:bg-amber-500 transition disabled:opacity-50"
+            :disabled="contourLoading"
+            @click="executeContour"
+          >
+            {{ contourLoading ? '发送中...' : '执行连续插补' }}
+          </button>
+        </div>
+
+        <!-- 实时 JSON 预览 -->
+        <details class="text-[10px]">
+          <summary class="app-text-muted cursor-pointer hover:app-text-secondary">实时 JSON 预览</summary>
+          <pre class="mt-1 rounded-md border border-(--app-border) bg-(--app-input-bg) p-2 text-[10px] font-mono whitespace-pre-wrap break-all max-h-40 overflow-y-auto app-text-primary">{{
+            JSON.stringify(
+              contourMode === 'xy'
+                ? {
+                    path: contourPoints.map(p => ({ x: p.X, y: p.Y, speed: p.speed })),
+                    speed: contourSpeed,
+                    merge_enable: contourMerge,
+                    auto_corner_decel: contourAutoCornerDecel,
+                    decel_angle_deg: contourDecelAngle,
+                    stop_angle_deg: contourStopAngle,
+                    wait_until_done: contourWaitDone,
+                    done_timeout_s: contourDoneTimeout,
+                  }
+                : {
+                    axes: contourAxes,
+                    path: contourPoints.map(p => {
+                      const pt: Record<string, number> = {}
+                      for (const ax of contourAxes) pt[ax.toLowerCase()] = p[ax]
+                      if (p.speed) pt.speed = p.speed
+                      return pt
+                    }),
+                    speed: contourSpeed,
+                    merge_enable: contourMerge,
+                    auto_corner_decel: contourAutoCornerDecel,
+                    decel_angle_deg: contourDecelAngle,
+                    stop_angle_deg: contourStopAngle,
+                    wait_until_done: contourWaitDone,
+                    done_timeout_s: contourDoneTimeout,
+                  },
+              null, 2
+            )
+          }}</pre>
+        </details>
+
+        <!-- 执行结果 -->
+        <div
+          v-if="contourResult"
+          class="rounded-md p-2 text-[10px] font-mono whitespace-pre-wrap break-all max-h-48 overflow-y-auto"
+          :class="contourResult.ok
+            ? 'bg-emerald-950/30 border border-emerald-500/20 text-emerald-300'
+            : 'bg-red-950/30 border border-red-500/20 text-red-300'"
+        >
+          {{ contourResult.text }}
+        </div>
+      </div>
+    </div>
     <div
       v-for="group in groups"
       :key="group.name"

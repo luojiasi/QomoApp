@@ -45,9 +45,9 @@ def get_program_status() -> dict[str, Any]:
 
 def 清除运行输出(controller: SyncMotion) -> None:
     try:
-        controller.stop_axis_motion([0, 1, 2, 3, 4 ,5 ])
-        controller.open_output(0, 0)
-        controller.open_output(2, 0)
+        controller.停止运动([0, 1, 2, 3, 4 ,5 ])
+        controller.设置输出(0, 0)
+        controller.设置输出(2, 0)
     except Exception:
         logger.exception("runtime_cleanup_outputs failed")
 
@@ -71,11 +71,11 @@ def 跳过任务时处理并回到目标Z轴位置(
         except Exception:
             safe_speed = 10.0
         try:
-            move_result = controller.absolute_move_speed({"axis": 2, "moveDistance": float(z_target), "speed": safe_speed})
+            move_result = controller.绝对运动并设速度({"axis": 2, "moveDistance": float(z_target), "speed": safe_speed})
             if move_result and move_result.get("success"):
                 wait_count = 0
                 while wait_count < 2000:
-                    not_moving = controller.get_notIsMoving(2)
+                    not_moving = controller.获取轴是否静止(2)
                     if not_moving.get("success") and not_moving.get("notMoving"):
                         break
                     wait_count += 1
@@ -93,13 +93,13 @@ def 程序请求暂停() -> dict[str, Any]:
             return {"success": False, "message": "当前没有运行中的程序"}
         _program_paused = True
     m = _current_motion_ref
-    if m and m.is_connected():
+    if m and m.是否已连接():
         # 记录暂停前激光状态：仅当暂停前激光已开，恢复时才重开，避免误触发。
-        laser_was_on = bool(m.get_output(2))
+        laser_was_on = bool(m.获取输出(2))
         _laser_resume_required = laser_was_on
         if laser_was_on:
-            m.set_output(2, False)
-        m.emergency_stop_all_axes()
+            m.设置输出布尔值(2, False)
+        m.急停()
     notify_program_status_changed(force=True)
     return {"success": True, "message": "已暂停"}
 
@@ -111,8 +111,8 @@ def 程序请求恢复运行() -> dict[str, Any]:
             return {"success": False, "message": "当前没有运行中的程序"}
         _program_paused = False
     m = _current_motion_ref
-    if m and m.is_connected() and _laser_resume_required:
-        m.set_output(2, True)
+    if m and m.是否已连接() and _laser_resume_required:
+        m.设置输出布尔值(2, True)
         _laser_resume_required = False
     notify_program_status_changed(force=True)
     return {"success": True, "message": "已继续运行"}
@@ -125,10 +125,10 @@ def 程序请求急停() -> dict[str, Any]:
         _program_paused = False
         _laser_resume_required = False
     m = _current_motion_ref
-    if m and m.is_connected():
-        m.set_output(0, False)
-        m.set_output(2, False)
-        m.emergency_stop_all_axes()
+    if m and m.是否已连接():
+        m.设置输出布尔值(0, False)
+        m.设置输出布尔值(2, False)
+        m.急停()
     notify_program_status_changed(force=True)
     return {"success": True, "message": "已急停"}
 
@@ -140,23 +140,28 @@ def 程序请求跳过任务() -> dict[str, Any]:
             return {"success": False, "message": "当前没有运行中的程序"}
         _program_skip_requested = True
     m = _current_motion_ref
-    if m and m.is_connected():
-        m.emergency_stop_all_axes()
+    if m and m.是否已连接():
+        m.急停()
     notify_program_status_changed(force=True)
     return {"success": True, "message": "已请求跳过当前任务"}
 
 
 def 程序请求复位() -> dict[str, Any]:
-    m = _current_motion_ref
-    if not m or not m.is_connected():
+    try:
+        m = SyncMotion()
+    except Exception:
+        return {"success": False, "message": "MotionService 未启动"}
+    if not m.是否已连接():
         return {"success": False, "message": "motion 控制器未连接"}
     failed: list[int] = []
     for axis_no in _ALARM_CLEAR_AXIS_NOS:
-        if not m.clear_axis_error(int(axis_no)):
+        if not m.清除轴错误(int(axis_no)):
             failed.append(int(axis_no))
     if failed:
         return {"success": False, "message": f"部分轴清除报警失败: {failed}"}
-    return {"success": True, "message": "报警已清除"}
+    # 复位状态机（ESTOP/ALARM → IDLE）
+    m.复位()
+    return {"success": True, "message": "报警已清除，状态机已复位"}
 
 
 def _abort_pending() -> bool:
@@ -198,7 +203,7 @@ def 更新程序任务运行进程(
 
 
 def _rebuild_xy_path_from_current(original_points_run: list[dict[str, Any]],controller: SyncMotion,) -> list[dict[str, Any]]:
-    x0, y0 = controller.get_xy_dpos_mm()
+    x0, y0 = controller.取XY实际位置()
 
     conv: list[tuple[float, float]] = []
     for p in original_points_run:
@@ -234,7 +239,7 @@ def _safe_poll_idle(controller: SyncMotion, axis_no: int, timeout_count: int = 2
             time.sleep(0.05)
             continue
         try:
-            result = controller.get_notIsMoving(axis_no)
+            result = controller.获取轴是否静止(axis_no)
             if result.get("success") and result.get("notMoving"):
                 return {"success": True, "notMoving": True}
         except Exception:
@@ -254,8 +259,8 @@ def _safe_poll_xy_idle(controller: SyncMotion, timeout_count: int = 2000, sleep_
             time.sleep(0.05)
             continue
         try:
-            rx = controller.get_notIsMoving(0)
-            ry = controller.get_notIsMoving(1)
+            rx = controller.获取轴是否静止(0)
+            ry = controller.获取轴是否静止(1)
             if rx.get("success") and ry.get("success") and rx.get("notMoving") and ry.get("notMoving"):
                 return {"success": True}
         except Exception:
@@ -321,6 +326,9 @@ def 判断是否都是圆或者圆弧(*, entities: Any) -> bool:
             return False
     return True
 
+def 判断当前图形是否闭合(点位:list[dict[str,Any]],*,误差:float =0.001) -> bool:
+    起始点,结束点 = 点位[0],点位[-1]
+    return ( abs(float(起始点["x"])-float(结束点["x"])) <= 误差 and abs(float(起始点["y"])-float(结束点["y"])) <= 误差)
 
 
 def execute_start_program(*,recipe_payload: dict[str, Any],entities: list[dict[str, Any]],rs232: 串口驱动 | None = None,rs232_open: dict[str, Any] | None = None,) -> dict[str, Any]:
@@ -331,11 +339,14 @@ def execute_start_program(*,recipe_payload: dict[str, Any],entities: list[dict[s
     global _program_total_tasks, _program_current_task_index, _program_current_task_jindubaifenbi
 
     controller = SyncMotion()
-    if not controller.is_connected():
+    if not controller.是否已连接():
         return {"success": False, "message": "motion 控制器未连接", "data": {"connected": False}}
 
     if not _PROGRAM_RUN_LOCK.acquire(blocking=False):
         return {"success": False, "message": "程序正在执行中（重复触发被拒绝）", "data": None}
+
+    # 启动前复位 MotionService 状态机（ESTOP/ALARM → IDLE），确保运动指令不被拦截
+    controller.复位()
 
     try:
         MotionService.获取实例().暂停状态采集()
@@ -376,7 +387,6 @@ def execute_start_program(*,recipe_payload: dict[str, Any],entities: list[dict[s
             # 首先获取实体中的所有type必须都是圆
             判断是否都是圆或者圆弧的结果 = 判断是否都是圆或者圆弧(entities = entities)
 
-            # outcome =  wangFuLoop(originalPointsNum=当前任务索引,recipe_payload=recipe_payload,controller=controller,entities=entities,rs232=rs232,rs232_open=rs232_open)
             # 我的想法是将切割轴进行分类切割，然后进行不同的处理
             # # # 现在只能一个一个切圆
             if 垂直配方中的加工轴 == 'R' and 判断是否都是圆或者圆弧的结果:
@@ -476,374 +486,7 @@ def _ensure_rs232_before_laser(
     rs232.关闭()
     return True
 
-# 暂时弃用方法，因为和xiumianLoop功能重复
-def wangFuLoop(originalPointsNum: int,recipe_payload: dict[str, Any],controller: SyncMotion,entities: list[dict[str, Any]],*,rs232: 串口驱动 | None = None,rs232_open: dict[str, Any] | None = None,) -> bool | str:  # True / False / "skip" / "abort"
-    """
-    这个目的是进行往复运动，而不是到下一个的起始点
-    """
 
-    主配方 = recipe_payload.get("selectedMainRecipe") or {}
-
-    # 子配方对象在前端 payload 中是"数组形式"（例如 selectedBlackeningRecipe: [blackening]）
-    主配方中的扫黑配方 = 在配方中查找ID的配方(recipe_payload.get("selectedBlackeningRecipe"),主配方.get("blackeningRecipeId"),)
-    主配方中的工作配方 = 在配方中查找ID的配方(recipe_payload.get("selectedMachiningRecipe"),主配方.get("machiningRecipeId"),)
-
-    if 主配方中的扫黑配方 is None or 主配方中的工作配方 is None:
-        logger.warning("wangFuLoop: 主配方 -> 子配方查找失败",extra={"mainRecipeId": 主配方.get("id"),"blackeningRecipeId": 主配方.get("blackeningRecipeId"),"machiningRecipeId": 主配方.get("machiningRecipeId"),},)
-        return False
-    # 激光/公式对象在前端 payload 中是数组合并后的结果
-    扫黑配方中的激光配方 = 在配方中查找ID的配方(recipe_payload.get("selectedLaserRecipe"),主配方中的扫黑配方.get("laserPowerRecipeId"),)
-    工作配方中的激光配方 = 在配方中查找ID的配方(recipe_payload.get("selectedLaserRecipe"),主配方中的工作配方.get("laserPowerRecipeId"),)
-
-    工作配方中的水平配方 = 在配方中查找ID的配方(recipe_payload.get("selectedHorizontal"),主配方中的工作配方.get("horizontalFormulaId"))
-    工作配方中的垂直配方 = 在配方中查找ID的配方(recipe_payload.get("selectedVertical"),主配方中的工作配方.get("verticalFormulaId"))
-
-    if ( 扫黑配方中的激光配方 is None or 工作配方中的激光配方 is None or 工作配方中的水平配方 is None or 工作配方中的垂直配方 is None ):
-        logger.warning("wangFuLoop: 子配方 -> 公式/激光查找失败",extra={"blackeningRecipeId": 主配方中的扫黑配方.get("id"),"machiningRecipeId": 主配方中的工作配方.get("id"),},)
-        return False
-
-    扫黑功率 = 扫黑配方中的激光配方.get("laserPower")
-    扫黑频率 = 扫黑配方中的激光配方.get("laserFrequency")
-    扫黑电流 = 扫黑配方中的激光配方.get("laserCurrent")
-
-    工作功率 = 工作配方中的激光配方.get("laserPower")
-    工作频率 = 工作配方中的激光配方.get("laserFrequency")
-    工作电流 = 工作配方中的激光配方.get("laserCurrent")
-
-
-
-    # TODO: 后续根据这些 recipe 对应字段执行真实运动逻辑
-    当前步骤=0
-    是否需要跳转计算下一层开口 = False
-    是否在边缘位置 = True
-    进度百分比 = 0
-    上层量 =0
-    当前开口值 = 0
-    是否是从小到大的开口偏移 = True
-    累计下降量 = 0
-    当前切割次数=0
-    是否打开激光 = False
-
-    高度 = 总下降量 = float(recipe_payload.get('extraHeight')) 
-    变化百分比 = float(工作配方中的垂直配方.get("formula").get("changePercent"))#变化百分比
-    每次开口的偏移量 = float(工作配方中的垂直配方.get("formula").get("xFeed"))#X-FEED
-
-
-    每次下降步长量 = float(工作配方中的垂直配方.get("formula").get("descentCutting").get("speed"))#下降速度
-    每次下降步长量减少量 = float(工作配方中的垂直配方.get("formula").get("descentCutting").get("zFeed"))#Z-FEED
-
-    
-    边缘切割次数 = float(工作配方中的垂直配方.get("formula").get("edgeCutting").get("cutTimes"))#边缘切割次数
-    中间切割次数 = float(工作配方中的垂直配方.get("formula").get("middleCutting").get("cutTimes"))#中间切割次数
-
-    切割速度 = float(工作配方中的垂直配方.get("formula").get("xSpeed"))#X-SPEED
-    边缘切割速度百分比 = float(工作配方中的垂直配方.get("formula").get("edgeCutting").get("speed"))/100#边缘切割速度百分比
-    中间切割速度百分比 = float(工作配方中的垂直配方.get("formula").get("middleCutting").get("speed"))/100#中间切割速度百分比
-
-    是否打开扫黑功能 = bool(主配方中的扫黑配方.get("enabled"))
-    扫黑上台的高度 = float(主配方中的扫黑配方.get("jiaojubuchang"))/1000
-
-    jiaoduK  = float(工作配方中的水平配方.get('formula').get('angleFormula').get('k'))
-    jiaoduB = float(工作配方中的水平配方.get('formula').get('angleFormula').get('b'))
-
-    tana = math.tan(math.radians(jiaoduK))
-
-    下开口K = float(工作配方中的水平配方.get('formula').get('lowerOpeningFormula').get('k'))
-    下开口B = float(工作配方中的水平配方.get('formula').get('lowerOpeningFormula').get('b'))
-
-    深度补偿K = float(工作配方中的水平配方.get('formula').get('depthCompensationFormula').get('k'))
-    深度补偿B = float(工作配方中的水平配方.get('formula').get('depthCompensationFormula').get('b'))
-
-    补偿角度K = float(工作配方中的水平配方.get('formula').get('compensationAngleFormula').get('k'))
-    补偿角度B = float(工作配方中的水平配方.get('formula').get('compensationAngleFormula').get('b'))
-    
-    # 下开口
-    最小的偏移 = 下开口值 = 下开口K * 高度 + 下开口B
-    maxoffset = 上开口值 = 深度补偿K * 1000 * (高度+深度补偿B) * tana + 下开口值
-    # 这个是偏移的最小开口
-    最小的偏移 = 0
-    # 最大的偏移 = 最小的偏移+下开口B
-
-    当前没有偏移的点位 = OffsetEndpointCalculator.calc_xy_points(entities,0)[originalPointsNum]
-    原始点数据_插补数据 = 当前没有偏移的点位.copy()
-    是否需要反转 = False
-    # 如果是封闭的那我isneedReceive就可以不需要翻转
-    是否闭合 = False
-    当前Z轴的位置 = controller.get_z_mpos_mm()
-    while 当前步骤 <= 300:
-        if _skip_requested():
-            清除运行输出(controller)
-            _clear_skip_request()
-            return "skip"
-        if _abort_pending():
-            当前步骤 = 999
-
-        match 当前步骤:
-            case 0:
-                # 获取是否连接上控制器
-                运行结果 = controller.get_status()
-                if  运行结果.get('connected'):
-                    controller.open_output(0, 1)#打开吹风
-                    当前步骤 = 1
-                else:
-                    return False
-            case 1:
-                if 是否打开扫黑功能:
-                    #上抬一定高度进行扫黑
-                    累计下降量 -= 扫黑上台的高度
-                当前步骤 =10
-            case 10:
-                # 移动到起点
-                起始点X = 当前没有偏移的点位[0].get('x')
-                起始点Y = 当前没有偏移的点位[0].get('y')
-                结果X = controller.absolute_move_speed({'axis':0,'moveDistance':起始点X,'speed':切割速度*中间切割速度百分比})
-                结果Y = controller.absolute_move_speed({'axis':1,'moveDistance':起始点Y,'speed':切割速度*中间切割速度百分比})
-                if not 结果X.get('success') or not 结果Y.get('success') or 结果X is None or 结果Y is None:
-                    return False
-                当前步骤 = 20
-            case 20:
-                跳出计数 = 0
-                paused_seen = False
-                while True:
-                    if _abort_pending():
-                        清除运行输出(controller)
-                        return False
-                    if _skip_requested():
-                        清除运行输出(controller)
-                        _clear_skip_request()
-                        return "skip"
-                    if _paused():
-                        paused_seen = True
-                        time.sleep(0.05)
-                        continue
-                    结果X = controller.get_notIsMoving(0)
-                    结果Y = controller.get_notIsMoving(1)
-                    if paused_seen:
-                        当前步骤 = 20
-                        break
-                    if 结果X.get('success') and 结果Y.get('success'):
-                        if 结果X.get('notMoving') and 结果Y.get('notMoving'):
-                            当前步骤 =21
-                            break
-                        else:
-                            if 跳出计数>=2000:
-                                controller.open_output(2, 0)#关闭激光
-                                是否打开激光 = False
-                                return False
-                            跳出计数+=1
-                            time.sleep(0.02)
-            case 21:
-                if 是否打开扫黑功能:
-                    当前步骤 = 31
-                    是否打开激光 = False
-                else:
-                    当前步骤 = 32
-            case 31:
-                # 发送扫黑的的参数
-                if not 是否打开激光:
-                    _ensure_rs232_before_laser(rs232, rs232_open, str(扫黑功率), str(扫黑频率), str(扫黑电流))
-                    controller.open_output(2, 1)  # 打开激光
-                    是否打开激光 = True
-                当前步骤 = 40
-            case 32:
-                if not 是否打开激光:
-                    # 发送正常工作的rs232参数
-                    _ensure_rs232_before_laser(rs232, rs232_open, str(工作功率), str(工作频率), str(工作电流))
-                    controller.open_output(2, 1)  # 打开激光
-                    是否打开激光 = True
-                当前步骤 = 40
-            case 40:
-                # 判断是否超过深度
-                if  累计下降量 <= 总下降量:
-                    当前步骤 = 50
-                else:
-                    当前步骤 = 150 
-            case 50:
-                __depth = -累计下降量 + 当前Z轴的位置
-                运行结果 = controller.absolute_move_speed({'axis':2,'moveDistance':__depth,'speed':切割速度})
-                if 运行结果.get('success') and 运行结果 is not None:
-                    当前步骤 = 51
-                else:
-                    return False
-            case 51:
-                # 判断是否z轴到达位置
-                跳出计数 = 0
-                paused_seen = False
-                目标高度 = -累计下降量 + 当前Z轴的位置
-                while True:
-                    if _abort_pending():
-                        清除运行输出(controller)
-                        return False
-                    if _skip_requested():
-                        清除运行输出(controller)
-                        _clear_skip_request()
-                        return "skip"
-                    if _paused():
-                        paused_seen = True
-                        time.sleep(0.05)
-                        continue
-                    运行结果 = controller.get_notIsMoving(2)
-                    if 运行结果.get('success'):
-                        if paused_seen:
-                            r_z = controller.absolute_move_speed({'axis': 2, 'moveDistance': float(目标高度), 'speed': 切割速度})
-                            if not r_z.get('success'):
-                                return False
-                            paused_seen = False
-                            continue
-                        if 运行结果.get('notMoving'):
-                            当前步骤 = 60
-                            break
-                    if 跳出计数>=50:
-                        return False
-                    跳出计数+=1
-                    time.sleep(0.02)
-
-            case 60:
-                # 连续运动（不下发 wait_until_done，便于暂停/急停时在 case 70 轮询）
-                if 是否在边缘位置:
-                    speed = 切割速度*边缘切割速度百分比
-                else:
-                    speed = 切割速度*中间切割速度百分比
-
-                r_ip = controller.continuous_interpolation_move_adapter(原始点数据_插补数据,speed=speed,wait_until_done=True,)
-                if not r_ip.get('success'):
-                    return False
-                当前步骤 = 70
-            case 70:
-                # 判断是否还在运动（支持暂停后从当前位接续剩余路径）
-                跳出计数 = 0
-                paused_seen = False
-                while True:
-                    if _abort_pending():
-                        清除运行输出(controller)
-                        return False
-                    if _skip_requested():
-                        清除运行输出(controller)
-                        _clear_skip_request()
-                        return "skip"
-                    if _paused():
-                        paused_seen = True
-                        time.sleep(0.05)
-                        continue
-                    结果X = controller.get_notIsMoving(0)
-                    结果Y = controller.get_notIsMoving(1)
-                    if 结果X.get('success') and 结果Y.get('success'):
-                        if paused_seen:
-                            原始点数据_插补数据 = _rebuild_xy_path_from_current(原始点数据_插补数据, controller)
-                            if len(原始点数据_插补数据) < 2:
-                                当前步骤 = 80
-                                break
-                            当前步骤 = 60
-                            break
-                        if 结果X.get('notMoving') and 结果Y.get('notMoving'):
-                            当前步骤 = 80
-                            break
-                        else:
-                            if 跳出计数>=2000:
-                                controller.open_output(2, 0)#关闭激光
-                                return False
-                            跳出计数+=1
-                            time.sleep(0.01)
-            case 80:
-                if 是否在边缘位置 and 当前切割次数 < 边缘切割次数:
-                    # TODO:出现一个问题就是当我切割边缘的时候还是会移动到到起点进行切割
-                    当前切割次数 += 1
-                    当前步骤 = 60
-                else:
-                    当前切割次数 = 0
-                    当前步骤 = 90
-                    if 是否需要跳转计算下一层开口:
-                        是否需要跳转计算下一层开口 = False
-                        当前步骤 = 110
-            case 90:
-                # 计算缩放值
-                if 是否是从小到大的开口偏移:
-                    当前开口值 +=每次开口的偏移量 
-                    是否在边缘位置 = False
-                    是否需要反转 = not 是否需要反转
-                    当前步骤 = 100
-                elif not 是否是从小到大的开口偏移:
-                    当前开口值 -=每次开口的偏移量 
-                    是否在边缘位置 = False
-                    是否需要反转 = not 是否需要反转
-                    当前步骤 = 100
-            case 100:
-                if 当前开口值 > maxoffset/1000 and 是否是从小到大的开口偏移:
-                    当前开口值 = maxoffset/1000
-                    是否在边缘位置 = True
-                    是否是从小到大的开口偏移 = False
-                    是否需要跳转计算下一层开口 = True
-                if 当前开口值 < 最小的偏移/1000 and not 是否是从小到大的开口偏移:
-                    当前开口值 = 最小的偏移/1000
-                    是否在边缘位置 = True
-                    是否是从小到大的开口偏移 = True
-                    是否需要跳转计算下一层开口 = True
-
-                if (当前开口值 <= maxoffset/1000 and 是否是从小到大的开口偏移) or 是否在边缘位置:
-                    是否在边缘位置 =False
-                    当前步骤 = 101
-                elif (当前开口值 >=最小的偏移/1000 and not 是否是从小到大的开口偏移) or 是否在边缘位置:
-                    是否在边缘位置 =False
-                    当前步骤 = 101
-            case 101:
-                # 按当前 当前开口值 计算偏移轨迹；若 是否需要反转 则需反转点序（首点变末点）
-                点位合集 = OffsetEndpointCalculator.calc_xy_points(entities, 当前开口值)
-
-
-                # 判断是否闭合我需要有一些参数比如说他是不是圆,如果是圆则是闭合,如果不是则要判断
-                是否闭合 = True if 点位合集[originalPointsNum][0]['x'] == 点位合集[originalPointsNum][-1]['x'] and 点位合集[originalPointsNum][0]['y'] == 点位合集[originalPointsNum][-1]['y'] else False
-                当前运行点位: list[dict[str, Any]] = list(点位合集[originalPointsNum])
-                if 是否需要反转 and not 是否闭合:
-                    当前运行点位 = list(reversed(当前运行点位))
-                原始点数据_插补数据 = list(当前运行点位)
-                当前步骤 = 60
-            case 110:
-                if 是否打开扫黑功能:
-                    进度百分比 = (累计下降量+扫黑上台的高度)/(高度)*100
-                else:
-                    进度百分比 = 累计下降量/高度*100
-
-                if 进度百分比 > (变化百分比)/2 and 是否打开扫黑功能:
-                    是否打开扫黑功能 = False
-                    controller.open_output(2, 0)#关闭激光
-                    是否打开激光 = False
-                    累计下降量 = 0
-
-
-                当前量 = int(进度百分比 // 变化百分比)
-                delta = 当前量 - 上层量
-                每次下降步长量 -= delta * 每次下降步长量减少量
-                上层量 = 当前量
-                累计下降量 += round(每次下降步长量,6)
-                # 用更新后的累计下降量计算当前百分比（避免显示落后一拍）
-                if 是否打开扫黑功能:
-                    task_jindubaifenbi = (累计下降量 + 扫黑上台的高度) / (高度) * 100
-                else:
-                    task_jindubaifenbi = 累计下降量 / 高度 * 100
-                更新程序任务运行进程(
-                    current_task_jindubaifenbi=task_jindubaifenbi,
-                )
-                # 下降一层计算新开口 = 初始上开口 - tan（角度） *累计下降量um * 2 //单位um
-                newScanLength = 上开口值 - tana * 累计下降量 * 2 * 1000
-                scanLengthChaZhi = (上开口值 - newScanLength)/2
-
-                if 最小的偏移  < maxoffset:
-                    最小的偏移 = round(scanLengthChaZhi, 6)
-                    maxoffset = round(上开口值 - scanLengthChaZhi, 6)
-                else:
-                    当前步骤 = 300
-                    return False
-                当前步骤 = 21
-            case 150 :
-                当前步骤 = 300
-            case 300:
-                controller.stop_axis_motion([0, 1, 2, 3, 4, 5])
-                controller.open_output(0, 0)#关闭吹风
-                controller.open_output(2, 0)#关闭激光
-                当前步骤 = 999
-                if _abort_pending():
-                    return "abort"
-    return True
 # 每条直线切两次
 def 修面和切片的程序(originalPointsNum: int,recipe_payload: dict[str, Any],controller: SyncMotion,entities: list[dict[str, Any]],*,rs232: 串口驱动 | None = None,rs232_open: dict[str, Any] | None = None,) -> bool | str:  # True / False / "skip" / "abort"
     """
@@ -941,9 +584,10 @@ def 修面和切片的程序(originalPointsNum: int,recipe_payload: dict[str, An
     是否需要反转 = False
     当前没有偏移的点位 = OffsetEndpointCalculator.calc_xy_points(entities,0)[originalPointsNum]
     原始点数据_插补数据 = 当前没有偏移的点位.copy()
+    上一轮是否需要闭合 = 判断当前图形是否闭合(原始点数据_插补数据)
 
     焦距补偿 = 工作配方中的水平配方.get('formula').get('focusCompensation')
-    当前Z轴的位置 = controller.get_z_mpos_mm() + float(焦距补偿)
+    当前Z轴的位置 = controller.取Z实际位置() + float(焦距补偿)
     首次目标Z轴位置 =float(当前Z轴的位置) - float(焦距补偿)
     
     # TODO:有个问题就是在且边缘的时候会直接跳过去切
@@ -956,9 +600,9 @@ def 修面和切片的程序(originalPointsNum: int,recipe_payload: dict[str, An
         match 当前步骤:
             case 0:
                 # 判断控制器是否连上
-                运行结果 = controller.get_status()
+                运行结果 = controller.获取状态()
                 if 运行结果.get('connected'):
-                    controller.open_output(0, 1)#打开吹风
+                    controller.设置输出(0, 1)#打开吹风
                     当前步骤 = 10
                 else:
                     当前步骤 = 300
@@ -967,8 +611,8 @@ def 修面和切片的程序(originalPointsNum: int,recipe_payload: dict[str, An
                 起始点X = 当前没有偏移的点位[0].get('x')
                 起始点Y = 当前没有偏移的点位[0].get('y')
                 当前没有偏移的点位 = [{'x': 起始点X, 'y': 起始点Y}]
-                结果X = controller.absolute_move_speed({'axis':0,'moveDistance':起始点X,'speed':切割速度})
-                结果Y = controller.absolute_move_speed({'axis':1,'moveDistance':起始点Y,'speed':切割速度})
+                结果X = controller.绝对运动并设速度({'axis':0,'moveDistance':起始点X,'speed':切割速度})
+                结果Y = controller.绝对运动并设速度({'axis':1,'moveDistance':起始点Y,'speed':切割速度})
                 当前步骤 = 20 if 结果X.get('success') and 结果Y.get('success') and 结果X is not None and 结果Y is not None else 300
             case 20:
                 result = _safe_poll_xy_idle(controller, timeout_count=2000, sleep_s=0.02)
@@ -997,7 +641,7 @@ def 修面和切片的程序(originalPointsNum: int,recipe_payload: dict[str, An
                 当前步骤 = 40
             case 40:
                 if not 是否打开激光:
-                    controller.open_output(2, 1)  # 打开激光
+                    controller.设置输出(2, 1)  # 打开激光
                     是否打开激光 = True
                 当前步骤=50
             case 50:
@@ -1005,7 +649,7 @@ def 修面和切片的程序(originalPointsNum: int,recipe_payload: dict[str, An
                 当前步骤 = 60 if 累计下降量 <= 总下降量 else 300
             case 60:
                 目标高度 = -累计下降量 + 当前Z轴的位置
-                运行结果= controller.absolute_move_speed({'axis':2,'moveDistance':目标高度,'speed':切割速度})
+                运行结果= controller.绝对运动并设速度({'axis':2,'moveDistance':目标高度,'speed':切割速度})
                 当前步骤 = 70 if 运行结果.get('success') and 运行结果 is not None else 300
             case 70:
                 目标高度 = -累计下降量 + 当前Z轴的位置
@@ -1023,7 +667,8 @@ def 修面和切片的程序(originalPointsNum: int,recipe_payload: dict[str, An
                 # 计算偏移并连续运动（暂停后可从当前位重建剩余轨迹）
                 点位合集 = OffsetEndpointCalculator.calc_xy_points(entities, 当前开口值)
                 当前运行点位: list[dict[str, Any]] = list(点位合集[originalPointsNum])
-                是否闭合 = True if abs(当前运行点位[0]['x'] - 当前运行点位[-1]['x']) <= 0.001 and abs(当前运行点位[0]['y'] - 当前运行点位[-1]['y']) <= 0.001 else False
+                是否闭合 = 判断当前图形是否闭合(当前运行点位)
+                上一轮是否需要闭合 = 是否闭合
                 if 是否需要反转 and not 是否闭合:
                     当前运行点位 = list(reversed(当前运行点位))
                 原始点数据_插补数据 = list(当前运行点位)
@@ -1031,15 +676,17 @@ def 修面和切片的程序(originalPointsNum: int,recipe_payload: dict[str, An
                 当前速度百分比 = 边缘切割速度百分比 if 是否在边缘位置 else 中间切割速度百分比
                 目标运行速度 = 切割速度 * 当前速度百分比
 
-                运行结果 = controller.continuous_interpolation_move_adapter(原始点数据_插补数据,speed=目标运行速度,wait_until_done=True)
+                运行结果 = controller.连续插补XY(原始点数据_插补数据,speed=目标运行速度,wait_until_done=True)
                 当前步骤 =81 if 运行结果.get('success') and 运行结果 is not None else 300
             case 81:
                 # 判断是否在边缘
                 if 是否在边缘位置 and (当前切割次数+1)<边缘切割次数:
                     当前切割次数 += 1
+                    if not 上一轮是否需要闭合: 是否需要反转 = not 是否需要反转
                     当前步骤 = 80
                 else:
                     当前切割次数 = 0
+                    if 是否需要跳转计算下一层开口 and not 上一轮是否需要闭合: 是否需要反转 = not 是否需要反转
                     当前步骤 = 82 if not 是否需要跳转计算下一层开口 else 100
             case 82:
                 result = _safe_poll_xy_idle(controller, timeout_count=2000, sleep_s=0.01)
@@ -1057,7 +704,6 @@ def 修面和切片的程序(originalPointsNum: int,recipe_payload: dict[str, An
                 当前开口值是否在范围内 = round(当前开口值,6)>round(最小的偏移/1000,6) and round(当前开口值,6) < round(最大的偏移/1000,6)
                 
                 if 当前开口值是否在范围内:
-                    是否需要反转 = not 是否需要反转
                     是否在边缘位置 = False
 
                 if 最大的偏移/1000 < 当前开口值 and 是否是从小到大的开口偏移 and not 是否需要跳转计算下一层开口:
@@ -1071,7 +717,8 @@ def 修面和切片的程序(originalPointsNum: int,recipe_payload: dict[str, An
                     是否在边缘位置 = True
                     是否是从小到大的开口偏移 = not 是否是从小到大的开口偏移
                     是否需要跳转计算下一层开口 = True
-
+                    
+                if not 上一轮是否需要闭合: 是否需要反转 = not 是否需要反转
                 当前步骤 = 80
 
             case 100:
@@ -1098,7 +745,7 @@ def 修面和切片的程序(originalPointsNum: int,recipe_payload: dict[str, An
                 # 我将其移动到下面是为了防止_depth
                 if 进度百分比 > (变化百分比)/2 and 是否打开扫黑功能:
                     是否打开扫黑功能 = False
-                    controller.open_output(2, 0)#关闭激光
+                    controller.设置输出(2, 0)#关闭激光
                     是否打开激光 = False
                     累计下降量 = 0
 
@@ -1123,7 +770,7 @@ def 修面和切片的程序(originalPointsNum: int,recipe_payload: dict[str, An
                 当前步骤 = 300
             case 300:
                 返回最原始的Z轴焦距位置 = 当前Z轴的位置-float(焦距补偿)
-                controller.absolute_move_speed({'axis':2,'moveDistance':返回最原始的Z轴焦距位置,'speed':切割速度})
+                运行结果 = controller.绝对运动并设速度({'axis':2,'moveDistance':返回最原始的Z轴焦距位置,'speed':切割速度})
                 if 运行结果.get('success') and 运行结果 is not None:
                     当前步骤 = 301
             case 301:
@@ -1132,7 +779,7 @@ def 修面和切片的程序(originalPointsNum: int,recipe_payload: dict[str, An
                 目标位置 = 当前Z轴的位置 - float(焦距补偿)
                 while 跳转计数 < 2000:
                     try:
-                        实际位置 = controller.get_z_mpos_mm()
+                        实际位置 = controller.取Z实际位置()
                         if abs(实际位置 - 目标位置) <= 0.001:
                             当前步骤 = 999
                             break
@@ -1143,9 +790,9 @@ def 修面和切片的程序(originalPointsNum: int,recipe_payload: dict[str, An
                 else:
                     return False
             case 999:
-                controller.stop_axis_motion([0, 1, 2, 3 , 4 , 5])
-                controller.open_output(0, 0)#关闭吹风
-                controller.open_output(2, 0)#关闭激光
+                controller.停止运动([0, 1, 2, 3 , 4 , 5])
+                controller.设置输出(0, 0)#关闭吹风
+                controller.设置输出(2, 0)#关闭激光
                 当前步骤 = 9999
 
     return True
@@ -1244,16 +891,16 @@ def 用旋转轴去切圆(originalPointsNum: int,recipe_payload: dict[str, Any],
     最小的偏移 = 0
 
     焦距补偿 = 工作配方中的水平配方.get("formula").get("focusCompensation")
-    当前Z轴的位置 = controller.get_z_mpos_mm() + float(焦距补偿)
+    当前Z轴的位置 = controller.取Z实际位置() + float(焦距补偿)
     首次目标Z轴位置 = float(当前Z轴的位置) - float(焦距补偿)
     R轴的圈数 = 0
     while 当前步骤<=300:
         match 当前步骤:
             case 0:
                 #判断是否控制器连上
-                是否连上 = controller.get_status()
+                是否连上 = controller.获取状态()
                 if 是否连上.get('connected'):
-                    controller.open_output(0, 1)#打开吹风
+                    controller.设置输出(0, 1)#打开吹风
                     当前步骤 = 10
                 else:
                     当前步骤 = 300
@@ -1261,8 +908,8 @@ def 用旋转轴去切圆(originalPointsNum: int,recipe_payload: dict[str, Any],
                 # 首先移动到圆中心点然后再加半径的位置
                 圆中心点X = 实体列表[当前任务索引].get('center').get('x')+实体列表[当前任务索引].get('radius')
                 圆中心点Y = 实体列表[当前任务索引].get('center').get('y')
-                X移动结果 = controller.absolute_move_speed({'axis':0,'moveDistance':圆中心点X,'speed':10})
-                Y移动结果 = controller.absolute_move_speed({'axis':1,'moveDistance':圆中心点Y,'speed':10})
+                X移动结果 = controller.绝对运动并设速度({'axis':0,'moveDistance':圆中心点X,'speed':10})
+                Y移动结果 = controller.绝对运动并设速度({'axis':1,'moveDistance':圆中心点Y,'speed':10})
                 当前步骤 = 20 if X移动结果.get('success') and Y移动结果.get('success') else 300
             case 20:
                 result = _safe_poll_xy_idle(controller, timeout_count=2000, sleep_s=0.02)
@@ -1292,7 +939,7 @@ def 用旋转轴去切圆(originalPointsNum: int,recipe_payload: dict[str, Any],
             case 40:
                 # 判断是否打开激光
                 if not 是否打开激光:
-                    controller.open_output(2, 1)  # 打开激光
+                    controller.设置输出(2, 1)  # 打开激光
                     是否打开激光 = True
                 当前步骤 = 41
             case 41:
@@ -1305,7 +952,7 @@ def 用旋转轴去切圆(originalPointsNum: int,recipe_payload: dict[str, Any],
             case 60:
                 # 移动Z轴到达位置
                 Z轴目标位置 = -累计下降量 + 当前Z轴的位置
-                Z轴移动结果 = controller.absolute_move_speed({'axis':2,'moveDistance':Z轴目标位置,'speed':切割速度})
+                Z轴移动结果 = controller.绝对运动并设速度({'axis':2,'moveDistance':Z轴目标位置,'speed':切割速度})
                 当前步骤 = 70 if Z轴移动结果.get('success')and Z轴移动结果 is not None else 300
             case 70:
                 result = _safe_poll_idle(controller, axis_no=2, timeout_count=2000, sleep_s=0.02)
@@ -1359,7 +1006,7 @@ def 用旋转轴去切圆(originalPointsNum: int,recipe_payload: dict[str, Any],
                         continue
                     if R轴当前的圈数 is not None and float(R轴当前的圈数) >= (目标圈数 - 0.001):
                         try:
-                            当前X, _ = controller.get_xy_dpos_mm()
+                            当前X, _ = controller.取XY实际位置()
                         except Exception:
                             logger.exception("case 90 获取XY位置异常")
                             return False
@@ -1378,7 +1025,7 @@ def 用旋转轴去切圆(originalPointsNum: int,recipe_payload: dict[str, Any],
                         if 当前开口值是否在范围内:
                             X的目标距离 = 当前X + 每次开口的偏移量 if 是否是从小到大的开口偏移 else 当前X - 每次开口的偏移量
 
-                        X移动结果 = controller.absolute_move_speed({'axis': 0, 'moveDistance': X的目标距离, 'speed': 切割速度})
+                        X移动结果 = controller.绝对运动并设速度({'axis': 0, 'moveDistance': X的目标距离, 'speed': 切割速度})
                         当前步骤 = 100 if X移动结果.get('success') else 300
                         break
 
@@ -1402,7 +1049,7 @@ def 用旋转轴去切圆(originalPointsNum: int,recipe_payload: dict[str, Any],
 
                 if 进度百分比 > 变化百分比/2 and 是否打开扫黑功能:
                     是否打开扫黑功能 = False
-                    controller.open_output(2, 0)#关闭激光
+                    controller.设置输出(2, 0)#关闭激光
                     是否打开激光 = False
                     累计下降量 = 0
 
@@ -1426,9 +1073,9 @@ def 用旋转轴去切圆(originalPointsNum: int,recipe_payload: dict[str, Any],
                 # 结束运动
                 当前步骤 = 300
             case 300:
-                controller.stop_axis_motion([0, 1, 2, 3 , 4 , 5])
-                controller.open_output(0, 0)#关闭吹风
-                controller.open_output(2, 0)#关闭激光
+                controller.停止运动([0, 1, 2, 3 , 4 , 5])
+                controller.设置输出(0, 0)#关闭吹风
+                controller.设置输出(2, 0)#关闭激光
                 # 移动到边缘位置
                 当前步骤 = 999
 
@@ -1544,7 +1191,7 @@ def 进行4P切产品(originalPointsNum: int,recipe_payload: dict[str, Any],cont
 
 
     焦距补偿 = 工作配方中的水平配方.get('formula').get('focusCompensation')
-    Z轴原始初始位置 = controller.get_z_mpos_mm()
+    Z轴原始初始位置 = controller.取Z实际位置()
     首次目标Z轴位置 =float(Z轴原始初始位置)+ float(焦距补偿)
     下降直到可以切产品的高度 = 首次目标Z轴位置 + 下降的高度
 
@@ -1562,9 +1209,9 @@ def 进行4P切产品(originalPointsNum: int,recipe_payload: dict[str, Any],cont
         match 当前步骤:
             case 0:
                 # 判断控制器是否连上
-                运行结果 = controller.get_status()
+                运行结果 = controller.获取状态()
                 if 运行结果.get('connected'):
-                    controller.open_output(0, 1)#打开吹风
+                    controller.设置输出(0, 1)#打开吹风
                     当前步骤 = 10
                 else:
                     当前步骤 = 300
@@ -1572,8 +1219,8 @@ def 进行4P切产品(originalPointsNum: int,recipe_payload: dict[str, Any],cont
                 # 首先移动到起点
                 起始点X = 当前没有偏移的点位[0].get('x')
                 起始点Y = 当前没有偏移的点位[0].get('y')
-                X移动结果 = controller.absolute_move_speed({'axis':0,'moveDistance':起始点X,'speed':切割速度})
-                Y移动结果 = controller.absolute_move_speed({'axis':1,'moveDistance':起始点Y,'speed':切割速度})
+                X移动结果 = controller.绝对运动并设速度({'axis':0,'moveDistance':起始点X,'speed':切割速度})
+                Y移动结果 = controller.绝对运动并设速度({'axis':1,'moveDistance':起始点Y,'speed':切割速度})
                 当前步骤 = 11 if X移动结果.get('success') and Y移动结果.get('success') else 300
             case 11:
                 result = _safe_poll_xy_idle(controller, timeout_count=2000, sleep_s=0.02)
@@ -1634,7 +1281,7 @@ def 进行4P切产品(originalPointsNum: int,recipe_payload: dict[str, Any],cont
                 当前步骤 = 40
             case 40:
                 if not 是否打开激光:
-                    controller.open_output(2, 1)  # 打开激光
+                    controller.设置输出(2, 1)  # 打开激光
                     是否打开激光 = True
                 当前步骤=50
             case 50:
@@ -1642,7 +1289,7 @@ def 进行4P切产品(originalPointsNum: int,recipe_payload: dict[str, Any],cont
                 当前步骤 = 60 if 累计下降量 <= 总下降量 else 300
             case 60:
                 Z轴目标位置 = -累计下降量 + 下降直到可以切产品的高度
-                Z轴移动结果= controller.absolute_move_speed({'axis':2,'moveDistance':Z轴目标位置,'speed':切割速度})
+                Z轴移动结果= controller.绝对运动并设速度({'axis':2,'moveDistance':Z轴目标位置,'speed':切割速度})
                 当前步骤 = 70 if Z轴移动结果.get('success')and Z轴移动结果 is not None else 300
             case 70:
                 目标深度 = -累计下降量 + 下降直到可以切产品的高度
@@ -1662,13 +1309,13 @@ def 进行4P切产品(originalPointsNum: int,recipe_payload: dict[str, Any],cont
                 当前运行点位: list[dict[str, Any]] = list(计算所有实体旋转后偏移的点[originalPointsNum].get("points"))
                 是否闭合 = True if abs(当前运行点位[0]['x'] - 当前运行点位[-1]['x']) <= 0.001 and abs(当前运行点位[0]['y'] - 当前运行点位[-1]['y']) <= 0.001 else False
                 # 判断当前位置是不是第一个点，如果是就需要反转，如果不是，则不需要反转
-                x,y = controller.get_xy_dpos_mm()
+                x,y = controller.取XY实际位置()
                 是否需要反转点位 = abs(当前运行点位[0]['x']-x) >= 0.06 or abs(当前运行点位[0]['y']-y) >= 0.06
                 # 是否在方向的范围内 = abs(当前运行点位[0]['x']-x) <= 0.04 or abs(当前运行点位[0]['y']-y) <= 0.04
                 if 是否需要反转点位 and not 是否闭合: 当前运行点位 = list(reversed(当前运行点位))
                 原始点数据_插补数据 = list(当前运行点位)
                 目标速度 = 切割速度*边缘切割速度百分比 if 是否在边缘位置 else 切割速度*中间切割速度百分比
-                运行结果 = controller.continuous_interpolation_move_adapter(原始点数据_插补数据,speed=目标速度,wait_until_done=True)
+                运行结果 = controller.连续插补XY(原始点数据_插补数据,speed=目标速度,wait_until_done=True)
                 当前步骤 = 81 if 运行结果.get('success') and 运行结果 is not None else 300
             case 81:
                 # 判断是否在边缘
@@ -1719,7 +1366,7 @@ def 进行4P切产品(originalPointsNum: int,recipe_payload: dict[str, Any],cont
                 # 我将其移动到下面是为了防止_depth
                 if 进度百分比 > (变化百分比)/2 and 是否打开扫黑功能:
                     是否打开扫黑功能 = False
-                    controller.open_output(2, 0)#关闭激光
+                    controller.设置输出(2, 0)#关闭激光
                     是否打开激光 = False
                     累计下降量 = 0
                 # 下降一层计算新开口 = 初始上开口 - tan（角度） *累计下降量um * 2 //单位um
@@ -1740,7 +1387,7 @@ def 进行4P切产品(originalPointsNum: int,recipe_payload: dict[str, Any],cont
             case 150:
                 当前步骤 = 300
             case 300:
-                运行结果 = controller.absolute_move_speed({'axis':2,'moveDistance':Z轴原始初始位置,'speed':切割速度})
+                运行结果 = controller.绝对运动并设速度({'axis':2,'moveDistance':Z轴原始初始位置,'speed':切割速度})
                 if 运行结果.get('success') and 运行结果 is not None:
                     当前步骤 = 301
             case 301:
@@ -1748,7 +1395,7 @@ def 进行4P切产品(originalPointsNum: int,recipe_payload: dict[str, Any],cont
                 跳转计数 = 0
                 while 跳转计数 < 2000:
                     try:
-                        实际位置 = controller.get_z_mpos_mm()
+                        实际位置 = controller.取Z实际位置()
                         if abs(实际位置 - Z轴原始初始位置) <= 0.001:
                             当前步骤 = 999
                             break
@@ -1759,8 +1406,8 @@ def 进行4P切产品(originalPointsNum: int,recipe_payload: dict[str, Any],cont
                 else:
                     当前步骤 = 300
             case 999:
-                controller.stop_axis_motion([0, 1, 2, 3 , 4 , 5])
-                controller.open_output(0, 0)#关闭吹风
-                controller.open_output(2, 0)#关闭激光
+                controller.停止运动([0, 1, 2, 3 , 4 , 5])
+                controller.设置输出(0, 0)#关闭吹风
+                controller.设置输出(2, 0)#关闭激光
                 当前步骤 = 9999
     return True
