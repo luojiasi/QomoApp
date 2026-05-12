@@ -96,19 +96,29 @@ class StatusMonitor:
     # ------------------------------------------------------------------
 
     def _循环(self) -> None:
+        日志.info(f"[状态采集] 主循环已进入,周期={self._周期秒*1000:.0f}ms")
+        tick次数 = 0
         while not self._停止事件.is_set():
             tick起 = time.monotonic()
             try:
                 self._tick()
+                tick次数 += 1
+                # 每 100 tick(约 5 秒) 打印一次心跳,便于确认采集线程在跑
+                if tick次数 % 100 == 0:
+                    日志.debug(f"[状态采集] 已完成 {tick次数} tick")
             except Exception as exc:
-                # 采集异常绝不能让线程死掉
-                日志.warning(f"状态采集 tick 异常: {exc}")
+                # 采集异常绝不能让线程死掉 —— 打印完整堆栈帮助诊断
+                import traceback
+                日志.warning(
+                    f"状态采集 tick 异常: {exc}\n{traceback.format_exc()}"
+                )
 
             # 按周期等待，被 停止事件 唤醒会立即退出循环
             已用 = time.monotonic() - tick起
             剩余 = max(0.0, self._周期秒 - 已用)
             if 剩余 > 0:
                 self._停止事件.wait(剩余)
+        日志.info(f"[状态采集] 主循环已退出,共 {tick次数} tick")
 
     def _tick(self) -> None:
         if not self._采集开关.is_set():

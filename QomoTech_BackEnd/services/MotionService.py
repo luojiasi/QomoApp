@@ -715,11 +715,16 @@ class MotionService:
         await self._刷新快照()
 
     async def 急停(self) -> None:
-        """硬急停：立即中断脉冲。无视状态。"""
+        """硬急停：立即中断脉冲。无视状态。
+
+        关键: 调 adapter.急停() 而不是 adapter.全部停止(),前者会先广播中止
+        事件,让正在跑的连续插补循环立刻退出 IO worker,Cancel 指令才能
+        被尽快执行(否则会排队在 worker 队列后面)。
+        """
         self._保证已启动()
         adapter = self._断言adapter()
         try:
-            await adapter.全部停止(取消_立即)
+            await adapter.急停()
         except ZMCError as exc:
             日志.error(f"急停 DLL 调用失败: {exc}")
             # 急停必须落地状态机

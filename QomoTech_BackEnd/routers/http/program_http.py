@@ -85,8 +85,7 @@ async def start_program(
 
     async def _run_program() -> None:
         try:
-            await asyncio.to_thread(
-                execute_start_program,
+            await execute_start_program(
                 recipe_payload=payload.recipe_payload,
                 entities=payload.entities,
                 rs232=rs232,
@@ -116,19 +115,19 @@ async def program_status():
 # ==================================================================
 
 
-def _dispatch_program_control(
+async def _dispatch_program_control(
     action: str,
 ) -> Dict[str, Any]:
     if action == "pause":
-        return 程序请求暂停()
+        return await 程序请求暂停()
     elif action == "resume":
-        return 程序请求恢复运行()
+        return await 程序请求恢复运行()
     elif action == "reset":
-        return 程序请求复位()
+        return await 程序请求复位()
     elif action == "estop":
-        return 程序请求急停()
+        return await 程序请求急停()
     elif action == "skip":
-        return 程序请求跳过任务()
+        return await 程序请求跳过任务()
     else:
         return {"success": False, "message": f"未知操作: {action}"}
 
@@ -137,9 +136,7 @@ def _dispatch_program_control(
 async def program_control(
     payload: 开始程序控制请求模型,
 ):
-    result = await asyncio.to_thread(
-        _dispatch_program_control, payload.action,
-    )
+    result = await _dispatch_program_control(payload.action)
     if not result.get("success"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

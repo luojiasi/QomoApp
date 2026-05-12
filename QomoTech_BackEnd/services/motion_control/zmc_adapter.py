@@ -1031,6 +1031,7 @@ class ZMC适配器:
         关键设计:先广播中止事件(同步,瞬时),让连续插补循环立即 break 并自停;
         然后再走 IO worker 调 DLL Cancel(此时 worker 已空闲)。
         """
+        日志.info("[急停] 广播中止事件 + 调用 CancelAxisList(立即)")
         self._中止事件.set()
         await self.多轴停止(None, 取消_立即)
 
@@ -1630,7 +1631,7 @@ class ZMC适配器:
         sleep_when_buffer_full_s: float = 0.005,
         wait_until_done: bool = True,
         done_timeout_s: float = 120.0,
-        done_poll_interval_s: float = 0.02,
+        done_poll_interval_s: float = 0.005,
     ) -> bool:
         """连续插补运动 —— 整条路径使用同一速度,实现段间速度真正连续。
 
@@ -1714,6 +1715,7 @@ class ZMC适配器:
 
         # ---- 进入插补前清空中止事件(允许本次完整运行) ----
         self._中止事件.clear()
+        日志.info(f"[连续插补] 启动 轴={轴号列表} 段数={len(路径点)} 速度={默认速度} merge={merge_on} mode={模式}")
 
         # 保存原始起跳速度 & MERGE 状态,finally 恢复(不持锁,纯内存读取)
         原始Lspeed: Dict[int, float] = {}
@@ -1789,6 +1791,9 @@ class ZMC适配器:
             段列表.append(坐标)
 
         被中止 = False
+        # ⭐ 关键: sleep 用 Event.wait 替代,中止事件 set() 后立即唤醒,响应 < 1ms
+        buf_sleep_s = max(float(kw["sleep_when_buffer_full_s"]), 0.001)
+        done_sleep_s = max(float(kw["done_poll_interval_s"]), 0.005)
         try:
             # ---- 阶段三: 推送循环,每段短锁,响应中止事件 ----
             已推送 = 0
@@ -1811,9 +1816,11 @@ class ZMC适配器:
                         推送成功 = True
                     else:
                         推送成功 = False
-                # 锁外 sleep —— 给 status_monitor / 急停 让出锁窗口
+                # 锁外等待 —— 用 Event.wait,中止事件 set 时立即返回
                 if not 推送成功:
-                    time.sleep(max(float(kw["sleep_when_buffer_full_s"]), 0.001))
+                    if self._中止事件.wait(buf_sleep_s):
+                        被中止 = True
+                        break
 
             if 被中止:
                 return
@@ -1853,8 +1860,10 @@ class ZMC适配器:
                     return
                 if time.time() - 起始 > float(kw["done_timeout_s"]):
                     raise ZMCError("ContinuousInterp", -1, "等待完成超时")
-                # 锁外 sleep —— 给 status_monitor / 急停 让出锁窗口
-                time.sleep(max(float(kw["done_poll_interval_s"]), 0.005))
+                # 锁外等待 —— 用 Event.wait,中止事件 set 时立即返回
+                if self._中止事件.wait(done_sleep_s):
+                    被中止 = True
+                    return
         finally:
             # ---- 阶段五: 清理(短锁) ----
             if self._已连接:
@@ -1942,7 +1951,7 @@ class ZMC适配器:
         small_circle_limit: float = 5.0,
         wait_until_done: bool = True,
         done_timeout_s: float = 120.0,
-        done_poll_interval_s: float = 0.02,
+        done_poll_interval_s: float = 0.005,
     ) -> bool:
         """XY 两轴连续插补 —— 整条路径使用同一速度,段间速度连续。
 
