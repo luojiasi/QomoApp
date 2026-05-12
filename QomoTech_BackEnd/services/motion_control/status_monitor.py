@@ -28,7 +28,7 @@ from services.motion_control.state_machine import 状态机, 状态事件
 from services.motion_control.zmc_adapter import ZMC适配器, ZMCError, 轴读数
 from utils.logger import 获取日志记录器
 
-日志 = 获取日志记录器("StatusMonitor")
+日志 = 获取日志记录器("状态监控")
 
 
 # 发布回调签名：status_monitor 把每次构造好的快照交给 MotionService 分发
@@ -46,7 +46,7 @@ class StatusMonitor:
         *,
         状态轮询毫秒: int = 50,
     ) -> None:
-        self._adapter = adapter
+        self.适配器 = adapter
         self._状态机 = 状态机_
         self._发布 = 发布回调
         self._周期秒 = max(0.01, float(状态轮询毫秒) / 1000.0)
@@ -123,11 +123,11 @@ class StatusMonitor:
     def _tick(self) -> None:
         if not self._采集开关.is_set():
             return
-        if not self._adapter.已连接:
+        if not self.适配器.已连接:
             return
 
         try:
-            读数列表 = self._adapter._同步_批量读取()
+            读数列表 = self.适配器._同步_批量读取()
         except ZMCError as exc:
             日志.warning(f"批量读取失败: {exc}")
             return
@@ -135,7 +135,7 @@ class StatusMonitor:
         if not 读数列表:
             return
 
-        io入, io出 = self._adapter._同步_批量读IO()
+        io入, io出 = self.适配器._同步_批量读IO()
         快照 = self._构造快照(读数列表, io入, io出)
         self._检查完成事件(读数列表)
 
@@ -149,7 +149,7 @@ class StatusMonitor:
     # ------------------------------------------------------------------
 
     def _构造快照(self, 读数列表: List[轴读数], io入: Dict[int, bool], io出: Dict[int, bool]) -> 状态快照:
-        轴号到名 = self._adapter.配置.axis_no_to_name
+        轴号到名 = self.适配器.配置.axis_no_to_name
         轴字典: Dict[str, 轴快照] = {}
         for 读数 in 读数列表:
             名 = 轴号到名.get(读数.轴号)

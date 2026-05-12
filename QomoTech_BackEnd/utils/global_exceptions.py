@@ -134,7 +134,7 @@ def _处理追踪异常(arg):
     # 写入日志
     try:
         from utils.logger import 获取日志记录器
-        获取日志记录器("Trace").error(文本)
+        获取日志记录器("异常追踪").error(文本)
     except Exception:
         pass
 
@@ -215,7 +215,7 @@ def _主线程异常钩子(异常类型, 异常值, 异常回溯):
         写入日志成功 = False
         try:
             from utils.logger import 获取日志记录器
-            获取日志记录器("Uncaught").critical(回溯文本)
+            获取日志记录器("未捕获异常").critical(回溯文本)
             写入日志成功 = True
         except Exception:
             pass
@@ -254,7 +254,7 @@ def _线程异常钩子(参数):
             写入日志成功 = False
             try:
                 from utils.logger import 获取日志记录器
-                获取日志记录器("ThreadCrash").critical(完整消息)
+                获取日志记录器("线程崩溃").critical(完整消息)
                 写入日志成功 = True
             except Exception:
                 pass

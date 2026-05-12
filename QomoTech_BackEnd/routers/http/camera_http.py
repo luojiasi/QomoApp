@@ -32,7 +32,7 @@ from services.camera_control import camera_persistence
 from services.CameraService import CameraService
 from utils.logger import 获取日志记录器
 
-日志 = 获取日志记录器("CameraHTTP")
+日志 = 获取日志记录器("相机HTTP")
 
 路由 = APIRouter(prefix="/api/camera", tags=["相机"])
 

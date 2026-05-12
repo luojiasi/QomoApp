@@ -18,15 +18,14 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
-from core.startPragram import execute_start_program, get_program_status
+from core.startPragram import 执行开始任务程序_最重要的, 获取设备运行状态
 from core.startPragram import 程序请求急停, 程序请求暂停, 程序请求恢复运行
 from core.startPragram import 程序请求复位, 程序请求跳过任务
 from core.calc_offset_ljs import OffsetEndpointCalculator
 from routers.http.rs232_http import 串口发送接收请求响应模型 as Rs232SerialSessionRequest
-from services.Rs232Service import Rs232Service
 from utils.logger import 获取日志记录器
 
-日志 = 获取日志记录器("ProgramHTTP")
+日志 = 获取日志记录器("程序HTTP")
 
 路由 = APIRouter(prefix="/api", tags=["程序运行"])
 
@@ -81,15 +80,12 @@ async def start_program(
         except Exception as exc:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail=f"rs232_open 参数无效: {exc}",) from exc
 
-    rs232 = Rs232Service.获取实例()
-
     async def _run_program() -> None:
         try:
-            await execute_start_program(
-                recipe_payload=payload.recipe_payload,
-                entities=payload.entities,
-                rs232=rs232,
-                rs232_open=rs232_open_dict,
+            await 执行开始任务程序_最重要的(
+                配方数据=payload.recipe_payload,
+                实体数据=payload.entities,
+                串口配置=rs232_open_dict,
             )
         except Exception:
             日志.exception("startProgram 后台任务异常")
@@ -107,7 +103,7 @@ async def start_program(
 @路由.get("/startProgram/status", summary="获取程序运行状态")
 async def program_status():
     """返回 running / paused / total_tasks / current_task_index / 进度百分比。"""
-    return _ok("OK", get_program_status())
+    return _ok("OK", 获取设备运行状态())
 
 
 # ==================================================================

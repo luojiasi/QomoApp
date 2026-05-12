@@ -33,7 +33,7 @@ from services.camera_control.CGcamera_adapter import CameraError
 from services.CameraService import CameraService
 from utils.logger import 获取日志记录器
 
-日志 = 获取日志记录器("CameraWS")
+日志 = 获取日志记录器("相机WS")
 
 路由 = APIRouter(prefix="/ws", tags=["相机 WebSocket"])
 

@@ -38,7 +38,7 @@ from starlette.websockets import WebSocketState
 from services.MotionService import MotionService
 from utils.logger import 获取日志记录器
 
-日志 = 获取日志记录器("MotionWS")
+日志 = 获取日志记录器("运动WS")
 
 路由 = APIRouter(prefix="/ws", tags=["运动控制 WebSocket"])
 

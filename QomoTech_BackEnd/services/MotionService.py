@@ -64,7 +64,7 @@ from services.motion_control.zmc_adapter import (
 )
 from utils.logger import 获取日志记录器
 
-日志 = 获取日志记录器("MotionService")
+日志 = 获取日志记录器("运动服务")
 
 
 # 软暂停时把 FEED_OVERRIDE 设到 0；继续时恢复保存值
@@ -101,10 +101,10 @@ class MotionService:
 
     def __init__(self) -> None:
         self._配置: Optional[MotionConfig] = None
-        self._adapter: Optional[ZMC适配器] = None
-        self._safety: Optional[安全控制器] = None
+        self.适配器: Optional[ZMC适配器] = None
+        self.安全控制器: Optional[安全控制器] = None
         self._状态机: 状态机 = 状态机()
-        self._monitor: Optional[StatusMonitor] = None
+        self.监控器: Optional[StatusMonitor] = None
         self._最新快照: 状态快照 = 状态快照.未连接()
         self._订阅者: List[asyncio.Queue] = []
         self._订阅锁 = threading.Lock()
@@ -126,19 +126,19 @@ class MotionService:
         日志.info(f"运动配置已加载（轴: {list(self._配置.axes.keys())}, "
                  f"控制器: {self._配置.controller_ip}）")
 
-        self._safety = 安全控制器(self._配置)
-        self._adapter = ZMC适配器(self._配置)
+        self.安全控制器 = 安全控制器(self._配置)
+        self.适配器 = ZMC适配器(self._配置)
         self._最新快照 = self._构造未连接快照()
 
         # 拉起 status_monitor —— 此时未连接，monitor 进入空转直到 连接() 后激活
-        self._monitor = StatusMonitor(
-            adapter=self._adapter,
+        self.监控器 = StatusMonitor(
+            adapter=self.适配器,
             状态机_=self._状态机,
             发布回调=self._发布快照,
             状态轮询毫秒=_默认状态轮询毫秒,
         )
-        self._monitor.暂停()    # 未连接时不读 DLL
-        self._monitor.启动()
+        self.监控器.暂停()    # 未连接时不读 DLL
+        self.监控器.启动()
 
         self._已启动 = True
         日志.info("MotionService 已启动")
@@ -147,15 +147,15 @@ class MotionService:
         if not self._已启动:
             return
         日志.info("MotionService 停止中...")
-        if self._monitor is not None:
+        if self.监控器 is not None:
             try:
-                self._monitor.停止()
+                self.监控器.停止()
             except Exception as exc:
                 日志.warning(f"关闭 status_monitor 异常: {exc}")
-            self._monitor = None
-        if self._adapter is not None:
+            self.监控器 = None
+        if self.适配器 is not None:
             try:
-                await self._adapter.销毁()
+                await self.适配器.销毁()
             except Exception as exc:
                 日志.warning(f"关闭 ZMC 适配器异常: {exc}")
         self._订阅者.clear()
@@ -172,16 +172,16 @@ class MotionService:
         except ZMCError as exc:
             日志.warning(f"初始化 FEED_OVERRIDE 失败: {exc}")
         self._状态机.触发(状态事件.CONNECT, 强制=True)
-        if self._monitor is not None:
-            self._monitor.恢复()
+        if self.监控器 is not None:
+            self.监控器.恢复()
         await self._刷新快照()
         日志.info(f"控制器 {ip or self._配置.controller_ip} 已连接")
 
     async def 断开(self) -> None:
         self._保证已启动()
         adapter = self._断言adapter()
-        if self._monitor is not None:
-            self._monitor.暂停()
+        if self.监控器 is not None:
+            self.监控器.暂停()
         await adapter.关闭()
         self._状态机.触发(状态事件.DISCONNECT, 强制=True)
         self._最新快照 = self._构造未连接快照()
@@ -272,7 +272,7 @@ class MotionService:
             return
 
         当前状态 = self._状态机.当前
-        adapter = self._adapter
+        adapter = self.适配器
 
         if adapter is None or not adapter.已连接 or 当前状态 == 运动状态.DISCONNECTED:
             self._发布快照(状态快照(状态=当前状态, 轴=self._构造未连接快照().轴))
@@ -664,13 +664,13 @@ class MotionService:
 
     def 暂停状态采集(self) -> None:
         """暂停 StatusMonitor 状态采集（程序执行时调用，避免与 DLL 竞态）。"""
-        if self._monitor is not None:
-            self._monitor.暂停()
+        if self.监控器 is not None:
+            self.监控器.暂停()
 
     def 恢复状态采集(self) -> None:
         """恢复 StatusMonitor 状态采集。"""
-        if self._monitor is not None:
-            self._monitor.恢复()
+        if self.监控器 is not None:
+            self.监控器.恢复()
 
     async def 暂停(self) -> None:
         """软暂停：保存当前 FEED_OVERRIDE 并设为 0。"""
@@ -916,7 +916,7 @@ class MotionService:
             日志.info("保存控制器设置：无可下发的轴参数")
             return
         try:
-            adapter = self._adapter
+            adapter = self.适配器
             if adapter is None or not adapter.已连接:
                 日志.info("控制器未连接，跳过下发")
                 return
@@ -1134,12 +1134,12 @@ class MotionService:
             raise SafetyViolation("MotionService 未启动")
 
     def _断言adapter(self) -> ZMC适配器:
-        assert self._adapter is not None, "MotionService 未启动"
-        return self._adapter
+        assert self.适配器 is not None, "MotionService 未启动"
+        return self.适配器
 
     def _断言safety(self) -> 安全控制器:
-        assert self._safety is not None, "MotionService 未启动"
-        return self._safety
+        assert self.安全控制器 is not None, "MotionService 未启动"
+        return self.安全控制器
 
     @staticmethod
     def _解析圆弧方向(方向: str) -> int:

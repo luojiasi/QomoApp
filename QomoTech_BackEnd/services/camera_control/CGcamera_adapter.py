@@ -20,7 +20,7 @@ import numpy as np
 from libs.cameradll.CGimagetechPython import CGImageTechCamera
 from utils.logger import 获取日志记录器
 
-日志 = 获取日志记录器("CameraAdapter")
+日志 = 获取日志记录器("相机适配器")
 
 # ------------------------------------------------------------------
 # 常量（与 CGimagetechPython 对齐）

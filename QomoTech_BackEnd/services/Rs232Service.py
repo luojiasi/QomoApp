@@ -17,7 +17,7 @@ from configs.rs232_config import 串口配置实例
 from services.communicate_control.rs232_adapter import 串口驱动
 from utils.logger import 获取日志记录器
 
-日志 = 获取日志记录器("Rs232Service")
+日志 = 获取日志记录器("串口服务")
 
 
 class Rs232Service:
@@ -128,3 +128,56 @@ class Rs232Service:
         if 文本:
             日志.debug(f"接收缓冲区: {len(文本)} 字符")
         return 文本
+
+    async def 发送激光数据(
+        self,
+        串口配置: dict[str, Any] | None,
+        功率: str,
+        频率: str,
+        电流: str,
+    ) -> bool:
+        """
+        激光前确保 RS232 可用并分段发送参数。
+        发送顺序：1) pow + power  2) frequency + frequency  3) current + current
+        每次发送间隔 0.5 秒
+        """
+        import asyncio
+
+        if 串口配置 is None:
+            return False
+
+        端口配置 = 串口配置.get("port")
+        接收配置 = 串口配置.get("receive")
+        if not isinstance(端口配置, dict) or not isinstance(接收配置, dict):
+            日志.error("rs232_open 缺少有效的 port 或 receive")
+            return False
+
+        目标端口名 = str(端口配置.get("portName", "")).strip()
+        当前端口名 = self.当前端口名() or ""
+        需要重开 = (not self.是否已连接()) or (bool(目标端口名) and 当前端口名 != 目标端口名)
+        if 需要重开:
+            成功, 消息 = await asyncio.to_thread(self.打开会话, 端口配置, 接收配置)
+            if not 成功:
+                日志.error("RS232 打开失败: %s", 消息)
+                return False
+
+        原始发送配置 = 串口配置.get("send")
+        基本发送配置: dict[str, Any] = 原始发送配置.copy() if isinstance(原始发送配置, dict) else {}
+        基本发送配置.setdefault("mode", "ascii")
+        发送数据列表 = [
+            f"POW {功率}",
+            f"REPF {频率}",
+            f"LD1CS {电流}",
+        ]
+
+        for 序号, 数据 in enumerate(发送数据列表):
+            发送配置 = 基本发送配置.copy()
+            发送配置["payload"] = 数据
+            成功2, 消息2 = await asyncio.to_thread(self.发送, 发送配置)
+            if not 成功2:
+                日志.error("RS232 参数发送失败（payload=%s）: %s", 数据, 消息2)
+                return False
+            if 序号 < len(发送数据列表) - 1:
+                await asyncio.sleep(0.5)
+        await asyncio.to_thread(self.关闭)
+        return True

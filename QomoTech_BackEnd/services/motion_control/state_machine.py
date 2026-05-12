@@ -20,7 +20,7 @@ from typing import Callable, List, Optional
 from services.motion_control.motion_models import 运动状态
 from utils.logger import 获取日志记录器
 
-日志 = 获取日志记录器("StateMachine")
+日志 = 获取日志记录器("状态机")
 
 
 class 状态事件(str, Enum):

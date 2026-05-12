@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import binascii
 import copy
-import logging
 import threading
 import time
 from collections import deque
 from typing import Any, Literal
 
 from configs.rs232_config import 串口配置实例
+from utils.logger import 获取日志记录器
 
 try:
     import serial
@@ -24,11 +24,11 @@ except ImportError:  # pragma: no cover
 
 
 class 串口驱动:
-    """单路 RS232：进程内单例，对接 pyserial。"""
+    """单路RS232：进程内单例，对接pyserial。"""
 
     def __init__(self, 配置: 串口配置实例) -> None:
         self._配置 = 配置
-        self._日志 = logging.getLogger("qomotech.rs232")
+        self._日志 = 获取日志记录器("串口适配器")
         self._锁 = threading.RLock()
         self._串口: Any = None
         self._当前端口: str | None = None

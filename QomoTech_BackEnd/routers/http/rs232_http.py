@@ -17,7 +17,7 @@ from services.communicate_control.rs232_models import (
 )
 from utils.logger import 获取日志记录器
 
-日志 = 获取日志记录器("Rs232HTTP")
+日志 = 获取日志记录器("串口HTTP")
 
 路由 = APIRouter(prefix="/api/rs232", tags=["RS232 串口"])
 

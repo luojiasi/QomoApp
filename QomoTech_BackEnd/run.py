@@ -54,7 +54,7 @@ def _启动():
 def 主函数():
     """应用入口 —— 由顶层 try/except 保护调用。"""
     from utils.logger import 获取日志记录器
-    日志 = 获取日志记录器("Main")
+    日志 = 获取日志记录器("主进程")
     日志.info("QomoTech 后端启动中...")
     日志.info(f"应用根目录: {_应用根目录}")
 

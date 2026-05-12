@@ -18,7 +18,7 @@ from pydantic import BaseModel
 from utils.logger import 获取日志记录器
 from routers.apiresponse import ApiResponse
 
-日志 = 获取日志记录器("SystemHTTP")
+日志 = 获取日志记录器("系统HTTP")
 
 路由 = APIRouter(prefix="/api", tags=["系统管理"])
 

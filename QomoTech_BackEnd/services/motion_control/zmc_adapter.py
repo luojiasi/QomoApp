@@ -55,7 +55,7 @@ from configs.motion_config import MotionConfig
 from services.motion_control.config_loader import 加载运动配置, 取轴
 from utils.logger import 获取日志记录器
 
-日志 = 获取日志记录器("ZMCAdapter")
+日志 = 获取日志记录器("ZMC适配器")
 
 
 # ======================================================================
@@ -347,6 +347,8 @@ class ZMC适配器:
                 self._dll.ZAux_Close()
             except Exception as exc:
                 日志.warning(f"关闭 ZMC 异常: {exc}")
+            finally:
+                self._已连接 = False
 
     # ------------------------------------------------------------------
     # 同步读取辅助（供 _同步_批量读取 / 静态缓存 / 业务级方法复用）
@@ -1143,10 +1145,10 @@ class ZMC适配器:
         与 IO 线程串行：双方共享同一把 RLock。
         单轴读取失败时记日志并跳过，不抛异常 —— 采集线程必须保持运行。
         """
-        if not self._已连接:
-            return []
         结果: List[轴读数] = []
         with self._锁:
+            if not self._已连接:
+                return []
             for cfg in self._配置.axes.values():
                 rd, dpos = self._dll.ZAux_Direct_GetDpos(cfg.axis_no)
                 rm, mpos = self._dll.ZAux_Direct_GetMpos(cfg.axis_no)
@@ -1171,11 +1173,11 @@ class ZMC适配器:
         与 IO 线程串行：共享同一把 RLock。单点读取失败时该点记为 False 不抛异常。
         返回 (io_in, io_out) 字典。
         """
-        if not self._已连接:
-            return {}, {}
         入: Dict[int, bool] = {}
         出: Dict[int, bool] = {}
         with self._锁:
+            if not self._已连接:
+                return {}, {}
             for io in range(self._配置.io_count):
                 ret_in, val_in = self._dll.ZAux_Direct_GetIn(io)
                 入[io] = int(val_in.value) != 0 if int(ret_in) == 0 else False

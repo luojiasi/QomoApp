@@ -18,7 +18,7 @@ from configs.product4P_config import (
 )
 from routers.apiresponse import ApiResponse
 
-日志 = 获取日志记录器("Product4PHTTP")
+日志 = 获取日志记录器("4P产品HTTP")
 
 路由 = APIRouter(prefix="/api/product4p", tags=["4P 产品"])
 

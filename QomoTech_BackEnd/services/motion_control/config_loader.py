@@ -27,7 +27,7 @@ from configs.motion_config import MergeParams, MotionAxisConfig, MotionConfig, m
 from services.motion_control.config_persistence import 从文件加载
 from utils.logger import 获取日志记录器
 
-日志 = 获取日志记录器("ConfigLoader")
+日志 = 获取日志记录器("配置加载")
 
 AXIS_ORDER = ["X", "Y", "Z", "U", "R"]
 

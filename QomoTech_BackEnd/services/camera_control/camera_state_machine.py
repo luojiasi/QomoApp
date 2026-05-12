@@ -16,7 +16,7 @@ from typing import Callable, List, Optional
 from services.camera_control.camera_models import 相机状态
 from utils.logger import 获取日志记录器
 
-日志 = 获取日志记录器("CameraStateMachine")
+日志 = 获取日志记录器("相机状态机")
 
 
 class 相机事件(str, Enum):

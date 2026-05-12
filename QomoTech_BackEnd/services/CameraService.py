@@ -26,7 +26,7 @@ from services.camera_control.CGcamera_adapter import (
 from services.camera_control import camera_persistence
 from utils.logger import 获取日志记录器
 
-日志 = 获取日志记录器("CameraService")
+日志 = 获取日志记录器("相机服务")
 
 _默认推流质量 = 85
 _默认推流超时毫秒 = 1000
@@ -56,7 +56,7 @@ class CameraService:
 
     def __init__(self) -> None:
         self._状态机: 相机状态机 = 相机状态机()
-        self._adapter: Optional[相机适配器] = None
+        self.适配器: Optional[相机适配器] = None
         self._服务锁 = asyncio.Lock()
         self._引导参数缓存: Dict[str, Any] = {}
         self._文件加载的设置: Dict[str, Any] = {}
@@ -89,7 +89,7 @@ class CameraService:
         except Exception as exc:
             raise CameraError(f"SDK 初始化失败: {exc}") from exc
 
-        self._adapter = adapter
+        self.适配器 = adapter
         self._状态机.触发(相机事件.INIT)
         self._刷新快照()
         日志.info("CameraService 已启动")
@@ -100,12 +100,12 @@ class CameraService:
             if 当前 == 相机状态.UNINITIALIZED:
                 return
             日志.info("CameraService 停止中...")
-            if self._adapter is not None:
+            if self.适配器 is not None:
                 try:
-                    await self._adapter.关闭()
+                    await self.适配器.关闭()
                 except Exception as exc:
                     日志.warning(f"关闭相机适配器异常: {exc}")
-            self._adapter = None
+            self.适配器 = None
             self._状态机.触发(相机事件.SHUTDOWN, 强制=True)
             self._最新快照 = 相机快照.未初始化()
             日志.info("CameraService 已停止")
@@ -117,7 +117,7 @@ class CameraService:
     async def 枚举设备(self) -> List[设备信息]:
         async with self._服务锁:
             self._准入(相机状态.IDLE, 相机状态.CONNECTED)
-            设备列表 = await self._adapter.枚举设备()
+            设备列表 = await self.适配器.枚举设备()
             日志.info(f"枚举相机设备: {[d.name for d in 设备列表]}")
             return 设备列表
 
@@ -125,7 +125,7 @@ class CameraService:
         async with self._服务锁:
             self._准入(相机状态.IDLE)
             try:
-                await self._adapter.连接(index)
+                await self.适配器.连接(index)
             except CameraError:
                 raise
             except Exception as exc:
@@ -138,7 +138,7 @@ class CameraService:
             待下发 = self._引导参数缓存 or self._文件加载的设置
             if 待下发:
                 try:
-                    await self._adapter.设置引导参数(待下发)
+                    await self.适配器.设置引导参数(待下发)
                     日志.info(f"相机设置已下发: {待下发}")
                 except Exception as exc:
                     日志.warning(f"相机设置下发失败: {exc}")
@@ -151,7 +151,7 @@ class CameraService:
         async with self._服务锁:
             self._准入(相机状态.CONNECTED)
             try:
-                await self._adapter.断开()
+                await self.适配器.断开()
             except CameraError:
                 raise
             except Exception as exc:
@@ -175,7 +175,7 @@ class CameraService:
     ) -> bytes:
         async with self._服务锁:
             self._准入(相机状态.CONNECTED)
-            数据 = await self._adapter.取_jpeg(
+            数据 = await self.适配器.取_jpeg(
                 timeout_ms=timeout_ms, quality=quality,
             )
             日志.debug(f"取帧成功 size={len(数据)}B quality={quality}")
@@ -191,7 +191,7 @@ class CameraService:
             if self._状态机.当前 == 相机状态.IDLE:
                 self._引导参数缓存 = dict(settings)
             else:
-                await self._adapter.设置引导参数(settings)
+                await self.适配器.设置引导参数(settings)
 
     async def 保存并下发设置(self, data: Dict[str, Any]) -> None:
         """保存相机设置到文件；若已连接则立即下发到相机。"""
@@ -202,11 +202,11 @@ class CameraService:
 
         # 已连接时直接下发
         async with self._服务锁:
-            if self._状态机.当前 != 相机状态.CONNECTED or self._adapter is None:
+            if self._状态机.当前 != 相机状态.CONNECTED or self.适配器 is None:
                 日志.info("相机未连接，跳过下发")
                 return
             try:
-                await self._adapter.设置引导参数(data)
+                await self.适配器.设置引导参数(data)
                 日志.info("相机设置已下发到相机")
             except Exception as exc:
                 日志.warning(f"相机设置下发失败: {exc}")
@@ -219,7 +219,7 @@ class CameraService:
     ) -> None:
         async with self._服务锁:
             self._准入(相机状态.CONNECTED)
-            await self._adapter.设置曝光(
+            await self.适配器.设置曝光(
                 auto_exposure=auto_exposure, exposure_time=exposure_time,
             )
             日志.info(f"设置曝光 auto={auto_exposure} time={exposure_time}")
@@ -233,7 +233,7 @@ class CameraService:
     ) -> None:
         async with self._服务锁:
             self._准入(相机状态.CONNECTED)
-            await self._adapter.设置帧率(
+            await self.适配器.设置帧率(
                 speed_level=speed_level, auto_tune=auto_tune, tune=tune,
             )
             日志.info(f"设置帧率 level={speed_level} auto_tune={auto_tune} tune={tune}")
@@ -246,7 +246,7 @@ class CameraService:
     ) -> None:
         async with self._服务锁:
             self._准入(相机状态.CONNECTED)
-            await self._adapter.设置镜像(
+            await self.适配器.设置镜像(
                 horizontal=horizontal, vertical=vertical,
             )
             日志.info(f"设置镜像 horizontal={horizontal} vertical={vertical}")
@@ -262,7 +262,7 @@ class CameraService:
     ) -> None:
         async with self._服务锁:
             self._准入(相机状态.CONNECTED)
-            await self._adapter.设置白平衡(
+            await self.适配器.设置白平衡(
                 auto_white_balance=auto_white_balance,
                 once=once,
                 r_gain=r_gain,
@@ -280,9 +280,9 @@ class CameraService:
 
     def 获取诊断(self):
         """同步读取底层驱动诊断。"""
-        if self._adapter is None:
+        if self.适配器 is None:
             return None
-        return self._adapter.同步_诊断()
+        return self.适配器.同步_诊断()
 
     @staticmethod
     def 速度档位() -> Dict[str, int]:
@@ -308,10 +308,10 @@ class CameraService:
             )
 
     def _刷新快照(self) -> None:
-        if self._adapter is None:
+        if self.适配器 is None:
             self._最新快照 = 相机快照.未初始化()
             return
-        diag = self._adapter.同步_诊断()
+        diag = self.适配器.同步_诊断()
         self._最新快照 = 相机快照(
             状态=self._状态机.当前,
             已连接=bool(diag.connected),

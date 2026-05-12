@@ -5,51 +5,50 @@ import threading
 import time
 from typing import Any
 
-import logging
+from utils.logger import 获取日志记录器
 
-_logger = logging.getLogger("qomotech.program_status_ws")
+日志 = 获取日志记录器("程序状态WS")
 
-_main_loop: asyncio.AbstractEventLoop | None = None
-_subscribers: set[asyncio.Queue[dict[str, Any]]] = set()
-_sub_lock = threading.Lock()
+_主要循环: asyncio.AbstractEventLoop | None = None
+_订阅者: set[asyncio.Queue[dict[str, Any]]] = set()
+_订阅者锁 = threading.Lock()
 
-_last_notify_mono: float = 0.0
-_THROTTLE_S = 0.02
-
-
-def set_program_status_event_loop(loop: asyncio.AbstractEventLoop) -> None:
-    global _main_loop
-    _main_loop = loop
+_上次推送时间: float = 0.0
+_推送间隔时间 = 0.02
 
 
-def notify_program_status_changed(*, force: bool = False) -> None:
-    """从任意线程调用：将当前 `get_program_status()` 快照推送给所有 WebSocket 订阅者。"""
-    from core.startPragram import get_program_status
+def 设置程序运行循环事件(loop: asyncio.AbstractEventLoop) -> None:
+    global _主要循环
+    _主要循环 = loop
 
-    global _last_notify_mono
+
+def 推送改变的程序运行状态(*, force: bool = False) -> None:
+    """从任意线程调用：将当前 `获取设备运行状态()` 快照推送给所有 WebSocket 订阅者。"""
+    from core.startPragram import 获取设备运行状态
+
+    global _上次推送时间
     now = time.monotonic()
     if not force:
-        if now - _last_notify_mono < _THROTTLE_S:
+        if now - _上次推送时间 < _推送间隔时间:
             return
-    _last_notify_mono = now
+    _上次推送时间 = now
 
-    data = get_program_status()
-    loop = _main_loop
-    if loop is None or not loop.is_running():
-        return
+    data = 获取设备运行状态()
+    loop = _主要循环
+    if loop is None or not loop.is_running():return
 
     def _schedule() -> None:
-        asyncio.create_task(_broadcast_status(data))
+        asyncio.create_task(_广播运行状态(data))
 
     try:
         loop.call_soon_threadsafe(_schedule)
     except RuntimeError:
-        _logger.debug("schedule program status broadcast failed (loop closing)")
+        日志.debug("schedule program status broadcast failed (loop closing)")
 
 
-async def _broadcast_status(data: dict[str, Any]) -> None:
-    with _sub_lock:
-        qs = list(_subscribers)
+async def _广播运行状态(data: dict[str, Any]) -> None:
+    with _订阅者锁:
+        qs = list(_订阅者)
     for q in qs:
         try:
             while not q.empty():
@@ -59,15 +58,15 @@ async def _broadcast_status(data: dict[str, Any]) -> None:
                     break
             q.put_nowait(data)
         except Exception:
-            with _sub_lock:
-                _subscribers.discard(q)
+            with _订阅者锁:
+                _订阅者.discard(q)
 
 
-def add_program_status_subscriber(q: asyncio.Queue[dict[str, Any]]) -> None:
-    with _sub_lock:
-        _subscribers.add(q)
+def 订阅程序运行状态(q: asyncio.Queue[dict[str, Any]]) -> None:
+    with _订阅者锁:
+        _订阅者.add(q)
 
 
-def remove_program_status_subscriber(q: asyncio.Queue[dict[str, Any]]) -> None:
-    with _sub_lock:
-        _subscribers.discard(q)
+def 取消订阅程序运行状态(q: asyncio.Queue[dict[str, Any]]) -> None:
+    with _订阅者锁:
+        _订阅者.discard(q)

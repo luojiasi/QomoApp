@@ -34,7 +34,7 @@ from services.motion_control.safe_controller import SafetyViolation
 from services.motion_control.zmc_adapter import ZMCError
 from utils.logger import 获取日志记录器
 
-日志 = 获取日志记录器("MotionHTTP")
+日志 = 获取日志记录器("运动HTTP")
 
 路由 = APIRouter(prefix="/api/motion", tags=["运动控制"])
 
