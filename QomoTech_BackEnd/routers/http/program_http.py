@@ -13,7 +13,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
@@ -22,7 +22,6 @@ from core.startPragram import 执行开始任务程序_最重要的, 获取设�
 from core.startPragram import 程序请求急停, 程序请求暂停, 程序请求恢复运行
 from core.startPragram import 程序请求复位, 程序请求跳过任务
 from core.calc_offset_ljs import OffsetEndpointCalculator
-from routers.http.rs232_http import 串口发送接收请求响应模型 as Rs232SerialSessionRequest
 from utils.logger import 获取日志记录器
 
 日志 = 获取日志记录器("程序HTTP")
@@ -36,9 +35,6 @@ class 开始程序参数请求模型(BaseModel):
     )
     entities: List[Dict[str, Any]] = Field(
         ..., description="实体图形列表",
-    )
-    rs232_open: Optional[Dict[str, Any]] = Field(
-        default=None, description="RS232 串口配置；不填则复用已有连接",
     )
 
 
@@ -70,22 +66,11 @@ async def start_program(
     if not tasks:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="没有可执行的任务，请检查实体几何",)
 
-    # 验证 rs232_open（若提供）；支持从 payload 顶层或 recipe_payload.rs232Open 取
-    rs232_open_raw = payload.rs232_open
-    if rs232_open_raw is None: rs232_open_raw = payload.recipe_payload.get("rs232Open")
-    rs232_open_dict: Optional[Dict[str, Any]] = None
-    if rs232_open_raw is not None:
-        try:
-            rs232_open_dict = Rs232SerialSessionRequest.model_validate(rs232_open_raw,).model_dump()
-        except Exception as exc:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail=f"rs232_open 参数无效: {exc}",) from exc
-
     async def _run_program() -> None:
         try:
             await 执行开始任务程序_最重要的(
                 配方数据=payload.recipe_payload,
                 实体数据=payload.entities,
-                串口配置=rs232_open_dict,
             )
         except Exception:
             日志.exception("startProgram 后台任务异常")

@@ -12,6 +12,7 @@ from fastapi import APIRouter, Query, Request
 from routers.apiresponse import ApiResponse as 返回数据类型模型
 from services.Rs232Service import Rs232Service
 from services.communicate_control.laser_persistence import 保存到文件 as 写入激光设置文件, 从文件加载 as 读取激光设置文件
+from services.communicate_control.rs232_session_persistence import 保存会话 as 写入会话文件, 加载会话 as 读取会话文件
 from services.communicate_control.rs232_models import (
     串口发送接收请求响应模型,
     串口仅发送请求模型,
@@ -87,6 +88,24 @@ def 串口接收缓冲区(
     文本 = _rs232().获取接收缓冲区(清空=是否清空)
     return 返回数据类型模型(success=True, message="OK", data={"text": 文本})
 
+
+
+# ==================================================================
+# RS232 会话持久化
+# ==================================================================
+
+@路由.get("/session", summary="读取 RS232 会话配置文件")
+def 读取会话():
+    data = 读取会话文件()
+    return 返回数据类型模型(success=True, message="OK", data=data)
+
+
+@路由.post("/session", summary="保存 RS232 会话配置到文件")
+async def 保存会话(req: Request):
+    body = await req.json()
+    写入会话文件(body)
+    _rs232().设置首选会话(body)
+    return 返回数据类型模型(success=True, message="RS232 会话已保存到文件", data=None)
 
 # ==================================================================
 # 激光参数持久化

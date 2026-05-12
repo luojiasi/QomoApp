@@ -6,7 +6,6 @@ import { useRs232WorkbenchStore } from '../../stores/rs232WorkbenchStore'
 import { useLaserSettingsStore } from '../../stores/laserSettingsStore'
 import { applyLaserParams, type LaserApplyPayload } from '../../api/device/laser'
 import { closeRs232, openRs232, sendRs232 } from '../../api/device/rs232'
-import type { LaserTransmissionMode } from '../../types/settings'
 import { useNotification } from '../../composables/useNotification'
 
 const { success, error, info } = useNotification()
@@ -76,14 +75,12 @@ function onManufacturerChange(mfr: string): void {
 // ------------------------------------------------------------------
 
 const isLaserPanelExpanded = ref(false)
-const transmissionMode = ref<LaserTransmissionMode>('RS232')
 
 const baselineLoaded = ref(false)
 const appliedBaselineManufacturer = ref<string | null>(null)
 const appliedBaselinePower = ref<string | null>(null)
 const appliedBaselineFrequency = ref<string | null>(null)
 const appliedBaselineCurrent = ref<string | null>(null)
-const appliedBaselineTransmission = ref<LaserTransmissionMode | null>(null)
 const applying = ref(false)
 const saving = ref(false)
 
@@ -93,8 +90,7 @@ const hasPendingApplyChanges = computed(() => {
     settings.value.manufacturer !== (appliedBaselineManufacturer.value ?? '') ||
     settings.value.power !== (appliedBaselinePower.value ?? '') ||
     settings.value.frequency !== (appliedBaselineFrequency.value ?? '') ||
-    settings.value.current !== (appliedBaselineCurrent.value ?? '') ||
-    transmissionMode.value !== appliedBaselineTransmission.value
+    settings.value.current !== (appliedBaselineCurrent.value ?? '')
   )
 })
 
@@ -103,7 +99,6 @@ function syncBaselineFromForm(): void {
   appliedBaselinePower.value = settings.value.power
   appliedBaselineFrequency.value = settings.value.frequency
   appliedBaselineCurrent.value = settings.value.current
-  appliedBaselineTransmission.value = transmissionMode.value
   baselineLoaded.value = true
 }
 
@@ -140,73 +135,70 @@ async function handleApplySettings(isOpen: boolean = false): Promise<void> {
       laserManufacturer: s.manufacturer || undefined,
       laserPower: Number(s.power) || undefined,
       laserFrequency: Number(s.frequency) || undefined,
-      laserCurrent: Number(s.current) || undefined,
-      transmissionMode: transmissionMode.value
+      laserCurrent: Number(s.current) || undefined
     }
 
-    if (transmissionMode.value === 'RS232') {
-      const openRes = await openRs232({
-        port: { ...rs232Workbench.value.port },
-        receive: { ...rs232Workbench.value.receive },
-        send: { ...rs232Workbench.value.send }
-      })
+    const openRes = await openRs232({
+      port: { ...rs232Workbench.value.port },
+      receive: { ...rs232Workbench.value.receive },
+      send: { ...rs232Workbench.value.send }
+    })
 
-      if (isOpen) {
-        info('正在打开激光器，请稍后...', openRes.message || '已打开 RS232', 10000)
-      } else {
-        info('正在下发参数，请稍后...', openRes.message || '已打开 RS232')
-      }
+    if (isOpen) {
+      info('正在打开激光器，请稍后...', openRes.message || '已打开 RS232', 10000)
+    } else {
+      info('正在下发参数，请稍后...', openRes.message || '已打开 RS232')
+    }
 
-      if (!openRes.success) {
-        error('应用失败', openRes.message || '无法打开 RS232，请检查「详细 RS232」中的串口配置')
-        return
-      }
+    if (!openRes.success) {
+      error('应用失败', openRes.message || '无法打开 RS232，请检查「详细 RS232」中的串口配置')
+      return
+    }
 
-      try {
-        if (isMeiMan.value) {
-          const steps = isOpen
-            ? ['mode', 'power', 'freq', 'duty', 'laser_on']
-            : ['power', 'freq', 'duty']
-          for (const step of steps) {
-            const sendRes = await sendRs232({
-              port: { ...rs232Workbench.value.port },
-              send: {
-                ...rs232Workbench.value.send,
-                mode: 'ascii',
-                payload: buildMeiManPayload(step)
-              }
-            })
-            if (!sendRes.success) {
-              error('应用失败', sendRes.message || 'RS232 发送失败')
-              return
+    try {
+      if (isMeiMan.value) {
+        const steps = isOpen
+          ? ['mode', 'power', 'freq', 'duty', 'laser_on']
+          : ['power', 'freq', 'duty']
+        for (const step of steps) {
+          const sendRes = await sendRs232({
+            port: { ...rs232Workbench.value.port },
+            send: {
+              ...rs232Workbench.value.send,
+              mode: 'ascii',
+              payload: buildMeiManPayload(step)
             }
-            await sleep(LASER_RS232_OPEN_DELAY_MS)
+          })
+          if (!sendRes.success) {
+            error('应用失败', sendRes.message || 'RS232 发送失败')
+            return
           }
-        } else {
-          const steps: string[] = isOpen
-            ? ['QSW', 'LD1', 'SHU', 'GAP', 'POW', 'REPF', 'LD1CS']
-            : ['POW', 'REPF', 'LD1CS']
-          for (const step of steps) {
-            const sendRes = await sendRs232({
-              port: { ...rs232Workbench.value.port },
-              send: {
-                ...rs232Workbench.value.send,
-                mode: 'ascii',
-                payload: buildXingYanTongPayload(step)
-              }
-            })
-            if (!sendRes.success) {
-              error('应用失败', sendRes.message || 'RS232 发送失败')
-              return
-            }
-            await sleep(LASER_RS232_OPEN_DELAY_MS)
-          }
+          await sleep(LASER_RS232_OPEN_DELAY_MS)
         }
-
-        await sleep(LASER_RS232_POST_DELAY_MS)
-      } finally {
-        await closeRs232()
+      } else {
+        const steps: string[] = isOpen
+          ? ['QSW', 'LD1', 'SHU', 'GAP', 'POW', 'REPF', 'LD1CS']
+          : ['POW', 'REPF', 'LD1CS']
+        for (const step of steps) {
+          const sendRes = await sendRs232({
+            port: { ...rs232Workbench.value.port },
+            send: {
+              ...rs232Workbench.value.send,
+              mode: 'ascii',
+              payload: buildXingYanTongPayload(step)
+            }
+          })
+          if (!sendRes.success) {
+            error('应用失败', sendRes.message || 'RS232 发送失败')
+            return
+          }
+          await sleep(LASER_RS232_OPEN_DELAY_MS)
+        }
       }
+
+      await sleep(LASER_RS232_POST_DELAY_MS)
+    } finally {
+      await closeRs232()
     }
 
     if (isOpen) {
@@ -221,14 +213,7 @@ async function handleApplySettings(isOpen: boolean = false): Promise<void> {
     }
 
     syncBaselineFromForm()
-    success(
-      '应用成功',
-      transmissionMode.value === 'RS232'
-        ? isOpen
-          ? '已通过 RS232 打开激光器'
-          : '已通过 RS232 下发功率/频率/电流'
-        : res.message || '激光参数已同步到后端'
-    )
+    success('应用成功', '已通过 RS232 下发功率/频率/电流')
   } finally {
     applying.value = false
   }
@@ -311,7 +296,6 @@ const emit = defineEmits<{(e: 'open-right-panel', target: string): void}>()
           {{ saving ? '保存中...' : '保存' }}
         </button>
         <button
-          v-if="transmissionMode === 'RS232'"
           type="button"
           class="inline-flex w-full flex-1 items-center justify-center rounded-xl border border-sky-500/35 bg-sky-950/35 px-4 py-2.5 text-sm font-medium text-sky-100/95 transition hover:bg-sky-950/55 disabled:opacity-50"
           :disabled="applying"

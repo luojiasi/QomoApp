@@ -50,10 +50,17 @@ class Rs232Service:
     # ==================================================================
 
     def 启动(self) -> None:
-        """初始化驱动实例。"""
+        """初始化驱动实例，并从持久化文件加载 RS232 会话配置。"""
         if self._驱动 is not None:
             return
         self._驱动 = 串口驱动(串口配置实例)
+        try:
+            from services.communicate_control.rs232_session_persistence import 加载会话
+            会话 = 加载会话()
+            self.设置首选会话(会话)
+            日志.info("已从文件加载 RS232 会话配置")
+        except Exception as exc:
+            日志.warning("加载 RS232 会话配置失败: %s", exc)
         日志.info("Rs232Service 已启动")
 
     def 停止(self) -> None:
@@ -148,18 +155,20 @@ class Rs232Service:
 
     async def 发送激光数据(
         self,
-        串口配置: dict[str, Any] | None,
         功率: str,
         频率: str,
         电流: str,
         *,
+        串口配置: dict[str, Any] | None = None,
         厂家: str = "星言通",
     ) -> bool:
         """激光前确保 RS232 可用并按厂家格式分段发送参数。"""
         import asyncio
 
         if 串口配置 is None:
-            return False
+            串口配置 = self.获取首选会话()
+            if 串口配置 is None:
+                return False
 
         端口配置 = 串口配置.get("port")
         接收配置 = 串口配置.get("receive")

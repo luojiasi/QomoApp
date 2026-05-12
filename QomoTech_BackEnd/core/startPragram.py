@@ -10,10 +10,24 @@ from services.Rs232Service import Rs232Service
 from core.program_status_ws import 推送改变的程序运行状态
 from configs.product4P_config import 读取存储的4P旋转中心补偿值
 from core.calc_rotation import 计算点绕坐标轴旋转,计算实体绕坐标轴旋转后的实体点
+from services.communicate_control.laser_persistence import 从文件加载 as 读取激光设置文件
 from utils.logger import 获取日志记录器
 
 日志 = 获取日志记录器("程序执行")
 _program_running = False
+
+
+def _获取激光厂家() -> str:
+    """从 laser-settings.json 读取厂家，默认返回星言通"""
+    try:
+        data = 读取激光设置文件()
+        if data and isinstance(data, dict):
+            return str(data.get("manufacturer", "星言通") or "星言通")
+    except Exception:
+        pass
+    return "星言通"
+
+
 _program_paused = False
 _program_abort_requested = False
 _program_skip_requested = False
@@ -331,7 +345,6 @@ async def 执行开始任务程序_最重要的(
     *,
     配方数据: dict[str, Any],
     实体数据: list[dict[str, Any]],
-    串口配置: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """根据是否闭合来确定是往返运动？"""
     global _program_running, _program_abort_requested, _program_skip_requested, _program_paused, _laser_resume_required
@@ -349,8 +362,6 @@ async def 执行开始任务程序_最重要的(
         try:
             # TODO：要不要删除？
             运动服务.暂停状态采集()
-            if 串口配置 is None:
-                串口配置 = Rs232Service.获取实例().获取首选会话()
 
             所有任务列表 = OffsetEndpointCalculator.calc_xy_points(实体数据, 0)
             if not 所有任务列表:
@@ -382,14 +393,12 @@ async def 执行开始任务程序_最重要的(
                         原始任务序号=当前任务索引,
                         配方数据=配方数据,
                         实体数据=实体数据,
-                        串口配置=串口配置,
                     )
                 if 垂直配方中的加工轴 == 'XY':
                     结果 = await 修面和切片的程序(
                         原始任务序号=当前任务索引,
                         配方数据=配方数据,
                         实体数据=实体数据,
-                        串口配置=串口配置,
                     )
                 # 结果 = await 进行4P切产品(原始任务序号=当前任务索引,配方数据=配方数据,实体数据=实体数据,串口配置=串口配置)
 
@@ -426,8 +435,6 @@ async def 修面和切片的程序(
     原始任务序号: int,
     配方数据: dict[str, Any],
     实体数据: list[dict[str, Any]],
-    *,
-    串口配置: dict[str, Any] | None = None,
 ) -> bool | str:  # True / False / "skip" / "abort"
     """这个是单独拿出来的修面但是要和实际去相匹配"""
     运动服务 = MotionService.获取实例()
@@ -571,10 +578,10 @@ async def 修面和切片的程序(
                 else:
                     当前步骤 = 32
             case 31:
-                await Rs232Service.获取实例().发送激光数据(串口配置, str(扫黑功率), str(扫黑频率), str(扫黑电流))
+                await Rs232Service.获取实例().发送激光数据(str(扫黑功率), str(扫黑频率), str(扫黑电流), 厂家=_获取激光厂家())
                 当前步骤 = 40
             case 32:
-                await Rs232Service.获取实例().发送激光数据(串口配置, str(工作功率), str(工作频率), str(工作电流))
+                await Rs232Service.获取实例().发送激光数据(str(工作功率), str(工作频率), str(工作电流), 厂家=_获取激光厂家())
                 当前步骤 = 40
             case 40:
                 if not 是否打开激光:
@@ -732,8 +739,6 @@ async def 用旋转轴去切圆(
     原始任务序号: int,
     配方数据: dict[str, Any],
     实体数据: list[dict[str, Any]],
-    *,
-    串口配置: dict[str, Any] | None = None,
 ) -> bool | str:
     """这个是单独拿出来用作R轴切圆"""
     运动服务 = MotionService.获取实例()
@@ -857,10 +862,10 @@ async def 用旋转轴去切圆(
                 else:
                     当前步骤 = 32
             case 31:
-                await Rs232Service.获取实例().发送激光数据(串口配置, str(扫黑功率), str(扫黑频率), str(扫黑电流))
+                await Rs232Service.获取实例().发送激光数据(str(扫黑功率), str(扫黑频率), str(扫黑电流), 厂家=_获取激光厂家())
                 当前步骤 = 40
             case 32:
-                await Rs232Service.获取实例().发送激光数据(串口配置, str(工作功率), str(工作频率), str(工作电流))
+                await Rs232Service.获取实例().发送激光数据(str(工作功率), str(工作频率), str(工作电流), 厂家=_获取激光厂家())
                 当前步骤 = 40
             case 40:
                 if not 是否打开激光:
@@ -1009,8 +1014,6 @@ async def 进行4P切产品(
     原始任务序号: int,
     配方数据: dict[str, Any],
     实体数据: list[dict[str, Any]],
-    *,
-    串口配置: dict[str, Any] | None = None,
 ) -> bool | str:
     """这个是单独拿出来用作R轴切圆"""
     运动服务 = MotionService.获取实例()
@@ -1182,10 +1185,10 @@ async def 进行4P切产品(
                 else:
                     当前步骤 = 32
             case 31:
-                await Rs232Service.获取实例().发送激光数据(串口配置, str(扫黑功率), str(扫黑频率), str(扫黑电流))
+                await Rs232Service.获取实例().发送激光数据(str(扫黑功率), str(扫黑频率), str(扫黑电流), 厂家=_获取激光厂家())
                 当前步骤 = 40
             case 32:
-                await Rs232Service.获取实例().发送激光数据(串口配置, str(工作功率), str(工作频率), str(工作电流))
+                await Rs232Service.获取实例().发送激光数据(str(工作功率), str(工作频率), str(工作电流), 厂家=_获取激光厂家())
                 当前步骤 = 40
             case 40:
                 if not 是否打开激光:
