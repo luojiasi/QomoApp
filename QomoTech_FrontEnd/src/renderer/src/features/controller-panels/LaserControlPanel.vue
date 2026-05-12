@@ -3,6 +3,7 @@ import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref } from 'vue'
 import ControlPanelBase from './ControlPanelBase.vue'
 import { useRs232WorkbenchStore } from '../../stores/rs232WorkbenchStore'
+import { useLaserSettingsStore } from '../../stores/laserSettingsStore'
 import { applyLaserParams, type LaserApplyPayload } from '../../api/device/laser'
 import { closeRs232, openRs232, sendRs232 } from '../../api/device/rs232'
 import type { LaserTransmissionMode } from '../../types/settings'
@@ -12,6 +13,10 @@ const { success, error, info } = useNotification()
 
 const rs232Store = useRs232WorkbenchStore()
 const { workbench: rs232Workbench } = storeToRefs(rs232Store)
+
+const laserStore = useLaserSettingsStore()
+const { settings } = storeToRefs(laserStore)
+
 const LASER_RS232_OPEN_DELAY_MS = 1000
 const LASER_RS232_POST_DELAY_MS = 2000
 
@@ -19,13 +24,12 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-type LaserRs232Cmd = 'POW' | 'REPF' | 'LD1CS' | 'QSW' | 'LD1' | 'SHU' | 'GAP'
-
-/** RS232 一帧：ASCII 指令（CR/LF 固定使用 \\r\\n） */
-function buildLaserRs232Payload(cmd: LaserRs232Cmd): string {
-  if (cmd === 'POW') return `POW ${laserPower.value ?? 0}\r\n`
-  if (cmd === 'REPF') return `REPF ${laserFrequency.value ?? 0}\r\n`
-  if (cmd === 'LD1CS') return `LD1CS ${laserCurrent.value ?? 0}\r\n`
+/** 星言通 RS232 指令 */
+function buildXingYanTongPayload(cmd: string): string {
+  const s = settings.value
+  if (cmd === 'POW') return `POW ${s.power || '0'}\r\n`
+  if (cmd === 'REPF') return `REPF ${s.frequency || '0'}\r\n`
+  if (cmd === 'LD1CS') return `LD1CS ${s.current || '0'}\r\n`
   if (cmd === 'QSW') return 'QSW 1\r\n'
   if (cmd === 'LD1') return 'LD1 1\r\n'
   if (cmd === 'SHU') return 'SHU 1\r\n'
@@ -33,64 +37,110 @@ function buildLaserRs232Payload(cmd: LaserRs232Cmd): string {
   return ''
 }
 
-const isLaserPanelExpanded = ref(false)
+/** 梅曼 RS232 指令 */
+function buildMeiManPayload(cmd: string): string {
+  const s = settings.value
+  if (cmd === 'mode') return `set_mode:4\r\n`
+  if (cmd === 'power') return `set_power:${s.power || '0'}\r\n`
+  if (cmd === 'freq') return `set_freq:${s.frequency || '0'}\r\n`
+  if (cmd === 'duty') return `set_duty:${s.current || '0'}\r\n`
+  if (cmd === 'laser_on') return 'laser_on\r\n'
+  return ''
+}
 
-const laserManufacturer = ref('科猛激光')
-const laserPower = ref<number | null>(930)
-const laserFrequency = ref<number | null>(6000)
-const laserCurrent = ref<number | null>(80)
+const isMeiMan = computed(() => settings.value.manufacturer === '梅曼')
+
+// ------------------------------------------------------------------
+// 厂家自适应标签
+// ------------------------------------------------------------------
+
+const powerLabel = computed(() => isMeiMan.value ? '功率 %' : '功率')
+const powerPlaceholder = computed(() => isMeiMan.value ? '例:50' : '例:930')
+const frequencyLabel = computed(() => isMeiMan.value ? '频率 kHz' : '频率 Hz')
+const frequencyPlaceholder = computed(() => isMeiMan.value ? '例:80' : '例:6000')
+const currentLabel = computed(() => isMeiMan.value ? '占空比 %' : '电流 A')
+const currentPlaceholder = computed(() => isMeiMan.value ? '例:35' : '例:80')
+
+// ------------------------------------------------------------------
+// 厂家切换
+// ------------------------------------------------------------------
+
+const manufacturerOptions = ['星言通', '梅曼']
+
+function onManufacturerChange(mfr: string): void {
+  laserStore.switchManufacturer(mfr)
+}
+
+// ------------------------------------------------------------------
+// 本地状态
+// ------------------------------------------------------------------
+
+const isLaserPanelExpanded = ref(false)
 const transmissionMode = ref<LaserTransmissionMode>('RS232')
 
 const baselineLoaded = ref(false)
 const appliedBaselineManufacturer = ref<string | null>(null)
-const appliedBaselinePower = ref<number | null>(null)
-const appliedBaselineFrequency = ref<number | null>(null)
-const appliedBaselineCurrent = ref<number | null>(null)
+const appliedBaselinePower = ref<string | null>(null)
+const appliedBaselineFrequency = ref<string | null>(null)
+const appliedBaselineCurrent = ref<string | null>(null)
 const appliedBaselineTransmission = ref<LaserTransmissionMode | null>(null)
 const applying = ref(false)
-
-// const transmissionOptions: LaserTransmissionMode[] = ['网线', 'RS232']
-
-const EPS = 1e-6
-const numericEqual = (a: number | null, b: number | null): boolean => {
-  if (a === null && b === null) return true
-  if (a === null || b === null) return false
-  return Math.abs(a - b) < EPS
-}
+const saving = ref(false)
 
 const hasPendingApplyChanges = computed(() => {
   if (!baselineLoaded.value) return false
   return (
-    laserManufacturer.value !== (appliedBaselineManufacturer.value ?? '') ||
-    !numericEqual(laserPower.value, appliedBaselinePower.value) ||
-    !numericEqual(laserFrequency.value, appliedBaselineFrequency.value) ||
-    !numericEqual(laserCurrent.value, appliedBaselineCurrent.value) ||
+    settings.value.manufacturer !== (appliedBaselineManufacturer.value ?? '') ||
+    settings.value.power !== (appliedBaselinePower.value ?? '') ||
+    settings.value.frequency !== (appliedBaselineFrequency.value ?? '') ||
+    settings.value.current !== (appliedBaselineCurrent.value ?? '') ||
     transmissionMode.value !== appliedBaselineTransmission.value
   )
 })
 
 function syncBaselineFromForm(): void {
-  appliedBaselineManufacturer.value = laserManufacturer.value
-  appliedBaselinePower.value = laserPower.value
-  appliedBaselineFrequency.value = laserFrequency.value
-  appliedBaselineCurrent.value = laserCurrent.value
+  appliedBaselineManufacturer.value = settings.value.manufacturer
+  appliedBaselinePower.value = settings.value.power
+  appliedBaselineFrequency.value = settings.value.frequency
+  appliedBaselineCurrent.value = settings.value.current
   appliedBaselineTransmission.value = transmissionMode.value
   baselineLoaded.value = true
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await laserStore.load()
   syncBaselineFromForm()
 })
 
-async function handleApplySettings(isOpen:boolean=false): Promise<void> {
+// ------------------------------------------------------------------
+// 操作
+// ------------------------------------------------------------------
+
+async function handleSave(): Promise<void> {
+  if (saving.value) return
+  saving.value = true
+  try {
+    const ok = await laserStore.save()
+    if (ok) {
+      success('保存成功', '激光设置已保存到配置文件')
+    } else {
+      error('保存失败', '无法写入激光设置文件')
+    }
+  } finally {
+    saving.value = false
+  }
+}
+
+async function handleApplySettings(isOpen: boolean = false): Promise<void> {
   if (applying.value) return
   applying.value = true
   try {
+    const s = settings.value
     const payload: LaserApplyPayload = {
-      laserManufacturer: laserManufacturer.value || undefined,
-      laserPower: laserPower.value ?? undefined,
-      laserFrequency: laserFrequency.value ?? undefined,
-      laserCurrent: laserCurrent.value ?? undefined,
+      laserManufacturer: s.manufacturer || undefined,
+      laserPower: Number(s.power) || undefined,
+      laserFrequency: Number(s.frequency) || undefined,
+      laserCurrent: Number(s.current) || undefined,
       transmissionMode: transmissionMode.value
     }
 
@@ -100,8 +150,9 @@ async function handleApplySettings(isOpen:boolean=false): Promise<void> {
         receive: { ...rs232Workbench.value.receive },
         send: { ...rs232Workbench.value.send }
       })
+
       if (isOpen) {
-        info('正在打开激光器，请稍后...', openRes.message || '已打开 RS232',10000)
+        info('正在打开激光器，请稍后...', openRes.message || '已打开 RS232', 10000)
       } else {
         info('正在下发参数，请稍后...', openRes.message || '已打开 RS232')
       }
@@ -112,27 +163,44 @@ async function handleApplySettings(isOpen:boolean=false): Promise<void> {
       }
 
       try {
-        const steps: LaserRs232Cmd[] = isOpen
-          ? ['QSW', 'LD1', 'SHU', 'GAP','POW', 'REPF', 'LD1CS']
-          : ['POW', 'REPF', 'LD1CS']
-
-        // 优化：参数三条依次发送，最后统一等待 2 秒再断开。
-        for (const step of steps) {
-          const sendRes = await sendRs232({
-            port: { ...rs232Workbench.value.port },
-            send: {
-              ...rs232Workbench.value.send,
-              mode: 'ascii',
-              payload: buildLaserRs232Payload(step),
-            },
-          })
-          if (!sendRes.success) {
-            error('应用失败', sendRes.message || 'RS232 发送失败')
-            return
+        if (isMeiMan.value) {
+          const steps = isOpen
+            ? ['mode', 'power', 'freq', 'duty', 'laser_on']
+            : ['power', 'freq', 'duty']
+          for (const step of steps) {
+            const sendRes = await sendRs232({
+              port: { ...rs232Workbench.value.port },
+              send: {
+                ...rs232Workbench.value.send,
+                mode: 'ascii',
+                payload: buildMeiManPayload(step)
+              }
+            })
+            if (!sendRes.success) {
+              error('应用失败', sendRes.message || 'RS232 发送失败')
+              return
+            }
+            await sleep(LASER_RS232_OPEN_DELAY_MS)
           }
-
-          // 打开激光器时，QSW/LD1/SHU 之间给一点缓冲；关闭由 GAP 接管或由设备自行处理。
-          await sleep(LASER_RS232_OPEN_DELAY_MS)
+        } else {
+          const steps: string[] = isOpen
+            ? ['QSW', 'LD1', 'SHU', 'GAP', 'POW', 'REPF', 'LD1CS']
+            : ['POW', 'REPF', 'LD1CS']
+          for (const step of steps) {
+            const sendRes = await sendRs232({
+              port: { ...rs232Workbench.value.port },
+              send: {
+                ...rs232Workbench.value.send,
+                mode: 'ascii',
+                payload: buildXingYanTongPayload(step)
+              }
+            })
+            if (!sendRes.success) {
+              error('应用失败', sendRes.message || 'RS232 发送失败')
+              return
+            }
+            await sleep(LASER_RS232_OPEN_DELAY_MS)
+          }
         }
 
         await sleep(LASER_RS232_POST_DELAY_MS)
@@ -152,11 +220,7 @@ async function handleApplySettings(isOpen:boolean=false): Promise<void> {
       return
     }
 
-    appliedBaselineManufacturer.value = laserManufacturer.value
-    appliedBaselinePower.value = laserPower.value
-    appliedBaselineFrequency.value = laserFrequency.value
-    appliedBaselineCurrent.value = laserCurrent.value
-    appliedBaselineTransmission.value = transmissionMode.value
+    syncBaselineFromForm()
     success(
       '应用成功',
       transmissionMode.value === 'RS232'
@@ -181,64 +245,71 @@ const emit = defineEmits<{(e: 'open-right-panel', target: string): void}>()
     title="激光面板"
     action-target="DetailedRs232Send"
     :class="isLaserPanelExpanded ? 'min-h-[min(100px,46vh)]' : ''"
-    @open-right-panel="(target) => emit('open-right-panel', target)"
+    @open-right-panel="(target: string) => emit('open-right-panel', target)"
   >
     <template #default>
-      <div class="grid grid-cols-3 gap-3">
-      <!-- <label class="col-span-2 flex min-w-0 flex-col gap-1">
-        <span class="text-xs text-(--app-text-muted)">激光厂家</span>
-        <input
-          v-model="laserManufacturer"
-          type="text"
-          class="w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm text-(--app-text-primary) shadow-inner shadow-slate-900/5 outline-none transition focus:border-sky-500/80 focus:shadow-[0_0_0_3px_rgba(14,165,233,0.15)] focus:ring-2 focus:ring-sky-400/25 dark:shadow-black/40"
-        />
-      </label>
-      <label class="col-span-1 flex min-w-0 flex-col gap-1">
-        <span class="text-xs text-(--app-text-muted)">传输方式</span>
-        <select
-          v-model="transmissionMode"
-          class="w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm text-(--app-text-primary) shadow-inner shadow-slate-900/5 outline-none transition focus:border-sky-500/80 focus:shadow-[0_0_0_3px_rgba(14,165,233,0.15)] focus:ring-2 focus:ring-sky-400/25 dark:shadow-black/40"
-        >
-          <option v-for="opt in transmissionOptions" :key="opt" :value="opt">
-            {{ opt }}
-          </option>
-        </select>
-      </label> -->
-      <label class="flex min-w-0 gap-1">
-        <span class="text-xs text-(--app-text-muted)">功率</span>
-        <input
-          v-model.number="laserPower"
-          type="number"
-          min="0"
-          step="1"
-          class="w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm text-(--app-text-primary) shadow-inner shadow-slate-900/5 outline-none transition focus:border-sky-500/80 focus:shadow-[0_0_0_3px_rgba(14,165,233,0.15)] focus:ring-2 focus:ring-sky-400/25 dark:shadow-black/40"
-        />
-      </label>
-      <label class="flex min-w-0 gap-1">
-        <span class="text-xs text-(--app-text-muted)">频率</span>
-        <input
-          v-model.number="laserFrequency"
-          type="number"
-          min="0"
-          step="1"
-          class="w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm text-(--app-text-primary) shadow-inner shadow-slate-900/5 outline-none transition focus:border-sky-500/80 focus:shadow-[0_0_0_3px_rgba(14,165,233,0.15)] focus:ring-2 focus:ring-sky-400/25 dark:shadow-black/40"
-        />
-      </label>
-      <label class="col-span-1 flex min-w-0 gap-1">
-        <span class="text-xs text-(--app-text-muted)">电流</span>
-        <input
-          v-model.number="laserCurrent"
-          type="number"
-          min="0"
-          step="0.1"
-          class="w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm text-(--app-text-primary) shadow-inner shadow-slate-900/5 outline-none transition focus:border-sky-500/80 focus:shadow-[0_0_0_3px_rgba(14,165,233,0.15)] focus:ring-2 focus:ring-sky-400/25 dark:shadow-black/40"
-        />
-      </label>
+      <div class="grid grid-cols-2 gap-3">
+        <!-- 厂家 + 端口 -->
+        <label class="flex min-w-0 flex-col gap-1">
+          <span class="text-xs text-(--app-text-muted)">厂家</span>
+          <select
+            :value="settings.manufacturer"
+            class="w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm text-(--app-text-primary) shadow-inner shadow-slate-900/5 outline-none transition focus:border-sky-500/80 focus:shadow-[0_0_0_3px_rgba(14,165,233,0.15)] focus:ring-2 focus:ring-sky-400/25 dark:shadow-black/40"
+            @change="onManufacturerChange(($event.target as HTMLSelectElement).value)"
+          >
+            <option v-for="opt in manufacturerOptions" :key="opt" :value="opt">{{ opt }}</option>
+          </select>
+        </label>
+        <label class="flex min-w-0 flex-col gap-1">
+          <span class="text-xs text-(--app-text-muted)">端口</span>
+          <input
+            v-model="settings.port"
+            type="text"
+            class="w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm text-(--app-text-primary) shadow-inner shadow-slate-900/5 outline-none transition focus:border-sky-500/80 focus:shadow-[0_0_0_3px_rgba(14,165,233,0.15)] focus:ring-2 focus:ring-sky-400/25 dark:shadow-black/40"
+          />
+        </label>
+      </div>
+      <div class="mt-3 grid grid-cols-3 gap-3">
+        <label class="flex min-w-0 flex-col gap-1">
+          <span class="text-xs text-(--app-text-muted)">{{ powerLabel }}</span>
+          <input
+            v-model="settings.power"
+            type="text"
+            :placeholder="powerPlaceholder"
+            class="w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm text-(--app-text-primary) shadow-inner shadow-slate-900/5 outline-none transition focus:border-sky-500/80 focus:shadow-[0_0_0_3px_rgba(14,165,233,0.15)] focus:ring-2 focus:ring-sky-400/25 dark:shadow-black/40"
+          />
+        </label>
+        <label class="flex min-w-0 flex-col gap-1">
+          <span class="text-xs text-(--app-text-muted)">{{ frequencyLabel }}</span>
+          <input
+            v-model="settings.frequency"
+            type="text"
+            :placeholder="frequencyPlaceholder"
+            class="w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm text-(--app-text-primary) shadow-inner shadow-slate-900/5 outline-none transition focus:border-sky-500/80 focus:shadow-[0_0_0_3px_rgba(14,165,233,0.15)] focus:ring-2 focus:ring-sky-400/25 dark:shadow-black/40"
+          />
+        </label>
+        <label class="flex min-w-0 flex-col gap-1">
+          <span class="text-xs text-(--app-text-muted)">{{ currentLabel }}</span>
+          <input
+            v-model="settings.current"
+            type="text"
+            :placeholder="currentPlaceholder"
+            class="w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm text-(--app-text-primary) shadow-inner shadow-slate-900/5 outline-none transition focus:border-sky-500/80 focus:shadow-[0_0_0_3px_rgba(14,165,233,0.15)] focus:ring-2 focus:ring-sky-400/25 dark:shadow-black/40"
+          />
+        </label>
       </div>
     </template>
 
     <template #footer>
       <div class="mt-4 flex w-full gap-3">
+        <button
+          type="button"
+          class="inline-flex w-full flex-1 items-center justify-center rounded-xl border border-amber-500/35 bg-amber-950/35 px-4 py-2.5 text-sm font-medium text-amber-100/95 transition hover:bg-amber-950/55 disabled:opacity-50"
+          :disabled="saving"
+          @click="handleSave"
+        >
+          {{ saving ? '保存中...' : '保存' }}
+        </button>
         <button
           v-if="transmissionMode === 'RS232'"
           type="button"

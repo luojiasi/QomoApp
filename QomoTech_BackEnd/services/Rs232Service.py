@@ -129,18 +129,33 @@ class Rs232Service:
             日志.debug(f"接收缓冲区: {len(文本)} 字符")
         return 文本
 
+    # 厂家 → 命令格式映射
+    _激光命令: dict[str, dict[str, str]] = {
+        "星言通": {
+            "功率": "POW {value}",
+            "频率": "REPF {value}",
+            "电流": "LD1CS {value}",
+        },
+        "梅曼": {
+            "模式": "set_mode:3\r\n",
+            "功率": "set_power:{value}\r\n",
+            "频率": "set_freq:{value}\r\n",
+            "占空比": "set_duty:{value}\r\n",
+            "出光": "laser_on\r\n",
+            "关光": "laser_off\r\n",
+        },
+    }
+
     async def 发送激光数据(
         self,
         串口配置: dict[str, Any] | None,
         功率: str,
         频率: str,
         电流: str,
+        *,
+        厂家: str = "星言通",
     ) -> bool:
-        """
-        激光前确保 RS232 可用并分段发送参数。
-        发送顺序：1) pow + power  2) frequency + frequency  3) current + current
-        每次发送间隔 0.5 秒
-        """
+        """激光前确保 RS232 可用并按厂家格式分段发送参数。"""
         import asyncio
 
         if 串口配置 is None:
@@ -150,6 +165,11 @@ class Rs232Service:
         接收配置 = 串口配置.get("receive")
         if not isinstance(端口配置, dict) or not isinstance(接收配置, dict):
             日志.error("rs232_open 缺少有效的 port 或 receive")
+            return False
+
+        命令映射 = self._激光命令.get(厂家)
+        if 命令映射 is None:
+            日志.error("不支持的激光厂家: %s", 厂家)
             return False
 
         目标端口名 = str(端口配置.get("portName", "")).strip()
@@ -164,20 +184,43 @@ class Rs232Service:
         原始发送配置 = 串口配置.get("send")
         基本发送配置: dict[str, Any] = 原始发送配置.copy() if isinstance(原始发送配置, dict) else {}
         基本发送配置.setdefault("mode", "ascii")
-        发送数据列表 = [
-            f"POW {功率}",
-            f"REPF {频率}",
-            f"LD1CS {电流}",
-        ]
 
-        for 序号, 数据 in enumerate(发送数据列表):
-            发送配置 = 基本发送配置.copy()
-            发送配置["payload"] = 数据
-            成功2, 消息2 = await asyncio.to_thread(self.发送, 发送配置)
-            if not 成功2:
-                日志.error("RS232 参数发送失败（payload=%s）: %s", 数据, 消息2)
-                return False
-            if 序号 < len(发送数据列表) - 1:
-                await asyncio.sleep(0.5)
+        if 厂家 == "梅曼":
+            # 梅曼：先设模式，再设参数，最后出光，每条等应答 + 200ms 间隔
+            发送数据列表 = [
+                命令映射["模式"].rstrip("\r\n"),
+                命令映射["功率"].format(value=功率).rstrip("\r\n"),
+                命令映射["频率"].format(value=频率).rstrip("\r\n"),
+                命令映射["占空比"].format(value=电流).rstrip("\r\n"),
+                命令映射["出光"].rstrip("\r\n"),
+            ]
+            for 序号, 数据 in enumerate(发送数据列表):
+                发送配置 = 基本发送配置.copy()
+                发送配置["payload"] = 数据
+                成功2, 消息2 = await asyncio.to_thread(self.发送, 发送配置)
+                if not 成功2:
+                    日志.error("RS232 参数发送失败（payload=%s）: %s", 数据, 消息2)
+                    return False
+                if 序号 < len(发送数据列表) - 1:
+                    await asyncio.sleep(0.2)
+                    # 读一次应答，避免缓冲区堆积
+                    self.获取接收缓冲区(清空=False)
+        else:
+            # 星言通：POW → REPF → LD1CS，间隔 0.5 秒
+            发送数据列表 = [
+                命令映射["功率"].format(value=功率),
+                命令映射["频率"].format(value=频率),
+                命令映射["电流"].format(value=电流),
+            ]
+            for 序号, 数据 in enumerate(发送数据列表):
+                发送配置 = 基本发送配置.copy()
+                发送配置["payload"] = 数据
+                成功2, 消息2 = await asyncio.to_thread(self.发送, 发送配置)
+                if not 成功2:
+                    日志.error("RS232 参数发送失败（payload=%s）: %s", 数据, 消息2)
+                    return False
+                if 序号 < len(发送数据列表) - 1:
+                    await asyncio.sleep(0.5)
+
         await asyncio.to_thread(self.关闭)
         return True

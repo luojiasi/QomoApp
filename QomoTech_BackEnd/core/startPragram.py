@@ -225,13 +225,12 @@ async def _rebuild_xy_path_from_current(原始运行点位: list[dict[str, Any]]
         return 头部点 + [{"x": 转换点[最佳索引][0], "y": 转换点[最佳索引][1]}]
     return 头部点 + 剩余点
 
-
-async def _safe_poll_idle(轴号: int, 超时次数: int = 2000, 休眠秒: float = 0.02) -> dict[str, Any]:
+# TODO：现在想急停是不是需要将其放进去
+async def 安全拉取是否空闲(轴号: int, 超时次数: int = 2000, 休眠秒: float = 0.02) -> dict[str, Any]:
     """安全轮询轴静止状态，返回 {"success": bool, "notMoving": bool, "skip": bool, "abort": bool}"""
     运动服务 = MotionService.获取实例()
     轴名 = _轴号映射.get(int(轴号))
-    if 轴名 is None:
-        return {"success": False, "notMoving": False, "message": f"未知轴号: {轴号}"}
+    if 轴名 is None: return {"success": False, "notMoving": False, "message": f"未知轴号: {轴号}"}
     for _ in range(超时次数):
         if await _abort_pending():
             return {"success": False, "notMoving": False, "abort": True}
@@ -242,15 +241,14 @@ async def _safe_poll_idle(轴号: int, 超时次数: int = 2000, 休眠秒: floa
             continue
         try:
             是否空闲 = await 运动服务.读_idle(轴名)
-            if 是否空闲:
-                return {"success": True, "notMoving": True}
+            if 是否空闲: return {"success": True, "notMoving": True}
         except Exception:
-            日志.exception("_safe_poll_idle axis=%s 失败列表", 轴号)
+            日志.exception("安全拉取是否空闲 axis=%s 失败列表", 轴号)
         await asyncio.sleep(休眠秒)
     return {"success": False, "notMoving": False, "message": "等待轴静止超时"}
 
 
-async def _safe_poll_xy_idle(超时次数: int = 2000, 休眠秒: float = 0.02) -> dict[str, Any]:
+async def 安全拉取xy轴是否空闲(超时次数: int = 2000, 休眠秒: float = 0.02) -> dict[str, Any]:
     """安全轮询 XY 双轴静止状态，返回 {"success": bool, "skip": bool, "abort": bool}"""
     运动服务 = MotionService.获取实例()
     for _ in range(超时次数):
@@ -267,7 +265,7 @@ async def _safe_poll_xy_idle(超时次数: int = 2000, 休眠秒: float = 0.02) 
             if rx and ry:
                 return {"success": True}
         except Exception:
-            日志.exception("_safe_poll_xy_idle 失败列表")
+            日志.exception("安全拉取xy轴是否空闲 失败列表")
         await asyncio.sleep(休眠秒)
     return {"success": False, "message": "等待 XY 轴静止超时"}
 
@@ -439,7 +437,7 @@ async def 修面和切片的程序(
     主配方中的工作配方 = 在配方中查找ID的配方(配方数据.get("selectedMachiningRecipe"), 主配方.get("machiningRecipeId"))
 
     if 主配方中的扫黑配方 is None or 主配方中的工作配方 is None:
-        日志.warning("wangFuLoop: 主配方 -> 子配方查找失败", extra={
+        日志.warning("修面和切片的程序: 主配方 -> 子配方查找失败", extra={
             "mainRecipeId": 主配方.get("id"),
             "blackeningRecipeId": 主配方.get("blackeningRecipeId"),
             "machiningRecipeId": 主配方.get("machiningRecipeId"),
@@ -447,12 +445,13 @@ async def 修面和切片的程序(
         return False
 
     扫黑配方中的激光配方 = 在配方中查找ID的配方(配方数据.get("selectedLaserRecipe"), 主配方中的扫黑配方.get("laserPowerRecipeId"))
+    
     工作配方中的激光配方 = 在配方中查找ID的配方(配方数据.get("selectedLaserRecipe"), 主配方中的工作配方.get("laserPowerRecipeId"))
     工作配方中的水平配方 = 在配方中查找ID的配方(配方数据.get("selectedHorizontal"), 主配方中的工作配方.get("horizontalFormulaId"))
     工作配方中的垂直配方 = 在配方中查找ID的配方(配方数据.get("selectedVertical"), 主配方中的工作配方.get("verticalFormulaId"))
 
     if (扫黑配方中的激光配方 is None or 工作配方中的激光配方 is None or 工作配方中的水平配方 is None or 工作配方中的垂直配方 is None):
-        日志.warning("wangFuLoop: 子配方 -> 公式/激光查找失败", extra={
+        日志.warning("修面和切片的程序: 子配方 -> 公式/激光查找失败", extra={
             "blackeningRecipeId": 主配方中的扫黑配方.get("id"),
             "machiningRecipeId": 主配方中的工作配方.get("id"),
         })
@@ -470,11 +469,14 @@ async def 修面和切片的程序(
 
     下开口K = float(工作配方中的水平配方.get('formula').get('lowerOpeningFormula').get('k'))
     下开口B = float(工作配方中的水平配方.get('formula').get('lowerOpeningFormula').get('b'))
+    
     深度补偿K = float(工作配方中的水平配方.get('formula').get('depthCompensationFormula').get('k'))
     深度补偿B = float(工作配方中的水平配方.get('formula').get('depthCompensationFormula').get('b'))
+    
     补偿角度K = float(工作配方中的水平配方.get('formula').get('compensationAngleFormula').get('k'))
     补偿角度B = float(工作配方中的水平配方.get('formula').get('compensationAngleFormula').get('b'))
 
+    # TODO: 后续根据这些 recipe 对应字段执行真实运动逻辑
     当前步骤 = 0
 
     是否需要跳转计算下一层开口 = False
@@ -502,6 +504,7 @@ async def 修面和切片的程序(
 
     每段子区间速度数量 = int(工作配方中的垂直配方.get("formula").get("edgeCutting").get("cutSpeedNums"))
     切割速度 = float(工作配方中的垂直配方.get("formula").get("xSpeed"))
+    # 保留原始百分比值（0-100 范围），后续动态计算要用
     原始边缘切割速度百分比值 = float(工作配方中的垂直配方.get("formula").get("edgeCutting").get("speed"))
     原始中间切割速度百分比值 = float(工作配方中的垂直配方.get("formula").get("middleCutting").get("speed"))
     边缘切割速度百分比 = 原始边缘切割速度百分比值 / 100
@@ -512,9 +515,11 @@ async def 修面和切片的程序(
     中间切割速度的变化B = float(工作配方中的垂直配方.get("formula").get("middleCutting").get("change").get('b'))
 
     开口形状 = 工作配方中的水平配方.get('formula').get('openingShape')
-    下开口值 = 下开口K * 高度 + 下开口B
-    上开口值 = 深度补偿K * 1000 * (高度 + 深度补偿B) * tana + 下开口值
+
+    最小的偏移 = 下开口值 = 下开口K * 高度 + 下开口B
+    最大的偏移 = 上开口值 = 深度补偿K * 1000 * (高度 + 深度补偿B) * tana + 下开口值
     最小的偏移 = 0
+    # 最大的偏移 = 最小的偏移+下开口B
 
     是否需要反转 = False
     当前没有偏移的点位 = OffsetEndpointCalculator.calc_xy_points(实体数据, 0)[原始任务序号]
@@ -550,7 +555,7 @@ async def 修面和切片的程序(
                 except Exception:
                     当前步骤 = 300
             case 20:
-                结果 = await _safe_poll_xy_idle(超时次数=2000, 休眠秒=0.02)
+                结果 = await 安全拉取xy轴是否空闲(超时次数=2000, 休眠秒=0.02)
                 if 结果.get("skip"):
                     return await 跳过任务时处理并回到目标Z轴位置(z轴目标=首次目标Z轴位置, 速度=切割速度)
                 if 结果.get("abort"):
@@ -587,7 +592,7 @@ async def 修面和切片的程序(
                     当前步骤 = 300
             case 70:
                 目标高度 = -累计下降量 + 当前Z轴的位置
-                结果 = await _safe_poll_idle(轴号=2, 超时次数=2000, 休眠秒=0.02)
+                结果 = await 安全拉取是否空闲(轴号=2, 超时次数=2000, 休眠秒=0.02)
                 if 结果.get("skip"):
                     return await 跳过任务时处理并回到目标Z轴位置(z轴目标=首次目标Z轴位置, 速度=切割速度)
                 if 结果.get("abort"):
@@ -625,7 +630,7 @@ async def 修面和切片的程序(
                         是否需要反转 = not 是否需要反转
                     当前步骤 = 82 if not 是否需要跳转计算下一层开口 else 100
             case 82:
-                结果 = await _safe_poll_xy_idle(超时次数=2000, 休眠秒=0.01)
+                结果 = await 安全拉取xy轴是否空闲(超时次数=2000, 休眠秒=0.01)
                 if 结果.get("skip"):
                     return await 跳过任务时处理并回到目标Z轴位置(z轴目标=首次目标Z轴位置, 速度=切割速度)
                 if 结果.get("abort"):
@@ -667,7 +672,7 @@ async def 修面和切片的程序(
 
                 当前大区间索引 = int(进度百分比 // 变化百分比) if 变化百分比 > 0 else 0
                 段内进度 = (进度百分比 % 变化百分比) // (变化百分比 // 每段子区间速度数量) if 变化百分比 > 0 else 0
-                中间切割速度百分比 = min(1.0, max(0.3, round((原始中间切割速度百分比值 + 中间切割速度的变化B / 100 * (当前大区间索引 % (中间切割速度的变化K + 1))), 4)))
+                中间切割速度百分比 = min(1.1, max(0.3, round((原始中间切割速度百分比值 + 中间切割速度的变化B / 100 * (当前大区间索引 % (中间切割速度的变化K + 1))), 4)))
                 边缘切割速度百分比 = min(1.0, max(0.3, round((原始边缘切割速度百分比值 + 边缘切割速度的变化B / 100 * 段内进度 + 边缘切割速度的变化K / 100 * 当前大区间索引), 4)))
 
                 if 进度百分比 > (变化百分比) / 2 and 是否打开扫黑功能:
@@ -836,7 +841,7 @@ async def 用旋转轴去切圆(
                 except Exception:
                     当前步骤 = 300
             case 20:
-                结果 = await _safe_poll_xy_idle(超时次数=2000, 休眠秒=0.02)
+                结果 = await 安全拉取xy轴是否空闲(超时次数=2000, 休眠秒=0.02)
                 if 结果.get("skip"):
                     return await 跳过任务时处理并回到目标Z轴位置(z轴目标=首次目标Z轴位置, 速度=切割速度)
                 if 结果.get("abort"):
@@ -875,7 +880,7 @@ async def 用旋转轴去切圆(
                 except Exception:
                     当前步骤 = 300
             case 70:
-                结果 = await _safe_poll_idle(轴号=2, 超时次数=2000, 休眠秒=0.02)
+                结果 = await 安全拉取是否空闲(轴号=2, 超时次数=2000, 休眠秒=0.02)
                 if 结果.get("skip"):
                     return await 跳过任务时处理并回到目标Z轴位置(z轴目标=首次目标Z轴位置, 速度=切割速度)
                 if 结果.get("abort"):
@@ -1130,7 +1135,7 @@ async def 进行4P切产品(
                 except Exception:
                     当前步骤 = 300
             case 11:
-                结果 = await _safe_poll_xy_idle(超时次数=2000, 休眠秒=0.02)
+                结果 = await 安全拉取xy轴是否空闲(超时次数=2000, 休眠秒=0.02)
                 if 结果.get("skip"):
                     return await 跳过任务时处理并回到目标Z轴位置(z轴目标=Z轴原始初始位置, 速度=切割速度)
                 if 结果.get("abort"):
@@ -1197,7 +1202,7 @@ async def 进行4P切产品(
                 except Exception:
                     当前步骤 = 300
             case 70:
-                结果 = await _safe_poll_idle(轴号=2, 超时次数=2000, 休眠秒=0.02)
+                结果 = await 安全拉取是否空闲(轴号=2, 超时次数=2000, 休眠秒=0.02)
                 if 结果.get("skip"):
                     return await 跳过任务时处理并回到目标Z轴位置(z轴目标=Z轴原始初始位置, 速度=切割速度)
                 if 结果.get("abort"):
@@ -1229,7 +1234,7 @@ async def 进行4P切产品(
                     当前切割次数 = 0
                     当前步骤 = 82 if not 是否需要跳转计算下一层开口 else 100
             case 82:
-                结果 = await _safe_poll_xy_idle(超时次数=2000, 休眠秒=0.01)
+                结果 = await 安全拉取xy轴是否空闲(超时次数=2000, 休眠秒=0.01)
                 if 结果.get("skip"):
                     return await 跳过任务时处理并回到目标Z轴位置(z轴目标=Z轴原始初始位置, 速度=切割速度)
                 if 结果.get("abort"):

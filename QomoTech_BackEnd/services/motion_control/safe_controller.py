@@ -68,9 +68,7 @@ class 安全控制器:
     def 校验轴名(self, 轴名: str) -> MotionAxisConfig:
         """轴名是否在 motion_config.axes 中；返回对应轴配置。"""
         if 轴名 not in self._配置.axes:
-            raise SafetyViolation(
-                f"未配置的轴 {轴名!r}，可选: {list(self._配置.axes.keys())}"
-            )
+            raise SafetyViolation(f"未配置的轴 {轴名!r}，可选: {list(self._配置.axes.keys())}")
         return self._配置.axes[轴名]
 
     def 校验轴名列表(self, 轴名列表: Sequence[str]) -> List[MotionAxisConfig]:

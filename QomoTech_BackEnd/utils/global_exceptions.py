@@ -111,6 +111,16 @@ def _处理追踪异常(arg):
     if isinstance(exc_value, (KeyboardInterrupt, SystemExit, StopIteration, GeneratorExit)):
         return
 
+    # 跳过 asyncio/WebSocket 的正常流程控制异常（Cancel / 断开 非错误）
+    try:
+        from asyncio import CancelledError as _CE
+        from starlette.websockets import WebSocketDisconnect as _WSD
+        from fastapi import WebSocketDisconnect as _WSD2
+    except ImportError:
+        _CE = _WSD = _WSD2 = None  # type: ignore[assignment]
+    if _CE is not None and isinstance(exc_value, (_CE, _WSD, _WSD2)):
+        return
+
     # 只记录用户代码中抛出的异常（跳过 stdlib / site-packages / pytest 内部异常）
     if not _是否用户代码异常(exc_traceback):
         return

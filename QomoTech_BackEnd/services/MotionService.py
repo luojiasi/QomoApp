@@ -1029,7 +1029,10 @@ class MotionService:
         return z
 
     async def 绝对运动并设速度(
-        self, 轴名: str, 位置: float, 速度: float,
+        self, 
+        轴名: str, 
+        位置: float, 
+        速度: float,
     ) -> None:
         """先安全闸校验，再调用 adapter 的临时设速度版绝对运动。"""
         self._保证已启动()
