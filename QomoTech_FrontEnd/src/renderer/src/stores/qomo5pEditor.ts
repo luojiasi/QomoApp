@@ -30,6 +30,18 @@ import {
   recenterEntitiesAroundOrigin,
   sortLinesAndAttachNodeForExport
 } from '@renderer/utils/Qomo5P/qomoEntityGeometry'
+import {
+  translateSelectedEntities,
+  translateAllEntities,
+  moveLineEnd,
+  moveArcEnd,
+  setCircleRadius,
+  moveCircleCenter,
+  moveEllipseCenter,
+  moveBezierPoint,
+  moveArcCenter,
+  polarToCartesian
+} from '@/modules/editor/cad/entityTransforms'
 
 import { QOMO5P_DRAFT_KEY, CENTER_ROTATION_STORAGE_KEY } from '../configs/storageKeys'
 import {
@@ -187,245 +199,48 @@ export const useQomo5PStore = defineStore('qomo5p', () => {
     persistDraft()
   }
 
-  /** 拖动中直接改几何，不写历史（须配合 begin/endInteractiveTransform） */
   const moveSelectedEntitiesInPlace = (dx: number, dy: number) => {
     if (selectedEntityIds.value.length === 0 || (dx === 0 && dy === 0)) return
-    entities.value = entities.value.map((entity) => {
-      if (!selectedEntityIds.value.includes(entity.id)) return entity
-      if (entity.type === 'LINE') {
-        return {
-          ...entity,
-          start: { x: entity.start.x + dx, y: entity.start.y + dy },
-          end: { x: entity.end.x + dx, y: entity.end.y + dy }
-        }
-      }
-      if (entity.type === 'ARC') {
-        return {
-          ...entity,
-          center: { x: entity.center.x + dx, y: entity.center.y + dy },
-          startPoint: entity.startPoint
-            ? { x: entity.startPoint.x + dx, y: entity.startPoint.y + dy }
-            : undefined,
-          endPoint: entity.endPoint
-            ? { x: entity.endPoint.x + dx, y: entity.endPoint.y + dy }
-            : undefined
-        }
-      }
-      if (entity.type === 'CIRCLE') {
-        return {
-          ...entity,
-          center: { x: entity.center.x + dx, y: entity.center.y + dy }
-        }
-      }
-      if (isBezierEntity(entity)) {
-        return {
-          ...entity,
-          points: entity.points.map((point) => ({
-            x: point.x + dx,
-            y: point.y + dy
-          }))
-        }
-      }
-      if (isEllipseLikeIrregularEntity(entity)) {
-        return {
-          ...entity,
-          center: { x: entity.center.x + dx, y: entity.center.y + dy }
-        }
-      }
-      return entity
-    })
+    entities.value = translateSelectedEntities(entities.value, selectedEntityIds.value, dx, dy)
   }
 
-  /** 拖动中直接改几何：移动所有实体（不依赖 selectedEntityIds） */
   const moveAllEntitiesInPlace = (dx: number, dy: number) => {
     if (entities.value.length === 0 || (dx === 0 && dy === 0)) return
-    entities.value = entities.value.map((entity) => {
-      if (entity.type === 'LINE') {
-        return {
-          ...entity,
-          start: { x: entity.start.x + dx, y: entity.start.y + dy },
-          end: { x: entity.end.x + dx, y: entity.end.y + dy }
-        }
-      }
-
-      if (entity.type === 'ARC') {
-        return {
-          ...entity,
-          center: { x: entity.center.x + dx, y: entity.center.y + dy },
-          startPoint: entity.startPoint ? { x: entity.startPoint.x + dx, y: entity.startPoint.y + dy } : undefined,
-          endPoint: entity.endPoint ? { x: entity.endPoint.x + dx, y: entity.endPoint.y + dy } : undefined
-        }
-      }
-
-      if (entity.type === 'CIRCLE') {
-        return {
-          ...entity,
-          center: { x: entity.center.x + dx, y: entity.center.y + dy }
-        }
-      }
-
-      if (isBezierEntity(entity)) {
-        return {
-          ...entity,
-          points: entity.points.map((point) => ({
-            x: point.x + dx,
-            y: point.y + dy
-          }))
-        }
-      }
-
-      if (isEllipseLikeIrregularEntity(entity)) {
-        return {
-          ...entity,
-          center: { x: entity.center.x + dx, y: entity.center.y + dy }
-        }
-      }
-
-      return entity
-    })
+    entities.value = translateAllEntities(entities.value, dx, dy)
   }
 
-  const moveLineEndpointInPlace = (
-    entityId: string,
-    end: 'start' | 'end',
-    dx: number,
-    dy: number
-  ) => {
+  const moveLineEndpointInPlace = (entityId: string, end: 'start' | 'end', dx: number, dy: number) => {
     if (dx === 0 && dy === 0) return
-    entities.value = entities.value.map((entity) => {
-      if (entity.id !== entityId || entity.type !== 'LINE') return entity
-      if (end === 'start') {
-        return {
-          ...entity,
-          start: { x: entity.start.x + dx, y: entity.start.y + dy }
-        }
-      }
-      return {
-        ...entity,
-        end: { x: entity.end.x + dx, y: entity.end.y + dy }
-      }
-    })
+    entities.value = moveLineEnd(entities.value, entityId, end, dx, dy)
   }
 
-  // 移动主体===================================
-  // 移动 ARC 的端点：保持 center 和 radius 不变（端点会投影到圆上）
-  const polarToCartesian = (cx: number, cy: number, r: number, angleDeg: number) => {
-    const rad = (angleDeg * Math.PI) / 180
-    return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) }
-  }
-  const moveArcEndpointInPlace = (
-    entityId: string,
-    end: 'start' | 'end',
-    dx: number,
-    dy: number
-  ) => {
+  const moveArcEndpointInPlace = (entityId: string, end: 'start' | 'end', dx: number, dy: number) => {
     if (dx === 0 && dy === 0) return
-    entities.value = entities.value.map((entity) => {
-      if (entity.id !== entityId || entity.type !== 'ARC') return entity
-
-      const center = entity.center
-      const radius = entity.radius
-
-      const curPoint =
-        end === 'start'
-          ? (entity.startPoint ?? polarToCartesian(center.x, center.y, radius, entity.startAngle))
-          : (entity.endPoint ?? polarToCartesian(center.x, center.y, radius, entity.endAngle))
-
-      const movedRaw = { x: curPoint.x + dx, y: curPoint.y + dy }
-
-      // 投影到圆上，保证端点仍然落在 (center, radius) 定义的圆上
-      const dxp = movedRaw.x - center.x
-      const dyp = movedRaw.y - center.y
-      const len = Math.hypot(dxp, dyp)
-      if (len < 1e-6) return entity
-
-      const scale = radius / len
-      const projected = { x: center.x + dxp * scale, y: center.y + dyp * scale }
-
-      const angle = (Math.atan2(projected.y - center.y, projected.x - center.x) * 180) / Math.PI
-
-      if (end === 'start') {
-        return {
-          ...entity,
-          startPoint: projected,
-          startAngle: angle
-        }
-      }
-
-      return {
-        ...entity,
-        endPoint: projected,
-        endAngle: angle
-      }
-    })
+    entities.value = moveArcEnd(entities.value, entityId, end, dx, dy)
   }
-  // 移动 CIRCLE 的半径：保持 center 不变（用于“圆周点”拖动缩放）
+
   const moveCircleRadiusInPlace = (entityId: string, radius: number) => {
-    const nextR = Math.max(radius, 1e-6)
-    entities.value = entities.value.map((entity) => {
-      if (entity.id !== entityId || entity.type !== 'CIRCLE') return entity
-      if (Math.abs(entity.radius - nextR) < 1e-9) return entity
-      return {
-        ...entity,
-        radius: nextR
-      }
-    })
+    entities.value = setCircleRadius(entities.value, entityId, radius)
   }
 
-  // 移动 CIRCLE 的圆心：仅影响指定的当前圆
   const moveCircleCenterInPlace = (entityId: string, dx: number, dy: number) => {
     if (dx === 0 && dy === 0) return
-    entities.value = entities.value.map((entity) => {
-      if (entity.id !== entityId || entity.type !== 'CIRCLE') return entity
-      return {
-        ...entity,
-        center: { x: entity.center.x + dx, y: entity.center.y + dy }
-      }
-    })
+    entities.value = moveCircleCenter(entities.value, entityId, dx, dy)
   }
 
   const moveEllipseCenterInPlace = (entityId: string, dx: number, dy: number) => {
     if (dx === 0 && dy === 0) return
-    entities.value = entities.value.map((entity) => {
-      if (entity.id !== entityId || !isEllipseLikeIrregularEntity(entity)) return entity
-      return {
-        ...entity,
-        center: { x: entity.center.x + dx, y: entity.center.y + dy }
-      }
-    })
+    entities.value = moveEllipseCenter(entities.value, entityId, dx, dy)
   }
 
   const moveBezierPointInPlace = (entityId: string, pointIndex: number, dx: number, dy: number) => {
     if (dx === 0 && dy === 0) return
-    entities.value = entities.value.map((entity) => {
-      if (entity.id !== entityId || !isBezierEntity(entity)) return entity
-      const point = entity.points[pointIndex]
-      if (!point) return entity
-      return {
-        ...entity,
-        points: entity.points.map((item, index) =>
-          index === pointIndex ? { x: item.x + dx, y: item.y + dy } : item
-        )
-      }
-    })
+    entities.value = moveBezierPoint(entities.value, entityId, pointIndex, dx, dy)
   }
 
-  // 移动 ARC 的圆心：仅影响指定的当前弧（保持 radius/startAngle/endAngle；若有 startPoint/endPoint 也整体平移）
   const moveArcCenterInPlace = (entityId: string, dx: number, dy: number) => {
     if (dx === 0 && dy === 0) return
-    entities.value = entities.value.map((entity) => {
-      if (entity.id !== entityId || entity.type !== 'ARC') return entity
-      return {
-        ...entity,
-        center: { x: entity.center.x + dx, y: entity.center.y + dy },
-        startPoint: entity.startPoint
-          ? { x: entity.startPoint.x + dx, y: entity.startPoint.y + dy }
-          : undefined,
-        endPoint: entity.endPoint
-          ? { x: entity.endPoint.x + dx, y: entity.endPoint.y + dy }
-          : undefined
-      }
-    })
+    entities.value = moveArcCenter(entities.value, entityId, dx, dy)
   }
   // 移动主体===================================
 
