@@ -10,7 +10,7 @@ import type {
   QomoIrregularSurfacesEntity,
   QomoLayer,
   QomoLineSurfacesEntity
-} from '@renderer/types/Qomo5P'
+} from '../qomo5pTypes'
 import {
   createArcPoints,
   createBezierPoints,

@@ -37,11 +37,11 @@ import {
 } from '@/shared/composables/useNotification'
 import { useAuthStore} from '@/modules/auth/useAuthStore'
 import { useLicenseStore } from '@/modules/auth/licenseStore'
-import { useControllerSettingsStore } from '@/stores/controllerSettingsStore'
+import { useControllerSettingsStore } from '@/modules/motion/useMotionStore'
 import { dispatchGlobalKeyboard } from '@/shared/composables/useGlobalKeyboard'
-import { parseRs232SessionFromLocalStorage } from '@/stores/rs232WorkbenchStore'
-import { syncRs232Workbench } from '@/api/device/rs232'
-import type { HomeState } from '@/types/auth'
+import { parseRs232SessionFromLocalStorage } from '@/modules/laser/rs232WorkbenchStore'
+import { syncRs232Workbench } from '@/modules/laser/rs232Api'
+import type { HomeState } from '@/modules/auth/authTypes'
 const toastRef = ref<InstanceType<typeof NotificationToast> | null>(null)
 const router = useRouter()
 const authStore = useAuthStore()

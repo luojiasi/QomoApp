@@ -1,4 +1,4 @@
-import type { QomoProjectData, QomoSerializedProject } from '@renderer/types/Qomo5P'
+import type { QomoProjectData, QomoSerializedProject } from '../qomo5pTypes'
 
 export const QOMO_PROJECT_FORMAT = 'QOMO-Project'
 export const QOMO_PROJECT_VERSION = '1.0.0'

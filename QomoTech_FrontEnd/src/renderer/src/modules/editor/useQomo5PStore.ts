@@ -1,6 +1,6 @@
 ﻿import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import type { QomoViewport, QomoSelectionRect } from '@renderer/types/Qomo5P'
+import type { QomoViewport, QomoSelectionRect } from './qomo5pTypes'
 import type {
   IrregularShapeType,
   OpenDirectionType,
@@ -14,11 +14,11 @@ import type {
   QomoLineSurfacesEntity,
   QomoProjectMeta,
   QomoWeldingBase
-} from '@renderer/types/Qomo5P'
-import type { DiamondDetailParameters } from '@renderer/types/diamondTypes'
-import { parseDxfToQomoEntities } from '@renderer/utils/Qomo5P/QomoDxf'
-import { parseQomoProject, serializeQomoProject } from '@renderer/utils/Qomo5P/QomoProject'
-import { downloadTextFile } from '@renderer/utils/Qomo5P/QomoProject'
+} from './qomo5pTypes'
+import type { DiamondDetailParameters } from './diamondTypes'
+import { parseDxfToQomoEntities } from './cad/QomoDxf'
+import { parseQomoProject, serializeQomoProject } from './cad/QomoProject'
+import { downloadTextFile } from './cad/QomoProject'
 import {
   applySelectionFlags,
   getBoundsFromEntities,
@@ -29,7 +29,7 @@ import {
   rebuildLayerCounts,
   recenterEntitiesAroundOrigin,
   sortLinesAndAttachNodeForExport
-} from '@renderer/utils/Qomo5P/qomoEntityGeometry'
+} from './cad/qomoEntityGeometry'
 
 import { QOMO5P_DRAFT_KEY, CENTER_ROTATION_STORAGE_KEY } from '@/configs/storageKeys'
 import {

@@ -5,7 +5,7 @@ import { cloneSettings } from '@/utils/settings'
 import { RS232_WORKBENCH_STORAGE_KEY } from '@/configs/storageKeys'
 import { LIGHT_SETTINGS_PERSIST_DEBOUNCE_MS } from '@/shared/constants'
 import { isRs232WorkbenchShape, normalizeRs232Workbench } from '@/utils/rs232Validation'
-import { createPersistedSettings, readSettingsFromStorage } from '@/stores/settingsStoreUtils'
+import { createPersistedSettings, readSettingsFromStorage } from '@/modules/settings/useSettingsStore'
 
 /**
  * 直接从 localStorage 解析串口会话请求，供路由切换前的非响应式读取使用。

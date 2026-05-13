@@ -9,7 +9,7 @@ import type {
   QomoLayer,
   QomoLineSurfacesEntity,
   QomoWeldingBase
-} from '@renderer/types/Qomo5P'
+} from '../qomo5pTypes'
 
 type DxfLikeEntity = Record<string, unknown>
 type DxfLikeDocument = {

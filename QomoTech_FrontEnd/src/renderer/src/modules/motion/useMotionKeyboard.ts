@@ -1,8 +1,8 @@
 import { ref } from 'vue'
 import { subscribeGlobalKeyboard } from '@/shared/composables/useGlobalKeyboard'
 import { useNotification } from '@/shared/composables/useNotification'
-import { useControllerSettingsStore } from '@/stores/controllerSettingsStore'
-import { useAuxiliaryFunctionPanelStore } from '@/stores/auxiliaryFunctionPanelStore'
+import { useControllerSettingsStore } from '@/modules/motion/useMotionStore'
+import { useAuxiliaryFunctionPanelStore } from '@/modules/motion/auxiliaryStore'
 import {
   moveMotionAxisRel,
   moveMotionAxisAbs,
@@ -10,7 +10,7 @@ import {
   rotateRAxisByTurns,
   zeroMotionAxis,
   setMotionIoOutput
-} from '@/api/motion'
+} from '@/modules/motion'
 
 const U_AXIS_NO = 3
 const R_AXIS_NO = 4

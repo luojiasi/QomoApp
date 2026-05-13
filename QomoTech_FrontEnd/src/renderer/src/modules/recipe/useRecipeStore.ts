@@ -17,8 +17,8 @@ import type {
   VerticalFormulaRecipe
 } from '@/types/settings'
 import { cloneSettings } from '@/utils/settings'
-import { getNextSequence, normalizeRecipeState } from '@/utils/recipeValidation'
-import { createSettingsSaveResult } from '@/stores/settingsStoreUtils'
+import { getNextSequence, normalizeRecipeState } from './recipeValidation'
+import { createSettingsSaveResult } from '@/modules/settings/useSettingsStore'
 import { RECIPE_STORAGE_KEYS } from '@/configs/storageKeys'
 
 type ProcessRecipeWithFormulaDetails<T extends MachiningProcessRecipe> = T & {

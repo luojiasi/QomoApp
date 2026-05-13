@@ -1,4 +1,4 @@
-import { EntityType } from '@renderer/types/Qomo5P'
+import { EntityType } from '../qomo5pTypes'
 
 export type DrawingArcType =
   | 'three_points_arc'

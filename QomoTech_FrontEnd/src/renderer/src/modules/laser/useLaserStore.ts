@@ -4,9 +4,9 @@ import {
   getLaserSettings,
   saveLaserSettings,
   type LaserSettingsPayload
-} from '@/api/device/laser'
+} from './laserApi'
 
-import { DEFAULTS_BY_MANUFACTURER } from '@/configs/lasermanufacturer'
+import { DEFAULTS_BY_MANUFACTURER } from './laserManufacturer'
 
 export const useLaserSettingsStore = defineStore('laser-settings', () => {
   const settings = ref<LaserSettingsPayload>({ ...DEFAULTS_BY_MANUFACTURER['KMJGQ_XYT'] })

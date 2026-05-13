@@ -1681,7 +1681,7 @@ class ZMC适配器:
              能在 5-20ms 的间隙拿到锁继续推 WebSocket
           4. ⭐ 主循环每轮检查 self._中止事件,急停时立即 break 并自己调
              CancelAxisList,无需等 IO worker 释放
-          5. wait_until_done 用 MovesBuffered+IDLE 双重判完成
+          5. 推完路径点即返回,完成等待由调用方通过安全拉取是否空闲轮询
           6. finally 同时恢复 LSPEED 与 MERGE
         """
         if not self._已连接:

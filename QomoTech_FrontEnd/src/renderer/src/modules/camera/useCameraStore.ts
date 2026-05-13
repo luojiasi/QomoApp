@@ -3,9 +3,9 @@ import { defineStore } from 'pinia'
 import { defaultCameraSettings } from '@/configs/settings'
 import { isCameraSettingsShape, normalizeCameraSettings } from '@/utils/cameraValidation'
 import { cloneSettings } from '@/utils/settings'
-import { getCameraSettingsFromFile, saveCameraSettingsToFile } from '@/api/camera/camera'
+import { getCameraSettingsFromFile, saveCameraSettingsToFile } from './cameraApi'
 import type { CameraSettingsState } from '@/types/settings'
-import { createSettingsSaveResult } from '@/stores/settingsStoreUtils'
+import { createSettingsSaveResult } from '@/modules/settings/useSettingsStore'
 import type { SettingsSaveResult } from '@/types/settings'
 
 export const useCameraSettingsStore = defineStore('camera-settings', () => {

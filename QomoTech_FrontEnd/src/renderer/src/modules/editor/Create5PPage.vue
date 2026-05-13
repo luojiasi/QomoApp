@@ -1168,23 +1168,23 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import { useNotification } from '@renderer/composables/useNotification'
-import QomoCanvas from '@renderer/features/modeling/QomoCanvas.vue'
-import Qomo3DPreview from '@renderer/features/modeling/Qomo3DPreview.vue'
-import CreateDiamondParamsDetails from '@renderer/features/modeling/CreateDiamondParamsDetails.vue'
-import { dispatchQomoTo5PAction } from '@renderer/utils/Qomo5P/QomoTo5P'
-import { dispatchQomoToCanvasAction, DrawingShapeTools } from '@renderer/utils/Qomo5P/QomoToCanvas'
+import { useNotification } from '@/shared/composables/useNotification'
+import QomoCanvas from './panels/QomoCanvas.vue'
+import Qomo3DPreview from './panels/Qomo3DPreview.vue'
+import CreateDiamondParamsDetails from './panels/CreateDiamondParamsDetails.vue'
+import { dispatchQomoTo5PAction } from './cad/QomoTo5P'
+import { dispatchQomoToCanvasAction, DrawingShapeTools } from './cad/QomoToCanvas'
 import {
   EntityType,
   OpenDirectionType,
   type QomoArcSurfacesEntity,
   type QomoBezierSurfacesEntity,
   type QomoEntityWithSurface
-} from '@/types/Qomo5P'
-import { useQomo5PStore } from '@/stores/qomo5pEditor'
+} from './qomo5pTypes'
+import { useQomo5PStore } from './useQomo5PStore'
 import { storeToRefs } from 'pinia'
-import type { DiamondDetailParameters } from '@renderer/types/diamondTypes'
-import { diamondQuickAddConfigs } from '@renderer/configs/diamondConfigs'
+import type { DiamondDetailParameters } from './diamondTypes'
+import { diamondQuickAddConfigs } from './diamondConfig'
 const store = useQomo5PStore()
 const { viewport, layers, entities, selectedEntityIds } = storeToRefs(store)
 const { success, error } = useNotification()

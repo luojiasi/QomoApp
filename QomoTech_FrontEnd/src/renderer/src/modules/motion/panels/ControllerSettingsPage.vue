@@ -2,9 +2,9 @@
 import { computed, onMounted, ref } from 'vue'
 import { AXIS_TAB_LABELS, defaultControllerParameters } from '@/configs/settings'
 import { IO_MAP_GROUP_COUNT } from '@/shared/constants'
-import { useControllerSettingsPage } from '@/composables/useSettingsPages'
+import { useControllerSettingsPage } from '@/modules/settings/useSettingsPages'
 import { useNotification } from '@/shared/composables/useNotification'
-import { useControllerSettingsStore } from '@/stores/controllerSettingsStore'
+import { useControllerSettingsStore } from '@/modules/motion/useMotionStore'
 import ApiTestPanel from '@/modules/settings/ApiTestPanel.vue'
 import type {
   ControllerAxisCount,
@@ -15,9 +15,9 @@ import { cloneSettings, formatSettingValue } from '@/utils/settings'
 import {
   connectMotionWithControllerSettings,
   emergencyStopMotion
-} from '@/api/motion'
-import { setMotionIoOutput } from '@/api/motion/io'
-import { useMotionExecute } from '@/api/motion'
+} from '@/modules/motion'
+import { setMotionIoOutput } from '@/modules/motion/ioApi'
+import { useMotionExecute } from '@/modules/motion'
 import { useHardwareState } from '@/shared/api/hardware'
 import ManualMotionPanel from '@/modules/motion/panels/ManualMotionPanel.vue'
 

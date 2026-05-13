@@ -691,12 +691,12 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { useNotification } from '@/composables/useNotification'
-import { subscribeQomoToCanvasAction } from '@/utils/Qomo5P/QomoToCanvas'
-import type { Point, QomoEntityWithSurface } from '@renderer/types/Qomo5P'
-import { useQomo5PStore } from '@/stores/qomo5pEditor'
-import { screenToWorld } from '@/utils/Qomo5P/viewport'
-import type { DrawingShapeTools } from '@renderer/utils/Qomo5P/QomoToCanvas'
+import { useNotification } from '@/shared/composables/useNotification'
+import { subscribeQomoToCanvasAction } from '../cad/QomoToCanvas'
+import type { Point, QomoEntityWithSurface } from '../qomo5pTypes'
+import { useQomo5PStore } from '../useQomo5PStore'
+import { screenToWorld } from '../cad/viewport'
+import type { DrawingShapeTools } from '../cad/QomoToCanvas'
 
 import {
   createBezierPoints,
@@ -706,7 +706,7 @@ import {
   createOctagonPoints,
   createPearPoints,
   createSquarePoints
-} from '@renderer/utils/Qomo5P/threeGeometry'
+} from '../cad/threeGeometry'
 
 const props = withDefaults(
   defineProps<{

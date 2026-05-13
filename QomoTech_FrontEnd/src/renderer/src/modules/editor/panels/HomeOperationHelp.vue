@@ -2,10 +2,10 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import CollapsiblePanelHeader from '@/shared/components/CollapsiblePanelHeader.vue'
-import { useNotification } from '@renderer/composables/useNotification'
-import { useQomo5PStore } from '@/stores/qomo5pEditor'
+import { useNotification } from '@/shared/composables/useNotification'
+import { useQomo5PStore } from '../useQomo5PStore'
 import { storeToRefs } from 'pinia'
-import type { Point, QomoArcSurfacesEntity } from '@renderer/types/Qomo5P'
+import type { Point, QomoArcSurfacesEntity } from '../qomo5pTypes'
 
 const isHelpPanelExpanded = ref(true)
 

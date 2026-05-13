@@ -3,12 +3,12 @@ import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref } from 'vue'
 import ControlPanelBase from '@/features/controller-panels/ControlPanelBase.vue'
 import { useNotification } from '@/shared/composables/useNotification'
-import { useCameraSettingsStore } from '@/stores/cameraSettingsStore'
+import { useCameraSettingsStore } from './useCameraStore'
 import {
   bootstrapCameraSettings,
   disconnectCamera,
   initSdkEnumAndConnectIndex0
-} from '@/api/camera/camera'
+} from './cameraApi'
 
 const { success, error, info } = useNotification()
 

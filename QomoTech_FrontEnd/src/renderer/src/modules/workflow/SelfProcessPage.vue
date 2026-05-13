@@ -1,6 +1,6 @@
 ﻿<script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { useSelfProcessStore } from '@/stores/selfProcessStores'
+import { useSelfProcessStore } from './useSelfProcessStore'
 import FlowTaskPanel from '@/features/workflow/FlowTaskPanel.vue'
 import FlowCanvas from '@/features/workflow/FlowCanvas.vue'
 import FlowNodeConfig from '@/features/workflow/FlowNodeConfig.vue'

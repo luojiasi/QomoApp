@@ -5,9 +5,9 @@ import RecipeLibrarySection from '@/features/recipe/RecipeLibrarySection.vue'
 import RecipeEditorCard from '@/features/recipe/RecipeEditorCard.vue'
 import RecipeTopologyDiagram from '@/features/recipe/RecipeTopologyDiagram.vue'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { useRecipeManagementPage } from '@/composables/useSettingsPages'
+import { useRecipeManagementPage } from '@/modules/settings/useSettingsPages'
 import { useNotification } from '@/shared/composables/useNotification'
-import { useRecipeSettingsStore } from '@/stores/recipeSettingsStore'
+import { useRecipeSettingsStore } from './useRecipeStore'
 import type {
   LaserPowerRecipe,
   LaserTransmissionMode,

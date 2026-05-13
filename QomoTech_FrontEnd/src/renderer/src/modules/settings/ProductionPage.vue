@@ -1,8 +1,8 @@
 ﻿<script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import RouteTabs from '@/shared/components/RouteTabs.vue'
-import { useReservePages } from '@/composables/useSettingsPages'
-import { useReservePagesStore } from '@/stores/settings'
+import { useReservePages } from '@/modules/settings/useSettingsPages'
+import { useReservePagesStore } from '@/modules/settings/useSettingsStore'
 
 const reserveStore = useReservePagesStore()
 const { navigationLinks, getReservePageByPath } = useReservePages()

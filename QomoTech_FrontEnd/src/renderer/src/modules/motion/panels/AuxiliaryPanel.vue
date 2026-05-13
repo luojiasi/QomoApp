@@ -1,8 +1,8 @@
 ﻿<script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import ControlPanelBase from '@/features/controller-panels/ControlPanelBase.vue'
-import { useControllerSettingsStore } from '@/stores/controllerSettingsStore'
-import { useAuxiliaryFunctionPanelStore } from '@/stores/auxiliaryFunctionPanelStore'
+import { useControllerSettingsStore } from '@/modules/motion/useMotionStore'
+import { useAuxiliaryFunctionPanelStore } from '@/modules/motion/auxiliaryStore'
 import {
   moveMotionAxisAbs,
   moveMotionAxisRel,
@@ -10,7 +10,7 @@ import {
   rotateUAxisByAngle,
   setMotionIoOutput,
   type MotionAxis,
-} from '@/api/motion'
+} from '@/modules/motion'
 import { useNotification } from '@/shared/composables/useNotification'
 const { error,success } = useNotification()
 const controllerStore = useControllerSettingsStore()

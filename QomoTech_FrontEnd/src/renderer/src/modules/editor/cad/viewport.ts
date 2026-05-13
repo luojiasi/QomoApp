@@ -1,4 +1,4 @@
-import type { Point, QomoBounds, QomoSelectionRect, QomoViewport } from '@renderer/types/Qomo5P'
+import type { Point, QomoBounds, QomoSelectionRect, QomoViewport } from '../qomo5pTypes'
 
 const MIN_ZOOM = 1
 const MAX_ZOOM = 50

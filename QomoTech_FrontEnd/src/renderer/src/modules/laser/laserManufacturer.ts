@@ -1,4 +1,4 @@
-﻿import {type LaserSettingsPayload} from '@/api/device/laser'
+﻿import { type LaserSettingsPayload } from './laserApi'
 
 
 /** 厂家默认参数 */

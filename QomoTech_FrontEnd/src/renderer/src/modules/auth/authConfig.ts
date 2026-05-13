@@ -1,4 +1,4 @@
-import type { AccountInfo } from '../types/auth'
+import type { AccountInfo } from './authTypes'
 
 export const DEFAULT_ADMIN_ACCOUNT: AccountInfo = {
   username: 'admin',

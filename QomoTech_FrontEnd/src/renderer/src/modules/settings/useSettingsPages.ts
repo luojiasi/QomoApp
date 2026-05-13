@@ -1,9 +1,9 @@
 ﻿import { computed } from 'vue'
 import { createControllerSections, createRecipeSections } from '@/configs/settings'
 import { deviceFeatureRoutes } from '@/app/router'
-import { useControllerSettingsStore } from '@/stores/controllerSettingsStore'
-import { useRecipeSettingsStore } from '@/stores/recipeSettingsStore'
-import { useReservePagesStore } from '@/stores/settings'
+import { useControllerSettingsStore } from '@/modules/motion/useMotionStore'
+import { useRecipeSettingsStore } from '@/modules/recipe/useRecipeStore'
+import { useReservePagesStore } from '@/modules/settings/useSettingsStore'
 
 export const useControllerSettingsPage = () => {
   const controllerStore = useControllerSettingsStore()

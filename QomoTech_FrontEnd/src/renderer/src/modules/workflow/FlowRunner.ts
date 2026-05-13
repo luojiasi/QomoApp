@@ -1,4 +1,4 @@
-﻿import { useSelfProcessStore } from '@/stores/selfProcessStores'
+﻿import { useSelfProcessStore } from './useSelfProcessStore'
 
 /**
  * FlowRunner 组合式函数

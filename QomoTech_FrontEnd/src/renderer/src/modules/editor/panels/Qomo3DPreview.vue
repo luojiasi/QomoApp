@@ -19,10 +19,10 @@
 import { storeToRefs } from 'pinia'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import * as THREE from 'three'
-import { useQomo5PStore } from '@/stores/qomo5pEditor'
+import { useQomo5PStore } from '../useQomo5PStore'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import { buildQomo5PProjectionToZ0Objects, buildQomo5PSceneObjects, disposeThreeObject } from '@renderer/utils/Qomo5P/threeGeometry'
-import { subscribeQomoTo5PAction } from '@renderer/utils/Qomo5P/QomoTo5P'
+import { buildQomo5PProjectionToZ0Objects, buildQomo5PSceneObjects, disposeThreeObject } from '../cad/threeGeometry'
+import { subscribeQomoTo5PAction } from '../cad/QomoTo5P'
 
 const store = useQomo5PStore()
 const { entities, layers, selectedEntityIds } = storeToRefs(store)

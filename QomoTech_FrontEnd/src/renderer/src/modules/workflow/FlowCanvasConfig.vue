@@ -1,5 +1,5 @@
 ﻿<script setup lang="ts">
-import { useSelfProcessStore } from '@/stores/selfProcessStores'
+import { useSelfProcessStore } from './useSelfProcessStore'
 
 const store = useSelfProcessStore()
 

@@ -1,7 +1,7 @@
 ﻿<script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue'
-import { useSelfProcessStore } from '@/stores/selfProcessStores'
-import { LOG_LEVEL_COLOR, LOG_LEVEL_LABEL } from '@/configs/selfProcessConfigs'
+import { useSelfProcessStore } from './useSelfProcessStore'
+import { LOG_LEVEL_COLOR, LOG_LEVEL_LABEL } from './selfProcessConfig'
 
 const store = useSelfProcessStore()
 const logContainer = ref<HTMLElement | null>(null)

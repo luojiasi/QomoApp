@@ -204,7 +204,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import type { DiamondDetailParameters } from '@renderer/types/diamondTypes'
+import type { DiamondDetailParameters } from '../diamondTypes'
 
 const props = defineProps<{
   visible: boolean

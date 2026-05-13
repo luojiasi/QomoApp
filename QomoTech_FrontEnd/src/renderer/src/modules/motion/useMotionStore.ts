@@ -6,18 +6,18 @@ import type {
   ControllerParameters,
   SettingsSaveResult
 } from '@/types/settings'
-import { type HomeState } from '@/types/auth'
+import { type HomeState } from '@/modules/auth/authTypes'
 import { HOME_STATE_KEY } from '@/configs/storageKeys'
 import { cloneSettings } from '@/utils/settings'
 import {
   getControllerSettingsFromFile,
   saveControllerSettingsToFile
-} from '@/api/motion/connect'
+} from '@/modules/motion/connectApi'
 import {
   isControllerParametersShape,
   normalizeControllerParameters
 } from '@/utils/controllerValidation'
-import { createSettingsSaveResult } from '@/stores/settingsStoreUtils'
+import { createSettingsSaveResult } from '@/modules/settings/useSettingsStore'
 
 function loadHomeStateFromStorage(): HomeState {
   if (typeof window === 'undefined') {

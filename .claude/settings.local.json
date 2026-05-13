@@ -10,7 +10,8 @@
       "Bash(git commit *)",
       "PowerShell(npm run *)",
       "Bash(npm run *)",
-      "Bash(npx vue-tsc *)"
+      "Bash(npx vue-tsc *)",
+      "Bash(Test-Path D:\\\\Qomo\\\\QomoTech\\\\QomoTech_BackEnd\\\\docs *)"
     ]
   },
   "enabledPlugins": {}

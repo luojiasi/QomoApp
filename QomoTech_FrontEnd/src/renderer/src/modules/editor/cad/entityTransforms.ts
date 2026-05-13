@@ -1,5 +1,5 @@
-import type { Point, QomoEntityWithSurface } from '@renderer/types/Qomo5P'
-import { isBezierEntity, isEllipseLikeIrregularEntity } from '@renderer/utils/Qomo5P/qomoEntityGeometry'
+import type { Point, QomoEntityWithSurface } from '../qomo5pTypes'
+import { isBezierEntity, isEllipseLikeIrregularEntity } from './qomoEntityGeometry'
 
 export function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number): Point {
   const rad = (angleDeg * Math.PI) / 180

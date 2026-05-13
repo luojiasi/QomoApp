@@ -1,14 +1,14 @@
 import { ref, computed } from 'vue'
 import { useNotification } from '@/shared/composables/useNotification'
-import { useQomo5PStore } from '@/stores/qomo5pEditor'
+import { useQomo5PStore } from '@/modules/editor/useQomo5PStore'
 import { useHardwareState } from '@/shared/api/hardware'
 import { getStartProgramStatusWsUrl } from '@/shared/api/wsClient'
 import {
   startProgram,
   getStartProgramStatus,
   startProgramControl
-} from '@/api/motion'
-import type { QomoEntityWithSurface } from '@/types/Qomo5P'
+} from '@/modules/motion'
+import type { QomoEntityWithSurface } from '@/modules/editor/qomo5pTypes'
 
 type StartProgramStatusPayload = {
   running?: boolean

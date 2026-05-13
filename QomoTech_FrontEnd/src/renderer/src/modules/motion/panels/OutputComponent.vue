@@ -1,14 +1,14 @@
 ﻿<script setup lang="ts">
 import { computed, onMounted, ref,watch} from 'vue'
 import SvgIcon from '@/shared/components/SvgIcon.vue'
-import { setMotionIoOutput } from '@/api/motion'
-import { zeroMotionAxis,moveMotionAxisRel,getMotionIoInput } from '@/api/motion'
+import { setMotionIoOutput } from '@/modules/motion'
+import { zeroMotionAxis,moveMotionAxisRel,getMotionIoInput } from '@/modules/motion'
 import { useHardwareState, waitControllerConnected } from '@/shared/api/hardware'
-import { useAuxiliaryFunctionPanelStore } from '@/stores/auxiliaryFunctionPanelStore'
+import { useAuxiliaryFunctionPanelStore } from '@/modules/motion/auxiliaryStore'
 const auxiliaryFunctionPanelStore = useAuxiliaryFunctionPanelStore()
 
 import { useNotification } from '@renderer/composables/useNotification'
-import { useControllerSettingsStore } from '@/stores/controllerSettingsStore'
+import { useControllerSettingsStore } from '@/modules/motion/useMotionStore'
 const { success, error } = useNotification()
 const controllerStore = useControllerSettingsStore()
 const { ioOut: wsIoOut } = useHardwareState()

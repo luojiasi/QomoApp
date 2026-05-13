@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useNotification } from '@/shared/composables/useNotification'
-import { useControllerSettingsStore } from '@/stores/controllerSettingsStore'
+import { useControllerSettingsStore } from '@/modules/motion/useMotionStore'
 import {
   moveMotionAxisAbs,
   moveMotionAxisRel,
   rotateRAxisByTurns,
   rotateUAxisByAngle,
   zeroMotionAxis
-} from '@/api/motion'
+} from '@/modules/motion'
 
 const props = defineProps<{
   axisCount: number

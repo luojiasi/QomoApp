@@ -251,11 +251,11 @@
 <script setup lang="ts">
 
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { useHardwareState } from '@renderer/api/hardware'
+import { useHardwareState } from '@/shared/api/hardware'
 import { storeToRefs } from 'pinia'
-import { useQomo5PStore } from '@renderer/stores/qomo5pEditor'
-import type { OpenDirectionType, Point, QomoEntityWithSurface } from '@renderer/types/Qomo5P'
-import {computeOpenEntityOffsetPathsForCanvas,createBezierPoints,createCushionPoints,createHeartPoints,createMarquisePoints,createOctagonPoints,createPearPoints,createSquarePoints} from '@renderer/utils/Qomo5P/threeGeometry'
+import { useQomo5PStore } from '../useQomo5PStore'
+import type { OpenDirectionType, Point, QomoEntityWithSurface } from '../qomo5pTypes'
+import {computeOpenEntityOffsetPathsForCanvas,createBezierPoints,createCushionPoints,createHeartPoints,createMarquisePoints,createOctagonPoints,createPearPoints,createSquarePoints} from '../cad/threeGeometry'
 
 const props = withDefaults(
   defineProps<{
