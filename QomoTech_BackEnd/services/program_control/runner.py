@@ -132,7 +132,7 @@ class ProgramRunner(ProgramContext):
             self._需恢复激光 = 激光之前开启
             if 激光之前开启:
                 await self._运动.设置输出(2, False)
-            await self._运动.急停()
+            await self._运动.暂停()
         self._广播状态变更(force=True)
         return {"success": True, "message": "已暂停"}
 
@@ -141,9 +141,11 @@ class ProgramRunner(ProgramContext):
             if not self._是否运行中:
                 return {"success": False, "message": "当前没有运行中的程序"}
             self._是否已暂停 = False
-        if self._运动.适配器 and self._运动.适配器.已连接 and self._需恢复激光:
-            await self._运动.设置输出(2, True)
-            self._需恢复激光 = False
+        if self._运动.适配器 and self._运动.适配器.已连接:
+            await self._运动.继续()
+            if self._需恢复激光:
+                await self._运动.设置输出(2, True)
+                self._需恢复激光 = False
         self._广播状态变更(force=True)
         return {"success": True, "message": "已继续运行"}
 
