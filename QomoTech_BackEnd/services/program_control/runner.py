@@ -465,7 +465,7 @@ class ProgramRunner(ProgramContext):
                     目标运行速度 = 切割速度 * 当前速度百分比
 
                     try:
-                        await self._运动.连续插补XY(路径点=原始点数据_插补数据, 速度=目标运行速度, wait_until_done=True)
+                        await self._运动.连续插补XY(路径点=原始点数据_插补数据, 速度=目标运行速度)
                         当前步骤 = ProgramStep.CHECK_REPEAT_CUT
                     except Exception:
                         当前步骤 = ProgramStep.CLEANUP
@@ -1064,7 +1064,7 @@ class ProgramRunner(ProgramContext):
                     原始点数据_插补数据 = list(当前运行点位)
                     目标速度 = 切割速度 * 边缘切割速度百分比 if 是否在边缘位置 else 切割速度 * 中间切割速度百分比
                     try:
-                        await self._运动.连续插补XY(路径点=原始点数据_插补数据, 速度=目标速度, wait_until_done=True)
+                        await self._运动.连续插补XY(路径点=原始点数据_插补数据, 速度=目标速度)
                         当前步骤 = ProgramStep.CHECK_REPEAT_CUT
                     except Exception:
                         当前步骤 = ProgramStep.CLEANUP
