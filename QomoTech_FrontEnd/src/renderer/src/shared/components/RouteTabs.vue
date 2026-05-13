@@ -1,9 +1,9 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import logo from '@resources/icon.png'
 import { toggleColorScheme } from '@/shared/composables/useAppColorScheme'
-import { useAuthStore } from '@/stores/auth'
+import { useAuthStore } from '@/modules/auth/useAuthStore'
 import type { RouteShortcut } from '@/types/settings'
 import SvgIcon from './SvgIcon.vue'
 

@@ -8,8 +8,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from utils.logger import 获取日志记录器
 from configs.app_config import 应用配置实例
 
-
-from core.program_status_ws import 设置程序运行循环事件
 import asyncio
 
 日志 = 获取日志记录器("应用")
@@ -18,7 +16,10 @@ import asyncio
 @asynccontextmanager
 async def 应用生命周期(app: FastAPI):
     """应用启动/关闭时的生命周期管理。"""
-    设置程序运行循环事件(asyncio.get_running_loop())
+    
+    from services.PragramService import PragramService
+    PragramService.获取实例().设置事件循环(asyncio.get_running_loop())
+
     日志.info("QomoTech 服务启动中...")
 
     from services.MotionService import MotionService

@@ -7,7 +7,9 @@
       "Bash(Select-Object Name, PSIsContainer)",
       "Bash(Format-Table -AutoSize)",
       "Bash(git add *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "PowerShell(npm run *)",
+      "Bash(npm run *)"
     ]
   },
   "enabledPlugins": {}

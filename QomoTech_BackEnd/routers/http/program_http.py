@@ -1,13 +1,8 @@
 """程序运行 REST API 路由。
 
-前缀：``/api/startProgram``
+前缀：``/api``
 
-迁移自旧版 ``api/http_api.py``，业务逻辑仍由 ``core.startPragram`` 负责，
-路由层改为 async + Pydantic 模式，与 ``routers/http/motion_http.py`` 风格对齐。
-
-约定：
-- 成功返回 ``{"success": True, "message": "...", "data": ...}``。
-- 参数校验失败 → ``HTTP 400``；内部错误 → ``HTTP 500``。
+迁移自 ``core/startPragram.py``，现由 ``services.PragramService`` 门面统一编排。
 """
 
 from __future__ import annotations
@@ -18,15 +13,18 @@ from typing import Any, Dict, List
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
-from core.startPragram import 执行开始任务程序_最重要的, 获取设备运行状态
-from core.startPragram import 程序请求急停, 程序请求暂停, 程序请求恢复运行
-from core.startPragram import 程序请求复位, 程序请求跳过任务
 from core.calc_offset_ljs import OffsetEndpointCalculator
+from services.PragramService import PragramService
+from routers.apiresponse import ApiResponse
 from utils.logger import 获取日志记录器
 
 日志 = 获取日志记录器("程序HTTP")
 
 路由 = APIRouter(prefix="/api", tags=["程序运行"])
+
+
+def _svc() -> PragramService:
+    return PragramService.获取实例()
 
 
 class 开始程序参数请求模型(BaseModel):
@@ -45,19 +43,13 @@ class 开始程序控制请求模型(BaseModel):
     )
 
 
-def _ok(message: str = "OK", data: Any = None) -> Dict[str, Any]:
-    return {"success": True, "message": message, "data": data}
-
-
 # ==================================================================
 # 1. 启动程序
 # ==================================================================
 
 
 @路由.post("/startProgram", summary="启动程序")
-async def start_program(
-    payload: 开始程序参数请求模型,
-):
+async def start_program(payload: 开始程序参数请求模型):
     """接收配方 + 实体，启动后台任务执行程序。"""
     if payload.recipe_payload is None or payload.entities is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="startProgram 入参缺少 recipe_payload 或 entities",)
@@ -68,16 +60,13 @@ async def start_program(
 
     async def _run_program() -> None:
         try:
-            await 执行开始任务程序_最重要的(
-                配方数据=payload.recipe_payload,
-                实体数据=payload.entities,
-            )
+            await _svc().执行程序(配方数据=payload.recipe_payload,实体数据=payload.entities,)
         except Exception:
             日志.exception("startProgram 后台任务异常")
 
     asyncio.ensure_future(_run_program())
 
-    return _ok("程序已启动", {"task_count": len(tasks)})
+    return ApiResponse(success=True, message="程序已启动", data={"task_count": len(tasks)})
 
 
 # ==================================================================
@@ -86,9 +75,9 @@ async def start_program(
 
 
 @路由.get("/startProgram/status", summary="获取程序运行状态")
-async def program_status():
+def program_status() -> ApiResponse:
     """返回 running / paused / total_tasks / current_task_index / 进度百分比。"""
-    return _ok("OK", 获取设备运行状态())
+    return ApiResponse(success=True, message="OK", data=_svc().获取运行状态())
 
 
 # ==================================================================
@@ -96,31 +85,28 @@ async def program_status():
 # ==================================================================
 
 
-async def _dispatch_program_control(
-    action: str,
-) -> Dict[str, Any]:
+async def _dispatch_program_control(action: str) -> Dict[str, Any]:
+    svc = _svc()
     if action == "pause":
-        return await 程序请求暂停()
+        return await svc.暂停()
     elif action == "resume":
-        return await 程序请求恢复运行()
+        return await svc.恢复()
     elif action == "reset":
-        return await 程序请求复位()
+        return await svc.复位()
     elif action == "estop":
-        return await 程序请求急停()
+        return await svc.急停()
     elif action == "skip":
-        return await 程序请求跳过任务()
+        return await svc.跳过任务()
     else:
         return {"success": False, "message": f"未知操作: {action}"}
 
 
 @路由.post("/startProgram/control", summary="控制程序运行（暂停/继续/复位/急停/跳过）")
-async def program_control(
-    payload: 开始程序控制请求模型,
-):
+async def program_control(payload: 开始程序控制请求模型):
     result = await _dispatch_program_control(payload.action)
     if not result.get("success"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(result.get("message", "操作失败")),
         )
-    return _ok(str(result.get("message", "操作成功")))
+    return ApiResponse(success=True, message=str(result.get("message", "操作成功")))

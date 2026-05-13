@@ -1,19 +1,19 @@
-import { createRouter, createWebHashHistory, type RouteRecordRaw } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
-import { useLicenseStore } from '@/stores/license'
+﻿import { createRouter, createWebHashHistory, type RouteRecordRaw } from 'vue-router'
+import { useAuthStore } from '@/modules/auth/useAuthStore'
+import { useLicenseStore } from '@/modules/auth/licenseStore'
 import pinia from '@/stores/pinia'
-import CameraSettings from '@/view/settings/CameraSettings.vue'
-import ControllerSettings from '@/features/embedded-panels/ControllerSettings.vue'
-import Help from '@/view/auth/Help.vue'
-import Home from '@/view/Home.vue'
-import License from '@/view/auth/License.vue'
-import Login from '@/view/auth/Login.vue'
-import RecipeManagement from '@/view/settings/RecipeManagement.vue'
-import DetailedRs232Send from '@/features/embedded-panels/DetailedRs232Send.vue'
-import Production from '@/view/Production.vue'
+import CameraSettingsPage from '@/modules/camera/CameraSettingsPage.vue'
+import ControllerSettingsPage from '@/modules/motion/panels/ControllerSettingsPage.vue'
+import HelpPage from '@/modules/auth/HelpPage.vue'
+import HomePage from '@/modules/motion/HomePage.vue'
+import LicensePage from '@/modules/auth/LicensePage.vue'
+import LoginPage from '@/modules/auth/LoginPage.vue'
+import RecipeManagementPage from '@/modules/recipe/RecipeManagementPage.vue'
+import LaserSettingsPage from '@/modules/laser/LaserSettingsPage.vue'
+import ProductionPage from '@/modules/settings/ProductionPage.vue'
 import { getDesktopBackendRuntimeStatus } from '@/shared/api/desktopBridge'
-import Create5P from '@/view/editor/Create5P.vue'
-import SelfProcess from '@/view/editor/SelfProcess.vue'
+import Create5PPage from '@/modules/editor/Create5PPage.vue'
+import SelfProcessPage from '@/modules/workflow/SelfProcessPage.vue'
 import type { RouteShortcut } from '@/types/settings'
 
 interface RouteMenuMeta {
@@ -42,25 +42,25 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/license',
     name: 'license',
-    component: License,
+    component: LicensePage,
     meta: { requiresAuth: false }
   },
   {
     path: '/login',
     name: 'login',
-    component: Login,
+    component: LoginPage,
     meta: { requiresAuth: false }
   },
   {
     path: '/home',
     name: 'home',
-    component: Home,
+    component: HomePage,
     meta: { requiresAuth: true }
   },
   {
     path: '/controller-settings',
     name: 'controller-settings',
-    component: ControllerSettings,
+    component: ControllerSettingsPage,
     meta: {
       requiresAuth: true,
       menu: {
@@ -74,7 +74,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/camera-settings',
     name: 'camera-settings',
-    component: CameraSettings,
+    component: CameraSettingsPage,
     meta: {
       requiresAuth: true,
       menu: {
@@ -88,7 +88,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/recipe-management',
     name: 'recipe-management',
-    component: RecipeManagement,
+    component: RecipeManagementPage,
     meta: {
       requiresAuth: true,
       menu: {
@@ -102,7 +102,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/detailed-rs232-send',
     name: 'detailed-rs232-send',
-    component: DetailedRs232Send,
+    component: LaserSettingsPage,
     meta: {
       requiresAuth: true,
       menu: {
@@ -116,7 +116,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/create-5p',
     name: 'create-5p',
-    component: Create5P,
+    component: Create5PPage,
     meta: {
       requiresAuth: true,
       menu: {
@@ -130,7 +130,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/help',
     name: 'help',
-    component: Help,
+    component: HelpPage,
     meta: {
       requiresAuth: true,
       menu: {
@@ -144,7 +144,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/production',
     name: 'production',
-    component: Production,
+    component: ProductionPage,
     meta: {
       requiresAuth: true,
       menu: {
@@ -158,7 +158,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/self-process',
     name: 'self-process',
-    component: SelfProcess,
+    component: SelfProcessPage,
     meta: {
       requiresAuth: true,
       menu: {
