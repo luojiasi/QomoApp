@@ -1,6 +1,6 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { computed, onMounted } from 'vue'
-import RouteTabs from '../components/ui/RouteTabs.vue'
+import RouteTabs from '@/shared/components/RouteTabs.vue'
 import { useReservePages } from '../composables/useSettingsPages'
 import { useReservePagesStore } from '../stores/settings'
 

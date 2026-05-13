@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import {
@@ -6,7 +6,7 @@ import {
   RS232_COM_PORT_OPTIONS,
   RS232_SEND_MODE_OPTIONS,
 } from '../../configs/settings'
-import { useNotification } from '../../composables/useNotification'
+import { useNotification } from '@/shared/composables/useNotification'
 import { useReservePages } from '../../composables/useSettingsPages'
 import { useReservePagesStore } from '../../stores/settings'
 import { RS232_WORKBENCH_STORAGE_KEY } from '../../configs/storageKeys'

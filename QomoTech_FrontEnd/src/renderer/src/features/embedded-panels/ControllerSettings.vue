@@ -1,9 +1,9 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { AXIS_TAB_LABELS, defaultControllerParameters } from '../../configs/settings'
-import { IO_MAP_GROUP_COUNT } from '../../configs/constants'
+import { IO_MAP_GROUP_COUNT } from '@/shared/constants'
 import { useControllerSettingsPage } from '../../composables/useSettingsPages'
-import { useNotification } from '../../composables/useNotification'
+import { useNotification } from '@/shared/composables/useNotification'
 import { useControllerSettingsStore } from '../../stores/controllerSettingsStore'
 import ApiTestPanel from './ApiTestPanel.vue'
 import type {
@@ -23,7 +23,7 @@ import {
 } from '../../api/motion'
 import { setMotionIoOutput } from '../../api/motion/io'
 import { useMotionExecute } from '../../api/motion'
-import { useHardwareState } from '../../api/hardware'
+import { useHardwareState } from '@/shared/api/hardware'
 
 const props = defineProps<{
   embedded?: boolean

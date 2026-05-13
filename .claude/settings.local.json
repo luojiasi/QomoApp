@@ -2,7 +2,12 @@
   "permissions": {
     "allow": [
       "WebSearch",
-      "Bash(claude plugins *)"
+      "Bash(claude plugins *)",
+      "Bash(Get-ChildItem -Path \"D:\\\\Qomo\\\\QomoTech\" -Depth 1)",
+      "Bash(Select-Object Name, PSIsContainer)",
+      "Bash(Format-Table -AutoSize)",
+      "Bash(git add *)",
+      "Bash(git commit *)"
     ]
   },
   "enabledPlugins": {}

@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import ControlPanelBase from './ControlPanelBase.vue'
 import { useControllerSettingsStore } from '../../stores/controllerSettingsStore'
@@ -11,7 +11,7 @@ import {
   setMotionIoOutput,
   type MotionAxis,
 } from '../../api/motion'
-import { useNotification } from '../../composables/useNotification'
+import { useNotification } from '@/shared/composables/useNotification'
 const { error,success } = useNotification()
 const controllerStore = useControllerSettingsStore()
 const auxiliaryFunctionPanelStore = useAuxiliaryFunctionPanelStore()

@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref } from 'vue'
 import ControlPanelBase from './ControlPanelBase.vue'
@@ -6,7 +6,7 @@ import { useRs232WorkbenchStore } from '../../stores/rs232WorkbenchStore'
 import { useLaserSettingsStore } from '../../stores/laserSettingsStore'
 import { applyLaserParams, controlMMLaser, type LaserApplyPayload } from '../../api/device/laser'
 import { closeRs232, openRs232, sendRs232 } from '../../api/device/rs232'
-import { useNotification } from '../../composables/useNotification'
+import { useNotification } from '@/shared/composables/useNotification'
 
 const { success, error, info } = useNotification()
 

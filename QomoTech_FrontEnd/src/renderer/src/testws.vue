@@ -120,9 +120,9 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useHardwareState } from './api/hardware'
+import { useHardwareState } from '@/shared/api/hardware'
 import { useGlobalCameraReceiverState } from './api/camera/cameraReceiver'
-import { getBackendApiUrl } from './api/core/base'
+import { getBackendApiUrl } from '@/shared/api/httpClient'
 
 const state = useHardwareState()
 const camState = useGlobalCameraReceiverState()

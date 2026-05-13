@@ -1,6 +1,6 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { reactive, ref } from 'vue'
-import { getBackendBaseUrl } from '../../api/core/base'
+import { getBackendBaseUrl } from '@/shared/api/httpClient'
 
 function resolveUrl(path: string): string {
   const base = getBackendBaseUrl()

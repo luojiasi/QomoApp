@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 /**
  * 控制类面板的通用容器：圆角卡片 + 折叠头 + 展开内容槽。
  *
@@ -10,7 +10,7 @@
  * - contentAlwaysVisible=true 时内容区不随折叠隐藏（保留 DriverControlPanel 的现有行为）
  * - actionTarget 配合 @open-right-panel 用于跳转到嵌入式右侧面板
  */
-import CollapsiblePanelHeader from '../../components/ui/CollapsiblePanelHeader.vue'
+import CollapsiblePanelHeader from '@/shared/components/CollapsiblePanelHeader.vue'
 
 defineOptions({ inheritAttrs: false })
 

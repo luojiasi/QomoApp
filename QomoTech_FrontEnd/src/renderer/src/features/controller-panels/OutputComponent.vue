@@ -1,9 +1,9 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { computed, onMounted, ref,watch} from 'vue'
-import SvgIcon from '../../components/ui/SvgIcon.vue'
+import SvgIcon from '@/shared/components/SvgIcon.vue'
 import { setMotionIoOutput } from '../../api/motion'
 import { zeroMotionAxis,moveMotionAxisRel,getMotionIoInput } from '../../api/motion'
-import { useHardwareState, waitControllerConnected } from '../../api/hardware'
+import { useHardwareState, waitControllerConnected } from '@/shared/api/hardware'
 import { useAuxiliaryFunctionPanelStore } from '../../stores/auxiliaryFunctionPanelStore'
 const auxiliaryFunctionPanelStore = useAuxiliaryFunctionPanelStore()
 

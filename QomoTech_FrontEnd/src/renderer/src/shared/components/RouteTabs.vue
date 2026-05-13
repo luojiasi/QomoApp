@@ -1,10 +1,10 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import logo from '@resources/icon.png'
 import { toggleColorScheme } from '@/shared/composables/useAppColorScheme'
-import { useAuthStore } from '../../stores/auth'
-import type { RouteShortcut } from '../../types/settings'
+import { useAuthStore } from '@/stores/auth'
+import type { RouteShortcut } from '@/types/settings'
 import SvgIcon from './SvgIcon.vue'
 
 const props = withDefaults(
@@ -77,7 +77,7 @@ const visibleLinks = computed(() => {
             <SvgIcon :icon-name="item.title" class-name="text-sm" />
             <span class="text-xs">{{ item.name }}</span>
           </div>
-        
+
       </RouterLink>
     </div>
   </nav>

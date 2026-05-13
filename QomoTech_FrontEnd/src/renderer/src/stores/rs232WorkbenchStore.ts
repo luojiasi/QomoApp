@@ -1,9 +1,9 @@
-import { defineStore } from 'pinia'
+﻿import { defineStore } from 'pinia'
 import { defaultRs232WorkbenchState } from '../configs/settings'
 import type { Rs232SerialSessionRequest } from '../types/settings'
 import { cloneSettings } from '../utils/settings'
 import { RS232_WORKBENCH_STORAGE_KEY } from '../configs/storageKeys'
-import { LIGHT_SETTINGS_PERSIST_DEBOUNCE_MS } from '../configs/constants'
+import { LIGHT_SETTINGS_PERSIST_DEBOUNCE_MS } from '@/shared/constants'
 import { isRs232WorkbenchShape, normalizeRs232Workbench } from '../utils/rs232Validation'
 import { createPersistedSettings, readSettingsFromStorage } from './settingsStoreUtils'
 

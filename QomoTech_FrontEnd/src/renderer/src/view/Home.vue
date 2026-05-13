@@ -1,6 +1,6 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted } from 'vue'
-import RouteTabs from '../components/ui/RouteTabs.vue'
+import RouteTabs from '@/shared/components/RouteTabs.vue'
 import HomeUserBar from '../features/home/HomeUserBar.vue'
 import RecipeParameterPanel from '../features/recipe/HomeRecipeParameterPanel.vue'
 import DriverControlPanel from '../features/controller-panels/DriverControlPanel.vue'
@@ -27,7 +27,7 @@ import { deviceFeatureRoutes } from '../router'
 const featureLinks = deviceFeatureRoutes
 
 // 全局显示状态
-import { useNotification } from '../composables/useNotification'
+import { useNotification } from '@/shared/composables/useNotification'
 const { error, success } = useNotification()
 
 // 控制器参数保存在本地
@@ -39,10 +39,10 @@ import { useQomo5PStore } from '../stores/qomo5pEditor'
 const qomo5pStore = useQomo5PStore()
 
 import { bootstrapControllerOnce } from '../api/motion'
-import StatusIndicators from '../components/ui/StatusIndicators.vue'
-import { getStartProgramStatusWsUrl } from '../api/core/baseWs'
-import { subscribeGlobalKeyboard } from '../utils/globalKeyboard'
-import { useHardwareState } from '../api/hardware'
+import StatusIndicators from '@/shared/components/StatusIndicators.vue'
+import { getStartProgramStatusWsUrl } from '@/shared/api/wsClient'
+import { subscribeGlobalKeyboard } from '@/shared/composables/useGlobalKeyboard'
+import { useHardwareState } from '@/shared/api/hardware'
 import {
   setMotionIoOutput,
   moveMotionAxisRel,
@@ -57,7 +57,7 @@ import {
 } from '../api/motion'
 import type { QomoEntityWithSurface } from '../types/Qomo5P'
 import DetailedRs232Send from '../features/embedded-panels/DetailedRs232Send.vue'
-import SvgIcon from '@/components/ui/SvgIcon.vue'
+import SvgIcon from '@/shared/components/SvgIcon.vue'
 
 
 

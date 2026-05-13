@@ -1,8 +1,8 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { computed, ref } from 'vue'
 import ControlPanelBase from './ControlPanelBase.vue'
 import OutputComponent from './OutputComponent.vue'
-import { useHardwareState } from '../../api/hardware'
+import { useHardwareState } from '@/shared/api/hardware'
 // import {
 //   emergencyStopMotion,
 //   moveMotionAxisAbs,
@@ -10,7 +10,7 @@ import { useHardwareState } from '../../api/hardware'
 //   zeroMotionAxis,
 //   type HardwareStatusPayload
 // } from '../api/motion'
-// import { useNotification } from '../composables/useNotification'
+// import { useNotification } from '@/shared/composables/useNotification'
 
 const { mposition } = useHardwareState()
 // const { success, error } = useNotification()
