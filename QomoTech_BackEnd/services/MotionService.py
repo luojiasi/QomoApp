@@ -1065,9 +1065,6 @@ class MotionService:
         auto_corner_angle: bool = False,
         decel_angle_deg: float = 15.0,
         stop_angle_deg: float = 45.0,
-        wait_until_done: bool = True,
-        done_timeout_s: float = 120.0,
-        done_poll_interval_s: float = 0.02,
     ) -> bool:
         self._保证已启动()
         adapter = self._断言adapter()
@@ -1082,9 +1079,6 @@ class MotionService:
                 auto_corner_angle=auto_corner_angle,
                 decel_angle_deg=decel_angle_deg,
                 stop_angle_deg=stop_angle_deg,
-                wait_until_done=wait_until_done,
-                done_timeout_s=done_timeout_s,
-                done_poll_interval_s=done_poll_interval_s,
             )
         except Exception:
             self._状态机.触发(状态事件.STOP, 强制=True)
