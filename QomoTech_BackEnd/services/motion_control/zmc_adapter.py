@@ -1631,9 +1631,6 @@ class ZMC适配器:
         end_move_speed: Optional[float] = None,
         default_speed: Optional[float] = None,
         sleep_when_buffer_full_s: float = 0.005,
-        wait_until_done: bool = True,
-        done_timeout_s: float = 120.0,
-        done_poll_interval_s: float = 0.005,
     ) -> bool:
         """连续插补运动 —— 整条路径使用同一速度,实现段间速度真正连续。
 
@@ -1671,9 +1668,6 @@ class ZMC适配器:
             end_move_speed=end_move_speed,
             default_speed=default_speed,
             sleep_when_buffer_full_s=sleep_when_buffer_full_s,
-            wait_until_done=wait_until_done,
-            done_timeout_s=done_timeout_s,
-            done_poll_interval_s=done_poll_interval_s,
         ))
         return True
 
@@ -1795,7 +1789,6 @@ class ZMC适配器:
         被中止 = False
         # ⭐ 关键: sleep 用 Event.wait 替代,中止事件 set() 后立即唤醒,响应 < 1ms
         buf_sleep_s = max(float(kw["sleep_when_buffer_full_s"]), 0.001)
-        done_sleep_s = max(float(kw["done_poll_interval_s"]), 0.005)
         try:
             # ---- 阶段三: 推送循环,每段短锁,响应中止事件 ----
             已推送 = 0
@@ -1827,45 +1820,8 @@ class ZMC适配器:
             if 被中止:
                 return
 
-            if not kw["wait_until_done"]:
+            if 被中止:
                 return
-
-            # ---- 阶段四: 等待完成,每轮短锁 + 响应中止事件 ----
-            起始 = time.time()
-            while True:
-                if not self._已连接:
-                    raise ZMCError("ContinuousInterp", -1, "控制器在插补中断开")
-                # ⭐ 中止事件优先检查
-                if self._中止事件.is_set():
-                    被中止 = True
-                    return
-                # 短锁: 读 MovesBuffered + 各轴 IDLE
-                with self._锁:
-                    ret_mb, mb_val = self._dll.ZAux_Direct_GetMovesBuffered(主轴)
-                    if int(ret_mb) == 0:
-                        缓冲已清空 = int(mb_val.value) == 0
-                    else:
-                        ret_buf, 剩余_val = self._dll.ZAux_Direct_GetRemain_LineBuffer(主轴)
-                        剩余 = int(剩余_val.value) if int(ret_buf) == 0 else 0
-                        缓冲已清空 = 剩余 >= 4090
-                    全部空闲 = True
-                    for 轴号 in 轴号列表:
-                        ret_idle, idle_val = self._dll.ZAux_Direct_GetIfIdle(轴号)
-                        if int(ret_idle) != 0:
-                            continue
-                        # ZMC 约定: -1 = 停止 / 0 = 运动中
-                        if int(idle_val.value) == -1:
-                            continue
-                        全部空闲 = False
-                        break
-                if 缓冲已清空 and 全部空闲:
-                    return
-                if time.time() - 起始 > float(kw["done_timeout_s"]):
-                    raise ZMCError("ContinuousInterp", -1, "等待完成超时")
-                # 锁外等待 —— 用 Event.wait,中止事件 set 时立即返回
-                if self._中止事件.wait(done_sleep_s):
-                    被中止 = True
-                    return
         finally:
             # ---- 阶段五: 清理(短锁) ----
             if self._已连接:
@@ -1951,9 +1907,6 @@ class ZMC适配器:
         decel_angle_deg: float = 15.0,
         stop_angle_deg: float = 45.0,
         small_circle_limit: float = 5.0,
-        wait_until_done: bool = True,
-        done_timeout_s: float = 120.0,
-        done_poll_interval_s: float = 0.005,
     ) -> bool:
         """XY 两轴连续插补 —— 整条路径使用同一速度,段间速度连续。
 
@@ -2009,9 +1962,6 @@ class ZMC适配器:
             end_corner_angle_deg=stop_angle_deg,
             small_circle_limit=small_circle_limit,
             default_speed=统一速度,
-            wait_until_done=wait_until_done,
-            done_timeout_s=done_timeout_s,
-            done_poll_interval_s=done_poll_interval_s,
         )
         return True
 
