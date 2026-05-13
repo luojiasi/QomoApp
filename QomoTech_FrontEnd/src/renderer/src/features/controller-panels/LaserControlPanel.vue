@@ -4,7 +4,7 @@ import { computed, onMounted, ref } from 'vue'
 import ControlPanelBase from './ControlPanelBase.vue'
 import { useRs232WorkbenchStore } from '../../stores/rs232WorkbenchStore'
 import { useLaserSettingsStore } from '../../stores/laserSettingsStore'
-import { applyLaserParams, type LaserApplyPayload } from '../../api/device/laser'
+import { applyLaserParams, controlMMLaser, type LaserApplyPayload } from '../../api/device/laser'
 import { closeRs232, openRs232, sendRs232 } from '../../api/device/rs232'
 import { useNotification } from '../../composables/useNotification'
 
@@ -23,7 +23,7 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-/** 星言通 RS232 指令 */
+/** KMJGQ_XYT RS232 指令 */
 function buildXingYanTongPayload(cmd: string): string {
   const s = settings.value
   if (cmd === 'POW') return `POW ${s.power || '0'}\r\n`
@@ -36,7 +36,7 @@ function buildXingYanTongPayload(cmd: string): string {
   return ''
 }
 
-/** 梅曼 RS232 指令 */
+/** KMJGQ_MM RS232 指令 */
 function buildMeiManPayload(cmd: string): string {
   const s = settings.value
   if (cmd === 'mode') return `set_mode:4\r\n`
@@ -47,7 +47,7 @@ function buildMeiManPayload(cmd: string): string {
   return ''
 }
 
-const isMeiMan = computed(() => settings.value.manufacturer === '梅曼')
+const isMeiMan = computed(() => settings.value.manufacturer === 'KMJGQ_MM')
 
 // ------------------------------------------------------------------
 // 厂家自适应标签
@@ -64,7 +64,7 @@ const currentPlaceholder = computed(() => isMeiMan.value ? '例:35' : '例:80')
 // 厂家切换
 // ------------------------------------------------------------------
 
-const manufacturerOptions = ['星言通', '梅曼']
+const manufacturerOptions = ['KMJGQ_XYT', 'KMJGQ_MM']
 
 function onManufacturerChange(mfr: string): void {
   laserStore.switchManufacturer(mfr)
@@ -83,6 +83,7 @@ const appliedBaselineFrequency = ref<string | null>(null)
 const appliedBaselineCurrent = ref<string | null>(null)
 const applying = ref(false)
 const saving = ref(false)
+const mmOperating = ref(false)
 
 const hasPendingApplyChanges = computed(() => {
   if (!baselineLoaded.value) return false
@@ -123,6 +124,21 @@ async function handleSave(): Promise<void> {
     }
   } finally {
     saving.value = false
+  }
+}
+
+async function handleMMLaserControl(on: boolean): Promise<void> {
+  if (mmOperating.value) return
+  mmOperating.value = true
+  try {
+    const res = await controlMMLaser(on)
+    if (res?.success) {
+      success(on ? '激光器已打开' : '激光器已关闭')
+    } else {
+      error('操作失败', res?.message || 'RS232 发送失败')
+    }
+  } finally {
+    mmOperating.value = false
   }
 }
 
@@ -302,6 +318,24 @@ const emit = defineEmits<{(e: 'open-right-panel', target: string): void}>()
           @click="handleOpenLaser"
         >
           {{ applying ? '打开中...' : '打开激光器' }}
+        </button>
+        <button
+          v-if="isMeiMan"
+          type="button"
+          class="inline-flex w-full flex-1 items-center justify-center rounded-xl border border-emerald-500/35 bg-emerald-950/35 px-4 py-2.5 text-sm font-medium text-emerald-100/95 transition hover:bg-emerald-950/55 disabled:opacity-50"
+          :disabled="mmOperating"
+          @click="handleMMLaserControl(true)"
+        >
+          {{ mmOperating ? '...' : '打开激光' }}
+        </button>
+        <button
+          v-if="isMeiMan"
+          type="button"
+          class="inline-flex w-full flex-1 items-center justify-center rounded-xl border border-rose-500/35 bg-rose-950/35 px-4 py-2.5 text-sm font-medium text-rose-100/95 transition hover:bg-rose-950/55 disabled:opacity-50"
+          :disabled="mmOperating"
+          @click="handleMMLaserControl(false)"
+        >
+          {{ mmOperating ? '...' : '关闭激光' }}
         </button>
         <button
           v-if="hasPendingApplyChanges"

@@ -1,7 +1,7 @@
 {
-  "manufacturer": "梅曼",
+  "manufacturer": "KMJGQ_MM",
   "port": "COM4",
   "power": "50",
-  "frequency": "8",
+  "frequency": "8000",
   "current": "30"
 }

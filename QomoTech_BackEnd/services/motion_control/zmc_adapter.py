@@ -212,7 +212,7 @@ class ZMC适配器:
             raise ZMCError(函数名, ret, 备注)
 
     def _锁定调用(self, 名称: str, 函数: Callable, *参数: Any) -> Any:
-        """通用同步调用：锁 + DLL 调用 + 错误码校验。返回原始返回值（含 ctypes 输出参数）。"""
+        """通用同步调用：锁 + 连接检查 + DLL 调用 + 错误码校验。"""
         with self._锁:
             返回值 = 函数(*参数)
         self._校验(名称, 返回值)

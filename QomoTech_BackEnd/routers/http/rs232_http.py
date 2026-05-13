@@ -122,3 +122,16 @@ async def 保存激光设置(req: Request):
     body = await req.json()
     写入激光设置文件(body)
     return 返回数据类型模型(success=True, message="激光设置已保存到文件", data=None)
+
+
+# ==================================================================
+# 梅曼激光器开关
+# ==================================================================
+
+@路由.post("/laser/mm-control", summary="梅曼激光器开关（laser_on / laser_off）")
+async def mm激光器控制(req: Request):
+    body = await req.json()
+    打开 = bool(body.get("on", False))
+    成功 = await _rs232().mm激光器操作(是否打开激光=打开)
+    msg = "激光器已打开" if 打开 else "激光器已关闭"
+    return 返回数据类型模型(success=bool(成功), message=msg if 成功 else "发送失败", data=None)

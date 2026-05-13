@@ -9,7 +9,7 @@ import {
 import { DEFAULTS_BY_MANUFACTURER } from '../configs/lasermanufacturer'
 
 export const useLaserSettingsStore = defineStore('laser-settings', () => {
-  const settings = ref<LaserSettingsPayload>({ ...DEFAULTS_BY_MANUFACTURER['星言通'] })
+  const settings = ref<LaserSettingsPayload>({ ...DEFAULTS_BY_MANUFACTURER['KMJGQ_XYT'] })
   const loaded = ref(false)
 
   async function load(): Promise<void> {
@@ -17,7 +17,7 @@ export const useLaserSettingsStore = defineStore('laser-settings', () => {
     if (res?.success && res.data) {
       settings.value = { ...res.data }
     } else {
-      settings.value = { ...DEFAULTS_BY_MANUFACTURER['星言通'] }
+      settings.value = { ...DEFAULTS_BY_MANUFACTURER['KMJGQ_XYT'] }
     }
     loaded.value = true
   }

@@ -138,20 +138,70 @@ class Rs232Service:
 
     # 厂家 → 命令格式映射
     _激光命令: dict[str, dict[str, str]] = {
-        "星言通": {
+        "KMJGQ_XYT": {
             "功率": "POW {value}",
             "频率": "REPF {value}",
             "电流": "LD1CS {value}",
         },
-        "梅曼": {
+        "KMJGQ_MM": {
             "模式": "set_mode:3\r\n",
-            "功率": "set_power:{value}\r\n",
+            # "功率": "set_power:{value}\r\n",
             "频率": "set_freq:{value}\r\n",
             "占空比": "set_duty:{value}\r\n",
             "出光": "laser_on\r\n",
             "关光": "laser_off\r\n",
         },
     }
+
+    async def mm激光器操作(self, 是否打开激光: bool = False) -> bool:
+        import asyncio
+
+        串口配置 = self.获取首选会话()
+        if 串口配置 is None:
+            日志.error("mm激光器操作: 无首选会话")
+            return False
+
+        端口配置 = 串口配置.get("port")
+        接收配置 = 串口配置.get("receive")
+        if not isinstance(端口配置, dict) or not isinstance(接收配置, dict):
+            日志.error("mm激光器操作: 缺少有效的 port 或 receive")
+            return False
+
+        命令映射 = self._激光命令.get("KMJGQ_MM")
+        if 命令映射 is None:
+            return False
+
+        # 确保串口已打开
+        目标端口名 = str(端口配置.get("portName", "")).strip()
+        当前端口名 = self.当前端口名() or ""
+        需要重开 = (not self.是否已连接()) or (bool(目标端口名) and 当前端口名 != 目标端口名)
+        if 需要重开:
+            成功, 消息 = await asyncio.to_thread(self.打开会话, 端口配置, 接收配置)
+            if not 成功:
+                日志.error("mm激光器操作: RS232 打开失败: %s", 消息)
+                return False
+
+        原始发送配置 = 串口配置.get("send")
+        基本发送配置: dict[str, Any] = 原始发送配置.copy() if isinstance(原始发送配置, dict) else {}
+        基本发送配置.setdefault("mode", "ascii")
+
+        命令 = 命令映射["出光"] if 是否打开激光 else 命令映射["关光"]
+        发送配置 = 基本发送配置.copy()
+        发送配置["payload"] = 命令.rstrip("\r\n")
+        成功2, 消息2 = await asyncio.to_thread(self.发送, 发送配置)
+        if not 成功2:
+            日志.error("mm激光器操作: 发送失败（payload=%s）: %s", 命令, 消息2)
+            return False
+
+        await asyncio.to_thread(self.关闭)
+        return True
+
+
+
+
+
+
+
 
     async def 发送激光数据(
         self,
@@ -160,7 +210,7 @@ class Rs232Service:
         电流: str,
         *,
         串口配置: dict[str, Any] | None = None,
-        厂家: str = "星言通",
+        厂家: str = "KMJGQ_XYT",
     ) -> bool:
         """激光前确保 RS232 可用并按厂家格式分段发送参数。"""
         import asyncio
@@ -194,11 +244,11 @@ class Rs232Service:
         基本发送配置: dict[str, Any] = 原始发送配置.copy() if isinstance(原始发送配置, dict) else {}
         基本发送配置.setdefault("mode", "ascii")
 
-        if 厂家 == "梅曼":
-            # 梅曼：先设模式，再设参数，最后出光，每条等应答 + 200ms 间隔
+        if 厂家 == "KMJGQ_MM":
+            # KMJGQ_MM：先设模式，再设参数，最后出光，每条等应答 + 200ms 间隔
             发送数据列表 = [
                 命令映射["模式"].rstrip("\r\n"),
-                命令映射["功率"].format(value=功率).rstrip("\r\n"),
+                # 命令映射["功率"].format(value=功率).rstrip("\r\n"),
                 命令映射["频率"].format(value=频率).rstrip("\r\n"),
                 命令映射["占空比"].format(value=电流).rstrip("\r\n"),
                 命令映射["出光"].rstrip("\r\n"),
@@ -215,7 +265,7 @@ class Rs232Service:
                     # 读一次应答，避免缓冲区堆积
                     self.获取接收缓冲区(清空=False)
         else:
-            # 星言通：POW → REPF → LD1CS，间隔 0.5 秒
+            # KMJGQ_XYT：POW → REPF → LD1CS，间隔 0.5 秒
             发送数据列表 = [
                 命令映射["功率"].format(value=功率),
                 命令映射["频率"].format(value=频率),

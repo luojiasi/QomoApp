@@ -22,10 +22,10 @@ def _获取激光厂家() -> str:
     try:
         data = 读取激光设置文件()
         if data and isinstance(data, dict):
-            return str(data.get("manufacturer", "星言通") or "星言通")
+            return str(data.get("manufacturer", "KMJGQ_XYT") or "KMJGQ_XYT")
     except Exception:
         pass
-    return "星言通"
+    return "KMJGQ_XYT"
 
 
 _program_paused = False
@@ -578,10 +578,17 @@ async def 修面和切片的程序(
                 else:
                     当前步骤 = 32
             case 31:
-                await Rs232Service.获取实例().发送激光数据(str(扫黑功率), str(扫黑频率), str(扫黑电流), 厂家=_获取激光厂家())
+                厂家 = _获取激光厂家()
+                if 厂家 == "KMJGQ_MM":
+                    await Rs232Service.获取实例().mm激光器操作(True);
+                else:
+                    await Rs232Service.获取实例().发送激光数据(str(扫黑功率), str(扫黑频率), str(扫黑电流), 厂家=_获取激光厂家())
                 当前步骤 = 40
             case 32:
-                await Rs232Service.获取实例().发送激光数据(str(工作功率), str(工作频率), str(工作电流), 厂家=_获取激光厂家())
+                if 厂家 == "KMJGQ_MM":
+                    await Rs232Service.获取实例().mm激光器操作(True);
+                else:
+                    await Rs232Service.获取实例().发送激光数据(str(工作功率), str(工作频率), str(工作电流), 厂家=_获取激光厂家())
                 当前步骤 = 40
             case 40:
                 if not 是否打开激光:
@@ -730,6 +737,7 @@ async def 修面和切片的程序(
                 await 运动服务.停止运动()
                 await 运动服务.设置输出(0, False)
                 await 运动服务.设置输出(2, False)
+                await Rs232Service.获取实例().mm激光器操作(False)
                 当前步骤 = 9999
 
     return True
