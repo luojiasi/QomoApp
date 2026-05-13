@@ -1,5 +1,5 @@
 ﻿import { apiCall, type ApiCallResult } from '@/shared/api/httpClient'
-import type { ControllerParameters } from '@/types/settings'
+import type { ControllerParameters } from './motionTypes'
 
 /** 轴号 → 轴名映射（与后端 motion_config.MotionConfig.axis_no_to_name 对齐） */
 const AXIS_NO_TO_NAME: Record<number, string> = { 0: 'X', 1: 'Y', 2: 'Z', 3: 'U', 4: 'R' }

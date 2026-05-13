@@ -1,7 +1,7 @@
 ﻿import { createRouter, createWebHashHistory, type RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/useAuthStore'
 import { useLicenseStore } from '@/modules/auth/licenseStore'
-import pinia from '@/stores/pinia'
+import pinia from '@/shared/stores/pinia'
 import CameraSettingsPage from '@/modules/camera/CameraSettingsPage.vue'
 import ControllerSettingsPage from '@/modules/motion/panels/ControllerSettingsPage.vue'
 import HelpPage from '@/modules/auth/HelpPage.vue'
@@ -14,7 +14,7 @@ import ProductionPage from '@/modules/settings/ProductionPage.vue'
 import { getDesktopBackendRuntimeStatus } from '@/shared/api/desktopBridge'
 import Create5PPage from '@/modules/editor/Create5PPage.vue'
 import SelfProcessPage from '@/modules/workflow/SelfProcessPage.vue'
-import type { RouteShortcut } from '@/types/settings'
+import type { RouteShortcut } from '@/shared/types'
 
 interface RouteMenuMeta {
   /** 菜单展示名 */

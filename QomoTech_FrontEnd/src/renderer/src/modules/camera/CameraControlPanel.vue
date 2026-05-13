@@ -1,7 +1,7 @@
 ﻿<script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref } from 'vue'
-import ControlPanelBase from '@/features/controller-panels/ControlPanelBase.vue'
+import ControlPanelBase from '@/modules/motion/panels/ControlPanelBase.vue'
 import { useNotification } from '@/shared/composables/useNotification'
 import { useCameraSettingsStore } from './useCameraStore'
 import {

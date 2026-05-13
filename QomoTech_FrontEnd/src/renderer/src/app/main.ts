@@ -3,7 +3,7 @@ import '@resources/iconfont/iconfont.js'
 
 import { applySavedTheme } from '@/shared/composables/useAppColorScheme'
 import { notify } from '@/shared/composables/useNotification'
-import pinia from '@/stores/pinia'
+import pinia from '@/shared/stores/pinia'
 import App from './App.vue'
 import router from './router'
 import { startGlobalCameraReceiver } from '@/modules/camera/useCameraReceiver'

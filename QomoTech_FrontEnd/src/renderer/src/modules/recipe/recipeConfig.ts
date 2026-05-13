@@ -2,15 +2,14 @@
   BlackeningProcessRecipe,
   LaserPowerRecipe,
   MachiningProcessRecipe,
-  ParameterField,
-  ParameterSection,
   ProcessFormulaRecipe,
   RecipeManagerState,
   SharedFormulaRecipe,
   VerticalFormulaRecipe,
   VerticalProcessFormulaRecipe
-} from '@/types/settings'
-import { createDefaultLibraryKeywords } from '@/types/recipeSettings'
+} from './recipeTypes'
+import type { ParameterField, ParameterSection } from '@/shared/types'
+import { createDefaultLibraryKeywords } from './recipeTypes'
 
 function createTimestamp(): string {
   return new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-')

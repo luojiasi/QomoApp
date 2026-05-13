@@ -31,14 +31,14 @@ import {
   sortLinesAndAttachNodeForExport
 } from './cad/qomoEntityGeometry'
 
-import { QOMO5P_DRAFT_KEY, CENTER_ROTATION_STORAGE_KEY } from '@/configs/storageKeys'
+import { QOMO5P_DRAFT_KEY, CENTER_ROTATION_STORAGE_KEY } from '@/shared/constants/storageKeys'
 import {
   QOMO5P_PROJECT_VERSION,
   DEFAULT_ENTITY_BASE_HEIGHT,
   createDefaultViewport,
   createDefaultLayer,
   createDefaultWelding
-} from '@/configs/settings'
+} from '@/modules/motion/qomo5pConfig'
 
 const deepClone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T
 

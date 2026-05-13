@@ -1,6 +1,6 @@
-import type { ControllerAxisCount, ControllerParameters } from '../types/settings'
-import { applyControllerAxisCount } from '../configs/settings'
-import { cloneSettings } from './settings'
+import type { ControllerAxisCount, ControllerParameters } from './motionTypes'
+import { applyControllerAxisCount } from './controllerConfig'
+import { cloneSettings } from '@/shared/utils/settings'
 
 export function isControllerParametersShape(data: unknown): data is ControllerParameters {
   if (!data || typeof data !== 'object') return false

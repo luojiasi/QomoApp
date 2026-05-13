@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router'
 import logo from '@resources/icon.png'
 import { toggleColorScheme } from '@/shared/composables/useAppColorScheme'
 import { useAuthStore } from '@/modules/auth/useAuthStore'
-import type { RouteShortcut } from '@/types/settings'
+import type { RouteShortcut } from '@/shared/types'
 import SvgIcon from './SvgIcon.vue'
 
 const props = withDefaults(

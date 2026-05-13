@@ -4,7 +4,7 @@ import CollapsiblePanelHeader from '@/shared/components/CollapsiblePanelHeader.v
 import { useRecipeSettingsStore } from '../useRecipeStore'
 import { useQomo5PStore } from '@/modules/editor/useQomo5PStore'
 import { storeToRefs } from 'pinia'
-import type { MainRecipeDefinition, ProcessFormulaRecipe } from '@/types/settings'
+import type { MainRecipeDefinition, ProcessFormulaRecipe } from '../recipeTypes'
 
 const recipeStore = useRecipeSettingsStore()
 const emit = defineEmits<{

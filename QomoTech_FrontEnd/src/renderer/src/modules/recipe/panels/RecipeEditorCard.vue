@@ -10,7 +10,7 @@ import type {
   ProcessFormulaRecipe,
   SharedFormulaRecipe,
   VerticalFormulaRecipe
-} from '@/types/settings'
+} from '../recipeTypes'
 
 type RecipeCardType =
   | 'blackening'

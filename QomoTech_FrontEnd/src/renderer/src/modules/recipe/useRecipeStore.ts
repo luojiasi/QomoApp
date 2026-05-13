@@ -8,18 +8,18 @@ import {
   createMachiningRecipe,
   createVerticalFormulaRecipe,
   defaultRecipeManagerState
-} from '@/configs/settings'
+} from './recipeConfig'
 import type {
   MachiningProcessRecipe,
   RecipeManagerState,
-  SettingsSaveResult,
   SharedFormulaRecipe,
   VerticalFormulaRecipe
-} from '@/types/settings'
-import { cloneSettings } from '@/utils/settings'
+} from './recipeTypes'
+import type { SettingsSaveResult } from '@/shared/types'
+import { cloneSettings } from '@/shared/utils/settings'
 import { getNextSequence, normalizeRecipeState } from './recipeValidation'
 import { createSettingsSaveResult } from '@/modules/settings/useSettingsStore'
-import { RECIPE_STORAGE_KEYS } from '@/configs/storageKeys'
+import { RECIPE_STORAGE_KEYS } from '@/shared/constants/storageKeys'
 
 type ProcessRecipeWithFormulaDetails<T extends MachiningProcessRecipe> = T & {
   horizontalFormulaRecipe: SharedFormulaRecipe | null

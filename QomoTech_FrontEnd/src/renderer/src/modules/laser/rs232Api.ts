@@ -1,5 +1,5 @@
 ﻿import { apiCall, type ApiCallResult } from '@/shared/api/httpClient'
-import type { Rs232SendRequest, Rs232SerialSessionRequest } from '@/types/settings'
+import type { Rs232SendRequest, Rs232SerialSessionRequest } from './rs232Types'
 
 export interface Rs232PortInfo {
   device: string

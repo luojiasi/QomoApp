@@ -1,5 +1,5 @@
-﻿import type {
-  ParameterSection,
+﻿import type { ParameterSection } from '@/shared/types'
+import type {
   Rs232ApiContract,
   Rs232ComPortName,
   Rs232DataBits,
@@ -8,7 +8,7 @@
   Rs232SendMode,
   Rs232StopBits,
   Rs232WorkbenchState
-} from '@/types/settings'
+} from './rs232Types'
 
 /** 下拉可选串口：COM1～COM10 */
 export const RS232_COM_PORT_OPTIONS: readonly Rs232ComPortName[] = [

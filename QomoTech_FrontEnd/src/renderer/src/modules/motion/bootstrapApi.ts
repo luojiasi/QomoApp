@@ -1,5 +1,5 @@
-﻿import type { ControllerParameters } from '@/types/settings'
-import { defaultControllerParameters } from '@/configs/settings'
+﻿import type { ControllerParameters } from './motionTypes'
+import { defaultControllerParameters } from './controllerConfig'
 import { connectMotionWithControllerSettings, setMotionAllAxesParamsWithControllerSettings } from './connectApi'
 import { isControllerConnected } from '@/shared/api/hardware'
 

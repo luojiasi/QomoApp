@@ -1,7 +1,7 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { LicenseActivationResult, LicenseStatus } from './licenseTypes'
-import { createDefaultLicenseStatus } from '@/configs/settings'
+import { createDefaultLicenseStatus } from './authConfig'
 import {
   activateLicense,
   clearLicense as clearLicenseApi,

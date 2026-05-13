@@ -7,10 +7,10 @@ import {
   type ControllerAxisUserInput,
   type ControllerParameters,
   type IOMapEntry,
-  type IOMapNineGroups,
-  type ParameterSection
-} from '@/types/settings'
-import { cloneSettings } from '@/utils/settings'
+  type IOMapNineGroups
+} from './motionTypes'
+import type { ParameterSection } from '@/shared/types'
+import { cloneSettings } from '@/shared/utils/settings'
 
 const defaultDriverRead: ControllerAxisDriverRead = {
   dpos: 0,

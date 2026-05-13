@@ -1,7 +1,7 @@
 ﻿<script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref } from 'vue'
-import ControlPanelBase from '@/features/controller-panels/ControlPanelBase.vue'
+import ControlPanelBase from '@/modules/motion/panels/ControlPanelBase.vue'
 import { useRs232WorkbenchStore } from './rs232WorkbenchStore'
 import { useLaserSettingsStore } from './useLaserStore'
 import { applyLaserParams, controlMMLaser, type LaserApplyPayload } from './laserApi'

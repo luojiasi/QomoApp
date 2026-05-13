@@ -1,7 +1,7 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { AccountInfo, LoginResult } from './authTypes'
-import { AUTH_STORAGE_KEY } from '@/configs/storageKeys'
+import { AUTH_STORAGE_KEY } from '@/shared/constants/storageKeys'
 import { DEFAULT_ADMIN_ACCOUNT } from './authConfig'
 import { loadAuthState } from './authUtils'
 

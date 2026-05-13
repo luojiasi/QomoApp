@@ -1,7 +1,7 @@
 ﻿import { ref } from 'vue'
 import { defineStore } from 'pinia'
-import type { XYZ } from '@/types/auxiliaryFunctionPanel'
-import { AUXILIARY_FUNCTION_PANEL_QUICK_MOVE_TO_POSITION_STORAGE_KEY, CENTER_ROTATION_STORAGE_KEY } from '@/configs/storageKeys'
+import type { XYZ } from './auxiliaryTypes'
+import { AUXILIARY_FUNCTION_PANEL_QUICK_MOVE_TO_POSITION_STORAGE_KEY, CENTER_ROTATION_STORAGE_KEY } from '@/shared/constants/storageKeys'
 
 function loadQuickMoveToPositionFromStorage(): XYZ | null {
   if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') return null

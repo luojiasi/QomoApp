@@ -1,5 +1,5 @@
 ﻿import { apiCall, type ApiCallResult } from '@/shared/api/httpClient'
-import type { ControllerParameters } from '@/types/settings'
+import type { ControllerParameters } from './motionTypes'
 
 export type MotionAxis = 'X' | 'Y' | 'Z' | 'U' | 'R'
 

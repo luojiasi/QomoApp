@@ -1,9 +1,9 @@
 ﻿<script setup lang="ts">
 import SvgIcon from '@/shared/components/SvgIcon.vue'
-import RecipeDetailFieldPanel from '@/features/recipe/RecipeDetailFieldPanel.vue'
-import RecipeLibrarySection from '@/features/recipe/RecipeLibrarySection.vue'
-import RecipeEditorCard from '@/features/recipe/RecipeEditorCard.vue'
-import RecipeTopologyDiagram from '@/features/recipe/RecipeTopologyDiagram.vue'
+import RecipeDetailFieldPanel from './panels/RecipeDetailPanel.vue'
+import RecipeLibrarySection from './panels/RecipeLibrarySection.vue'
+import RecipeEditorCard from './panels/RecipeEditorCard.vue'
+import RecipeTopologyDiagram from './panels/RecipeTopologyDiagram.vue'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRecipeManagementPage } from '@/modules/settings/useSettingsPages'
 import { useNotification } from '@/shared/composables/useNotification'
@@ -15,8 +15,8 @@ import type {
   ProcessFormulaRecipe,
   RecipeStatus,
   VerticalProcessFormulaRecipe
-} from '@/types/settings'
-import { cloneSettings, formatSettingValue } from '@/utils/settings'
+} from './recipeTypes'
+import { cloneSettings, formatSettingValue } from '@/shared/utils/settings'
 
 type ChildRecipeType = 'blackening' | 'machining'
 type EditorPanel =

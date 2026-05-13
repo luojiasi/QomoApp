@@ -1,12 +1,12 @@
 ﻿import { ref } from 'vue'
 import { defineStore } from 'pinia'
-import { defaultCameraSettings } from '@/configs/settings'
-import { isCameraSettingsShape, normalizeCameraSettings } from '@/utils/cameraValidation'
-import { cloneSettings } from '@/utils/settings'
+import { defaultCameraSettings } from './cameraConfig'
+import { isCameraSettingsShape, normalizeCameraSettings } from './cameraValidation'
+import { cloneSettings } from '@/shared/utils/settings'
 import { getCameraSettingsFromFile, saveCameraSettingsToFile } from './cameraApi'
-import type { CameraSettingsState } from '@/types/settings'
+import type { CameraSettingsState } from './cameraTypes'
 import { createSettingsSaveResult } from '@/modules/settings/useSettingsStore'
-import type { SettingsSaveResult } from '@/types/settings'
+import type { SettingsSaveResult } from '@/shared/types'
 
 export const useCameraSettingsStore = defineStore('camera-settings', () => {
   const cameraSettings = ref<CameraSettingsState>(

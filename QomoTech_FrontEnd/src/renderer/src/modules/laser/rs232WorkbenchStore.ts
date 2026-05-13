@@ -1,10 +1,10 @@
 ﻿import { defineStore } from 'pinia'
-import { defaultRs232WorkbenchState } from '@/configs/settings'
-import type { Rs232SerialSessionRequest } from '@/types/settings'
-import { cloneSettings } from '@/utils/settings'
-import { RS232_WORKBENCH_STORAGE_KEY } from '@/configs/storageKeys'
+import { defaultRs232WorkbenchState } from './rs232Config'
+import type { Rs232SerialSessionRequest } from './rs232Types'
+import { cloneSettings } from '@/shared/utils/settings'
+import { RS232_WORKBENCH_STORAGE_KEY } from '@/shared/constants/storageKeys'
 import { LIGHT_SETTINGS_PERSIST_DEBOUNCE_MS } from '@/shared/constants'
-import { isRs232WorkbenchShape, normalizeRs232Workbench } from '@/utils/rs232Validation'
+import { isRs232WorkbenchShape, normalizeRs232Workbench } from './rs232Validation'
 import { createPersistedSettings, readSettingsFromStorage } from '@/modules/settings/useSettingsStore'
 
 /**

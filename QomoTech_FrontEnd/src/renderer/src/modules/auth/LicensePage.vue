@@ -1,7 +1,7 @@
 ﻿<script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useNotification } from '@/composables/useNotification'
+import { useNotification } from '@/shared/composables/useNotification'
 import { useLicenseStore } from './licenseStore'
 
 const router = useRouter()

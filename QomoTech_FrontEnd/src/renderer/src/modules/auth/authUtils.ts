@@ -1,5 +1,5 @@
 import type { AuthStorage } from './authTypes'
-import { AUTH_STORAGE_KEY } from '@/configs/storageKeys'
+import { AUTH_STORAGE_KEY } from '@/shared/constants/storageKeys'
 import { DEFAULT_USER_ACCOUNT } from './authConfig'
 
 export const getDefaultAuthState = (): AuthStorage => ({

@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from './useAuthStore'
-import { useNotification } from '@/composables/useNotification'
+import { useNotification } from '@/shared/composables/useNotification'
 import { useLicenseStore } from './licenseStore'
 import StatusIndicators from '@/shared/components/StatusIndicators.vue'
 const { success, error } = useNotification()

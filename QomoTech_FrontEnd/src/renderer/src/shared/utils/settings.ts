@@ -1,4 +1,4 @@
-import type { SettingValue } from '../types/settings'
+import type { SettingValue } from '../types'
 
 export const cloneSettings = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T
 

@@ -1,6 +1,6 @@
 ﻿<script setup lang="ts">
 import { computed } from 'vue'
-import type { RecipeManagerState } from '@/types/settings'
+import type { RecipeManagerState } from '../recipeTypes'
 
 const props = defineProps<{
   state: RecipeManagerState

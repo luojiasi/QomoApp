@@ -1,6 +1,6 @@
-import type { CameraSettingsState } from '../types/settings'
-import { defaultCameraSettings } from '../configs/settings'
-import { cloneSettings } from './settings'
+import type { CameraSettingsState } from './cameraTypes'
+import { defaultCameraSettings } from './cameraConfig'
+import { cloneSettings } from '@/shared/utils/settings'
 
 export function isCameraSettingsShape(data: unknown): data is CameraSettingsState {
   if (!data || typeof data !== 'object') return false

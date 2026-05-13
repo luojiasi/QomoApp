@@ -1,7 +1,7 @@
 ﻿<script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref } from 'vue'
-import CameraPic from '@/features/camera/cameraPic.vue'
+import CameraPic from './CameraPic.vue'
 import { useNotification } from '@/shared/composables/useNotification'
 import { useCameraSettingsStore } from './useCameraStore'
 import {

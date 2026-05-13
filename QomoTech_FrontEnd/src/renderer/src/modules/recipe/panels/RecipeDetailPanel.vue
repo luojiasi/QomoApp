@@ -1,6 +1,6 @@
 ﻿<script setup lang="ts">
-import type { ParameterField, ParameterFieldGroup } from '@/types/settings'
-import { formatSettingValue } from '@/utils/settings'
+import type { ParameterField, ParameterFieldGroup } from '@/shared/types'
+import { formatSettingValue } from '@/shared/utils/settings'
 
 const props = defineProps<{
   title: string

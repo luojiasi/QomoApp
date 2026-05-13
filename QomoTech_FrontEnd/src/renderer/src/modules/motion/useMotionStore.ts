@@ -1,14 +1,14 @@
 ﻿import { ref } from 'vue'
 import { defineStore } from 'pinia'
-import { applyControllerAxisCount, defaultControllerParameters } from '@/configs/settings'
+import { applyControllerAxisCount, defaultControllerParameters } from './controllerConfig'
 import type {
   ControllerAxisCount,
-  ControllerParameters,
-  SettingsSaveResult
-} from '@/types/settings'
+  ControllerParameters
+} from './motionTypes'
+import type { SettingsSaveResult } from '@/shared/types'
 import { type HomeState } from '@/modules/auth/authTypes'
-import { HOME_STATE_KEY } from '@/configs/storageKeys'
-import { cloneSettings } from '@/utils/settings'
+import { HOME_STATE_KEY } from '@/shared/constants/storageKeys'
+import { cloneSettings } from '@/shared/utils/settings'
 import {
   getControllerSettingsFromFile,
   saveControllerSettingsToFile
@@ -16,7 +16,7 @@ import {
 import {
   isControllerParametersShape,
   normalizeControllerParameters
-} from '@/utils/controllerValidation'
+} from './controllerValidation'
 import { createSettingsSaveResult } from '@/modules/settings/useSettingsStore'
 
 function loadHomeStateFromStorage(): HomeState {

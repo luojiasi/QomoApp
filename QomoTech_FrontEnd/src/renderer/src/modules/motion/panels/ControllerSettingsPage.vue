@@ -1,6 +1,6 @@
 ﻿<script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { AXIS_TAB_LABELS, defaultControllerParameters } from '@/configs/settings'
+import { AXIS_TAB_LABELS, defaultControllerParameters } from '../controllerConfig'
 import { IO_MAP_GROUP_COUNT } from '@/shared/constants'
 import { useControllerSettingsPage } from '@/modules/settings/useSettingsPages'
 import { useNotification } from '@/shared/composables/useNotification'
@@ -8,10 +8,10 @@ import { useControllerSettingsStore } from '@/modules/motion/useMotionStore'
 import ApiTestPanel from '@/modules/settings/ApiTestPanel.vue'
 import type {
   ControllerAxisCount,
-  ControllerAxisUserInput,
-  ParameterField
-} from '@/types/settings'
-import { cloneSettings, formatSettingValue } from '@/utils/settings'
+  ControllerAxisUserInput
+} from '../motionTypes'
+import type { ParameterField } from '@/shared/types'
+import { cloneSettings, formatSettingValue } from '@/shared/utils/settings'
 import {
   connectMotionWithControllerSettings,
   emergencyStopMotion

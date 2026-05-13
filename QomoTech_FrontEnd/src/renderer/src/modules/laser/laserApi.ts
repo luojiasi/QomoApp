@@ -1,5 +1,5 @@
 ﻿import { apiCall, type ApiCallResult } from '@/shared/api/httpClient'
-import type { LaserTransmissionMode } from '@/types/settings'
+import type { LaserTransmissionMode } from './rs232Types'
 
 export interface LaserApplyPayload {
   laserManufacturer?: string

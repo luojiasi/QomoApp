@@ -1,7 +1,7 @@
 ﻿<script setup lang="ts">
 import { onMounted, ref,onUnmounted} from 'vue'
 import { useRouter } from 'vue-router'
-import { useNotification } from '@/composables/useNotification'
+import { useNotification } from '@/shared/composables/useNotification'
 import { useAuthStore } from './useAuthStore'
 import { useLicenseStore } from './licenseStore'
 import { subscribeGlobalKeyboard } from '@/shared/composables/useGlobalKeyboard'

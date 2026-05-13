@@ -1,6 +1,6 @@
-import type { Rs232WorkbenchState } from '../types/settings'
-import { defaultRs232WorkbenchState } from '../configs/settings'
-import { cloneSettings } from './settings'
+import type { Rs232WorkbenchState } from './rs232Types'
+import { defaultRs232WorkbenchState } from './rs232Config'
+import { cloneSettings } from '@/shared/utils/settings'
 
 export function isRs232WorkbenchShape(data: unknown): data is Rs232WorkbenchState {
   if (!data || typeof data !== 'object') return false

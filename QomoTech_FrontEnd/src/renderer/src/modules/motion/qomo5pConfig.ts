@@ -1,4 +1,4 @@
-﻿import type { QomoViewport, QomoLayer, QomoWeldingBase } from '@/types/Qomo5P'
+﻿import type { QomoViewport, QomoLayer, QomoWeldingBase } from '@/modules/editor/qomo5pTypes'
 
 export const QOMO5P_PROJECT_VERSION = '1.0.0'
 

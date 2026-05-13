@@ -1,13 +1,13 @@
 ﻿<script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useSelfProcessStore } from './useSelfProcessStore'
-import FlowTaskPanel from '@/features/workflow/FlowTaskPanel.vue'
-import FlowCanvas from '@/features/workflow/FlowCanvas.vue'
-import FlowNodeConfig from '@/features/workflow/FlowNodeConfig.vue'
-import FlowLogPanel from '@/features/workflow/FlowLogPanel.vue'
-import FlowCanvasConfig from '@/features/workflow/FlowCanvasConfig.vue'
-import MotionController from '@/features/workflow/MotionController.vue'
-import CameraPic from '@/features/camera/cameraPic.vue'
+import FlowTaskPanel from './FlowTaskPanel.vue'
+import FlowCanvas from './FlowCanvas.vue'
+import FlowNodeConfig from './FlowNodeConfig.vue'
+import FlowLogPanel from './FlowLogPanel.vue'
+import FlowCanvasConfig from './FlowCanvasConfig.vue'
+import MotionController from './MotionController.vue'
+import CameraPic from '@/modules/camera/CameraPic.vue'
 
 const store = useSelfProcessStore()
 const sidePanelTab = ref<'log' | 'config' | 'canvasConfig' | 'motionController'>('config')

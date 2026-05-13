@@ -5,14 +5,14 @@ import {
   createRs232Sections,
   RS232_COM_PORT_OPTIONS,
   RS232_SEND_MODE_OPTIONS,
-} from '@/configs/settings'
+} from './rs232Config'
 import { useNotification } from '@/shared/composables/useNotification'
 import { useReservePages } from '@/modules/settings/useSettingsPages'
 import { useReservePagesStore } from '@/modules/settings/useSettingsStore'
-import { RS232_WORKBENCH_STORAGE_KEY } from '@/configs/storageKeys'
+import { RS232_WORKBENCH_STORAGE_KEY } from '@/shared/constants/storageKeys'
 import { useRs232WorkbenchStore } from './rs232WorkbenchStore'
-import type { Rs232QuickCommand, Rs232SendMode, Rs232SendRequest, Rs232SerialSessionRequest } from '@/types/settings'
-import { formatSettingValue } from '@/utils/settings'
+import type { Rs232QuickCommand, Rs232SendMode, Rs232SendRequest, Rs232SerialSessionRequest } from './rs232Types'
+import { formatSettingValue } from '@/shared/utils/settings'
 import { useRs232Polling } from './useRs232Polling'
 import {
   closeRs232,

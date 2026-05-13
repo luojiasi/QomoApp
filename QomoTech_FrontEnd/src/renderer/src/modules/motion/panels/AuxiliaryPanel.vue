@@ -1,6 +1,6 @@
 ﻿<script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import ControlPanelBase from '@/features/controller-panels/ControlPanelBase.vue'
+import ControlPanelBase from './ControlPanelBase.vue'
 import { useControllerSettingsStore } from '@/modules/motion/useMotionStore'
 import { useAuxiliaryFunctionPanelStore } from '@/modules/motion/auxiliaryStore'
 import {

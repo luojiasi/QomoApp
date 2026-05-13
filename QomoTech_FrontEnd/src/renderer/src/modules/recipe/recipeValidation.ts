@@ -6,13 +6,13 @@ import type {
   SharedFormulaRecipe,
   VerticalFormulaRecipe,
   VerticalProcessFormulaRecipe
-} from '../types/settings'
+} from './recipeTypes'
 import {
   RECIPE_LIBRARY_CARD_TYPE_KEYS,
   createDefaultLibraryKeywords
-} from '../types/recipeSettings'
-import { createDefaultVerticalProcessFormula } from '../configs/settings'
-import { cloneSettings } from './settings'
+} from './recipeTypes'
+import { createDefaultVerticalProcessFormula } from './recipeConfig'
+import { cloneSettings } from '@/shared/utils/settings'
 
 /** 取自递增前缀（如 'main-1','main-2'…）的下一序号 */
 export function getNextSequence(items: { id: string }[], prefix: string): number {
