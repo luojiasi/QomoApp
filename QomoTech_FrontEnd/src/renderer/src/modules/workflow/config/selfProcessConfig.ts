@@ -31,7 +31,7 @@ export const LOG_LEVEL_LABEL: Record<string, string> = {
 // 节点分类元数据 (merged from configs/nodeDefinitions.ts)
 // ═══════════════════════════════════════════════════════════════
 
-import type { NodeDefinition, NodeCategoryMeta, NodeCategory } from './selfProcessTypes'
+import type { NodeDefinition, NodeCategoryMeta, NodeCategory } from '../types/selfProcessTypes'
 
 export const NODE_CATEGORY_META: Record<NodeCategory, NodeCategoryMeta> = {
   workflowSystem: {

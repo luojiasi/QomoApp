@@ -1,6 +1,6 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { ref } from 'vue'
-import { useSelfProcessStore } from './useSelfProcessStore'
+import { useSelfProcessStore } from '../store/useSelfProcessStore'
 
 const store = useSelfProcessStore()
 const newName = ref('')

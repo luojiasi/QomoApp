@@ -2,8 +2,8 @@
 import { computed } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
 import type { NodeProps } from '@vue-flow/core'
-import { getNodeDefinition, NODE_WIDTH } from './selfProcessConfig'
-import { useSelfProcessStore } from './useSelfProcessStore'
+import { getNodeDefinition, NODE_WIDTH } from '../config/selfProcessConfig'
+import { useSelfProcessStore } from '../store/useSelfProcessStore'
 import type { NodePort } from '@/types/selfProcessTypes'
 
 const props = defineProps<NodeProps>()

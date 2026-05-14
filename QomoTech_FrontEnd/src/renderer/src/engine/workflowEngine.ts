@@ -6,8 +6,8 @@ import type {
   WorkflowContext,
   NodeOutput,
   NodeRunStatus
-} from '@/modules/workflow/selfProcessTypes'
-import { generateId } from '@/modules/workflow/selfProcessUtils'
+} from '@/modules/workflow/types/selfProcessTypes'
+import { generateId } from '@/modules/workflow/utils/selfProcessUtils'
 import { resolveValue, type ResolverContext } from './expressionResolver'
 
 // ──── API 端点映射 ──────────────────────────────────────────────

@@ -17,8 +17,8 @@ import {
   buildWorkflowFilePath,
   buildIndexFilePath,
   nowISO
-} from './selfProcessUtils'
-import { getNodeDefinition } from './selfProcessConfig'
+} from '../utils/selfProcessUtils'
+import { getNodeDefinition } from '../config/selfProcessConfig'
 import { createWorkflowEngine } from '@/engine/workflowEngine'
 
 type WorkflowFileResult<T = unknown> =

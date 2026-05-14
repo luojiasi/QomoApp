@@ -1,16 +1,15 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { useSelfProcessStore } from './useSelfProcessStore'
-import FlowTaskPanel from './FlowTaskPanel.vue'
-import FlowCanvas from './FlowCanvas.vue'
-import FlowNodeConfig from './FlowNodeConfig.vue'
-import FlowLogPanel from './FlowLogPanel.vue'
-import FlowCanvasConfig from './FlowCanvasConfig.vue'
-import MotionController from './MotionController.vue'
+import { useSelfProcessStore } from './store/useSelfProcessStore'
+import FlowTaskPanel from './components/FlowTaskPanel.vue'
+import FlowCanvas from './components/FlowCanvas.vue'
+import FlowNodeConfig from './components/FlowNodeConfig.vue'
+import FlowLogPanel from './components/FlowLogPanel.vue'
+import FlowCanvasConfig from './components/FlowCanvasConfig.vue'
 import CameraPic from '@/modules/camera/CameraPic.vue'
 
 const store = useSelfProcessStore()
-const sidePanelTab = ref<'log' | 'config' | 'canvasConfig' | 'motionController'>('config')
+const sidePanelTab = ref<'log' | 'config' | 'canvasConfig'>('config')
 
 onMounted(async () => {
   await store.init()
@@ -106,22 +105,12 @@ onMounted(async () => {
           >
             画布配置
           </button>
-          <button
-            class="cursor-pointer rounded-md px-3 py-1.5 text-xs font-semibold transition-colors"
-            :class="sidePanelTab === 'motionController'
-              ? 'bg-blue-600 text-white'
-              : 'bg-(--app-card-soft) text-(--app-text-secondary) hover:text-(--app-text-primary)'"
-            @click="sidePanelTab = 'motionController'"
-          >
-            运动控制
-          </button>
         </div>
 
         <div class="h-[calc(100%-48px)] overflow-hidden">
           <FlowLogPanel v-if="sidePanelTab === 'log'" />
           <FlowNodeConfig v-else-if="sidePanelTab === 'config'" />
           <FlowCanvasConfig v-else-if="sidePanelTab === 'canvasConfig'" />
-          <MotionController v-else-if="sidePanelTab === 'motionController'" />
         </div>
       </div>
     </aside>

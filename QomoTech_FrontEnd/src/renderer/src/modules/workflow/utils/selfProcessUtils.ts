@@ -1,4 +1,4 @@
-import type { WorkflowNode, Workflow, WorkflowLog, LogLevel } from './selfProcessTypes'
+import type { WorkflowNode, Workflow, WorkflowLog, LogLevel } from '../types/selfProcessTypes'
 
 /** 生成短 UUID */
 export function generateId(): string {

@@ -1,6 +1,6 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { ref, computed } from 'vue'
-import { NODE_DEFINITIONS, NODE_CATEGORY_META } from './selfProcessConfig'
+import { NODE_DEFINITIONS, NODE_CATEGORY_META } from '../config/selfProcessConfig'
 import type { NodeCategory } from '@/types/selfProcessTypes'
 
 const props = defineProps<{
