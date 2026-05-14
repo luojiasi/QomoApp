@@ -28,7 +28,6 @@ class 激光参数下发请求模型(BaseModel):
     laserPower: float | None = None
     laserFrequency: float | None = None
     laserCurrent: float | None = None
-    transmissionMode: str | None = None
 
 
 @路由.post("/laser/apply", response_model=ApiResponse)

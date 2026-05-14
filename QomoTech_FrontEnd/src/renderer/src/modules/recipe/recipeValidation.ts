@@ -1,15 +1,5 @@
-import type {
-  LaserPowerRecipe,
-  MachiningProcessRecipe,
-  ProcessFormulaRecipe,
-  RecipeManagerState,
-  RecipeRecordBase,
-  VerticalProcessFormulaRecipe
-} from './recipeTypes'
-import {
-  RECIPE_LIBRARY_CARD_TYPE_KEYS,
-  createDefaultLibraryKeywords
-} from './recipeTypes'
+import type {MachiningProcessRecipe,ProcessFormulaRecipe,RecipeManagerState,RecipeRecordBase,VerticalProcessFormulaRecipe} from './recipeTypes'
+import {RECIPE_LIBRARY_CARD_TYPE_KEYS,createDefaultLibraryKeywords} from './recipeTypes'
 import { createDefaultVerticalProcessFormula } from './recipeConfig'
 import { cloneSettings } from '@/shared/utils/settings'
 
@@ -200,7 +190,6 @@ export function normalizeRecipeState(raw: unknown): RecipeManagerState | null {
 
   for (const r of p.laserPowerRecipes) {
     if (!isObject(r)) return null
-    if (typeof (r as LaserPowerRecipe).transmissionMode !== 'string') return null
   }
 
   for (const r of p.horizontalFormulaRecipes) {

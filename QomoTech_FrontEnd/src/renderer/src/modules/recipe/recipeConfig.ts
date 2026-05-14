@@ -1,9 +1,12 @@
 ﻿import type {
   BlackeningProcessRecipe,
+  EditableFormulaItem,
   LaserPowerRecipe,
   LinearFormulaCoefficients,
   MachiningProcessRecipe,
   MainRecipeDefinition,
+  OpeningShape,
+  OpeningShapeFormulaPreset,
   ProcessFormulaRecipe,
   RecipeManagerState,
   RecipeRecordBase,
@@ -12,18 +15,11 @@
 import type { ParameterField, ParameterSection } from '@/shared/types'
 import { createDefaultLibraryKeywords } from './recipeTypes'
 
-function createTimestamp(): string {
-  return new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-')
-}
+export function createTimestamp(): string {return new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-')}
 
-function createLinearFormulaCoefficients(k: number, b: number): LinearFormulaCoefficients {
-  return { k, b }
-}
+function createLinearFormulaCoefficients(k: number, b: number): LinearFormulaCoefficients {return { k, b }}
 
-function formatLinearFormula(
-  symbol: 'A' | 'L' | 'D' | 'CA',
-  formula?: ProcessFormulaRecipe['angleFormula']
-): string {
+export function formatLinearFormula(symbol: 'A' | 'L' | 'D' | 'CA',formula?: LinearFormulaCoefficients): string {
   if (!formula) return '-'
   return `${symbol} = ${formula.k} * 深度 + ${formula.b}`
 }
@@ -52,15 +48,11 @@ export function createLaserPowerRecipe(sequence: number): LaserPowerRecipe {
     laserManufacturer: '默认厂家',
     laserPower: 930,
     laserFrequency: 8000,
-    laserCurrent: 10,
-    transmissionMode: 'RS232'
+    laserCurrent: 10
   }
 }
 
-export function createBlackeningRecipe(
-  sequence: number,
-  laserPowerRecipeId: string
-): BlackeningProcessRecipe {
+export function createBlackeningRecipe(sequence: number,laserPowerRecipeId: string): BlackeningProcessRecipe {
   return {
     id: `blackening-${sequence}`,
     code: `BH-${String(sequence).padStart(3, '0')}`,
@@ -310,6 +302,34 @@ function createVerticalFormulaFieldGroups(prefix: string,recipe?: VerticalProces
       ]
     }
   ]
+}
+
+// ------------------------------------------------------------------
+// 编辑器/管理页面共享数据
+// ------------------------------------------------------------------
+
+export const openingShapeOptions: OpeningShape[] = ['V型', '//型']
+
+export const editableFormulaItems: EditableFormulaItem[] = [
+  { key: 'angleFormula', label: '角度公式', symbol: 'A', kLabel: 'K：', bLabel: 'B：' },
+  { key: 'lowerOpeningFormula', label: '下开口公式', symbol: 'L', kLabel: 'K：', bLabel: 'B：' },
+  { key: 'depthCompensationFormula', label: '深度补偿公式', symbol: 'D', kLabel: 'K：', bLabel: 'B：' },
+  { key: 'compensationAngleFormula', label: '补偿角度公式', symbol: 'CA', kLabel: 'K：', bLabel: 'B：' }
+]
+
+export const openingShapeFormulaPresets: Record<OpeningShape, OpeningShapeFormulaPreset> = {
+  'V型': {
+    angleFormula: { k: 0, b: 0.54 },
+    lowerOpeningFormula: { k: 5, b: 35 },
+    depthCompensationFormula: { k: 2, b: 0.5 },
+    compensationAngleFormula: { k: 0, b: 0 }
+  },
+  '//型': {
+    angleFormula: { k: 0, b: 0.54 },
+    lowerOpeningFormula: { k: 0, b: 50 },
+    depthCompensationFormula: { k: 0, b: 0 },
+    compensationAngleFormula: { k: 0, b: 0 }
+  }
 }
 
 export const createRecipeSections = (state: RecipeManagerState): ParameterSection[] => {

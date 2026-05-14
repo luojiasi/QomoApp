@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import RouteTabs from '@/shared/components/RouteTabs.vue'
-import HomeUserBar from '../HomeUserBar.vue'
+import HomeUserBar from '@/shared/components/HomeUserBar.vue'
 import RecipeParameterPanel from '@/modules/recipe/panels/RecipeParameterPanel.vue'
 import DriverControlPanel from '../panels/DriverControlPanel.vue'
 import LaserControlPanel from '@/modules/laser/pages/LaserControlPanel.vue'

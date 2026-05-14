@@ -2,44 +2,19 @@
 import { computed } from 'vue'
 import type {
   BlackeningProcessRecipe,
+  CardRecipeItem,
+  EditableFormulaItem,
+  EditableFormulaKey,
   LaserPowerRecipe,
   LinearFormulaCoefficients,
   MachiningProcessRecipe,
   OpeningShape,
+  OpeningShapeFormulaPreset,
+  ProcessDetailFieldKind,
   ProcessFormulaRecipe,
+  RecipeCardType,
   VerticalProcessFormulaRecipe
 } from '../recipeTypes'
-
-type RecipeCardType =
-  | 'blackening'
-  | 'machining'
-  | 'laserPower'
-  | 'horizontalFormula'
-  | 'verticalFormula'
-type ProcessDetailFieldKind = 'laserPower' | 'horizontal' | 'vertical'
-type EditableFormulaKey =
-  | 'angleFormula'
-  | 'lowerOpeningFormula'
-  | 'depthCompensationFormula'
-  | 'compensationAngleFormula'
-  
-type FormulaKB = { k: number; b: number }
-type OpeningShapeFormulaPreset = Partial<Record<EditableFormulaKey, FormulaKB>>
-
-interface EditableFormulaItem {
-  key: EditableFormulaKey
-  label: string
-  symbol: 'A' | 'L' | 'D' | 'CA'
-  kLabel: string
-  bLabel: string
-}
-
-type CardRecipeItem =
-  | BlackeningProcessRecipe
-  | MachiningProcessRecipe
-  | LaserPowerRecipe
-  | ProcessFormulaRecipe
-  | VerticalProcessFormulaRecipe
 
 const props = withDefaults(
   defineProps<{
@@ -54,14 +29,10 @@ const props = withDefaults(
     laserPowerOptions?: LaserPowerRecipe[]
     horizontalFormulaOptions?: ProcessFormulaRecipe[]
     verticalFormulaOptions?: VerticalProcessFormulaRecipe[]
-    transmissionModeOptions?: string[]
     openingShapeOptions?: OpeningShape[]
     openingShapeFormulaPresets?: Partial<Record<OpeningShape, OpeningShapeFormulaPreset>>
     editableFormulaItems?: EditableFormulaItem[]
-    formatLinearFormula?: (
-      symbol: 'A' | 'L' | 'D' | 'CA',
-      formula?: ProcessFormulaRecipe[EditableFormulaKey]
-    ) => string
+    formatLinearFormula?: (symbol: 'A' | 'L' | 'D' | 'CA',formula?: ProcessFormulaRecipe[EditableFormulaKey]) => string
   }>(),
   {
     deleteDisabled: false,
@@ -70,7 +41,6 @@ const props = withDefaults(
     laserPowerOptions: () => [],
     horizontalFormulaOptions: () => [],
     verticalFormulaOptions: () => [],
-    transmissionModeOptions: () => [],
     openingShapeOptions: () => [],
     openingShapeFormulaPresets: () => ({}),
     editableFormulaItems: () => []
@@ -135,6 +105,18 @@ function onOpeningShapeChange(shape: OpeningShape): void {
 function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): string {
   if (!formula) return '-'
   return `变化率 = ${formula.k} * 计算 + ${formula.b}`
+}
+
+function getFormulaField(recipe: ProcessFormulaRecipe, key: EditableFormulaKey): LinearFormulaCoefficients {
+  return recipe[key]
+}
+
+function setFormulaFieldK(recipe: ProcessFormulaRecipe, key: EditableFormulaKey, e: Event): void {
+  recipe[key].k = Number((e.target as HTMLInputElement).value)
+}
+
+function setFormulaFieldB(recipe: ProcessFormulaRecipe, key: EditableFormulaKey, e: Event): void {
+  recipe[key].b = Number((e.target as HTMLInputElement).value)
 }
 </script>
 
@@ -446,27 +428,6 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
               @input="markUpdated"
             />
           </label>
-          <!-- <label class="grid grid-cols-[6.5rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) px-3 py-2">
-            <span class="app-text-secondary text-xs">激光厂家</span>
-            <input
-              v-model="(props.item as LaserPowerRecipe).laserManufacturer"
-              type="text"
-              class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
-              @input="markUpdated"
-            />
-          </label> -->
-          <!-- <label class="grid grid-cols-[6.5rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) px-3 py-2">
-            <span class="app-text-secondary text-xs">使用传输方式</span>
-            <select
-              v-model="(props.item as LaserPowerRecipe).transmissionMode"
-              class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2.5 py-1.5 text-sm outline-none"
-              @change="markUpdated"
-            >
-              <option v-for="mode in props.transmissionModeOptions" :key="mode" :value="mode" class="text-slate-900">
-                {{ mode }}
-              </option>
-            </select>
-          </label> -->
         </div>
         <div class="grid gap-2 lg:grid-cols-2">
           
@@ -527,15 +488,6 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
               @input="markUpdated"
             />
           </label>
-          <!-- <label class="grid grid-cols-[6rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) bg-(--app-card) px-3 py-2">
-            <span class="app-text-secondary text-xs">配方编码</span>
-            <input
-              v-model="(props.item as ProcessFormulaRecipe).code"
-              type="text"
-              class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
-              @input="markUpdated"
-            />
-          </label> -->
           <label class="grid grid-cols-[6rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) bg-(--app-card) px-3 py-2">
             <span class="app-text-secondary text-xs">工艺名称</span>
             <input
@@ -584,28 +536,28 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
             <div class="flex flex-wrap items-center justify-between gap-2">
               <span class="app-text-secondary text-xs">{{ item.label }}</span>
               <span class="app-text-primary text-xs font-medium">
-                {{ formatFormulaValue(item.symbol, (props.item as ProcessFormulaRecipe)[item.key]) }}
+                {{ formatFormulaValue(item.symbol, getFormulaField((props.item as ProcessFormulaRecipe), item.key)) }}
               </span>
             </div>
             <div class="mt-2 grid gap-2 sm:grid-cols-2">
               <label class="grid grid-cols-[2rem_1fr] items-center gap-2">
                 <span class="app-text-secondary text-xs">{{ item.kLabel }}</span>
                 <input
-                  v-model.number="(props.item as ProcessFormulaRecipe)[item.key].k"
+                  :value="getFormulaField((props.item as ProcessFormulaRecipe), item.key).k"
                   type="number"
                   step="0.001"
                   class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
-                  @input="markUpdated"
+                  @input="setFormulaFieldK((props.item as ProcessFormulaRecipe), item.key, $event); markUpdated()"
                 />
               </label>
               <label class="grid grid-cols-[2rem_1fr] items-center gap-2">
                 <span class="app-text-secondary text-xs">{{ item.bLabel }}</span>
                 <input
-                  v-model.number="(props.item as ProcessFormulaRecipe)[item.key].b"
+                  :value="getFormulaField((props.item as ProcessFormulaRecipe), item.key).b"
                   type="number"
                   step="0.001"
                   class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
-                  @input="markUpdated"
+                  @input="setFormulaFieldB((props.item as ProcessFormulaRecipe), item.key, $event); markUpdated()"
                 />
               </label>
             </div>

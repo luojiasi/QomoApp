@@ -7,10 +7,10 @@ import RecipeTopologyDiagram from './panels/RecipeTopologyDiagram.vue'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useNotification } from '@/shared/composables/useNotification'
 import { useRecipeSettingsStore } from './useRecipeStore'
-import { createRecipeSections } from './recipeConfig'
+import { createRecipeSections, createTimestamp, editableFormulaItems, formatLinearFormula, openingShapeFormulaPresets, openingShapeOptions } from './recipeConfig'
 import type {
   LaserPowerRecipe,
-  OpeningShape,
+  ProcessDetailFieldKind,
   ProcessFormulaRecipe,
   RecipeStatus,
   VerticalProcessFormulaRecipe
@@ -38,42 +38,6 @@ const statusOptions: { label: string; value: RecipeStatus }[] = [
   { label: '生效', value: 'active' },
   { label: '归档', value: 'archived' }
 ]
-const openingShapeOptions: OpeningShape[] = ['V型', '//型']
-const laserTransmissionModeOptions: string[] = ['网线', 'RS232']
-type EditableFormulaKey =
-  | 'angleFormula'
-  | 'lowerOpeningFormula'
-  | 'depthCompensationFormula'
-  | 'compensationAngleFormula'
-
-const editableFormulaItems: Array<{
-  key: EditableFormulaKey
-  label: string
-  symbol: 'A' | 'L' | 'D' | 'CA'
-  kLabel: string
-  bLabel: string
-}> = [
-  { key: 'angleFormula', label: '角度公式', symbol: 'A', kLabel: 'K：', bLabel: 'B：' },
-  { key: 'lowerOpeningFormula', label: '下开口公式', symbol: 'L', kLabel: 'K：', bLabel: 'B：' },
-  { key: 'depthCompensationFormula', label: '深度补偿公式', symbol: 'D', kLabel: 'K：', bLabel: 'B：' },
-  { key: 'compensationAngleFormula', label: '补偿角度公式', symbol: 'CA', kLabel: 'K：', bLabel: 'B：' }
-]
-
-const openingShapeFormulaPresets: Record<OpeningShape,Partial<Record<EditableFormulaKey, { k: number; b: number }>>> = {
-  'V型': {
-    angleFormula: { k: 0, b: 0.54 },
-    lowerOpeningFormula: { k: 5, b: 35 },
-    depthCompensationFormula: { k: 2, b: 0.5 },
-    compensationAngleFormula: { k: 0, b: 0 }
-  },
-  '//型': {
-    angleFormula: { k: 0, b: 0.54 },
-    lowerOpeningFormula: { k: 0, b: 50 },
-    depthCompensationFormula: { k: 0, b: 0 },
-    compensationAngleFormula: { k: 0, b: 0 }
-  }
-}
-
 const mainRecipeCount = computed(() => recipeState.value.mainRecipes.length)
 const activeRecipeCount = computed(
   () => recipeState.value.mainRecipes.filter((recipe) => recipe.status === 'active').length
@@ -175,8 +139,7 @@ const laserPowerMap = computed(
 const activeEditorPanel = ref<EditorPanel>('main')
 const savingMainRecipeFile = ref(false)
 
-type ReferencePopoverKind = 'blackening' | 'machining'
-const referencePopoverKind = ref<ReferencePopoverKind | null>(null)
+const referencePopoverKind = ref<ChildRecipeType | null>(null)
 
 const referenceCards = computed(() => [
   {
@@ -215,7 +178,7 @@ function clearReferencePopoverHideTimer(): void {
   }
 }
 
-function onReferenceCardEnter(kind: ReferencePopoverKind): void {
+function onReferenceCardEnter(kind: ChildRecipeType): void {
   clearReferencePopoverHideTimer()
   referencePopoverKind.value = kind
 }
@@ -242,7 +205,6 @@ function closeReferenceCenterPanel(): void {
 }
 
 type ProcessLibraryKind = 'machining'
-type ProcessDetailFieldKind = 'laserPower' | 'horizontal' | 'vertical'
 
 const processDetailHover = ref<{
   library: ProcessLibraryKind
@@ -337,18 +299,9 @@ const otherSections = computed(() =>
   sections.value.filter((section) => !section.id.endsWith('-detail'))
 )
 
-function createTimestamp(): string {
-  return new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-')
-}
-
 function markMainRecipeUpdated(): void {
   if (!selectedMainRecipe.value) return
   selectedMainRecipe.value.updatedAt = createTimestamp()
-}
-
-function formatLinearFormula(symbol: 'A' | 'L' | 'D' | 'CA',formula?: ProcessFormulaRecipe[EditableFormulaKey]): string {
-  if (!formula) return '-'
-  return `${symbol} = ${formula.k} * 深度 + ${formula.b}`
 }
 
 function getFormulaFields(recipe?: ProcessFormulaRecipe): ParameterField[] {
@@ -1125,7 +1078,6 @@ onMounted(async () => {
                   ? `已被引用：${getLaserPowerLinkedProcessNames(recipe.id).join('、')}`
                   : ''
               "
-              :transmission-mode-options="laserTransmissionModeOptions"
               :on-updated="markProcessRecipeUpdated"
               @delete="removeLaserPowerRecipe(recipe.id)"
             />

@@ -1,9 +1,3 @@
-export type RecipeStatus = 'draft' | 'active' | 'archived'
-export type OpeningShape = 'V型' | '//型' 
-export type cuttingAxis = 'XY'|'R'
-/** 激光功率配方与控制器之间的传输方式（仅两种可选） */
-export type LaserTransmissionMode = '网线' | 'RS232'
-
 export interface RecipeRecordBase {
   id: string
   code: string
@@ -12,58 +6,17 @@ export interface RecipeRecordBase {
   updatedAt: string
 }
 
-export interface LinearFormulaCoefficients {
-  k: number
-  b: number
+// 主配方的类型
+export type RecipeStatus = 'draft' | 'active' | 'archived'
+export interface MainRecipeDefinition extends RecipeRecordBase {
+  version: string
+  productModel: string
+  status: RecipeStatus
+  blackeningRecipeId: string
+  machiningRecipeId: string
 }
 
-export interface ProcessFormulaRecipe extends RecipeRecordBase {
-  openingShape: OpeningShape
-  angleFormula: LinearFormulaCoefficients
-  lowerOpeningFormula: LinearFormulaCoefficients
-  depthCompensationFormula: LinearFormulaCoefficients
-  upperOpeningFormula: string
-  compensationAngleFormula: LinearFormulaCoefficients
-  focusCompensation: number
-}
-
-/** 垂直工艺：边缘 / 中间切割段（CHANGE 为 k*深度+b） */
-export interface VerticalEdgeOrMiddleCutting {
-  speed: number
-  cutTimes: number
-  cutSpeedNums?: number
-  change: LinearFormulaCoefficients
-}
-
-/** 垂直工艺：下降切割 */
-export interface VerticalDescentCutting {
-  speed: number
-  zFeed: number
-  change: LinearFormulaCoefficients
-}
-
-/** 垂直工艺配方参数（与水平工艺的开口/公式结构不同） */
-export interface VerticalProcessFormulaRecipe extends RecipeRecordBase {
-  cuttingAxis: cuttingAxis
-  changePercent: number
-  xFeed: number
-  xSpeed: number
-  edgeCutting: VerticalEdgeOrMiddleCutting
-  middleCutting: VerticalEdgeOrMiddleCutting
-  descentCutting: VerticalDescentCutting
-}
-
-
-
-/** 激光功率配方，可被扫黑工艺配方与加工工艺配方引用 */
-export interface LaserPowerRecipe extends RecipeRecordBase {
-  laserManufacturer: string
-  laserPower: number
-  laserFrequency: number
-  laserCurrent: number
-  transmissionMode: string
-}
-
+// 扫黑工艺配方的类型
 export interface BlackeningProcessRecipe extends RecipeRecordBase {
   enabled: boolean
   descentStep: number
@@ -75,28 +28,68 @@ export interface BlackeningProcessRecipe extends RecipeRecordBase {
   saoheikaikou: LinearFormulaCoefficients
 }
 
+// 加工工艺配方的类型
 export interface MachiningProcessRecipe extends RecipeRecordBase {
   horizontalFormulaId: string
   verticalFormulaId: string
   laserPowerRecipeId: string
 }
 
-export interface MainRecipeDefinition extends RecipeRecordBase {
-  version: string
-  productModel: string
-  status: RecipeStatus
-  blackeningRecipeId: string
-  machiningRecipeId: string
+
+
+
+
+
+export interface LinearFormulaCoefficients {k: number; b: number}
+
+// 水平工艺配方的类型
+export type OpeningShape = 'V型' | '//型' 
+export interface ProcessFormulaRecipe extends RecipeRecordBase {
+  openingShape: OpeningShape
+  angleFormula: LinearFormulaCoefficients
+  lowerOpeningFormula: LinearFormulaCoefficients
+  depthCompensationFormula: LinearFormulaCoefficients
+  upperOpeningFormula: string
+  compensationAngleFormula: LinearFormulaCoefficients
+  focusCompensation: number
 }
 
+// 垂直工艺配方的类型
+export type cuttingAxis = 'XY'|'R'
+export interface VerticalEdgeOrMiddleCutting {
+  speed: number
+  cutTimes: number
+  cutSpeedNums?: number
+  change: LinearFormulaCoefficients
+}
+export interface VerticalDescentCutting {
+  speed: number
+  zFeed: number
+  change: LinearFormulaCoefficients
+}
+export interface VerticalProcessFormulaRecipe extends RecipeRecordBase {
+  cuttingAxis: cuttingAxis
+  changePercent: number
+  xFeed: number
+  xSpeed: number
+  edgeCutting: VerticalEdgeOrMiddleCutting
+  middleCutting: VerticalEdgeOrMiddleCutting
+  descentCutting: VerticalDescentCutting
+}
+
+// 激光功率配方的类型
+export interface LaserPowerRecipe extends RecipeRecordBase {
+  laserManufacturer: string
+  laserPower: number
+  laserFrequency: number
+  laserCurrent: number
+}
+
+
+
+
 /** 与 `RecipeEditorCard` 的 `type` 一致，用于各子配方库列表的关键词筛选 */
-export const RECIPE_LIBRARY_CARD_TYPE_KEYS = [
-  'blackening',
-  'machining',
-  'laserPower',
-  'horizontalFormula',
-  'verticalFormula'
-] as const
+export const RECIPE_LIBRARY_CARD_TYPE_KEYS = ['blackening','machining','laserPower','horizontalFormula','verticalFormula'] as const
 
 export type RecipeLibraryCardType = (typeof RECIPE_LIBRARY_CARD_TYPE_KEYS)[number]
 
@@ -131,3 +124,35 @@ export interface RecipeManagerState {
 }
 
 export type RecipeDefinition = MainRecipeDefinition
+
+// ------------------------------------------------------------------
+// 编辑器/管理页面共享类型（避免各 .vue 文件中重复定义）
+// ------------------------------------------------------------------
+
+export type EditableFormulaKey =
+  | 'angleFormula'
+  | 'lowerOpeningFormula'
+  | 'depthCompensationFormula'
+  | 'compensationAngleFormula'
+
+export type ProcessDetailFieldKind = 'laserPower' | 'horizontal' | 'vertical'
+
+/** 与 `RECIPE_LIBRARY_CARD_TYPE_KEYS` 一致，用于编辑卡片类型区分 */
+export type RecipeCardType = RecipeLibraryCardType
+
+export interface EditableFormulaItem {
+  key: EditableFormulaKey
+  label: string
+  symbol: 'A' | 'L' | 'D' | 'CA'
+  kLabel: string
+  bLabel: string
+}
+
+export type OpeningShapeFormulaPreset = Partial<Record<EditableFormulaKey, LinearFormulaCoefficients>>
+
+export type CardRecipeItem =
+  | BlackeningProcessRecipe
+  | MachiningProcessRecipe
+  | LaserPowerRecipe
+  | ProcessFormulaRecipe
+  | VerticalProcessFormulaRecipe

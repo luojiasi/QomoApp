@@ -1,4 +1,4 @@
-﻿import { ref, watch } from 'vue'
+import { ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 import {
   createBlackeningRecipe,
@@ -9,23 +9,20 @@ import {
   createVerticalFormulaRecipe,
   defaultRecipeManagerState
 } from './recipeConfig'
-import type {
-  MachiningProcessRecipe,
-  ProcessFormulaRecipe,
-  RecipeManagerState,
-  VerticalProcessFormulaRecipe
-} from './recipeTypes'
+import type {MachiningProcessRecipe,ProcessFormulaRecipe,RecipeManagerState,VerticalProcessFormulaRecipe} from './recipeTypes'
 import type { SettingsSaveResult } from '@/shared/types'
 import { cloneSettings } from '@/shared/utils/settings'
 import { getNextSequence, normalizeRecipeState } from './recipeValidation'
 import { createSettingsSaveResult } from '@/shared/utils/useSettingsStore'
 import { RECIPE_STORAGE_KEYS } from '@/shared/constants/storageKeys'
 
+/** 加工配方 + 展开的水平/垂直工艺子配方，供其他模块快速读取 */
 type ProcessRecipeWithFormulaDetails<T extends MachiningProcessRecipe> = T & {
   horizontalFormulaRecipe: ProcessFormulaRecipe | null
   verticalFormulaRecipe: VerticalProcessFormulaRecipe | null
 }
 
+/** 主配方详情快照：聚合主配方、扫黑、加工及其子配方的完整信息 */
 interface MainRecipeDetailsStorage {
   selectedMainRecipeId: string
   savedAt: string
@@ -34,10 +31,12 @@ interface MainRecipeDetailsStorage {
   machiningRecipe: ProcessRecipeWithFormulaDetails<MachiningProcessRecipe> | null
 }
 
+/** 检测浏览器 localStorage 是否可用 */
 function canUseLocalStorage(): boolean {
   return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined'
 }
 
+/** 从 localStorage 读取并反序列化 JSON，失败返回 null */
 function readLocalStorageJson<T>(key: string): T | null {
   if (!canUseLocalStorage()) return null
   const raw = window.localStorage.getItem(key)
@@ -50,11 +49,13 @@ function readLocalStorageJson<T>(key: string): T | null {
   }
 }
 
+/** 将值序列化为 JSON 写入 localStorage */
 function writeLocalStorageJson(key: string, value: unknown): void {
   if (!canUseLocalStorage()) return
   window.localStorage.setItem(key, JSON.stringify(value))
 }
 
+/** 检测 localStorage 中是否存在分键存储的配方数据（区分新旧存储格式） */
 function hasSplitStorageData(): boolean {
   if (!canUseLocalStorage()) return false
 
@@ -68,6 +69,7 @@ function hasSplitStorageData(): boolean {
   )
 }
 
+/** 从 localStorage 的 8 个分键中读取并校验/迁移完整配方状态，若无数据返回 null */
 function readStateFromLocalStorage(): RecipeManagerState | null {
   if (!canUseLocalStorage()) return null
 
@@ -107,6 +109,7 @@ function readStateFromLocalStorage(): RecipeManagerState | null {
   })
 }
 
+/** 构建主配方详情快照：展开选中主配方的扫黑、加工及关联的水平/垂直工艺子配方 */
 function buildMainRecipeDetailsStorage(state: RecipeManagerState): MainRecipeDetailsStorage {
   const mainRecipe =
     state.mainRecipes.find((recipe) => recipe.id === state.selectedMainRecipeId) ??
@@ -139,9 +142,9 @@ function buildMainRecipeDetailsStorage(state: RecipeManagerState): MainRecipeDet
   }
 }
 
+/** 将完整配方状态写入 localStorage 的 8 个分键及聚合详情快照 */
 function persistStateToLocalStorage(state: RecipeManagerState): void {
   if (!canUseLocalStorage()) return
-
   writeLocalStorageJson(RECIPE_STORAGE_KEYS.mainRecipes, state.mainRecipes)
   writeLocalStorageJson(RECIPE_STORAGE_KEYS.laserPowerRecipes, state.laserPowerRecipes)
   writeLocalStorageJson(RECIPE_STORAGE_KEYS.blackeningRecipes, state.blackeningRecipes)
@@ -156,6 +159,7 @@ function persistStateToLocalStorage(state: RecipeManagerState): void {
 export const useRecipeSettingsStore = defineStore('recipe-settings', () => {
   const recipeState = ref<RecipeManagerState>(cloneSettings(defaultRecipeManagerState))
 
+  /** 页面初始化时从 localStorage 恢复配方数据，失败则写入默认值 */
   const loadRecipeState = async (): Promise<SettingsSaveResult<RecipeManagerState>> => {
     const cached = readStateFromLocalStorage()
     if (cached) {
@@ -168,6 +172,7 @@ export const useRecipeSettingsStore = defineStore('recipe-settings', () => {
     return createSettingsSaveResult('未找到有效本地配方数据，已加载默认配方配置。', recipeState.value)
   }
 
+  /** 外部覆盖整个配方状态并持久化（用于导入/替换等场景） */
   const saveRecipeState = async (
     payload: RecipeManagerState
   ): Promise<SettingsSaveResult<RecipeManagerState>> => {
@@ -176,10 +181,12 @@ export const useRecipeSettingsStore = defineStore('recipe-settings', () => {
     return createSettingsSaveResult('配方管理数据已保存到本地存储。', recipeState.value)
   }
 
+  /** 切换当前选中的主配方 ID */
   const selectMainRecipe = (id: string): void => {
     recipeState.value.selectedMainRecipeId = id
   }
 
+  /** 新增主配方：自动引用第一个扫黑配方和第一个加工配方，并选中新配方 */
   const addMainRecipe = (): void => {
     const { blackeningRecipes, machiningRecipes, mainRecipes } = recipeState.value
     const blackeningRecipeId = blackeningRecipes[0]?.id
@@ -198,6 +205,7 @@ export const useRecipeSettingsStore = defineStore('recipe-settings', () => {
     recipeState.value.selectedMainRecipeId = recipe.id
   }
 
+  /** 删除主配方：若删除的是当前选中项，自动切换到第一个主配方 */
   const removeMainRecipe = (id: string): void => {
     recipeState.value.mainRecipes = recipeState.value.mainRecipes.filter((recipe) => recipe.id !== id)
     if (recipeState.value.selectedMainRecipeId === id) {
@@ -205,17 +213,20 @@ export const useRecipeSettingsStore = defineStore('recipe-settings', () => {
     }
   }
 
+  /** 新增激光功率配方 */
   const addLaserPowerRecipe = (): void => {
     const sequence = getNextSequence(recipeState.value.laserPowerRecipes, 'laser-power')
     recipeState.value.laserPowerRecipes.push(createLaserPowerRecipe(sequence))
   }
 
+  /** 删除激光功率配方 */
   const removeLaserPowerRecipe = (id: string): void => {
     recipeState.value.laserPowerRecipes = recipeState.value.laserPowerRecipes.filter(
       (recipe) => recipe.id !== id
     )
   }
 
+  /** 新增扫黑工艺配方：默认引用第一个激光功率配方 */
   const addBlackeningRecipe = (): void => {
     const fallback = recipeState.value.laserPowerRecipes[0]?.id
     if (!fallback) {
@@ -225,12 +236,14 @@ export const useRecipeSettingsStore = defineStore('recipe-settings', () => {
     recipeState.value.blackeningRecipes.push(createBlackeningRecipe(sequence, fallback))
   }
 
+  /** 删除扫黑工艺配方 */
   const removeBlackeningRecipe = (id: string): void => {
     recipeState.value.blackeningRecipes = recipeState.value.blackeningRecipes.filter(
       (recipe) => recipe.id !== id
     )
   }
 
+  /** 新增加工工艺配方：默认引用第一个水平/垂直/激光配方，三类均需至少有一条才可新增 */
   const addMachiningRecipe = (): void => {
     if (
       !recipeState.value.horizontalFormulaRecipes.length ||
@@ -249,34 +262,40 @@ export const useRecipeSettingsStore = defineStore('recipe-settings', () => {
     )
   }
 
+  /** 删除加工工艺配方 */
   const removeMachiningRecipe = (id: string): void => {
     recipeState.value.machiningRecipes = recipeState.value.machiningRecipes.filter(
       (recipe) => recipe.id !== id
     )
   }
 
+  /** 新增水平工艺配方 */
   const addHorizontalFormulaRecipe = (): void => {
     const sequence = getNextSequence(recipeState.value.horizontalFormulaRecipes, 'horizontal-formula')
     recipeState.value.horizontalFormulaRecipes.push(createHorizontalFormulaRecipe(sequence))
   }
 
+  /** 删除水平工艺配方 */
   const removeHorizontalFormulaRecipe = (id: string): void => {
     recipeState.value.horizontalFormulaRecipes = recipeState.value.horizontalFormulaRecipes.filter(
       (recipe) => recipe.id !== id
     )
   }
 
+  /** 新增垂直工艺配方 */
   const addVerticalFormulaRecipe = (): void => {
     const sequence = getNextSequence(recipeState.value.verticalFormulaRecipes, 'vertical-formula')
     recipeState.value.verticalFormulaRecipes.push(createVerticalFormulaRecipe(sequence))
   }
 
+  /** 删除垂直工艺配方 */
   const removeVerticalFormulaRecipe = (id: string): void => {
     recipeState.value.verticalFormulaRecipes = recipeState.value.verticalFormulaRecipes.filter(
       (recipe) => recipe.id !== id
     )
   }
 
+  /** 深度监听配方状态变化，自动写入 localStorage，无需手动调保存 */
   watch(
     recipeState,
     (state) => {
