@@ -1,4 +1,4 @@
-import type { LicenseActivationResult, LicenseStatus } from './licenseTypes'
+import type { LicenseActivationResult, LicenseStatus } from '../types/license'
 
 /** 通过 preload IPC 桥获取当前许可证状态 */
 export const fetchLicenseStatus = (): Promise<LicenseStatus> =>

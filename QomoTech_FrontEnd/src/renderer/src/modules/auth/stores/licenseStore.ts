@@ -1,13 +1,13 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import type { LicenseActivationResult, LicenseStatus } from './licenseTypes'
-import { createDefaultLicenseStatus } from './authConfig'
+import type { LicenseActivationResult, LicenseStatus } from '../types/license'
+import { createDefaultLicenseStatus } from '../config/license'
 import {
   activateLicense,
   clearLicense as clearLicenseApi,
   fetchLicenseDeviceFingerprint,
   fetchLicenseStatus
-} from './authApi'
+} from '../api/license'
 
 const createEmptyStatus = createDefaultLicenseStatus
 

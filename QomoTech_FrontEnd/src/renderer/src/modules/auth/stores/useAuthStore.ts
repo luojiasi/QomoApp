@@ -1,9 +1,9 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import type { AccountInfo, LoginResult } from './authTypes'
+import type { AccountInfo, LoginResult } from '../types/auth'
 import { AUTH_STORAGE_KEY } from '@/shared/constants/storageKeys'
-import { DEFAULT_ADMIN_ACCOUNT } from './authConfig'
-import { loadAuthState } from './authUtils'
+import { DEFAULT_ADMIN_ACCOUNT } from '../config/auth'
+import { loadAuthState } from '../utils/auth'
 
 export const useAuthStore = defineStore('auth', () => {
   const savedState = loadAuthState()

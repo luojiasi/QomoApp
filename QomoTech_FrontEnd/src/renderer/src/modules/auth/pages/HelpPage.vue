@@ -2,8 +2,8 @@
 import { onMounted, ref,onUnmounted} from 'vue'
 import { useRouter } from 'vue-router'
 import { useNotification } from '@/shared/composables/useNotification'
-import { useAuthStore } from './useAuthStore'
-import { useLicenseStore } from './licenseStore'
+import { useAuthStore } from '../stores/useAuthStore'
+import { useLicenseStore } from '../stores/licenseStore'
 import { subscribeGlobalKeyboard } from '@/shared/composables/useGlobalKeyboard'
 
 const unsubscribeKeyboard = subscribeGlobalKeyboard((e) => {

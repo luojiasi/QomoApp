@@ -6,7 +6,7 @@ import type {
   ControllerParameters
 } from '../index'
 import type { SettingsSaveResult } from '@/shared/types'
-import { type HomeState } from '@/modules/auth/authTypes'
+import { type HomeState } from '@/modules/motion/types'
 import { HOME_STATE_KEY } from '@/shared/constants/storageKeys'
 import { cloneSettings } from '@/shared/utils/settings'
 import {

@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import logo from '@resources/icon.png'
 import { toggleColorScheme } from '@/shared/composables/useAppColorScheme'
-import { useAuthStore } from '@/modules/auth/useAuthStore'
+import { useAuthStore } from '@/modules/auth/stores/useAuthStore'
 import type { RouteShortcut } from '@/shared/types'
 import SvgIcon from './SvgIcon.vue'
 

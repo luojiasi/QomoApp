@@ -19,3 +19,8 @@ export type XYZ = {
     Z: number
   }
 
+export type HomeState = {
+  ISARRIVEDHOME: boolean
+  AUTO_HOME_ON_START: boolean
+}
+

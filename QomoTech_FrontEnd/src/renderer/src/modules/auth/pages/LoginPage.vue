@@ -1,9 +1,9 @@
 ﻿<script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuthStore } from './useAuthStore'
+import { useAuthStore } from '../stores/useAuthStore'
 import { useNotification } from '@/shared/composables/useNotification'
-import { useLicenseStore } from './licenseStore'
+import { useLicenseStore } from '../stores/licenseStore'
 import StatusIndicators from '@/shared/components/StatusIndicators.vue'
 const { success, error } = useNotification()
 

@@ -35,13 +35,13 @@ import {
   registerNotificationToast,
   type NotificationToastExpose
 } from '@/shared/composables/useNotification'
-import { useAuthStore} from '@/modules/auth/useAuthStore'
-import { useLicenseStore } from '@/modules/auth/licenseStore'
+import { useAuthStore} from '@/modules/auth/stores/useAuthStore'
+import { useLicenseStore } from '@/modules/auth/stores/licenseStore'
 import { useControllerSettingsStore } from '@/modules/motion/stores/useControllerSettingsStore'
 import { dispatchGlobalKeyboard } from '@/shared/composables/useGlobalKeyboard'
 import { parseRs232SessionFromLocalStorage } from '@/modules/laser/rs232WorkbenchStore'
 import { syncRs232Workbench } from '@/modules/laser/rs232Api'
-import type { HomeState } from '@/modules/auth/authTypes'
+import type { HomeState } from '@/modules/motion/types'
 const toastRef = ref<InstanceType<typeof NotificationToast> | null>(null)
 const router = useRouter()
 const authStore = useAuthStore()
