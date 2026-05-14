@@ -75,6 +75,12 @@ export function useHome() {
     return false
   }
 
+  function failHome(title: string, results: [boolean | undefined | null, string][]): void {
+    const names = results.filter(([ok]) => !ok).map(([, name]) => name)
+    isSetHome.value = '未回零'
+    error(title, names.join('/'))
+  }
+
   const handleHome = async () => {
     if (isMovingHome.value) return
     isMovingHome.value = true
@@ -93,9 +99,7 @@ export function useHome() {
         moveMotionAxisRel(2, UP_TRAVEL_MM, { speed: 5 })
       ])
       if (!moveX?.success || !moveY?.success || !moveZ?.success) {
-        const message = [!moveX && 'X', !moveY && 'Y', !moveZ && 'Z'].filter(Boolean).join('/')
-        isSetHome.value = '未回零'
-        error('回零运动发送失败', message)
+        failHome('回零运动发送失败', [[moveX?.success, 'X'], [moveY?.success, 'Y'], [moveZ?.success, 'Z']])
         return
       }
       const [okX, okY, okZ] = await Promise.all([
@@ -104,9 +108,7 @@ export function useHome() {
         waitAxisUpperLimitInputFalse(2, true)
       ])
       if (!okX || !okY || !okZ) {
-        const message = [!okX && 'X', !okY && 'Y', !okZ && 'Z'].filter(Boolean).join('/')
-        isSetHome.value = '未回零'
-        error('等待轴上限位超时', message)
+        failHome('等待轴上限位超时', [[okX, 'X'], [okY, 'Y'], [okZ, 'Z']])
         return
       }
 
@@ -116,9 +118,7 @@ export function useHome() {
         zeroMotionAxis(2)
       ])
       if (!zz?.success && !zx?.success && !zy?.success) {
-        const message = [!zx && 'X', !zy && 'Y', !zz && 'Z'].filter(Boolean).join('/')
-        isSetHome.value = '未回零'
-        error('清零失败,请检查控制器设置', message)
+        failHome('清零失败,请检查控制器设置', [[zx?.success, 'X'], [zy?.success, 'Y'], [zz?.success, 'Z']])
         return
       }
 
@@ -130,9 +130,7 @@ export function useHome() {
           moveMotionAxisRel(2, -40, { controllerSettings: controllerStore.controllerSettings })
         ])
         if (!moveX2?.success || !moveY2?.success || !moveZ2?.success) {
-          const message = [!moveX2 && 'X', !moveY2 && 'Y', !moveZ2 && 'Z'].filter(Boolean).join('/')
-          isSetHome.value = '未回零'
-          error('回零运动失败', message)
+          failHome('回零运动失败', [[moveX2?.success, 'X'], [moveY2?.success, 'Y'], [moveZ2?.success, 'Z']])
           return
         }
         success('回零完成', '建议前往辅助功能区添加确定点移动位置')
@@ -143,9 +141,7 @@ export function useHome() {
           moveMotionAxisRel(2, quickMoveToPosition.Z, { controllerSettings: controllerStore.controllerSettings })
         ])
         if (!moveX2?.success || !moveY2?.success || !moveZ2?.success) {
-          const message = [!moveX2 && 'X', !moveY2 && 'Y', !moveZ2 && 'Z'].filter(Boolean).join('/')
-          isSetHome.value = '未回零'
-          error('回零运动失败', message)
+          failHome('回零运动失败', [[moveX2?.success, 'X'], [moveY2?.success, 'Y'], [moveZ2?.success, 'Z']])
           return
         }
         success('回零完成')

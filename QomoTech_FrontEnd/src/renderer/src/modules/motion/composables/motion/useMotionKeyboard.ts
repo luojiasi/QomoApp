@@ -3,10 +3,8 @@ import { subscribeGlobalKeyboard } from '@/shared/composables/useGlobalKeyboard'
 import { useNotification } from '@/shared/composables/useNotification'
 import { useControllerSettingsStore } from '../../stores/useControllerSettingsStore'
 import { useAuxiliaryFunctionPanelStore } from '../../stores/useAuxiliaryFunctionPanelStore'
+import { U_AXIS_NO, R_AXIS_NO, getAxisSpeed } from '../../config/controller'
 import { moveMotionAxisRel, moveMotionAxisAbs, rotateUAxisByAngle, rotateRAxisByTurns, zeroMotionAxis, setMotionIoOutput } from '../../api'
-
-const U_AXIS_NO = 3
-const R_AXIS_NO = 4
 
 export function useMotionKeyboard() {
   const { error, success } = useNotification()
@@ -19,9 +17,23 @@ export function useMotionKeyboard() {
   const Rkey = ref(false)
   const moveStep = ref(1)
 
-  function getAxisSpeed(axisNo: number): number {
-    const value = Number(controllerSettingsStore.controllerSettings.axes[axisNo]?.speed)
-    return Number.isFinite(value) && value > 0 ? value : 20
+  function jogMove(e: KeyboardEvent, keyword: string, withSettings: boolean): void {
+    const map: Record<string, [number, number]> = {
+      ARROWUP: [1, -1],
+      ARROWDOWN: [1, 1],
+      ARROWLEFT: [0, 1],
+      ARROWRIGHT: [0, -1],
+      PAGEUP: [2, 1],
+      PAGEDOWN: [2, -1],
+    }
+    const entry = map[keyword]
+    if (!entry) return
+    e.preventDefault()
+    const [axisNo, sign] = entry
+    if (withSettings)
+      void moveMotionAxisRel(axisNo, sign * moveStep.value, { controllerSettings: controllerSettingsStore.controllerSettings })
+    else
+      void moveMotionAxisRel(axisNo, sign * moveStep.value)
   }
 
   const handler = (e: KeyboardEvent): void => {
@@ -30,31 +42,7 @@ export function useMotionKeyboard() {
     const nokey = !e.ctrlKey && !e.shiftKey && !e.altKey
     const altKey = e.altKey && !e.ctrlKey && !e.shiftKey
 
-    // Alt + arrows: motion with controller settings override
-    if (keyword === 'ARROWUP' && altKey) {
-      e.preventDefault()
-      void moveMotionAxisRel(1, -moveStep.value, { controllerSettings: controllerSettingsStore.controllerSettings })
-    }
-    if (keyword === 'ARROWDOWN' && altKey) {
-      e.preventDefault()
-      void moveMotionAxisRel(1, moveStep.value, { controllerSettings: controllerSettingsStore.controllerSettings })
-    }
-    if (keyword === 'ARROWLEFT' && altKey) {
-      e.preventDefault()
-      void moveMotionAxisRel(0, moveStep.value, { controllerSettings: controllerSettingsStore.controllerSettings })
-    }
-    if (keyword === 'ARROWRIGHT' && altKey) {
-      e.preventDefault()
-      void moveMotionAxisRel(0, -moveStep.value, { controllerSettings: controllerSettingsStore.controllerSettings })
-    }
-    if (keyword === 'PAGEUP' && altKey) {
-      e.preventDefault()
-      void moveMotionAxisRel(2, moveStep.value, { controllerSettings: controllerSettingsStore.controllerSettings })
-    }
-    if (keyword === 'PAGEDOWN' && altKey) {
-      e.preventDefault()
-      void moveMotionAxisRel(2, -moveStep.value, { controllerSettings: controllerSettingsStore.controllerSettings })
-    }
+    if (altKey) jogMove(e, keyword, true)
 
     if (e.repeat) return
 
@@ -88,19 +76,13 @@ export function useMotionKeyboard() {
     if (keyword === 'F3' && nokey) { e.preventDefault(); moveStep.value = 1; success('速度设置为1mm/s') }
     if (keyword === 'F4' && nokey) { e.preventDefault(); moveStep.value = 5; success('速度设置为5mm/s') }
 
-    // Arrow keys (no modifier): jog motion
-    if (keyword === 'ARROWUP' && nokey) { e.preventDefault(); void moveMotionAxisRel(1, -moveStep.value) }
-    if (keyword === 'ARROWDOWN' && nokey) { e.preventDefault(); void moveMotionAxisRel(1, moveStep.value) }
-    if (keyword === 'ARROWLEFT' && nokey) { e.preventDefault(); void moveMotionAxisRel(0, moveStep.value) }
-    if (keyword === 'ARROWRIGHT' && nokey) { e.preventDefault(); void moveMotionAxisRel(0, -moveStep.value) }
-    if (keyword === 'PAGEUP' && nokey) { e.preventDefault(); void moveMotionAxisRel(2, moveStep.value) }
-    if (keyword === 'PAGEDOWN' && nokey) { e.preventDefault(); void moveMotionAxisRel(2, -moveStep.value) }
+    if (nokey) jogMove(e, keyword, false)
 
     // Ctrl + arrows: rotate U/R axes
-    if (keyword === 'ARROWUP' && onlyctrlKey) { e.preventDefault(); void rotateUAxisByAngle({ 旋转角度: Math.abs(moveStep.value * 18), 旋转速度: getAxisSpeed(U_AXIS_NO), 旋转方向: '顺时针', 运动模式: 'relative' }) }
-    if (keyword === 'ARROWDOWN' && onlyctrlKey) { e.preventDefault(); void rotateUAxisByAngle({ 旋转角度: Math.abs(moveStep.value * 18), 旋转速度: getAxisSpeed(U_AXIS_NO), 旋转方向: '逆时针', 运动模式: 'relative' }) }
-    if (keyword === 'ARROWLEFT' && onlyctrlKey) { e.preventDefault(); void rotateRAxisByTurns({ 旋转圈数: Math.abs(moveStep.value), 旋转速度: getAxisSpeed(R_AXIS_NO), 旋转方向: '逆时针', 运动模式: 'relative' }) }
-    if (keyword === 'ARROWRIGHT' && onlyctrlKey) { e.preventDefault(); void rotateRAxisByTurns({ 旋转圈数: Math.abs(moveStep.value), 旋转速度: getAxisSpeed(R_AXIS_NO), 旋转方向: '顺时针', 运动模式: 'relative' }) }
+    if (keyword === 'ARROWUP' && onlyctrlKey) { e.preventDefault(); void rotateUAxisByAngle({ 旋转角度: Math.abs(moveStep.value * 18), 旋转速度: getAxisSpeed(controllerSettingsStore.controllerSettings.axes, U_AXIS_NO), 旋转方向: '顺时针', 运动模式: 'relative' }) }
+    if (keyword === 'ARROWDOWN' && onlyctrlKey) { e.preventDefault(); void rotateUAxisByAngle({ 旋转角度: Math.abs(moveStep.value * 18), 旋转速度: getAxisSpeed(controllerSettingsStore.controllerSettings.axes, U_AXIS_NO), 旋转方向: '逆时针', 运动模式: 'relative' }) }
+    if (keyword === 'ARROWLEFT' && onlyctrlKey) { e.preventDefault(); void rotateRAxisByTurns({ 旋转圈数: Math.abs(moveStep.value), 旋转速度: getAxisSpeed(controllerSettingsStore.controllerSettings.axes, R_AXIS_NO), 旋转方向: '逆时针', 运动模式: 'relative' }) }
+    if (keyword === 'ARROWRIGHT' && onlyctrlKey) { e.preventDefault(); void rotateRAxisByTurns({ 旋转圈数: Math.abs(moveStep.value), 旋转速度: getAxisSpeed(controllerSettingsStore.controllerSettings.axes, R_AXIS_NO), 旋转方向: '顺时针', 运动模式: 'relative' }) }
 
     // IO toggles
     if (keyword === 'Q' && nokey) { e.preventDefault(); void setMotionIoOutput(0, !Qkey.value); Qkey.value = !Qkey.value; success('吹气状态设置为' + Qkey.value) }

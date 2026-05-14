@@ -10,7 +10,7 @@ const props = defineProps<{
 const {
   axisIndices, axisRelativeInputs, axisAbsoluteInputs, zeroingAxis,
   normalizeManualInput, isBusy,
-  relPlaceholder, relLabel, absPlaceholder, absLabel,
+  placeholder, label,
   handleRelativeMove, handleAbsoluteMove, handleZeroAxis
 } = useAxisJog(toRef(props, 'axisCount'))
 
@@ -47,7 +47,7 @@ defineExpose({ axisIndices, axisRelativeInputs, axisAbsoluteInputs })
           step="0.0001"
           :disabled="isBusy(axisIdx)"
           class="w-28 rounded-md border border-(--app-border) bg-(--app-input-bg) px-2 py-1 text-xs outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2 disabled:opacity-50"
-          :placeholder="relPlaceholder(axisIdx)"
+          :placeholder="placeholder(axisIdx, 'rel')"
           @blur="normalizeManualInput('rel', axisIdx)"
         />
         <button
@@ -56,7 +56,7 @@ defineExpose({ axisIndices, axisRelativeInputs, axisAbsoluteInputs })
           :disabled="isBusy(axisIdx)"
           @click="handleRelativeMove(axisIdx)"
         >
-          {{ relLabel(axisIdx) }}
+          {{ label(axisIdx, 'rel') }}
         </button>
 
         <input
@@ -65,7 +65,7 @@ defineExpose({ axisIndices, axisRelativeInputs, axisAbsoluteInputs })
           step="0.0001"
           :disabled="isBusy(axisIdx)"
           class="w-28 rounded-md border border-(--app-border) bg-(--app-input-bg) px-2 py-1 text-xs outline-none ring-indigo-500/30 focus:border-indigo-500/50 focus:ring-2 disabled:opacity-50"
-          :placeholder="absPlaceholder(axisIdx)"
+          :placeholder="placeholder(axisIdx, 'abs')"
           @blur="normalizeManualInput('abs', axisIdx)"
         />
         <button
@@ -74,7 +74,7 @@ defineExpose({ axisIndices, axisRelativeInputs, axisAbsoluteInputs })
           :disabled="isBusy(axisIdx)"
           @click="handleAbsoluteMove(axisIdx)"
         >
-          {{ absLabel(axisIdx) }}
+          {{ label(axisIdx, 'abs') }}
         </button>
       </div>
     </div>

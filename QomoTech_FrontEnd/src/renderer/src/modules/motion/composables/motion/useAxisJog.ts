@@ -1,6 +1,7 @@
 import { ref, watch, type Ref } from 'vue'
 import { useNotification } from '@/shared/composables/useNotification'
 import { useControllerSettingsStore } from '../../stores/useControllerSettingsStore'
+import { U_AXIS_NO, R_AXIS_NO, getAxisSpeed } from '../../config/controller'
 import {
   moveMotionAxisAbs,
   moveMotionAxisRel,
@@ -9,14 +10,17 @@ import {
   zeroMotionAxis
 } from '../../api'
 
-const U_AXIS_NO = 3
-const R_AXIS_NO = 4
 const MAX_DECIMALS = 4
 
 function roundMax(n: number, decimals = MAX_DECIMALS): number {
   const m = 10 ** decimals
   return Math.round(n * m) / m
 }
+
+function linearPlaceholder(mode: 'rel' | 'abs'): string { return mode === 'rel' ? '相对位移(mm)' : '绝对位置(mm)' }
+function rotationPlaceholder(): string { return '旋转角度(°)/圈数，正=顺时针' }
+function linearLabel(mode: 'rel' | 'abs'): string { return mode === 'rel' ? '相对运动' : '绝对运动' }
+function rotationLabel(): string { return '旋转轴' }
 
 export function useAxisJog(axisCount: Ref<number>) {
   const controllerStore = useControllerSettingsStore()
@@ -55,32 +59,28 @@ export function useAxisJog(axisCount: Ref<number>) {
     axisMotionPending.value = { ...axisMotionPending.value, [axisNo]: busy }
   }
 
-  function isU(axisNo: number): boolean { return axisCount.value === 5 && axisNo === U_AXIS_NO }
-  function isR(axisNo: number): boolean { return axisCount.value === 5 && axisNo === R_AXIS_NO }
+  function isRotation(axisNo: number): boolean { return axisCount.value === 5 && (axisNo === U_AXIS_NO || axisNo === R_AXIS_NO) }
 
-  function relPlaceholder(axisNo: number): string {
-    if (isU(axisNo)) return '旋转角度(°)，正=顺时针'
-    if (isR(axisNo)) return '旋转圈数(圈)，正=顺时针'
-    return '相对位移(mm)'
-  }
-  function relLabel(axisNo: number): string {
-    if (isU(axisNo)) return 'U轴旋转'
-    if (isR(axisNo)) return 'R轴旋转'
-    return '相对运动'
-  }
-  function absPlaceholder(axisNo: number): string {
-    if (isU(axisNo)) return '旋转角度(°)，正=顺时针'
-    if (isR(axisNo)) return '旋转圈数(圈)，正=顺时针'
-    return '绝对位置(mm)'
-  }
-  function absLabel(axisNo: number): string {
-    if (isU(axisNo)) return 'U轴旋转'
-    if (isR(axisNo)) return 'R轴旋转'
-    return '绝对运动'
-  }
+  function placeholder(axisNo: number, mode: 'rel' | 'abs'): string { return isRotation(axisNo) ? rotationPlaceholder() : linearPlaceholder(mode) }
+  function label(axisNo: number, mode: 'rel' | 'abs'): string { return isRotation(axisNo) ? rotationLabel() : linearLabel(mode) }
+
   function axisSpeed(axisNo: number): number {
-    const v = Number(controllerStore.controllerSettings.axes[axisNo]?.speed)
-    return Number.isFinite(v) && v > 0 ? v : 20
+    return getAxisSpeed(controllerStore.controllerSettings.axes, axisNo)
+  }
+
+  async function handleRotateMove(axisNo: number, absValue: number, mode: 'relative' | 'absolute'): Promise<boolean> {
+    const dir = absValue >= 0 ? '顺时针' : '逆时针'
+    const angle = Math.abs(absValue)
+    if (axisNo === U_AXIS_NO) {
+      const res = await rotateUAxisByAngle({ 旋转角度: angle, 旋转速度: axisSpeed(axisNo), 旋转方向: dir, 运动模式: mode })
+      if (!res?.success) { error('U轴旋转失败', res?.message ?? ''); return false }
+      success('U轴旋转已下发', `${mode === 'absolute' ? '目标角度' : '角度'}: ${angle}°`)
+      return true
+    }
+    const res = await rotateRAxisByTurns({ 旋转圈数: angle, 旋转速度: axisSpeed(axisNo), 旋转方向: dir, 运动模式: mode })
+    if (!res?.success) { error('R轴旋转失败', res?.message ?? ''); return false }
+    success('R轴旋转已下发', `${mode === 'absolute' ? '目标圈数' : '圈数'}: ${angle} 圈`)
+    return true
   }
 
   async function handleRelativeMove(axisNo: number): Promise<void> {
@@ -88,20 +88,7 @@ export function useAxisJog(axisCount: Ref<number>) {
     if (!Number.isFinite(value) || value === 0) { error('输入无效', '请输入非 0 的数值'); return }
     setBusy(axisNo, true)
     try {
-      const dir = value >= 0 ? '顺时针' : '逆时针'
-      const absV = Math.abs(value)
-      if (isU(axisNo)) {
-        const res = await rotateUAxisByAngle({ 旋转角度: absV, 旋转速度: axisSpeed(axisNo), 旋转方向: dir, 运动模式: 'relative' })
-        if (!res?.success) { error('U轴旋转失败', res?.message ?? ''); return }
-        success('U轴旋转已下发', `角度: ${absV}°`)
-        return
-      }
-      if (isR(axisNo)) {
-        const res = await rotateRAxisByTurns({ 旋转圈数: absV, 旋转速度: axisSpeed(axisNo), 旋转方向: dir, 运动模式: 'relative' })
-        if (!res?.success) { error('R轴旋转失败', res?.message ?? ''); return }
-        success('R轴旋转已下发', `圈数: ${absV} 圈`)
-        return
-      }
+      if (isRotation(axisNo)) { await handleRotateMove(axisNo, value, 'relative'); return }
       const res = await moveMotionAxisRel(axisNo, value, { controllerSettings: controllerStore.controllerSettings })
       if (!res?.success) { error(`轴 ${axisNo} 相对运动失败`, res?.message ?? ''); return }
       success(`轴 ${axisNo} 相对运动已下发`, `位移: ${roundMax(value)} mm`)
@@ -109,27 +96,14 @@ export function useAxisJog(axisCount: Ref<number>) {
   }
 
   async function handleAbsoluteMove(axisNo: number): Promise<void> {
-    const inputValue = Number(axisAbsoluteInputs.value[axisNo])
-    if (!Number.isFinite(inputValue)) { error('输入无效', '请输入有效数值'); return }
+    const value = Number(axisAbsoluteInputs.value[axisNo])
+    if (!Number.isFinite(value)) { error('输入无效', '请输入有效数值'); return }
     setBusy(axisNo, true)
     try {
-      const dir = inputValue >= 0 ? '顺时针' : '逆时针'
-      const absV = Math.abs(inputValue)
-      if (isU(axisNo)) {
-        const res = await rotateUAxisByAngle({ 旋转角度: absV, 旋转速度: axisSpeed(axisNo), 旋转方向: dir, 运动模式: 'absolute' })
-        if (!res?.success) { error('U轴旋转失败', res?.message ?? ''); return }
-        success('U轴旋转已下发', `角度: ${absV}°`)
-        return
-      }
-      if (isR(axisNo)) {
-        const res = await rotateRAxisByTurns({ 旋转圈数: absV, 旋转速度: axisSpeed(axisNo), 旋转方向: dir, 运动模式: 'absolute' })
-        if (!res?.success) { error('R轴旋转失败', res?.message ?? ''); return }
-        success('R轴旋转已下发', `圈数: ${absV} 圈`)
-        return
-      }
-      const res = await moveMotionAxisAbs(axisNo, inputValue, { controllerSettings: controllerStore.controllerSettings })
+      if (isRotation(axisNo)) { await handleRotateMove(axisNo, value, 'absolute'); return }
+      const res = await moveMotionAxisAbs(axisNo, value, { controllerSettings: controllerStore.controllerSettings })
       if (!res?.success) { error(`轴 ${axisNo} 绝对运动失败`, res?.message ?? ''); return }
-      success(`轴 ${axisNo} 绝对运动已下发`, `目标: ${roundMax(inputValue)} mm`)
+      success(`轴 ${axisNo} 绝对运动已下发`, `目标: ${roundMax(value)} mm`)
     } finally { setBusy(axisNo, false) }
   }
 
@@ -147,7 +121,7 @@ export function useAxisJog(axisCount: Ref<number>) {
   return {
     axisIndices, axisRelativeInputs, axisAbsoluteInputs, axisMotionPending, zeroingAxis,
     normalizeManualInput, isBusy,
-    relPlaceholder, relLabel, absPlaceholder, absLabel,
+    placeholder, label,
     handleRelativeMove, handleAbsoluteMove, handleZeroAxis
   }
 }

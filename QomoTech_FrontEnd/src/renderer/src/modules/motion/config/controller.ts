@@ -7,8 +7,17 @@ import {
 import type { ParameterSection } from '@/shared/types'
 import { cloneSettings } from '@/shared/utils/settings'
 
+export const U_AXIS_NO = 3
+export const R_AXIS_NO = 4
 /** 轴号 → 轴名映射（与后端 motion_config.MotionConfig.axis_no_to_name 对齐） */
 export const AXIS_NO_TO_NAME: Record<number, string> = { 0: 'X', 1: 'Y', 2: 'Z', 3: 'U', 4: 'R' }
+
+
+/** 从轴配置读 speed，无效时退回默认 20 */
+export function getAxisSpeed(axes: { axis_no: number; speed: number }[], axisNo: number): number {
+  const v = Number(axes[axisNo]?.speed)
+  return Number.isFinite(v) && v > 0 ? v : 20
+}
 
 /** 后端 motion_config.MergeParams 的默认值 */
 export const defaultAxisMergeParams = (): AxisMergeParams => ({
