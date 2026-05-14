@@ -7,7 +7,7 @@ import type {
   WorkflowLog,
   WorkflowContext,
   WorkflowIndexEntry
-} from '@/types/selfProcessTypes'
+} from '../types/selfProcessTypes'
 import {
   generateId,
   createNewWorkflow,
