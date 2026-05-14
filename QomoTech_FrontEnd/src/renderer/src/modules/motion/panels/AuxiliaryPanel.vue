@@ -1,18 +1,20 @@
 ﻿<script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import ControlPanelBase from './ControlPanelBase.vue'
-import { useControllerSettingsStore } from '@/modules/motion/useMotionStore'
-import { useAuxiliaryFunctionPanelStore } from '@/modules/motion/auxiliaryStore'
+import ControlPanelBase from '../components/ControlPanelBase.vue'
+import { useControllerSettingsStore } from '@/modules/motion/stores/useControllerSettingsStore'
+import { useAuxiliaryFunctionPanelStore } from '@/modules/motion/stores/useAuxiliaryFunctionPanelStore'
 import {
   moveMotionAxisAbs,
   moveMotionAxisRel,
   rotateRAxisByTurns,
   rotateUAxisByAngle,
   setMotionIoOutput,
-  type MotionAxis,
-} from '@/modules/motion'
+} from '@/modules/motion/api'
+import type { MotionAxis } from '@/modules/motion/types'
 import { useNotification } from '@/shared/composables/useNotification'
+import { useHardwareState } from '@/shared/api/hardware'
 const { error,success } = useNotification()
+const { mposition } = useHardwareState()
 const controllerStore = useControllerSettingsStore()
 const auxiliaryFunctionPanelStore = useAuxiliaryFunctionPanelStore()
 type AuxiliaryTabId =
@@ -132,9 +134,8 @@ const axisCenterCalibActiveStepIndex = computed(() => {
 })
 
 const axisCenterCalibLivePositions = computed(() =>
-  axisNameByNo.map((name, axisNo) => {
-    const axis = controllerStore.controllerSettings.axes.find((item) => item.axis_no === axisNo)
-    const mpos = Number(axis?.mpos)
+  axisNameByNo.map((name) => {
+    const mpos = Number(mposition.value[name] ?? NaN)
     return {
       name,
       value: Number.isFinite(mpos) ? mpos.toFixed(3) : '-',
@@ -144,8 +145,9 @@ const axisCenterCalibLivePositions = computed(() =>
 
 const axisCenterCalibCurrentAngleText = computed(() => {
   const axisNo = axisCenterCalibRotationAxisNo.value
+  const name = axisNameByNo[axisNo]
   const axis = controllerStore.controllerSettings.axes.find((item) => item.axis_no === axisNo)
-  const mpos = Number(axis?.mpos)
+  const mpos = Number(mposition.value[name] ?? NaN)
   const units = Number(axis?.units)
   if (!Number.isFinite(mpos) || !Number.isFinite(units) || units <= 0) return '-'
 
@@ -186,8 +188,8 @@ function getAxisCenterCalibSampleClass(state: AxisCenterCalibSampleState): strin
 }
 
 function getAxisPosition(axisNo: number): number | null {
-  const axis = controllerStore.controllerSettings.axes.find((item) => item.axis_no === axisNo)
-  const mpos = Number(axis?.mpos)
+  const name = axisNameByNo[axisNo]
+  const mpos = Number(mposition.value[name] ?? NaN)
   return Number.isFinite(mpos) ? mpos : null
 }
 

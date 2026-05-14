@@ -1,6 +1,6 @@
 ﻿<script setup lang="ts">
 import { computed, ref } from 'vue'
-import ControlPanelBase from './ControlPanelBase.vue'
+import ControlPanelBase from '../components/ControlPanelBase.vue'
 import OutputComponent from './OutputComponent.vue'
 import { useHardwareState } from '@/shared/api/hardware'
 // import {

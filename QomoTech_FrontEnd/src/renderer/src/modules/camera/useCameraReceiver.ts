@@ -2,7 +2,15 @@
 import { apiCall } from '@/shared/api/httpClient'
 import { getCameraStreamWsUrl } from '@/shared/api/wsClient'
 import { WsClient } from '@/shared/api/wsClient'
-import { initSdkEnumAndConnectIndex0 } from './cameraApi'
+import { initSdkEnumAndConnectIndex0 } from './composables/useCameraControl'
+import { 
+  DEFAULT_QUALITY, 
+  DEFAULT_TIMEOUT_MS, 
+  URL_CACHE_SIZE, 
+  WS_RECONNECT_MS,
+  DISPLAY_FRAME_INTERVAL_MS, 
+  FRAME_QUEUE_SIZE 
+} from './configs/cameraConfig'
 
 const frameUrl = ref('')
 const running = ref(false)
@@ -15,13 +23,6 @@ let ensureTimer: ReturnType<typeof setInterval> | null = null
 let displayLoopActive = false
 let displayRafId: number | null = null
 
-const DEFAULT_TIMEOUT_MS = 1200
-const DEFAULT_QUALITY = 50
-const TARGET_DISPLAY_FPS = 120
-const DISPLAY_FRAME_INTERVAL_MS = Math.floor(1000 / TARGET_DISPLAY_FPS)
-const WS_RECONNECT_MS = 120
-const FRAME_QUEUE_SIZE = 3
-const URL_CACHE_SIZE = 32
 
 const loadedFrameQueue: string[] = []
 const staleFrameUrlCache: string[] = []

@@ -7,7 +7,7 @@ import {
   startProgram,
   getStartProgramStatus,
   startProgramControl
-} from '@/modules/motion'
+} from '@/modules/motion/api'
 import type { QomoEntityWithSurface } from '@/modules/editor/qomo5pTypes'
 
 type StartProgramStatusPayload = {

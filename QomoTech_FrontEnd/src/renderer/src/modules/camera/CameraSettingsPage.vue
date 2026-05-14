@@ -3,20 +3,19 @@ import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref } from 'vue'
 import CameraPic from './CameraPic.vue'
 import { useNotification } from '@/shared/composables/useNotification'
-import { useCameraSettingsStore } from './useCameraStore'
+import { useCameraSettingsStore } from './stores/useCameraStore'
 import {
   bootstrapCameraSettings,
   disconnectCamera,
   fetchCameraDevices,
   getCameraStatus,
-  initSdkEnumAndConnectIndex0,
   setCameraExposure,
   setCameraFrameSpeed,
   setCameraMirror,
-  setCameraWhiteBalance,
-  type CameraDeviceInfo,
-  type CameraStatusPayload
-} from './cameraApi'
+  setCameraWhiteBalance
+} from './api/cameraSettingSetApi'
+import { initSdkEnumAndConnectIndex0 } from './composables/useCameraControl'
+import type { CameraDeviceInfo, CameraStatusPayload } from './types'
 
 const { success, error } = useNotification()
 const cameraStore = useCameraSettingsStore()

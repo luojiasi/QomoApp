@@ -1,11 +1,11 @@
 ﻿<script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useControllerSettingsStore } from '@/modules/motion/useMotionStore'
+import { useControllerSettingsStore } from '@/modules/motion/stores/useControllerSettingsStore'
 import {
   moveMotionAxisRel,
   rotateRAxisByTurns,
   rotateUAxisByAngle
-} from '@/modules/motion'
+} from '@/modules/motion/api'
 
 const controllerStore = useControllerSettingsStore()
 

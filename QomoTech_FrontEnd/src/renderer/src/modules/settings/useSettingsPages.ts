@@ -1,8 +1,8 @@
 ﻿import { computed } from 'vue'
-import { createControllerSections } from '@/modules/motion/controllerConfig'
+import { createControllerSections } from '@/modules/motion/config/controller'
 import { createRecipeSections } from '@/modules/recipe/recipeConfig'
 import { deviceFeatureRoutes } from '@/app/router'
-import { useControllerSettingsStore } from '@/modules/motion/useMotionStore'
+import { useControllerSettingsStore } from '@/modules/motion/stores/useControllerSettingsStore'
 import { useRecipeSettingsStore } from '@/modules/recipe/useRecipeStore'
 import { useReservePagesStore } from '@/modules/settings/useSettingsStore'
 

@@ -1,14 +1,12 @@
 ﻿<script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref } from 'vue'
-import ControlPanelBase from '@/modules/motion/panels/ControlPanelBase.vue'
+import ControlPanelBase from '@/modules/motion/components/ControlPanelBase.vue'
 import { useNotification } from '@/shared/composables/useNotification'
-import { useCameraSettingsStore } from './useCameraStore'
-import {
-  bootstrapCameraSettings,
-  disconnectCamera,
-  initSdkEnumAndConnectIndex0
-} from './cameraApi'
+import { useCameraSettingsStore } from './stores/useCameraStore'
+import {bootstrapCameraSettings,disconnectCamera} from './api/cameraSettingSetApi'
+import { initSdkEnumAndConnectIndex0 } from './composables/useCameraControl'
+
 
 const { success, error, info } = useNotification()
 

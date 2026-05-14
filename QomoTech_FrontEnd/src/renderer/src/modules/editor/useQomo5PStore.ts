@@ -38,7 +38,7 @@ import {
   createDefaultViewport,
   createDefaultLayer,
   createDefaultWelding
-} from '@/modules/motion/qomo5pConfig'
+} from './qomo5pConfig'
 
 const deepClone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T
 

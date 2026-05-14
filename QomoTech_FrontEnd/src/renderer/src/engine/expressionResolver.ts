@@ -1,4 +1,4 @@
-import type { WorkflowContext } from '../types/selfProcessTypes'
+import type { WorkflowContext } from '@/modules/workflow/selfProcessTypes'
 
 // ──── 解析上下文 ──────────────────────────────────────────────
 export interface ResolverContext {
