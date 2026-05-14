@@ -1,25 +1,7 @@
 ﻿<template>
-
-  
   <div class="fixed right-6 top-4 z-50 flex space-x-4">
-  <CameraPic :hidden-keep-alive="true" :show-hint="false" alt="global-camera-stream-keeper" />
-    <button
-      class="flex h-4 w-4 cursor-pointer items-center justify-center rounded-full bg-green-500 shadow"
-      type="button"
-      @click="handleMaximize"
-    ></button>
-    <button
-      class="flex h-4 w-4 cursor-pointer items-center justify-center rounded-full bg-yellow-500 shadow"
-      type="button"
-      @click="handleMinimize"
-    ></button>
-    <button
-      class="flex h-4 w-4 cursor-pointer items-center justify-center rounded-full bg-red-500 shadow"
-      type="button"
-      @click="handleClose"
-    ></button>
-
-
+    <CameraPic :hidden-keep-alive="true" :show-hint="false" alt="global-camera-stream-keeper" />
+    <WindowControlButtons />
   </div>
 
   <NotificationToast ref="toastRef" />
@@ -31,10 +13,13 @@ import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import CameraPic from '@/modules/camera/CameraPic.vue'
 import NotificationToast from '@/shared/components/NotificationToast.vue'
+import WindowControlButtons from '@/shared/components/WindowControlButtons.vue'
 import {
   registerNotificationToast,
   type NotificationToastExpose
 } from '@/shared/composables/useNotification'
+
+
 import { useAuthStore} from '@/modules/auth/stores/useAuthStore'
 import { useLicenseStore } from '@/modules/auth/stores/licenseStore'
 import { useControllerSettingsStore } from '@/modules/motion/stores/useControllerSettingsStore'
@@ -92,12 +77,6 @@ watch(
   },
   { immediate: true }
 )
-
-const handleClose = (): void => {window.electron?.ipcRenderer?.send('window-control', 'close')}
-
-const handleMinimize = (): void => {window.electron?.ipcRenderer?.send('window-control', 'minimize')}
-
-const handleMaximize = (): void => {window.electron?.ipcRenderer?.send('window-control', 'maximize')}
 
 const syncLicenseStatus = async (): Promise<void> => {
   const status = await licenseStore.refreshStatus()

@@ -107,9 +107,7 @@ export function useProgramStatus() {
     applyStartProgramStatusPayload(data)
   }
 
-  function init(): void {
-    programStatusWsReconnectEnabled = true
-  }
+  function init(): void {programStatusWsReconnectEnabled = true}
 
   async function initSync(): Promise<void> {
     try {
@@ -120,9 +118,7 @@ export function useProgramStatus() {
     connectProgramStatusWebSocket()
   }
 
-  function cleanup(): void {
-    stopProgramStatusWebSocket()
-  }
+  function cleanup(): void {stopProgramStatusWebSocket()}
 
   return {
     programRunning,

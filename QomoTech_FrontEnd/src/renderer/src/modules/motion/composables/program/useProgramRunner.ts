@@ -65,13 +65,9 @@ export function useProgramRunner() {
 
   const programElapsedText = computed(() => formatElapsedMs(programElapsedMs.value))
 
-  function handleRunRecipeChange(payload: Record<string, unknown> | null): void {
-    currentRunRecipePayload.value = payload
-  }
+  function handleRunRecipeChange(payload: Record<string, unknown> | null): void {currentRunRecipePayload.value = payload}
 
-  function handleUpperOpeningChange(mm: number | null): void {
-    recipeUpperOpeningMm.value = mm
-  }
+  function handleUpperOpeningChange(mm: number | null): void {recipeUpperOpeningMm.value = mm}
 
   function loadProgramStartedAtFromStorage(): number | null {
     try {

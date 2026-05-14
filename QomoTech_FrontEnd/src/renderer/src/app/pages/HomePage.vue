@@ -3,19 +3,20 @@ import { computed, ref, onMounted, onUnmounted } from 'vue'
 import RouteTabs from '@/shared/components/RouteTabs.vue'
 import HomeUserBar from '@/shared/components/HomeUserBar.vue'
 import RecipeParameterPanel from '@/modules/recipe/panels/RecipeParameterPanel.vue'
-import DriverControlPanel from '../panels/DriverControlPanel.vue'
+import DriverControlPanel from '@/modules/motion/panels/DriverControlPanel.vue'
 import LaserControlPanel from '@/modules/laser/pages/LaserControlPanel.vue'
 import CameraControlPanel from '@/modules/camera/CameraControlPanel.vue'
-import AuxiliaryFunctionPanel from '../panels/AuxiliaryPanel.vue'
+import AuxiliaryFunctionPanel from '@/modules/motion/panels/AuxiliaryPanel.vue'
 import HomeOperationHelp from '@/modules/editor/panels/HomeOperationHelp.vue'
-import StratProgramRunning from '../panels/StartProgramPanel.vue'
+import StratProgramRunning from '@/modules/motion/panels/StartProgramPanel.vue'
 import CameraPic from '@/modules/camera/CameraPic.vue'
 import ShowAndDrawInHome from '@/modules/editor/panels/ShowAndDrawPanel.vue'
-import TaskProgressAside from '../panels/TaskProgressAside.vue'
-import ControllerSettings from './ControllerSettingsPage.vue'
+import TaskProgressAside from '@/modules/motion/panels/TaskProgressAside.vue'
+import ControllerSettings from '@/modules/motion/pages/ControllerSettingsPage.vue'
 import DetailedRs232Send from '@/modules/laser/pages/LaserSettingsPage.vue'
 import SvgIcon from '@/shared/components/SvgIcon.vue'
 import StatusIndicators from '@/shared/components/StatusIndicators.vue'
+import ProgramControlButtons from '@/shared/components/ProgramControlButtons.vue'
 
 import { useNotification } from '@/shared/composables/useNotification'
 import { useControllerSettingsStore } from '@/modules/motion/stores/useControllerSettingsStore'
@@ -40,13 +41,25 @@ const {
 } = useMotionKeyboard()
 
 const {
-  programRunning, programPaused, programTaskCount, currentTaskIndex,
-  currentTaskJindubaifenbi, programElapsedText,
-  currentRunRecipePayload, recipeUpperOpeningMm,
-  homeXyOffset, runTrigger,
-  handleRunRecipeChange, handleUpperOpeningChange,
-  onRunClick, onPauseToggleClick, onResetAlarmsClick, onEstopClick, onSkipTaskClick,
-  init: initProgramRunner, initSync: initProgramSync, cleanup: cleanupProgramRunner
+  programRunning, 
+  programPaused, 
+  programTaskCount, 
+  currentTaskIndex,
+  currentTaskJindubaifenbi, 
+  programElapsedText,
+  recipeUpperOpeningMm,
+  homeXyOffset, 
+  runTrigger,
+  handleRunRecipeChange, 
+  handleUpperOpeningChange,
+  onRunClick, 
+  onPauseToggleClick, 
+  onResetAlarmsClick, 
+  onEstopClick, 
+  onSkipTaskClick,
+  init: initProgramRunner, 
+  initSync: initProgramSync, 
+  cleanup: cleanupProgramRunner
 } = useProgramRunner()
 
 const rightPanelViewId = ref<string | null>(null)
@@ -114,14 +127,6 @@ onMounted(async () => {
     console.warn('[product4p] 启动同步中心旋转参数异常')
   }
 
-  const workbenchPayload = parseRs232SessionFromLocalStorage()
-  if (!workbenchPayload) {
-    error('激光接口参数未同步。')
-    return
-  }
-  await syncRs232Workbench(workbenchPayload)
-  success('激光接口参数已同步。')
-
   await initProgramSync()
 })
 
@@ -141,47 +146,16 @@ onUnmounted(() => {
       <SvgIcon icon-name="icon-refresh" class-name="text-sm" />
     </button>
     <div class="home-toolbar-sep" />
-    <div class="flex gap-3">
-      <button
-        class="z-50 h-10 w-16 rounded-2xl bg-green-600 text-lg font-bold text-white shadow-xl transition-all duration-200 hover:scale-110 hover:border-2 hover:border-green-300 hover:bg-green-700 active:scale-90 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-400"
-        @keydown.enter.prevent
-        :disabled="programRunning"
-        @click="onRunClick"
-      >
-        运行
-      </button>
-      <button
-        class="z-50 h-10 w-16 rounded-2xl bg-yellow-600 text-lg font-bold text-white shadow-xl transition-all duration-200 hover:scale-110 hover:border-2 hover:border-yellow-300 hover:bg-yellow-700 active:scale-90 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-400"
-        @keydown.enter.prevent
-        :disabled="!programRunning"
-        @click="onPauseToggleClick"
-      >
-        {{ programPaused ? '继续' : '暂停' }}
-      </button>
-      <button
-        class="z-50 h-10 w-16 rounded-2xl bg-blue-700 text-lg font-bold text-white shadow-xl transition-all duration-200 hover:scale-110 hover:border-2 hover:border-blue-300 hover:bg-blue-800 active:scale-90 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-400"
-        @keydown.enter.prevent
-        @click="onResetAlarmsClick"
-      >
-        复位
-      </button>
-      <button
-        class="z-50 h-10 w-16 rounded-2xl bg-red-700 text-lg font-bold text-white shadow-xl transition-all duration-200 hover:scale-110 hover:border-2 hover:border-red-300 hover:bg-red-800 active:scale-90 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-400"
-        @keydown.enter.prevent
-        @click="onEstopClick"
-      >
-        急停
-      </button>
-      <button
-        v-if="programTaskCount >= 2"
-        class="z-50 h-10 w-16 rounded-2xl bg-orange-600 text-lg font-bold text-white shadow-xl transition-all duration-200 hover:scale-110 hover:border-2 hover:border-orange-300 hover:bg-orange-700 active:scale-90 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-400"
-        @keydown.enter.prevent
-        :disabled="!programRunning"
-        @click="onSkipTaskClick"
-      >
-        跳过
-      </button>
-    </div>
+    <ProgramControlButtons
+      :program-running="programRunning"
+      :program-paused="programPaused"
+      :program-task-count="programTaskCount"
+      @run="onRunClick"
+      @pause-toggle="onPauseToggleClick"
+      @reset-alarms="onResetAlarmsClick"
+      @estop="onEstopClick"
+      @skip-task="onSkipTaskClick"
+    />
     <div class="home-toolbar-sep" />
     <HomeUserBar />
     <div class="home-toolbar-sep" />

@@ -535,25 +535,19 @@ const handleAxisCenterCalib = async()=>{
 
     // 中间之前的点的相加数
     const beforeMiddleXSum = beforeMiddleSamples.reduce((sum, sample) => sum + (sample.machinePositions.X as number), 0)
-    const beforeMiddleYSum = beforeMiddleSamples.reduce((sum, sample) => sum + (sample.machinePositions.Y as number), 0)
+    // const beforeMiddleYSum = beforeMiddleSamples.reduce((sum, sample) => sum + (sample.machinePositions.Y as number), 0)
     const beforeMiddleZSum = beforeMiddleSamples.reduce((sum, sample) => sum + (sample.machinePositions.Z as number), 0)
-    console.log(beforeMiddleXSum+"beforeMiddleXSum")
-    console.log(beforeMiddleYSum+"beforeMiddleYSum")
-    console.log(beforeMiddleZSum+"beforeMiddleZSum")
+
     // 中间之后的点的相加数
     const afterMiddleXSum = afterMiddleSamples.reduce((sum, sample) => sum + (sample.machinePositions.X as number), 0)
     const afterMiddleYSum = afterMiddleSamples.reduce((sum, sample) => sum + (sample.machinePositions.Y as number), 0)
     const afterMiddleZSum = afterMiddleSamples.reduce((sum, sample) => sum + (sample.machinePositions.Z as number), 0)
-    console.log(afterMiddleXSum+"afterMiddleXSum")
-    console.log(afterMiddleYSum+"afterMiddleYSum")
-    console.log(afterMiddleZSum+"afterMiddleZSum")
+
 
     const axisCenterCalibX = (middleX-beforeMiddleXSum+afterMiddleXSum)/2
     const axisCenterCalibY = (middleY-afterMiddleYSum+afterMiddleYSum)/2
     const axisCenterCalibZ = (middleZ+beforeMiddleZSum+afterMiddleZSum)/2
-    console.log(axisCenterCalibX+"axisCenterCalibX")
-    console.log(axisCenterCalibY+"axisCenterCalibY")
-    console.log(axisCenterCalibZ+"axisCenterCalibZ")
+
 
     const centerRotationResult = {
       X: axisCenterCalibX,
