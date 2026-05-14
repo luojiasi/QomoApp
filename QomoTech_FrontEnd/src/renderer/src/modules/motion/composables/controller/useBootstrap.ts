@@ -1,7 +1,7 @@
-import type { ControllerParameters } from '../types/controller'
-import type { BackendBootstrapResult } from '../types/bootstrap'
-import { defaultControllerParameters } from '../config/controller'
-import { connectMotionWithControllerSettings, setMotionAllAxesParamsWithControllerSettings } from './connect'
+import type { ControllerParameters } from '../../types/controller'
+import type { BackendBootstrapResult } from '../../types/bootstrap'
+import { defaultControllerParameters } from '../../config/controller'
+import { connectMotionWithControllerSettings, setMotionAllAxesParamsWithControllerSettings } from '../../api/apiConnect'
 import { isControllerConnected } from '@/shared/api/hardware'
 
 let controllerBootstrapDone = false

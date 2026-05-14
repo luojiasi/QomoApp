@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue'
 import { useNotification } from '@/shared/composables/useNotification'
 import { useHardwareState } from '@/shared/api/hardware'
-import { setMotionIoOutput } from '../api/io'
+import { setMotionIoOutput } from '../../api/apiIo'
 import { IO_MAP_GROUP_COUNT } from '@/shared/constants/constants'
 
 export function useIoOutputs() {

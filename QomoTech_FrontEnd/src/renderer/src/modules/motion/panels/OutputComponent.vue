@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import SvgIcon from '@/shared/components/SvgIcon.vue'
-import { useIoOutputs } from '@/modules/motion/composables/useIoOutputs'
-import { useHome } from '@/modules/motion/composables/useHome'
+import { useIoOutputs } from '@/modules/motion/composables/controller/useIoOutputs'
+import { useHome } from '@/modules/motion/composables/motion/useHome'
 
 const { ioOutputs, handleIoOutputToggle } = useIoOutputs()
 const { isSetHome, autoHomeOnStart, homeStatusClass, handleHome, initAutoHome } = useHome()

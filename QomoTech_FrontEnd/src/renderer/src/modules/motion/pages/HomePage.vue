@@ -21,13 +21,13 @@ import { useNotification } from '@/shared/composables/useNotification'
 import { useControllerSettingsStore } from '@/modules/motion/stores/useControllerSettingsStore'
 import { useAuxiliaryFunctionPanelStore } from '@/modules/motion/stores/useAuxiliaryFunctionPanelStore'
 import { deviceFeatureRoutes } from '@/app/router'
-import { bootstrapControllerOnce } from '@/modules/motion/api'
+import { bootstrapControllerOnce } from '@/modules/motion/composables/controller/useBootstrap'
 import { parseRs232SessionFromLocalStorage } from '@/modules/laser/rs232WorkbenchStore'
 import { syncRs232Workbench } from '@/modules/laser/rs232Api'
 import { syncProduct4PCenterRotation } from '@/modules/motion/api'
 
-import { useMotionKeyboard } from '@/modules/motion/composables/useMotionKeyboard'
-import { useProgramRunner } from '@/modules/motion/composables/useProgramRunner'
+import { useMotionKeyboard } from '@/modules/motion/composables/motion/useMotionKeyboard'
+import { useProgramRunner } from '@/modules/motion/composables/program/useProgramRunner'
 
 const { error, success } = useNotification()
 const controllerSettingsStore = useControllerSettingsStore()

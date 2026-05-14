@@ -7,7 +7,6 @@ export function isControllerParametersShape(data: unknown): data is ControllerPa
   const o = data as Record<string, unknown>
   if (!o.communication || typeof o.communication !== 'object') return false
   if (!Array.isArray(o.axes)) return false
-  if (!Array.isArray(o.ioMap)) return false
 
   const c = o.communication as Record<string, unknown>
   // 后端字段名校验：旧版 camelCase 数据视为 invalid，工厂会自动用默认值替代

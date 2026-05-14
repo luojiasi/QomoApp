@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import { getStartProgramStatusWsUrl } from '@/shared/api/wsClient'
-import { getStartProgramStatus } from '../api/program'
+import { getStartProgramStatus } from '../../api/apiProgram'
 
 type StartProgramStatusPayload = {
   running?: boolean

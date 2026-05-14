@@ -12,7 +12,7 @@ import { cloneSettings } from '@/shared/utils/settings'
 import {
   getControllerSettingsFromFile,
   saveControllerSettingsToFile
-} from '../api/connect'
+} from '../api/apiMotionSettingSaveAndLoad'
 import {
   isControllerParametersShape,
   normalizeControllerParameters

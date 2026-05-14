@@ -5,12 +5,7 @@ import type { MotionAxis, UAxisRotateRequestPayload, RAxisRotateRequestPayload }
 type MoveMotionAxisAbsOptions = { speed?: number; controllerSettings?: ControllerParameters }
 type MoveMotionAxisRelOptions = { speed?: number; controllerSettings?: ControllerParameters }
 
-// ------------------------------------------------------------------
-// 内部辅助
-// ------------------------------------------------------------------
-
-/** 轴号 → 轴名映射 */
-const AXIS_NO_TO_NAME: Record<number, string> = { 0: 'X', 1: 'Y', 2: 'Z', 3: 'U', 4: 'R' }
+import { AXIS_NO_TO_NAME } from '../config/controller'
 
 const isPositiveFiniteNumber = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value) && value > 0

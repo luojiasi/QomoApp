@@ -15,8 +15,8 @@ import {
   connectMotionWithControllerSettings,
   emergencyStopMotion
 } from '@/modules/motion/api'
-import { useMotionExecute } from '@/modules/motion/composables/useMotionExecute'
-import { useIoOutputs } from '@/modules/motion/composables/useIoOutputs'
+import { useMotionExecute } from '@/modules/motion/composables/controller/useMotionExecute'
+import { useIoOutputs } from '@/modules/motion/composables/controller/useIoOutputs'
 import { useHardwareState } from '@/shared/api/hardware'
 import ManualMotionPanel from '@/modules/motion/panels/ManualMotionPanel.vue'
 

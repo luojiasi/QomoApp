@@ -1,13 +1,13 @@
 import { ref, watch, type Ref } from 'vue'
 import { useNotification } from '@/shared/composables/useNotification'
-import { useControllerSettingsStore } from '../stores/useControllerSettingsStore'
+import { useControllerSettingsStore } from '../../stores/useControllerSettingsStore'
 import {
   moveMotionAxisAbs,
   moveMotionAxisRel,
   rotateRAxisByTurns,
   rotateUAxisByAngle,
   zeroMotionAxis
-} from '../api'
+} from '../../api'
 
 const U_AXIS_NO = 3
 const R_AXIS_NO = 4

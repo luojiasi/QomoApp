@@ -1,9 +1,7 @@
 import { apiCall, type ApiCallResult } from '@/shared/api/httpClient'
 import type { ControllerParameters } from '../types/controller'
 import type { MotionAxisParamsPayload, MotionAllAxesParamsRequestPayload } from '../types/controller'
-
-/** 轴号 → 轴名映射（与后端 motion_config.MotionConfig.axis_no_to_name 对齐） */
-const AXIS_NO_TO_NAME: Record<number, string> = { 0: 'X', 1: 'Y', 2: 'Z', 3: 'U', 4: 'R' }
+import { AXIS_NO_TO_NAME } from '../config/controller'
 
 // ------------------------------------------------------------------
 // 连接
@@ -61,14 +59,3 @@ export const setMotionAllAxesParamsWithControllerSettings = async (
 ): Promise<ApiCallResult<Record<string, unknown>>> =>
   setMotionAllAxesParams(buildMotionAllAxesParamsRequestPayload(controllerSettings))
 
-// ------------------------------------------------------------------
-// 控制器设置文件持久化（替代 localStorage）
-// ------------------------------------------------------------------
-
-export const getControllerSettingsFromFile = async (): Promise<ApiCallResult<Record<string, unknown> | null>> =>
-  apiCall('motion/controller-settings', 'GET')
-
-export const saveControllerSettingsToFile = async (
-  payload: Record<string, unknown>
-): Promise<ApiCallResult<Record<string, unknown>>> =>
-  apiCall('motion/controller-settings', 'POST', payload)

@@ -1,4 +1,4 @@
-import type { CommonOnlineCommand } from '../index'
+import type { CommonOnlineCommand } from '@/modules/motion/index'
 
 const AXIS_STATUS_BIT_DESCRIPTIONS = [
   { value: 2, description: '随动误差超限告警' },

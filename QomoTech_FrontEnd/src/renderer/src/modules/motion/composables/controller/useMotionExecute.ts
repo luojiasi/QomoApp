@@ -1,11 +1,11 @@
 import { ref } from 'vue'
 import { apiCall } from '@/shared/api/httpClient'
-import type { CommonOnlineCommand } from '../index'
+import type { CommonOnlineCommand } from '../../index'
 import {
   commonOnlineCommandsData,
   resolveOnlineCommandResultText,
   formatOnlineCommandResultByCommand
-} from '../api/motion'
+} from '@/shared/utils/onlineCommand'
 
 type UseMotionExecuteOptions = {
   success?: (title: string, message?: string) => void

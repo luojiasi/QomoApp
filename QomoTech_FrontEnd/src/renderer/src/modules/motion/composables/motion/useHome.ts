@@ -1,8 +1,8 @@
 import { ref, computed, watch } from 'vue'
 import { useNotification } from '@/shared/composables/useNotification'
-import { useControllerSettingsStore } from '../stores/useControllerSettingsStore'
-import { useAuxiliaryFunctionPanelStore } from '../stores/useAuxiliaryFunctionPanelStore'
-import { zeroMotionAxis, moveMotionAxisRel, getMotionIoInput } from '../api'
+import { useControllerSettingsStore } from '../../stores/useControllerSettingsStore'
+import { useAuxiliaryFunctionPanelStore } from '../../stores/useAuxiliaryFunctionPanelStore'
+import { zeroMotionAxis, moveMotionAxisRel, getMotionIoInput } from '../../api'
 import { waitControllerConnected } from '@/shared/api/hardware'
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))

@@ -1,6 +1,6 @@
 import { type Ref } from 'vue'
 import { useNotification } from '@/shared/composables/useNotification'
-import { startProgramControl } from '../api/program'
+import { startProgramControl } from '../../api/apiProgram'
 
 export function useProgramControl(
   programRunning: Ref<boolean>,

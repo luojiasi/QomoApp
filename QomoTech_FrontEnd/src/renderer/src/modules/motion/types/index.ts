@@ -1,4 +1,3 @@
-export * from './axis'
 export * from './bootstrap'
 export * from './io'
 export * from './program'

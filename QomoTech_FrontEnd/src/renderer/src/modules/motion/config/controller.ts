@@ -1,15 +1,14 @@
-import { IO_MAP_GROUP_COUNT } from '@/shared/constants/constants'
 import {
   type AxisMergeParams,
   type ControllerAxisCount,
-  type ControllerAxisSettings,
   type ControllerAxisUserInput,
-  type ControllerParameters,
-  type IOMapEntry,
-  type IOMapNineGroups
+  type ControllerParameters
 } from '../index'
 import type { ParameterSection } from '@/shared/types'
 import { cloneSettings } from '@/shared/utils/settings'
+
+/** 轴号 → 轴名映射（与后端 motion_config.MotionConfig.axis_no_to_name 对齐） */
+export const AXIS_NO_TO_NAME: Record<number, string> = { 0: 'X', 1: 'Y', 2: 'Z', 3: 'U', 4: 'R' }
 
 /** 后端 motion_config.MergeParams 的默认值 */
 export const defaultAxisMergeParams = (): AxisMergeParams => ({
@@ -19,15 +18,9 @@ export const defaultAxisMergeParams = (): AxisMergeParams => ({
   zxmooth: 0.0
 })
 
-function createAxis(input: ControllerAxisUserInput): ControllerAxisSettings {
+function createAxis(input: ControllerAxisUserInput): ControllerAxisUserInput {
   return { ...input }
 }
-
-const defaultIoEntry = (): IOMapEntry => ({ digitalIn: false, digitalOut: false })
-
-const defaultIoMapNineGroups: IOMapNineGroups = Array.from({ length: IO_MAP_GROUP_COUNT }, () =>
-  defaultIoEntry()
-) as IOMapNineGroups
 
 /** 轴切换按钮文案：三轴 XYZ，五轴 XYZUR */
 export const AXIS_TAB_LABELS: Record<ControllerAxisCount, readonly string[]> = {
@@ -51,7 +44,7 @@ export function applyControllerAxisCount(
   const out = cloneSettings(settings)
   const prev = out.axes
   const n = count === 3 ? 3 : 5
-  const nextAxes: ControllerAxisSettings[] = []
+  const nextAxes: ControllerAxisUserInput[] = []
   for (let i = 0; i < n; i++) {
     const base = prev[i] ?? cloneSettings(template[i])
     nextAxes.push({ ...cloneSettings(base), axis_no: i })
@@ -66,7 +59,7 @@ export function applyControllerAxisCount(
 }
 
 /** 按轴号生成默认值（与后端 MotionAxisConfig() 默认一致） */
-function makeDefaultAxis(axis_no: number, axis_name: string): ControllerAxisSettings {
+function makeDefaultAxis(axis_no: number, axis_name: string): ControllerAxisUserInput {
   return createAxis({
     axis_no,
     axis_name,
@@ -102,11 +95,10 @@ export const defaultControllerParameters: ControllerParameters = {
     makeDefaultAxis(2, 'Z'),
     makeDefaultAxis(3, 'U'),
     makeDefaultAxis(4, 'R')
-  ],
-  ioMap: defaultIoMapNineGroups
+  ]
 }
 
-const userInputFields = (axis: ControllerAxisSettings): ParameterSection['fields'] => [
+const userInputFields = (axis: ControllerAxisUserInput): ParameterSection['fields'] => [
   { key: 'axis_no', label: '轴号', value: axis.axis_no },
   { key: 'axis_name', label: '轴名称', value: axis.axis_name },
   { key: 'axis_type', label: 'ATYPE 轴类型', value: axis.axis_type },
@@ -159,27 +151,5 @@ export const createControllerSections = (settings: ControllerParameters): Parame
     fields: userInputFields(axis)
   }))
 
-  const ioInSection: ParameterSection = {
-    id: 'controller-io-map-in',
-    title: 'I/O 数字量输入（驱动器回读）',
-    description: `固定 ${IO_MAP_GROUP_COUNT} 组；可由上位机下发或界面编辑。`,
-    fields: settings.ioMap.map((row, i) => ({
-      key: `io-${i}-in`,
-      label: `输入${i} `,
-      value: row.digitalIn
-    }))
-  }
-
-  const ioOutSection: ParameterSection = {
-    id: 'controller-io-map-out',
-    title: 'I/O 数字量输出（可控制） ',
-    description: `固定 ${IO_MAP_GROUP_COUNT} 组；仅由驱动器回读，界面只读展示。`,
-    fields: settings.ioMap.map((row, i) => ({
-      key: `io-${i}-out`,
-      label: `输出${i}`,
-      value: row.digitalOut
-    }))
-  }
-
-  return [communication, ...axisSections, ioInSection, ioOutSection]
+  return [communication, ...axisSections]
 }
