@@ -11,29 +11,16 @@ const { success, error, info } = useNotification()
 const licenseKey = ref('')
 
 const handleActivate = async () => {
-  if (!licenseKey.value.trim()) {
-    error('请输入密钥')
-    return
-  }
-
+  if (!licenseKey.value.trim()) {error('请输入密钥');return}
   const result = await licenseStore.activate(licenseKey.value)
-
-  if (!result.success) {
-    error(result.message)
-    return
-  }
-
+  if (!result.success) {error(result.message);return}
   success(result.message)
   await router.push('/login')
 }
 
 const handleRefresh = async () => {
   const status = await licenseStore.refreshStatus()
-
-  if (status.valid) {
-    info('当前授权仍然有效')
-    await router.push('/login')
-  }
+  if (status.valid) {info('当前授权仍然有效');await router.push('/login');}
 }
 
 onMounted(async () => {

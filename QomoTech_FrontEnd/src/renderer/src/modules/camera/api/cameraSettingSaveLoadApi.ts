@@ -1,12 +1,5 @@
-// ------------------------------------------------------------------
-// 设置持久化（文件）
-// ------------------------------------------------------------------
-
-import { apiCall, type ApiCallResult } from "@/shared/api/httpClient"
-
-export const getCameraSettingsFromFile = async (): Promise<ApiCallResult<Record<string, unknown> | null>> =>
-    apiCall('camera/settings', 'GET')
-  
-export const saveCameraSettingsToFile = async (payload: Record<string, unknown>): Promise<ApiCallResult<Record<string, unknown>>> =>
-    apiCall('camera/settings', 'POST', payload)
-  
+// 已迁移至 @/core/api/cameraApi。保留此文件以确保旧 import 不报错。
+export {
+  getCameraSettingsFromFile,
+  saveCameraSettingsToFile
+} from '@/core/api/cameraApi'

@@ -11,19 +11,19 @@ import {
 } from './recipeConfig'
 import type {
   MachiningProcessRecipe,
+  ProcessFormulaRecipe,
   RecipeManagerState,
-  SharedFormulaRecipe,
-  VerticalFormulaRecipe
+  VerticalProcessFormulaRecipe
 } from './recipeTypes'
 import type { SettingsSaveResult } from '@/shared/types'
 import { cloneSettings } from '@/shared/utils/settings'
 import { getNextSequence, normalizeRecipeState } from './recipeValidation'
-import { createSettingsSaveResult } from '@/modules/settings/useSettingsStore'
+import { createSettingsSaveResult } from '@/shared/utils/useSettingsStore'
 import { RECIPE_STORAGE_KEYS } from '@/shared/constants/storageKeys'
 
 type ProcessRecipeWithFormulaDetails<T extends MachiningProcessRecipe> = T & {
-  horizontalFormulaRecipe: SharedFormulaRecipe | null
-  verticalFormulaRecipe: VerticalFormulaRecipe | null
+  horizontalFormulaRecipe: ProcessFormulaRecipe | null
+  verticalFormulaRecipe: VerticalProcessFormulaRecipe | null
 }
 
 interface MainRecipeDetailsStorage {

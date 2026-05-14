@@ -1,11 +1,8 @@
-import type { LaserTransmissionMode } from '@/modules/recipe/recipeTypes'
-
 export interface LaserApplyPayload {
   laserManufacturer?: string
   laserPower?: number
   laserFrequency?: number
   laserCurrent?: number
-  transmissionMode?: LaserTransmissionMode
 }
 
 export interface LaserSettingsPayload {

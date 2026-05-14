@@ -3,7 +3,7 @@ import { defaultRs232WorkbenchState } from '../config/rs232'
 import { RS232_WORKBENCH_STORAGE_KEY } from '@/shared/constants/storageKeys'
 import { LIGHT_SETTINGS_PERSIST_DEBOUNCE_MS } from '@/shared/constants/constants'
 import { isRs232WorkbenchShape, normalizeRs232Workbench } from '../utils/rs232'
-import { createPersistedSettings } from '@/modules/settings/useSettingsStore'
+import { createPersistedSettings } from '@/shared/utils/useSettingsStore'
 
 export const useRs232WorkbenchStore = defineStore('rs232-workbench', () => {
   const persisted = createPersistedSettings({

@@ -201,7 +201,7 @@ const diagram = computed(() => {
       n.id.startsWith('vertical:')
   )
 
-  const order = (k: NodeKind) =>
+  const order = (k: NodeKind): number =>
     k === 'laserPower' ? 0 : k === 'horizontalFormula' ? 1 : k === 'verticalFormula' ? 2 : 3
   resourceNodes.sort((a, b) => {
     const d = order(a.kind) - order(b.kind)

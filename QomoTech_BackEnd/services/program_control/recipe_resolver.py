@@ -200,11 +200,11 @@ class ProgramRecipeSet:
 
     @property
     def 垂直公式(self) -> dict[str, Any]:
-        return self.垂直配方.get("formula") or {}
+        return self.垂直配方 or {}
 
     @property
     def 水平公式(self) -> dict[str, Any]:
-        return self.水平配方.get("formula") or {}
+        return self.水平配方 or {}
 
     def 取水平公式子项(self, key: str) -> dict[str, Any]:
         return self.水平公式.get(key) or {}

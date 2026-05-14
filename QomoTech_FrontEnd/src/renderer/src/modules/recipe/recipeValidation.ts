@@ -3,8 +3,7 @@ import type {
   MachiningProcessRecipe,
   ProcessFormulaRecipe,
   RecipeManagerState,
-  SharedFormulaRecipe,
-  VerticalFormulaRecipe,
+  RecipeRecordBase,
   VerticalProcessFormulaRecipe
 } from './recipeTypes'
 import {
@@ -28,10 +27,6 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
 
-function isLaserTransmissionMode(value: unknown): value is LaserPowerRecipe['transmissionMode'] {
-  return value === '网线' || value === 'RS232'
-}
-
 function isLinearFormulaCoefficients(value: unknown): value is ProcessFormulaRecipe['angleFormula'] {
   if (!isObject(value)) return false
   return typeof value.k === 'number' && typeof value.b === 'number'
@@ -41,8 +36,12 @@ function isProcessFormulaRecipe(value: unknown): value is ProcessFormulaRecipe {
   if (!isObject(value)) return false
 
   return (
+    typeof value.id === 'string' &&
+    typeof value.code === 'string' &&
     typeof value.name === 'string' &&
-    (value.openingShape === 'V型' || value.openingShape === '||型' || value.openingShape === '//型') &&
+    typeof value.notes === 'string' &&
+    typeof value.updatedAt === 'string' &&
+    (value.openingShape === 'V型' || value.openingShape === '//型') &&
     isLinearFormulaCoefficients(value.angleFormula) &&
     isLinearFormulaCoefficients(value.lowerOpeningFormula) &&
     isLinearFormulaCoefficients(value.depthCompensationFormula) &&
@@ -74,6 +73,11 @@ function isVerticalDescentCutting(value: unknown): value is VerticalProcessFormu
 function isVerticalProcessFormulaRecipe(value: unknown): value is VerticalProcessFormulaRecipe {
   if (!isObject(value)) return false
   return (
+    typeof value.id === 'string' &&
+    typeof value.code === 'string' &&
+    typeof value.name === 'string' &&
+    typeof value.notes === 'string' &&
+    typeof value.updatedAt === 'string' &&
     (value.cuttingAxis === 'XY' || value.cuttingAxis === 'R') &&
     typeof value.changePercent === 'number' &&
     typeof value.xFeed === 'number' &&
@@ -84,15 +88,50 @@ function isVerticalProcessFormulaRecipe(value: unknown): value is VerticalProces
   )
 }
 
-/** 兼容旧版水平结构的垂直工艺配方记录的迁移 */
-function migrateVerticalFormulaRecipeRecord(raw: unknown): VerticalFormulaRecipe | null {
+type VerticalFormulaPayload = Omit<VerticalProcessFormulaRecipe, keyof RecipeRecordBase>
+
+function isVerticalFormulaData(value: unknown): value is VerticalFormulaPayload {
+  if (!isObject(value)) return false
+  return (
+    (value.cuttingAxis === 'XY' || value.cuttingAxis === 'R') &&
+    typeof value.changePercent === 'number' &&
+    typeof value.xFeed === 'number' &&
+    typeof value.xSpeed === 'number' &&
+    isVerticalEdgeOrMiddleCutting(value.edgeCutting) &&
+    isVerticalEdgeOrMiddleCutting(value.middleCutting) &&
+    isVerticalDescentCutting(value.descentCutting)
+  )
+}
+
+function isProcessFormulaData(value: unknown): boolean {
+  if (!isObject(value)) return false
+  return (
+    typeof value.name === 'string' &&
+    (value.openingShape === 'V型' || value.openingShape === '//型') &&
+    isLinearFormulaCoefficients(value.angleFormula) &&
+    isLinearFormulaCoefficients(value.lowerOpeningFormula) &&
+    isLinearFormulaCoefficients(value.depthCompensationFormula) &&
+    typeof value.upperOpeningFormula === 'string' &&
+    isLinearFormulaCoefficients(value.compensationAngleFormula) &&
+    typeof value.focusCompensation === 'number'
+  )
+}
+
+/** 兼容旧版嵌套结构的垂直工艺配方记录的迁移（展平为 flat 结构） */
+function migrateVerticalFormulaRecipeRecord(raw: unknown): VerticalProcessFormulaRecipe | null {
   if (!isObject(raw)) return null
+
+  // 已是 flat 结构（无 formula 嵌套）
+  if (!('formula' in raw)) {
+    return isVerticalProcessFormulaRecipe(raw) ? raw : null
+  }
+
+  // 旧版嵌套结构：{ id, code, name, notes, updatedAt, formula: {...} }
   const id = raw.id
   const code = raw.code
   const name = raw.name
   const notes = raw.notes
   const updatedAt = raw.updatedAt
-  const formula = raw.formula
   if (
     typeof id !== 'string' ||
     typeof code !== 'string' ||
@@ -102,11 +141,14 @@ function migrateVerticalFormulaRecipeRecord(raw: unknown): VerticalFormulaRecipe
   ) {
     return null
   }
-  if (isVerticalProcessFormulaRecipe(formula)) {
-    return { id, code, name, notes, updatedAt, formula }
+
+  const formula = raw.formula
+
+  if (isVerticalFormulaData(formula)) {
+    return { id, code, name, notes, updatedAt, ...(formula as Record<string, unknown>) } as VerticalProcessFormulaRecipe
   }
-  if (isProcessFormulaRecipe(formula)) {
-    return { id, code, name, notes, updatedAt, formula: createDefaultVerticalProcessFormula() }
+  if (isProcessFormulaData(formula)) {
+    return { id, code, name, notes, updatedAt, ...createDefaultVerticalProcessFormula() }
   }
   return null
 }
@@ -158,21 +200,20 @@ export function normalizeRecipeState(raw: unknown): RecipeManagerState | null {
 
   for (const r of p.laserPowerRecipes) {
     if (!isObject(r)) return null
-    if (!isLaserTransmissionMode((r as LaserPowerRecipe).transmissionMode)) return null
+    if (typeof (r as LaserPowerRecipe).transmissionMode !== 'string') return null
   }
 
   for (const r of p.horizontalFormulaRecipes) {
-    if (!isObject(r)) return null
-    if (!isProcessFormulaRecipe((r as SharedFormulaRecipe).formula)) return null
+    if (!isProcessFormulaRecipe(r)) return null
   }
 
-  const migratedVertical: VerticalFormulaRecipe[] = []
+  const migratedVertical: VerticalProcessFormulaRecipe[] = []
   for (const r of p.verticalFormulaRecipes) {
     const migrated = migrateVerticalFormulaRecipeRecord(r)
     if (!migrated) return null
     migratedVertical.push(migrated)
   }
-  ;(p as { verticalFormulaRecipes: VerticalFormulaRecipe[] }).verticalFormulaRecipes = migratedVertical
+  ;(p as { verticalFormulaRecipes: VerticalProcessFormulaRecipe[] }).verticalFormulaRecipes = migratedVertical
 
   for (const r of p.blackeningRecipes) {
     if (!isObject(r)) return null

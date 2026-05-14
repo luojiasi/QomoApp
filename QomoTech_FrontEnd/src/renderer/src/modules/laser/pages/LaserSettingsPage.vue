@@ -7,8 +7,6 @@ import {
   RS232_SEND_MODE_OPTIONS,
 } from '../config/rs232'
 import { useNotification } from '@/shared/composables/useNotification'
-import { useReservePages } from '@/modules/settings/useSettingsPages'
-import { useReservePagesStore } from '@/modules/settings/useSettingsStore'
 import { RS232_WORKBENCH_STORAGE_KEY } from '@/shared/constants/storageKeys'
 import { useRs232WorkbenchStore } from '../stores/rs232WorkbenchStore'
 import type { Rs232QuickCommand, Rs232SendMode, Rs232SendRequest, Rs232SerialSessionRequest } from '../types/rs232'
@@ -30,14 +28,10 @@ const emit = defineEmits<{
   (e: 'back'): void
 }>()
 
-const reserveStore = useReservePagesStore()
 const rs232Store = useRs232WorkbenchStore()
 const { workbench } = storeToRefs(rs232Store)
 const { success, error } = useNotification()
 
-const { getReservePageByPath } = useReservePages()
-
-const page = computed(() => getReservePageByPath('/detailed-rs232-send'))
 const sections = computed(() => createRs232Sections(workbench.value))
 const saving = ref(false)
 
@@ -278,7 +272,6 @@ watch(
 )
 
 onMounted(async () => {
-  await reserveStore.loadReservePages()
   await rs232Store.loadRs232Workbench()
   await loadDetectedPorts()
 })
@@ -294,10 +287,7 @@ onMounted(async () => {
       <div class="app-card rounded-2xl p-8 shadow-lg">
         <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <h1 class="app-text-primary mt-1 text-3xl font-bold">激光控制区</h1>
-            <p class="app-text-secondary mt-3 max-w-3xl text-sm leading-6">
-              {{ page.description }}
-            </p>
+            <h1 class="app-text-primary mt-1 text-3xl font-bold">激光设置</h1>
           </div>
           <RouterLink
             to="/home"

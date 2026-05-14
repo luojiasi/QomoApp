@@ -5,7 +5,7 @@ import { isCameraSettingsShape, normalizeCameraSettings } from '../composables/c
 import { cloneSettings } from '@/shared/utils/settings'
 import { getCameraSettingsFromFile, saveCameraSettingsToFile } from '../api/cameraSettingSaveLoadApi'
 import type { CameraSettingsState } from '../types'
-import { createSettingsSaveResult } from '@/modules/settings/useSettingsStore'
+import { createSettingsSaveResult } from '@/shared/utils/useSettingsStore'
 import type { SettingsSaveResult } from '@/shared/types'
 
 

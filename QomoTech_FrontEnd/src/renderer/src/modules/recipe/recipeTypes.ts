@@ -1,6 +1,8 @@
 export type RecipeStatus = 'draft' | 'active' | 'archived'
-
-export type OpeningShape = 'V型' | '||型' | '//型' 
+export type OpeningShape = 'V型' | '//型' 
+export type cuttingAxis = 'XY'|'R'
+/** 激光功率配方与控制器之间的传输方式（仅两种可选） */
+export type LaserTransmissionMode = '网线' | 'RS232'
 
 export interface RecipeRecordBase {
   id: string
@@ -10,30 +12,19 @@ export interface RecipeRecordBase {
   updatedAt: string
 }
 
-/** 线性公式的两个可编辑系数：k * 深度 + b */
 export interface LinearFormulaCoefficients {
   k: number
   b: number
 }
 
-export interface ProcessFormulaRecipe {
-  name: string
+export interface ProcessFormulaRecipe extends RecipeRecordBase {
   openingShape: OpeningShape
-  // 角度公式
   angleFormula: LinearFormulaCoefficients
-  // 下开口公式
   lowerOpeningFormula: LinearFormulaCoefficients
-  // 深度补偿公式
   depthCompensationFormula: LinearFormulaCoefficients
-  // 上开口公式
   upperOpeningFormula: string
-  // 补偿角度公式
   compensationAngleFormula: LinearFormulaCoefficients
   focusCompensation: number
-}
-
-export interface SharedFormulaRecipe extends RecipeRecordBase {
-  formula: ProcessFormulaRecipe
 }
 
 /** 垂直工艺：边缘 / 中间切割段（CHANGE 为 k*深度+b） */
@@ -50,9 +41,9 @@ export interface VerticalDescentCutting {
   zFeed: number
   change: LinearFormulaCoefficients
 }
-export type cuttingAxis = 'XY'|'R'
+
 /** 垂直工艺配方参数（与水平工艺的开口/公式结构不同） */
-export interface VerticalProcessFormulaRecipe {
+export interface VerticalProcessFormulaRecipe extends RecipeRecordBase {
   cuttingAxis: cuttingAxis
   changePercent: number
   xFeed: number
@@ -62,25 +53,15 @@ export interface VerticalProcessFormulaRecipe {
   descentCutting: VerticalDescentCutting
 }
 
-export interface VerticalFormulaRecipe extends RecipeRecordBase {
-  formula: VerticalProcessFormulaRecipe
-}
 
-/** 激光功率配方与控制器之间的传输方式（仅两种可选） */
-export type LaserTransmissionMode = '网线' | 'RS232'
 
 /** 激光功率配方，可被扫黑工艺配方与加工工艺配方引用 */
 export interface LaserPowerRecipe extends RecipeRecordBase {
-  /** 激光厂家 */
   laserManufacturer: string
-  /** 激光功率 */
   laserPower: number
-  /** 激光频率 */
   laserFrequency: number
-  /** 激光电流 */
   laserCurrent: number
-  /** 使用传输方式 */
-  transmissionMode: LaserTransmissionMode
+  transmissionMode: string
 }
 
 export interface BlackeningProcessRecipe extends RecipeRecordBase {
@@ -142,8 +123,8 @@ export interface RecipeManagerState {
   mainRecipes: MainRecipeDefinition[]
   laserPowerRecipes: LaserPowerRecipe[]
   blackeningRecipes: BlackeningProcessRecipe[]
-  horizontalFormulaRecipes: SharedFormulaRecipe[]
-  verticalFormulaRecipes: VerticalFormulaRecipe[]
+  horizontalFormulaRecipes: ProcessFormulaRecipe[]
+  verticalFormulaRecipes: VerticalProcessFormulaRecipe[]
   machiningRecipes: MachiningProcessRecipe[]
   selectedMainRecipeId: string
   filter: RecipeFilter

@@ -6,76 +6,28 @@ import { useNotification } from '@/shared/composables/useNotification'
 import { useLicenseStore } from '../stores/licenseStore'
 import StatusIndicators from '@/shared/components/StatusIndicators.vue'
 const { success, error } = useNotification()
-
-
 const router = useRouter()
 const authStore = useAuthStore()
 const licenseStore = useLicenseStore()
-
 const username = ref('')
 const password = ref('')
-
-
-
-
-
-
-
-
 const statusRef = ref<InstanceType<typeof StatusIndicators> | null>(null)
-
-
-
-
 const canLogin = computed(() => statusRef.value?.backendReady ?? false)
 
 const handleLogin = async () => {
   const licenseStatus = await licenseStore.refreshStatus()
-
-  if (!licenseStatus.valid) {
-    error(licenseStatus.message)
-    await router.push('/license')
-    return
-  }
-
-  if (!canLogin.value) {
-    error(statusRef.value?.backendMessage || '后台未就绪，请稍后重试')
-    return
-  }
-
-  if (!username.value.trim() || !password.value.trim()) {
-    error('请输入用户名和密码')
-    return
-  }
-
+  if (!licenseStatus.valid) {error(licenseStatus.message);await router.push('/license');return}
+  if (!canLogin.value) {error(statusRef.value?.backendMessage || '后台未就绪，请稍后重试');return}
+  if (!username.value.trim() || !password.value.trim()) {error('请输入用户名和密码');return}
   const result = authStore.login(username.value, password.value)
-
-  if (!result.success) {
-    error(result.message)
-    return
-  }
-
-  success(result.message)
-
-  // try {
-  //   await controllerSettingsStore.loadControllerSettings()
-  //   const controllerRes = await bootstrapControllerOnce(controllerSettingsStore.controllerSettings)
-  //   if (!controllerRes.success) {
-  //     error(controllerRes.message)
-  //   }
-  // } catch {
-  //   error('控制器初始化失败：无法连接后端或硬件未就绪。')
-  // }
-
+  if (!result.success) {error(result.message);return}
+  success(result.message);
   await router.push('/home')
 }
 
 onMounted(async () => {
   const licenseStatus = await licenseStore.refreshStatus()
-
-  if (!licenseStatus.valid) {
-    await router.push('/license')
-  }
+  if (!licenseStatus.valid) {await router.push('/license');}
 })
 </script>
 

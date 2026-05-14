@@ -1,18 +1,9 @@
 ﻿<script setup lang="ts">
-import { onMounted, ref,onUnmounted} from 'vue'
+import { onMounted, ref} from 'vue'
 import { useRouter } from 'vue-router'
 import { useNotification } from '@/shared/composables/useNotification'
 import { useAuthStore } from '../stores/useAuthStore'
 import { useLicenseStore } from '../stores/licenseStore'
-import { subscribeGlobalKeyboard } from '@/shared/composables/useGlobalKeyboard'
-
-const unsubscribeKeyboard = subscribeGlobalKeyboard((e) => {
-  if (e.repeat) return
-  const ch = e.key.length === 1 ? e.key.toUpperCase() : ''
-  if (ch !== 'Q'&& !e.ctrlKey && !e.shiftKey) return
-  e.preventDefault()
-  console.log('helpQ')
-})
 
 
 const router = useRouter()
@@ -43,33 +34,16 @@ const handleUpdateUserAccount = () => {
 }
 
 const handleUpdateLicense = async () => {
-  if (!authStore.isAdmin) {
-    error('只有管理员可以修改密钥')
-    return
-  }
-
-  if (!licenseKey.value.trim()) {
-    error('请输入新的离线密钥')
-    return
-  }
-
+  if (!authStore.isAdmin) {error('只有管理员可以修改密钥');return}
+  if (!licenseKey.value.trim()) {error('请输入新的离线密钥');return}
   const result = await licenseStore.activate(licenseKey.value)
-
-  if (!result.success) {
-    error(result.message)
-    return
-  }
-
+  if (!result.success) {error(result.message);return}
   licenseKey.value = ''
   success('密钥已更新')
 }
 
 const handleClearLicense = async () => {
-  if (!authStore.isAdmin) {
-    error('只有管理员可以清空密钥')
-    return
-  }
-
+  if (!authStore.isAdmin) {error('只有管理员可以清空密钥');return}
   await licenseStore.clearLicense()
   info('当前授权已清除，请重新输入密钥')
   authStore.logout()
@@ -78,10 +52,6 @@ const handleClearLicense = async () => {
 
 onMounted(async () => {
   await licenseStore.refreshStatus()
-})
-
-onUnmounted(() => {
-  unsubscribeKeyboard()
 })
 </script>
 

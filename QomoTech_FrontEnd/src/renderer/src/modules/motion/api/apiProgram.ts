@@ -1,17 +1,8 @@
-import { apiCall, type ApiCallResult } from '@/shared/api/httpClient'
-import type { Product4PCenterRotationPayload, StartProgramControlAction } from '../index'
-
-export const startProgram = async (payload: Record<string, unknown>): Promise<ApiCallResult<Record<string, unknown>>> =>
-  apiCall('startProgram', 'POST', payload)
-
-export const syncProduct4PCenterRotation = async (payload: Product4PCenterRotationPayload): Promise<ApiCallResult<Product4PCenterRotationPayload>> =>
-  apiCall<Product4PCenterRotationPayload>('product4p/center-rotation', 'POST', payload as unknown as Record<string, unknown>)
-
-export const getProduct4PCenterRotation = async (): Promise<ApiCallResult<Product4PCenterRotationPayload>> =>
-  apiCall<Product4PCenterRotationPayload>('product4p/center-rotation', 'GET')
-
-export const getStartProgramStatus = async (): Promise<ApiCallResult<{ running?: boolean; paused?: boolean } & Record<string, unknown>>> =>
-  apiCall('startProgram/status', 'GET')
-
-export const startProgramControl = async (action: StartProgramControlAction): Promise<ApiCallResult<Record<string, unknown>>> =>
-  apiCall('startProgram/control', 'POST', { action } as unknown as Record<string, unknown>)
+// 已迁移至 @/core/api/motionApi。保留此文件以确保旧 import 不报错。
+export {
+  startProgram,
+  syncProduct4PCenterRotation,
+  getProduct4PCenterRotation,
+  getStartProgramStatus,
+  startProgramControl
+} from '@/core/api/motionApi'

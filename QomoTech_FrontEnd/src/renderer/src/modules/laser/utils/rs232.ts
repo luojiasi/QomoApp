@@ -2,7 +2,7 @@ import type { Rs232WorkbenchState, Rs232SerialSessionRequest } from '../types/rs
 import { defaultRs232WorkbenchState } from '../config/rs232'
 import { cloneSettings } from '@/shared/utils/settings'
 import { RS232_WORKBENCH_STORAGE_KEY } from '@/shared/constants/storageKeys'
-import { readSettingsFromStorage } from '@/modules/settings/useSettingsStore'
+import { readSettingsFromStorage } from '@/shared/utils/useSettingsStore'
 
 export function isRs232WorkbenchShape(data: unknown): data is Rs232WorkbenchState {
   if (!data || typeof data !== 'object') return false

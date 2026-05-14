@@ -89,7 +89,7 @@ function computeDepthCompensationValue(formula: ProcessFormulaRecipe['depthCompe
 /** 开口按水平工艺配方的角度 / 下开口 / 深度补偿公式计算（垂直配方已不再包含这些字段）。 */
 function calculateUpperOpening(height: number): number | null {
   if (!Number.isFinite(height)) return null
-  const formula = selectedHorizontalFormula.value?.formula
+  const formula = selectedHorizontalFormula.value
   if (!formula) return null
   const angle = computeAngleValue(formula.angleFormula,height)
   const lowerOpening = computeLowerOpeningValue(formula.lowerOpeningFormula, height)

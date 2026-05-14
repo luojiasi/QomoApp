@@ -5,17 +5,17 @@ import RecipeLibrarySection from './panels/RecipeLibrarySection.vue'
 import RecipeEditorCard from './panels/RecipeEditorCard.vue'
 import RecipeTopologyDiagram from './panels/RecipeTopologyDiagram.vue'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { useRecipeManagementPage } from '@/modules/settings/useSettingsPages'
 import { useNotification } from '@/shared/composables/useNotification'
 import { useRecipeSettingsStore } from './useRecipeStore'
+import { createRecipeSections } from './recipeConfig'
 import type {
   LaserPowerRecipe,
-  LaserTransmissionMode,
   OpeningShape,
   ProcessFormulaRecipe,
   RecipeStatus,
   VerticalProcessFormulaRecipe
 } from './recipeTypes'
+import type { ParameterField } from '@/shared/types'
 import { cloneSettings, formatSettingValue } from '@/shared/utils/settings'
 
 type ChildRecipeType = 'blackening' | 'machining'
@@ -29,7 +29,8 @@ type EditorPanel =
 type FormulaType = 'horizontal' | 'vertical'
 
 const recipeStore = useRecipeSettingsStore()
-const { recipeState, sections } = useRecipeManagementPage()
+const recipeState = computed(() => recipeStore.recipeState)
+const sections = computed(() => createRecipeSections(recipeStore.recipeState))
 const { success, warning, error } = useNotification()
 
 const statusOptions: { label: string; value: RecipeStatus }[] = [
@@ -37,8 +38,8 @@ const statusOptions: { label: string; value: RecipeStatus }[] = [
   { label: '生效', value: 'active' },
   { label: '归档', value: 'archived' }
 ]
-const openingShapeOptions: OpeningShape[] = ['V型', '||型', '//型']
-const laserTransmissionModeOptions: LaserTransmissionMode[] = ['网线', 'RS232']
+const openingShapeOptions: OpeningShape[] = ['V型', '//型']
+const laserTransmissionModeOptions: string[] = ['网线', 'RS232']
 type EditableFormulaKey =
   | 'angleFormula'
   | 'lowerOpeningFormula'
@@ -63,12 +64,6 @@ const openingShapeFormulaPresets: Record<OpeningShape,Partial<Record<EditableFor
     angleFormula: { k: 0, b: 0.54 },
     lowerOpeningFormula: { k: 5, b: 35 },
     depthCompensationFormula: { k: 2, b: 0.5 },
-    compensationAngleFormula: { k: 0, b: 0 }
-  },
-  '||型': {
-    angleFormula: { k: 0, b: 0 },
-    lowerOpeningFormula: { k: 0, b: 50 },
-    depthCompensationFormula: { k: 0, b: 0 },
     compensationAngleFormula: { k: 0, b: 0 }
   },
   '//型': {
@@ -274,14 +269,14 @@ const activeProcessDetailPopover = computed(() => {
     return {
       title: '水平工艺配方',
       description: shared ? `${shared.name}（${shared.code}）` : '当前未选择',
-      fields: getFormulaFields(shared?.formula)
+      fields: getFormulaFields(shared)
     }
   }
   const shared = getVerticalFormulaById(mr.verticalFormulaId)
   return {
     title: '垂直工艺配方',
     description: shared ? `${shared.name}（${shared.code}）` : '当前未选择',
-    fields: getVerticalFormulaFields(shared?.formula)
+    fields: getVerticalFormulaFields(shared)
   }
 })
 
@@ -351,12 +346,12 @@ function markMainRecipeUpdated(): void {
   selectedMainRecipe.value.updatedAt = createTimestamp()
 }
 
-function formatLinearFormula(symbol: 'A' | 'L' | 'D' | 'CA',formula?: ProcessFormulaRecipe[EditableFormulaKey]) {
+function formatLinearFormula(symbol: 'A' | 'L' | 'D' | 'CA',formula?: ProcessFormulaRecipe[EditableFormulaKey]): string {
   if (!formula) return '-'
   return `${symbol} = ${formula.k} * 深度 + ${formula.b}`
 }
 
-function getFormulaFields(recipe?: ProcessFormulaRecipe) {
+function getFormulaFields(recipe?: ProcessFormulaRecipe): ParameterField[] {
   return [
     { key: 'name', label: '工艺名称', value: recipe?.name ?? '-' },
     { key: 'openingShape', label: '开口形状', value: recipe?.openingShape ?? '-' },
@@ -386,7 +381,7 @@ function formatChangeFormula(formula?: VerticalProcessFormulaRecipe['edgeCutting
   return `CHANGE = ${formula.k} * 距离(mm) + ${formula.b}`
 }
 
-function getVerticalFormulaFields(recipe?: VerticalProcessFormulaRecipe) {
+function getVerticalFormulaFields(recipe?: VerticalProcessFormulaRecipe): ParameterField[] {
   return [
     { key: 'cuttingAxis', label: '切割轴（XY/R）', value: recipe?.cuttingAxis ?? '-' },
     { key: 'changePercent', label: '变化百分比', value: recipe?.changePercent ?? '-' },
@@ -405,7 +400,7 @@ function getVerticalFormulaFields(recipe?: VerticalProcessFormulaRecipe) {
   ]
 }
 
-function getLaserPowerFields(lp?: LaserPowerRecipe | null) {
+function getLaserPowerFields(lp?: LaserPowerRecipe | null): ParameterField[] {
   if (!lp) return []
   return [
     { key: 'name', label: '配方名称', value: lp.name },
@@ -414,19 +409,18 @@ function getLaserPowerFields(lp?: LaserPowerRecipe | null) {
     { key: 'laserPower', label: '激光功率', value: lp.laserPower },
     { key: 'laserFrequency', label: '激光频率', value: lp.laserFrequency },
     { key: 'laserCurrent', label: '激光电流', value: lp.laserCurrent },
-    { key: 'transmissionMode', label: '传输方式', value: lp.transmissionMode }
   ]
 }
 
-function getHorizontalFormulaById(id?: string) {
-  return id ? horizontalFormulaMap.value.get(id) ?? null : null
+function getHorizontalFormulaById(id?: string): ProcessFormulaRecipe | undefined {
+  return id ? horizontalFormulaMap.value.get(id) : undefined
 }
 
-function getVerticalFormulaById(id?: string) {
-  return id ? verticalFormulaMap.value.get(id) ?? null : null
+function getVerticalFormulaById(id?: string): VerticalProcessFormulaRecipe | undefined {
+  return id ? verticalFormulaMap.value.get(id) : undefined
 }
 
-function buildSelectedMainRecipeDetails() {
+function buildSelectedMainRecipeDetails(): Record<string, unknown> {
   const mainRecipe = selectedMainRecipe.value ? cloneSettings(selectedMainRecipe.value) : null
   const blackeningRecipe = selectedBlackeningRecipe.value
     ? {
@@ -946,10 +940,9 @@ onMounted(async () => {
 
 
       
-      <section
+      <template v-for="section in otherSections" :key="section.id">
+        <section
           v-if="activeEditorPanel === 'main'"
-          v-for="section in otherSections"
-          :key="section.id"
           class="app-card rounded-2xl p-6 shadow-sm"
         >
           <h2 class="app-text-primary text-xl font-semibold">{{ section.title }}</h2>
@@ -967,7 +960,8 @@ onMounted(async () => {
               </p>
             </div>
           </div>
-      </section>
+        </section>
+      </template>
 
 
 
@@ -1097,7 +1091,7 @@ onMounted(async () => {
         <RecipeLibrarySection
           v-if="activeEditorPanel === 'laserPower'"
           title="激光功率配方库"
-          description="激光功率配方包含激光厂家、激光功率、激光频率、激光电流与使用传输方式，可被扫黑工艺配方与加工工艺配方引用。"
+          description="激光功率配方包含激光厂家、激光功率、激光频率、激光电流，可被扫黑工艺配方与加工工艺配方引用。"
           add-button-text="新增激光功率配方"
           @add="addLaserPowerRecipe"
         >

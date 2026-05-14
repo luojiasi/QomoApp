@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { AXIS_TAB_LABELS, defaultControllerParameters } from '../config/controller'
-import { useControllerSettingsPage } from '@/modules/settings/useSettingsPages'
+import { AXIS_TAB_LABELS, createControllerSections, defaultControllerParameters } from '../config/controller'
 import { useNotification } from '@/shared/composables/useNotification'
 import { useControllerSettingsStore } from '@/modules/motion/stores/useControllerSettingsStore'
 import ApiTestPanel from '@/modules/settings/ApiTestPanel.vue'
@@ -29,7 +28,7 @@ const emit = defineEmits<{
 }>()
 
 const controllerStore = useControllerSettingsStore()
-const { sections } = useControllerSettingsPage()
+const sections = computed(() => createControllerSections(controllerStore.controllerSettings))
 const { success, error} = useNotification()
 const { position: wsPosition, mposition: wsMposition } = useHardwareState()
 

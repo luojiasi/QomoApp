@@ -3,9 +3,8 @@ import { defineStore } from 'pinia'
 import {
   getLaserSettings,
   saveLaserSettings,
-  type LaserSettingsPayload
 } from '../api/laser'
-
+import type { LaserSettingsPayload } from '../types/laser'
 import { DEFAULTS_BY_MANUFACTURER } from '../config/laser'
 
 export const useLaserSettingsStore = defineStore('laser-settings', () => {

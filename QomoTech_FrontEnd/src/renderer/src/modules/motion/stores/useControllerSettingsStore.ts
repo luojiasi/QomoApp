@@ -17,7 +17,7 @@ import {
   isControllerParametersShape,
   normalizeControllerParameters
 } from '../validation/controller'
-import { createSettingsSaveResult } from '@/modules/settings/useSettingsStore'
+import { createSettingsSaveResult } from '@/shared/utils/useSettingsStore'
 
 function loadHomeStateFromStorage(): HomeState {
   if (typeof window === 'undefined') {

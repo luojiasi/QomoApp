@@ -60,11 +60,3 @@ export interface SettingsSaveResult<T> {
   data: T
   updatedAt: string
 }
-
-export interface ReservePageDefinition {
-  id: string
-  path: string
-  title: string
-  description: string
-  readyFor: string[]
-}

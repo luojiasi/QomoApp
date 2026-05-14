@@ -1,21 +1,9 @@
-import { apiCall, type ApiCallResult } from '@/shared/api/httpClient'
-import type { Rs232SendRequest, Rs232SerialSessionRequest } from '../types/rs232'
-import type { Rs232PortInfo } from '../types/laser'
-
-export const fetchRs232Ports = (): Promise<ApiCallResult<{ ports: Rs232PortInfo[] }>> =>
-  apiCall('rs232/ports', 'GET')
-
-export const openRs232 = (payload: Rs232SerialSessionRequest): Promise<ApiCallResult<{ connected?: boolean; portName?: string | null }>> =>
-  apiCall('rs232/open', 'POST', payload as unknown as Record<string, unknown>)
-
-export const closeRs232 = (): Promise<ApiCallResult<{ connected?: boolean }>> =>
-  apiCall('rs232/close', 'POST')
-
-export const sendRs232 = (payload: Rs232SendRequest): Promise<ApiCallResult<{ timestamp?: string }>> =>
-  apiCall('rs232/send', 'POST', payload as unknown as Record<string, unknown>)
-
-export const syncRs232Workbench = (payload: Rs232SerialSessionRequest): Promise<ApiCallResult<{ portName?: string | null }>> =>
-  apiCall('rs232/workbench-sync', 'POST', payload as unknown as Record<string, unknown>)
-
-export const fetchRs232Buffer = (clear = false): Promise<ApiCallResult<{ text: string }>> =>
-  apiCall('rs232/buffer', 'GET', null, { clear })
+// 已迁移至 @/core/api/laserApi。保留此文件以确保旧 import 不报错。
+export {
+  fetchRs232Ports,
+  openRs232,
+  closeRs232,
+  sendRs232,
+  syncRs232Workbench,
+  fetchRs232Buffer
+} from '@/core/api/laserApi'

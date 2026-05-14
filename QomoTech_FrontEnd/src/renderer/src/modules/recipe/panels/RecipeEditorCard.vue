@@ -3,13 +3,11 @@ import { computed } from 'vue'
 import type {
   BlackeningProcessRecipe,
   LaserPowerRecipe,
-  LaserTransmissionMode,
   LinearFormulaCoefficients,
   MachiningProcessRecipe,
   OpeningShape,
   ProcessFormulaRecipe,
-  SharedFormulaRecipe,
-  VerticalFormulaRecipe
+  VerticalProcessFormulaRecipe
 } from '../recipeTypes'
 
 type RecipeCardType =
@@ -40,8 +38,8 @@ type CardRecipeItem =
   | BlackeningProcessRecipe
   | MachiningProcessRecipe
   | LaserPowerRecipe
-  | SharedFormulaRecipe
-  | VerticalFormulaRecipe
+  | ProcessFormulaRecipe
+  | VerticalProcessFormulaRecipe
 
 const props = withDefaults(
   defineProps<{
@@ -54,9 +52,9 @@ const props = withDefaults(
     onHoverEnter?: (recipeId: string, kind: ProcessDetailFieldKind) => void
     onHoverLeave?: () => void
     laserPowerOptions?: LaserPowerRecipe[]
-    horizontalFormulaOptions?: SharedFormulaRecipe[]
-    verticalFormulaOptions?: VerticalFormulaRecipe[]
-    transmissionModeOptions?: LaserTransmissionMode[]
+    horizontalFormulaOptions?: ProcessFormulaRecipe[]
+    verticalFormulaOptions?: VerticalProcessFormulaRecipe[]
+    transmissionModeOptions?: string[]
     openingShapeOptions?: OpeningShape[]
     openingShapeFormulaPresets?: Partial<Record<OpeningShape, OpeningShapeFormulaPreset>>
     editableFormulaItems?: EditableFormulaItem[]
@@ -121,14 +119,14 @@ function formatFormulaValue(
 }
 
 function onOpeningShapeChange(shape: OpeningShape): void {
-  const recipe = props.item as SharedFormulaRecipe
+  const recipe = props.item as ProcessFormulaRecipe
   const presets = props.openingShapeFormulaPresets?.[shape]
   if (presets) {
     ;(Object.keys(presets) as EditableFormulaKey[]).forEach((key) => {
       const preset = presets[key]
       if (!preset) return
-      recipe.formula[key].k = preset.k
-      recipe.formula[key].b = preset.b
+      recipe[key].k = preset.k
+      recipe[key].b = preset.b
     })
   }
   markUpdated()
@@ -523,7 +521,7 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
           <label class="grid grid-cols-[6rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) bg-(--app-card) px-3 py-2">
             <span class="app-text-secondary text-xs">配方名称</span>
             <input
-              v-model="(props.item as SharedFormulaRecipe).name"
+              v-model="(props.item as ProcessFormulaRecipe).name"
               type="text"
               class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
               @input="markUpdated"
@@ -532,7 +530,7 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
           <!-- <label class="grid grid-cols-[6rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) bg-(--app-card) px-3 py-2">
             <span class="app-text-secondary text-xs">配方编码</span>
             <input
-              v-model="(props.item as SharedFormulaRecipe).code"
+              v-model="(props.item as ProcessFormulaRecipe).code"
               type="text"
               class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
               @input="markUpdated"
@@ -541,7 +539,7 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
           <label class="grid grid-cols-[6rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) bg-(--app-card) px-3 py-2">
             <span class="app-text-secondary text-xs">工艺名称</span>
             <input
-              v-model="(props.item as SharedFormulaRecipe).formula.name"
+              v-model="(props.item as ProcessFormulaRecipe).name"
               type="text"
               class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
               @input="markUpdated"
@@ -550,9 +548,9 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
           <label class="grid grid-cols-[6rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) bg-(--app-card) px-3 py-2">
             <span class="app-text-secondary text-xs">开口形状</span>
             <select
-              v-model="(props.item as SharedFormulaRecipe).formula.openingShape"
+              v-model="(props.item as ProcessFormulaRecipe).openingShape"
               class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
-              @change="onOpeningShapeChange((props.item as SharedFormulaRecipe).formula.openingShape)"
+              @change="onOpeningShapeChange((props.item as ProcessFormulaRecipe).openingShape)"
             >
               <option v-for="shape in props.openingShapeOptions" :key="shape" :value="shape" class="text-slate-900">
                 {{ shape }}
@@ -562,7 +560,7 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
           <label class="grid grid-cols-[6rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) bg-(--app-card) px-3 py-2">
             <span class="app-text-secondary text-xs">焦距补偿</span>
             <input
-              v-model.number="(props.item as SharedFormulaRecipe).formula.focusCompensation"
+              v-model.number="(props.item as ProcessFormulaRecipe).focusCompensation"
               type="number"
               step="0.001"
               class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
@@ -572,7 +570,7 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
           <div class="rounded-xl border border-(--app-border) bg-(--app-card) px-3 py-2">
             <p class="app-text-secondary text-xs">上开口公式</p>
             <p class="app-text-primary mt-2 text-sm font-medium break-all">
-              {{ (props.item as SharedFormulaRecipe).formula.upperOpeningFormula }}
+              {{ (props.item as ProcessFormulaRecipe).upperOpeningFormula }}
             </p>
           </div>
         </div>
@@ -580,20 +578,20 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
         <div class="grid gap-2 xl:grid-cols-4">
           <div
             v-for="item in props.editableFormulaItems"
-            :key="`${props.type}-${(props.item as SharedFormulaRecipe).id}-${item.key}`"
+            :key="`${props.type}-${(props.item as ProcessFormulaRecipe).id}-${item.key}`"
             class="rounded-xl border border-(--app-border) bg-(--app-card) px-3 py-2"
           >
             <div class="flex flex-wrap items-center justify-between gap-2">
               <span class="app-text-secondary text-xs">{{ item.label }}</span>
               <span class="app-text-primary text-xs font-medium">
-                {{ formatFormulaValue(item.symbol, (props.item as SharedFormulaRecipe).formula[item.key]) }}
+                {{ formatFormulaValue(item.symbol, (props.item as ProcessFormulaRecipe)[item.key]) }}
               </span>
             </div>
             <div class="mt-2 grid gap-2 sm:grid-cols-2">
               <label class="grid grid-cols-[2rem_1fr] items-center gap-2">
                 <span class="app-text-secondary text-xs">{{ item.kLabel }}</span>
                 <input
-                  v-model.number="(props.item as SharedFormulaRecipe).formula[item.key].k"
+                  v-model.number="(props.item as ProcessFormulaRecipe)[item.key].k"
                   type="number"
                   step="0.001"
                   class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
@@ -603,7 +601,7 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
               <label class="grid grid-cols-[2rem_1fr] items-center gap-2">
                 <span class="app-text-secondary text-xs">{{ item.bLabel }}</span>
                 <input
-                  v-model.number="(props.item as SharedFormulaRecipe).formula[item.key].b"
+                  v-model.number="(props.item as ProcessFormulaRecipe)[item.key].b"
                   type="number"
                   step="0.001"
                   class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
@@ -617,7 +615,7 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
         <label class="grid grid-cols-[7rem_1fr] items-start gap-2 rounded-xl border border-(--app-border) bg-(--app-card) px-3 py-2">
           <span class="app-text-secondary mt-1 text-xs">备注</span>
           <textarea
-            v-model="(props.item as SharedFormulaRecipe).notes"
+            v-model="(props.item as ProcessFormulaRecipe).notes"
             rows="2"
             class="min-h-10 min-w-0 w-full resize-y rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
             @input="markUpdated"
@@ -632,7 +630,7 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
           <label class="grid grid-cols-[6rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) bg-(--app-card) px-3 py-2">
             <span class="app-text-secondary text-xs">配方名称</span>
             <input
-              v-model="(props.item as VerticalFormulaRecipe).name"
+              v-model="(props.item as VerticalProcessFormulaRecipe).name"
               type="text"
               class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
               @input="markUpdated"
@@ -641,7 +639,7 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
           <label class="grid grid-cols-[6rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) bg-(--app-card) px-3 py-2">
             <span class="app-text-secondary text-xs">配方编码</span>
             <input
-              v-model="(props.item as VerticalFormulaRecipe).code"
+              v-model="(props.item as VerticalProcessFormulaRecipe).code"
               type="text"
               class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
               @input="markUpdated"
@@ -653,7 +651,7 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
           <label class="grid grid-cols-[6rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) bg-(--app-card) px-3 py-2">
             <span class="app-text-secondary text-xs">切割轴（XY/R）</span>
             <input
-              v-model="(props.item as VerticalFormulaRecipe).formula.cuttingAxis"
+              v-model="(props.item as VerticalProcessFormulaRecipe).cuttingAxis"
               type="text"
               class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
               @input="markUpdated"
@@ -663,7 +661,7 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
           <label class="grid grid-cols-[6rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) bg-(--app-card) px-3 py-2">
             <span class="app-text-secondary text-xs">X_偏移量（mm）</span>
             <input
-              v-model.number="(props.item as VerticalFormulaRecipe).formula.xFeed"
+              v-model.number="(props.item as VerticalProcessFormulaRecipe).xFeed"
               type="number"
               step="0.001"
               class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
@@ -673,7 +671,7 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
           <label class="grid grid-cols-[6rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) bg-(--app-card) px-3 py-2">
             <span class="app-text-secondary text-xs">插补运行速度（mm/s）</span>
             <input
-              v-model.number="(props.item as VerticalFormulaRecipe).formula.xSpeed"
+              v-model.number="(props.item as VerticalProcessFormulaRecipe).xSpeed"
               type="number"
               min="1"
               max="100"
@@ -691,7 +689,7 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
               <label class="grid grid-cols-[6rem_1fr] items-center gap-2">
                 <span class="app-text-secondary text-xs">速度百分比（%）</span>
                 <input
-                  v-model.number="(props.item as VerticalFormulaRecipe).formula.edgeCutting.speed"
+                  v-model.number="(props.item as VerticalProcessFormulaRecipe).edgeCutting.speed"
                   type="number"
                   step="0.001"
                   class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
@@ -701,7 +699,7 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
               <label class="grid grid-cols-[6rem_1fr] items-center gap-2">
                 <span class="app-text-secondary text-xs">切割次数（次）</span>
                 <input
-                  v-model.number="(props.item as VerticalFormulaRecipe).formula.edgeCutting.cutTimes"
+                  v-model.number="(props.item as VerticalProcessFormulaRecipe).edgeCutting.cutTimes"
                   type="number"
                   min="1"
                   max="5"
@@ -713,7 +711,7 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
               <label class="grid grid-cols-[6rem_1fr] items-center gap-2">
                 <span class="app-text-secondary text-xs">切割速量（次）</span>
                 <input
-                  v-model.number="(props.item as VerticalFormulaRecipe).formula.edgeCutting.cutSpeedNums"
+                  v-model.number="(props.item as VerticalProcessFormulaRecipe).edgeCutting.cutSpeedNums"
                   type="number"
                   min="1"
                   max="10"
@@ -724,13 +722,13 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
               </label>
               <div class="rounded-lg border border-(--app-border) px-2 py-2">
                 <p class="app-text-secondary text-xs">
-                  {{ formatVerticalChangeFormula((props.item as VerticalFormulaRecipe).formula.edgeCutting.change) }}
+                  {{ formatVerticalChangeFormula((props.item as VerticalProcessFormulaRecipe).edgeCutting.change) }}
                 </p>
                 <div class="mt-2 grid gap-2 sm:grid-cols-2">
                   <label class="grid grid-cols-[2rem_1fr] items-center gap-2">
                     <span class="app-text-secondary text-xs">K：</span>
                     <input
-                      v-model.number="(props.item as VerticalFormulaRecipe).formula.edgeCutting.change.k"
+                      v-model.number="(props.item as VerticalProcessFormulaRecipe).edgeCutting.change.k"
                       type="number"
                       step="0.001"
                       class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
@@ -740,7 +738,7 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
                   <label class="grid grid-cols-[2rem_1fr] items-center gap-2">
                     <span class="app-text-secondary text-xs">B：</span>
                     <input
-                      v-model.number="(props.item as VerticalFormulaRecipe).formula.edgeCutting.change.b"
+                      v-model.number="(props.item as VerticalProcessFormulaRecipe).edgeCutting.change.b"
                       type="number"
                       step="0.001"
                       class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
@@ -758,7 +756,7 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
               <label class="grid grid-cols-[6rem_1fr] items-center gap-2">
                 <span class="app-text-secondary text-xs">速度百分比（%）</span>
                 <input
-                  v-model.number="(props.item as VerticalFormulaRecipe).formula.middleCutting.speed"
+                  v-model.number="(props.item as VerticalProcessFormulaRecipe).middleCutting.speed"
                   type="number"
                   step="0.001"
                   class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
@@ -768,7 +766,7 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
               <label class="grid grid-cols-[6rem_1fr] items-center gap-2">
                 <span class="app-text-secondary text-xs">切割次数（次）</span>
                 <input
-                  v-model.number="(props.item as VerticalFormulaRecipe).formula.middleCutting.cutTimes"
+                  v-model.number="(props.item as VerticalProcessFormulaRecipe).middleCutting.cutTimes"
                   type="number"
                   min="1"
                   max="5"
@@ -779,13 +777,13 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
               </label>
               <div class="rounded-lg border border-(--app-border) px-2 py-2">
                 <p class="app-text-secondary text-xs">
-                  {{ formatVerticalChangeFormula((props.item as VerticalFormulaRecipe).formula.middleCutting.change) }}
+                  {{ formatVerticalChangeFormula((props.item as VerticalProcessFormulaRecipe).middleCutting.change) }}
                 </p>
                 <div class="mt-2 grid gap-2 sm:grid-cols-2">
                   <label class="grid grid-cols-[2rem_1fr] items-center gap-2">
                     <span class="app-text-secondary text-xs">K：</span>
                     <input
-                      v-model.number="(props.item as VerticalFormulaRecipe).formula.middleCutting.change.k"
+                      v-model.number="(props.item as VerticalProcessFormulaRecipe).middleCutting.change.k"
                       type="number"
                       step="0.001"
                       class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
@@ -795,7 +793,7 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
                   <label class="grid grid-cols-[2rem_1fr] items-center gap-2">
                     <span class="app-text-secondary text-xs">B：</span>
                     <input
-                      v-model.number="(props.item as VerticalFormulaRecipe).formula.middleCutting.change.b"
+                      v-model.number="(props.item as VerticalProcessFormulaRecipe).middleCutting.change.b"
                       type="number"
                       step="0.001"
                       class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
@@ -813,7 +811,7 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
               <label class="grid grid-cols-[6rem_1fr] items-center gap-2">
                 <span class="app-text-secondary text-xs">下降量(mm/层)</span>
                 <input
-                  v-model.number="(props.item as VerticalFormulaRecipe).formula.descentCutting.speed"
+                  v-model.number="(props.item as VerticalProcessFormulaRecipe).descentCutting.speed"
                   type="number"
                   step="0.001"
                   class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
@@ -821,9 +819,9 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
                 />
               </label>
               <label class="grid grid-cols-[6rem_1fr] items-center gap-2">
-                <span class="app-text-secondary text-xs">下降减少量(mm/{{(props.item as VerticalFormulaRecipe).formula.changePercent}}%)</span>
+                <span class="app-text-secondary text-xs">下降减少量(mm/{{(props.item as VerticalProcessFormulaRecipe).changePercent}}%)</span>
                 <input
-                  v-model.number="(props.item as VerticalFormulaRecipe).formula.descentCutting.zFeed"
+                  v-model.number="(props.item as VerticalProcessFormulaRecipe).descentCutting.zFeed"
                   type="number"
                   step="0.001"
                   class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
@@ -833,7 +831,7 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
               <label class="grid grid-cols-[6rem_1fr] items-center gap-2">
                 <span class="app-text-secondary text-xs">变化百分比（%）</span>
                 <input
-                  v-model.number="(props.item as VerticalFormulaRecipe).formula.changePercent"
+                  v-model.number="(props.item as VerticalProcessFormulaRecipe).changePercent"
                   type="number"
                   min="5"
                   max="100"
@@ -844,13 +842,13 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
               </label>
               <div class="rounded-lg border border-(--app-border) px-2 py-2">
                 <p class="app-text-secondary text-xs">
-                  {{ formatVerticalChangeFormula((props.item as VerticalFormulaRecipe).formula.descentCutting.change) }}
+                  {{ formatVerticalChangeFormula((props.item as VerticalProcessFormulaRecipe).descentCutting.change) }}
                 </p>
                 <div class="mt-2 grid gap-2 sm:grid-cols-2">
                   <label class="grid grid-cols-[2rem_1fr] items-center gap-2">
                     <span class="app-text-secondary text-xs">K：</span>
                     <input
-                      v-model.number="(props.item as VerticalFormulaRecipe).formula.descentCutting.change.k"
+                      v-model.number="(props.item as VerticalProcessFormulaRecipe).descentCutting.change.k"
                       type="number"
                       step="0.001"
                       class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
@@ -860,7 +858,7 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
                   <label class="grid grid-cols-[2rem_1fr] items-center gap-2">
                     <span class="app-text-secondary text-xs">B：</span>
                     <input
-                      v-model.number="(props.item as VerticalFormulaRecipe).formula.descentCutting.change.b"
+                      v-model.number="(props.item as VerticalProcessFormulaRecipe).descentCutting.change.b"
                       type="number"
                       step="0.001"
                       class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
@@ -876,7 +874,7 @@ function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): strin
         <label class="grid grid-cols-[7rem_1fr] items-start gap-2 rounded-xl border border-(--app-border) bg-(--app-card) px-3 py-2">
           <span class="app-text-secondary mt-1 text-xs">备注</span>
           <textarea
-            v-model="(props.item as VerticalFormulaRecipe).notes"
+            v-model="(props.item as VerticalProcessFormulaRecipe).notes"
             rows="2"
             class="min-h-10 min-w-0 w-full resize-y rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
             @input="markUpdated"

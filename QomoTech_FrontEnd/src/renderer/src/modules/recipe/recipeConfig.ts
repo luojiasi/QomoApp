@@ -1,11 +1,12 @@
 ﻿import type {
   BlackeningProcessRecipe,
   LaserPowerRecipe,
+  LinearFormulaCoefficients,
   MachiningProcessRecipe,
+  MainRecipeDefinition,
   ProcessFormulaRecipe,
   RecipeManagerState,
-  SharedFormulaRecipe,
-  VerticalFormulaRecipe,
+  RecipeRecordBase,
   VerticalProcessFormulaRecipe
 } from './recipeTypes'
 import type { ParameterField, ParameterSection } from '@/shared/types'
@@ -15,7 +16,7 @@ function createTimestamp(): string {
   return new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-')
 }
 
-function createLinearFormulaCoefficients(k: number, b: number) {
+function createLinearFormulaCoefficients(k: number, b: number): LinearFormulaCoefficients {
   return { k, b }
 }
 
@@ -28,7 +29,7 @@ function formatLinearFormula(
 }
 
 /** 水平与垂直工艺配方共用的默认工艺参数（仅外层档案 id/编码/名称不同） */
-function createDefaultSharedProcessFormula(processLineName: string): ProcessFormulaRecipe {
+function createDefaultSharedProcessFormula(processLineName: string): Omit<ProcessFormulaRecipe, 'id' | 'code' | 'notes' | 'updatedAt'> {
   return {
     name: processLineName,
     openingShape: 'V型',
@@ -77,18 +78,18 @@ export function createBlackeningRecipe(
   }
 }
 
-export function createHorizontalFormulaRecipe(sequence: number): SharedFormulaRecipe {
+export function createHorizontalFormulaRecipe(sequence: number): ProcessFormulaRecipe {
   return {
+    ...createDefaultSharedProcessFormula(`水平工艺 ${sequence}`),
     id: `horizontal-formula-${sequence}`,
     code: `HP-${String(sequence).padStart(3, '0')}`,
     name: `水平工艺配方 ${sequence}`,
     notes: '水平工艺共享配方，可被加工和清洗工艺同时引用。',
-    updatedAt: createTimestamp(),
-    formula: createDefaultSharedProcessFormula(`水平工艺 ${sequence}`)
+    updatedAt: createTimestamp()
   }
 }
 
-export function createDefaultVerticalProcessFormula(): VerticalProcessFormulaRecipe {
+export function createDefaultVerticalProcessFormula(): Omit<VerticalProcessFormulaRecipe, keyof RecipeRecordBase> {
   return {
     cuttingAxis: 'XY',
     changePercent: 10,
@@ -113,14 +114,14 @@ export function createDefaultVerticalProcessFormula(): VerticalProcessFormulaRec
   }
 }
 
-export function createVerticalFormulaRecipe(sequence: number): VerticalFormulaRecipe {
+export function createVerticalFormulaRecipe(sequence: number): VerticalProcessFormulaRecipe {
   return {
+    ...createDefaultVerticalProcessFormula(),
     id: `vertical-formula-${sequence}`,
     code: `VP-${String(sequence).padStart(3, '0')}`,
     name: `垂直工艺配方 ${sequence}`,
     notes: '垂直工艺共享配方，可被加工和清洗工艺同时引用。',
-    updatedAt: createTimestamp(),
-    formula: createDefaultVerticalProcessFormula()
+    updatedAt: createTimestamp()
   }
 }
 
@@ -148,7 +149,7 @@ export function createMainRecipe(
     blackeningRecipeId: string
     machiningRecipeId: string
   }
-) {
+): MainRecipeDefinition {
   return {
     id: `main-${sequence}`,
     code: `MP-${String(sequence).padStart(3, '0')}`,
@@ -205,7 +206,7 @@ export const defaultRecipeManagerState: RecipeManagerState = {
   machiningRecipes: defaultMachiningRecipes
 }
 
-function getSelectedMainRecipe(state: RecipeManagerState) {
+function getSelectedMainRecipe(state: RecipeManagerState): MainRecipeDefinition | undefined {
   return (
     state.mainRecipes.find((recipe) => recipe.id === state.selectedMainRecipeId) ?? state.mainRecipes[0]
   )
@@ -217,7 +218,6 @@ function createLaserPowerParameterFields(recipe?: LaserPowerRecipe | null): Para
     { key: 'laser-power', label: '激光功率', value: recipe?.laserPower ?? '-' },
     { key: 'laser-frequency', label: '激光频率', value: recipe?.laserFrequency ?? '-' },
     { key: 'laser-current', label: '激光电流', value: recipe?.laserCurrent ?? '-' },
-    // { key: 'laser-transmission', label: '使用传输方式', value: recipe?.transmissionMode ?? '-' }
   ]
 }
 
@@ -367,11 +367,11 @@ export const createRecipeSections = (state: RecipeManagerState): ParameterSectio
         {
           id: 'machining-horizontal',
           title: '水平工艺参数',
-          fields: createFormulaFields('machining-horizontal', selectedMachiningHorizontal?.formula)
+          fields: createFormulaFields('machining-horizontal', selectedMachiningHorizontal)
         },
         ...createVerticalFormulaFieldGroups(
           'machining-vertical',
-          selectedMachiningVertical?.formula
+          selectedMachiningVertical
         )
       ]
     }

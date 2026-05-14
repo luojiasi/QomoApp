@@ -11,7 +11,13 @@
       "PowerShell(npm run *)",
       "Bash(npm run *)",
       "Bash(npx vue-tsc *)",
-      "Bash(Test-Path D:\\\\Qomo\\\\QomoTech\\\\QomoTech_BackEnd\\\\docs *)"
+      "Bash(Test-Path D:\\\\Qomo\\\\QomoTech\\\\QomoTech_BackEnd\\\\docs *)",
+      "Bash(Measure-Object)",
+      "Bash(Select-Object -ExpandProperty Count)",
+      "Bash(Get-Content \"D:\\\\Qomo\\\\QomoTech\\\\QomoTech_FrontEnd\\\\package.json\")",
+      "Bash(ConvertFrom-Json)",
+      "Bash(Select-Object -ExpandProperty scripts)",
+      "Bash(Remove-Item *)"
     ]
   },
   "enabledPlugins": {}

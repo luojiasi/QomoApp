@@ -100,5 +100,5 @@ const progressText = computed(() => {
       {{ Number.isFinite(jindubaifenbi) ? jindubaifenbi.toFixed(0) : '0' }}%
     </div>
   </div>
-</template> -->
+</template>
 
