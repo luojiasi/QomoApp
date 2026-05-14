@@ -5,23 +5,23 @@ import {
   createRs232Sections,
   RS232_COM_PORT_OPTIONS,
   RS232_SEND_MODE_OPTIONS,
-} from './rs232Config'
+} from '../config/rs232'
 import { useNotification } from '@/shared/composables/useNotification'
 import { useReservePages } from '@/modules/settings/useSettingsPages'
 import { useReservePagesStore } from '@/modules/settings/useSettingsStore'
 import { RS232_WORKBENCH_STORAGE_KEY } from '@/shared/constants/storageKeys'
-import { useRs232WorkbenchStore } from './rs232WorkbenchStore'
-import type { Rs232QuickCommand, Rs232SendMode, Rs232SendRequest, Rs232SerialSessionRequest } from './rs232Types'
+import { useRs232WorkbenchStore } from '../stores/rs232WorkbenchStore'
+import type { Rs232QuickCommand, Rs232SendMode, Rs232SendRequest, Rs232SerialSessionRequest } from '../types/rs232'
+import type { Rs232PortInfo } from '../types/laser'
 import { formatSettingValue } from '@/shared/utils/settings'
-import { useRs232Polling } from './useRs232Polling'
+import { useRs232Polling } from '../composables/useRs232Polling'
 import {
   closeRs232,
   fetchRs232Buffer,
   fetchRs232Ports,
   openRs232,
   sendRs232,
-  type Rs232PortInfo
-} from './rs232Api'
+} from '../api/rs232'
 const props = defineProps<{
   embedded?: boolean
 }>()

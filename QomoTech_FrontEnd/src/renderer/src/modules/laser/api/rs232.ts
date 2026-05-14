@@ -1,11 +1,6 @@
-﻿import { apiCall, type ApiCallResult } from '@/shared/api/httpClient'
-import type { Rs232SendRequest, Rs232SerialSessionRequest } from './rs232Types'
-
-export interface Rs232PortInfo {
-  device: string
-  name: string
-  description: string
-}
+import { apiCall, type ApiCallResult } from '@/shared/api/httpClient'
+import type { Rs232SendRequest, Rs232SerialSessionRequest } from '../types/rs232'
+import type { Rs232PortInfo } from '../types/laser'
 
 export const fetchRs232Ports = (): Promise<ApiCallResult<{ ports: Rs232PortInfo[] }>> =>
   apiCall('rs232/ports', 'GET')

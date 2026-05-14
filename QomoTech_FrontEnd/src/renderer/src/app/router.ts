@@ -4,13 +4,12 @@ import { useLicenseStore } from '@/modules/auth/stores/licenseStore'
 import pinia from '@/shared/stores/pinia'
 import CameraSettingsPage from '@/modules/camera/CameraSettingsPage.vue'
 import ControllerSettingsPage from '@/modules/motion/pages/ControllerSettingsPage.vue'
-import HelpPage from '@/modules/auth/pages/HelpPage.vue'
+import HelpPage from '@/modules/auth/Pages/HelpPage.vue'
 import HomePage from '@/modules/motion/pages/HomePage.vue'
-import LicensePage from '@/modules/auth/pages/LicensePage.vue'
-import LoginPage from '@/modules/auth/pages/LoginPage.vue'
+import LicensePage from '@/modules/auth/Pages/LicensePage.vue'
+import LoginPage from '@/modules/auth/Pages/LoginPage.vue'
 import RecipeManagementPage from '@/modules/recipe/RecipeManagementPage.vue'
-import LaserSettingsPage from '@/modules/laser/LaserSettingsPage.vue'
-import ProductionPage from '@/modules/settings/ProductionPage.vue'
+import LaserSettingsPage from '@/modules/laser/pages/LaserSettingsPage.vue'
 import { getDesktopBackendRuntimeStatus } from '@/shared/api/desktopBridge'
 import Create5PPage from '@/modules/editor/Create5PPage.vue'
 import SelfProcessPage from '@/modules/workflow/SelfProcessPage.vue'
@@ -138,20 +137,6 @@ const routes: RouteRecordRaw[] = [
         icon: 'icon-bangzhu',
         description: '承接原 Home 的授权信息、账号维护与管理员操作内容。',
         order: 60
-      }
-    }
-  },
-  {
-    path: '/production',
-    name: 'production',
-    component: ProductionPage,
-    meta: {
-      requiresAuth: true,
-      menu: {
-        label: '产量',
-        icon: 'icon-fuwuyunying',
-        description: '预留给系统配置、日志审计或维护工具类界面。',
-        order: 70
       }
     }
   },
