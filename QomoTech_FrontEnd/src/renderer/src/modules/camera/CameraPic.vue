@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { refreshGlobalCameraStream, useGlobalCameraReceiverState } from './useCameraReceiver'
+import { refreshGlobalCameraStream, useGlobalCameraReceiverState } from './composables/useCameraReceiver'
 
 const props = withDefaults(
   defineProps<{

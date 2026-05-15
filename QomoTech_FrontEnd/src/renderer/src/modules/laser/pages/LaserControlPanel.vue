@@ -3,10 +3,9 @@ import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref } from 'vue'
 import ControlPanelBase from '@/modules/motion/components/ControlPanelBase.vue'
 import { useRs232WorkbenchStore } from '../stores/rs232WorkbenchStore'
-import { useLaserSettingsStore } from '../stores/useLaserStore'
-import { applyLaserParams, controlMMLaser } from '../api/laser'
-import type { LaserApplyPayload } from '../types/laser'
-import { closeRs232, openRs232, sendRs232 } from '../api/rs232'
+import { useLaserSettingsStore } from '../stores/useLaserSettingsStore'
+import { applyLaserParams, closeRs232, controlMMLaser, openRs232, sendRs232 } from '../api'
+import type { LaserApplyPayload } from '../types'
 import { useNotification } from '@/shared/composables/useNotification'
 
 const { success, error, info } = useNotification()

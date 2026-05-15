@@ -9,8 +9,7 @@ import {
 import { useNotification } from '@/shared/composables/useNotification'
 import { RS232_WORKBENCH_STORAGE_KEY } from '@/shared/constants/storageKeys'
 import { useRs232WorkbenchStore } from '../stores/rs232WorkbenchStore'
-import type { Rs232QuickCommand, Rs232SendMode, Rs232SendRequest, Rs232SerialSessionRequest } from '../types/rs232'
-import type { Rs232PortInfo } from '../types/laser'
+import type { Rs232PortInfo, Rs232QuickCommand, Rs232SendMode, Rs232SendRequest, Rs232SerialSessionRequest } from '../types'
 import { formatSettingValue } from '@/shared/utils/settings'
 import { useRs232Polling } from '../composables/useRs232Polling'
 import {
@@ -19,7 +18,7 @@ import {
   fetchRs232Ports,
   openRs232,
   sendRs232,
-} from '../api/rs232'
+} from '../api'
 const props = defineProps<{
   embedded?: boolean
 }>()
@@ -124,7 +123,6 @@ async function handleOpenSerial(): Promise<void> {
 async function handleCloseSerial(): Promise<void> {
   busyOpenClose.value = true
   try {
-    serialConnected.value = false
     const res = await closeRs232()
     serialConnected.value = false
     if (!res.success) {
@@ -274,8 +272,6 @@ watch(
 onMounted(async () => {
   await rs232Store.loadRs232Workbench()
   await loadDetectedPorts()
-})
-onMounted(async () => {
   await handleCloseSerial()
 })
 
@@ -298,7 +294,6 @@ onMounted(async () => {
         </div>
       </div>
 
-      <!-- <div class="grid gap-6 xl:grid-cols-[1.1fr_1.4fr]"> -->
       <div class="grid gap-6 xl:grid-cols-[1fr]">
         <section class="app-card rounded-2xl p-6 shadow-sm">
           <div class="flex flex-wrap items-start justify-between gap-3 gap-y-2">
@@ -368,87 +363,6 @@ onMounted(async () => {
               </select>
             </label>
 
-            <!-- <label class="space-y-1.5">
-              <span class="app-text-secondary text-xs">波特率</span>
-              <select
-                v-model.number="workbench.port.baudRate"
-                class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
-              >
-                <option v-for="item in RS232_BAUD_RATE_OPTIONS" :key="item" :value="item">
-                  {{ item }}
-                </option>
-              </select>
-            </label>
-
-            <label class="space-y-1.5">
-              <span class="app-text-secondary text-xs">数据位</span>
-              <select
-                v-model.number="workbench.port.dataBits"
-                class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
-              >
-                <option v-for="item in RS232_DATA_BITS_OPTIONS" :key="item" :value="item">
-                  {{ item }}
-                </option>
-              </select>
-            </label>
-
-            <label class="space-y-1.5">
-              <span class="app-text-secondary text-xs">校验位</span>
-              <select
-                v-model="workbench.port.parity"
-                class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
-              >
-                <option v-for="item in RS232_PARITY_OPTIONS" :key="item" :value="item">
-                  {{ item }}
-                </option>
-              </select>
-            </label>
-
-            <label class="space-y-1.5">
-              <span class="app-text-secondary text-xs">停止位</span>
-              <select
-                v-model.number="workbench.port.stopBits"
-                class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
-              >
-                <option v-for="item in RS232_STOP_BITS_OPTIONS" :key="item" :value="item">
-                  {{ item }}
-                </option>
-              </select>
-            </label>
-
-            <label class="space-y-1.5">
-              <span class="app-text-secondary text-xs">流控</span>
-              <select
-                v-model="workbench.port.flowControl"
-                class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
-              >
-                <option v-for="item in RS232_FLOW_CONTROL_OPTIONS" :key="item" :value="item">
-                  {{ item }}
-                </option>
-              </select>
-            </label>
-
-            <label class="space-y-1.5">
-              <span class="app-text-secondary text-xs">超时（ms）</span>
-              <input
-                v-model.number="workbench.port.timeoutMs"
-                type="number"
-                min="1"
-                class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
-              />
-            </label>
-
-            <label class="space-y-1.5">
-              <span class="app-text-secondary text-xs">编码</span>
-              <select
-                v-model="workbench.port.encoding"
-                class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
-              >
-                <option value="utf-8">utf-8</option>
-                <option value="gbk">gbk</option>
-                <option value="ascii">ascii</option>
-              </select>
-            </label> -->
           </div>
         </section>
 
@@ -460,30 +374,10 @@ onMounted(async () => {
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 class="app-text-primary text-xl font-semibold">发送内容</h2>
-            <!-- <p class="app-text-secondary mt-2 text-sm">
-              连接成功后，可单次发送或开启自动发送（轮询间隔由下方配置决定）。
-            </p> -->
           </div>
-          <!-- <div class="flex flex-wrap gap-2">
-            <button
-              v-for="mode in RS232_SEND_MODE_OPTIONS"
-              :key="mode"
-              type="button"
-              class="rounded-lg border px-4 py-2 text-sm font-medium transition-colors"
-              :class="
-                workbench.send.mode === mode
-                  ? 'border-blue-500 bg-blue-600 text-white shadow-sm'
-                  : 'app-card-soft border-transparent hover:border-(--app-border)'
-              "
-              @click="workbench.send.mode = mode"
-            >
-              {{ modeLabel(mode) }}
-            </button>
-          </div> -->
         </div>
 
         <div class="mt-4">
-          <!-- <p class="app-text-secondary text-xs">发送内容</p> -->
           <textarea
             v-model="workbench.send.payload"
             rows="6"
@@ -495,29 +389,6 @@ onMounted(async () => {
             "
           />
         </div>
-        <!-- <div class="mt-4 grid gap-3 sm:grid-cols-2">
-          <label class="app-card-soft flex items-center gap-3 rounded-lg px-3 py-2 text-sm">
-            <input v-model="workbench.send.appendCr" type="checkbox" />
-            <span class="app-text-primary">附加 CR (\\r)</span>
-          </label>
-          <label class="app-card-soft flex items-center gap-3 rounded-lg px-3 py-2 text-sm">
-            <input v-model="workbench.send.appendLf" type="checkbox" />
-            <span class="app-text-primary">附加 LF (\\n)</span>
-          </label>
-          <label class="app-card-soft flex items-center gap-3 rounded-lg px-3 py-2 text-sm">
-            <input v-model="workbench.send.autoSend" type="checkbox" />
-            <span class="app-text-primary">自动发送</span>
-          </label>
-          <label class="space-y-1.5">
-            <span class="app-text-secondary text-xs">自动发送间隔（ms）</span>
-            <input
-              v-model.number="workbench.send.autoSendIntervalMs"
-              type="number"
-              min="50"
-              class="app-text-primary w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-3 py-2 text-sm outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2"
-            />
-          </label>
-        </div> -->
         <div class="mt-5 flex flex-wrap gap-3">
           <button
             type="button"
@@ -660,22 +531,6 @@ onMounted(async () => {
             </p>
           </div>
           
-          <!-- <div class="flex flex-wrap gap-2">
-            <button
-              v-for="mode in RS232_SEND_MODE_OPTIONS"
-              :key="`rx-${mode}`"
-              type="button"
-              class="rounded-lg border px-4 py-2 text-sm font-medium transition-colors"
-              :class="
-                workbench.receive.mode === mode
-                  ? 'border-emerald-500 bg-emerald-700/90 text-white shadow-sm'
-                  : 'app-card-soft border-transparent hover:border-(--app-border)'
-              "
-              @click="workbench.receive.mode = mode"
-            >
-              接收 · {{ modeLabel(mode) }}
-            </button>
-          </div> -->
         </div>
 
         <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -722,8 +577,6 @@ onMounted(async () => {
         </div>
       </section>
 
-
-
       <section class="app-card rounded-2xl p-6 shadow-sm">
         <h2 class="app-text-primary text-xl font-semibold">当前配置概览</h2>
         <div class="mt-4 grid gap-4 lg:grid-cols-3">
@@ -765,29 +618,8 @@ onMounted(async () => {
     </div>
   </div>
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
   <div v-else class="app-page min-h-screen px-6 py-10">
     <div class="mx-auto max-w-7xl space-y-6">
-      <!-- <div class="grid gap-6 xl:grid-cols-[1.1fr_1.4fr]"> -->
       <div class="grid gap-6 xl:grid-cols-[1fr]">
         <section class="app-card rounded-2xl p-6 shadow-sm">
           <div class="flex flex-wrap items-start justify-between gap-3 gap-y-2">
@@ -928,8 +760,6 @@ onMounted(async () => {
         </div>
       </section>
       </div>
-
-
 
       <section class="app-card rounded-2xl p-6 shadow-sm">
         <h2 class="app-text-primary text-xl font-semibold">当前配置概览</h2>

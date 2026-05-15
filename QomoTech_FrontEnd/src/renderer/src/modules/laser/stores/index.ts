@@ -1,2 +1,2 @@
-export * from './useLaserStore'
+export * from './useLaserSettingsStore'
 export * from './rs232WorkbenchStore'

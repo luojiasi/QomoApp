@@ -5,13 +5,13 @@ import HomeUserBar from '@/shared/components/HomeUserBar.vue'
 import RecipeParameterPanel from '@/modules/recipe/panels/RecipeParameterPanel.vue'
 import DriverControlPanel from '@/modules/motion/panels/DriverControlPanel.vue'
 import LaserControlPanel from '@/modules/laser/pages/LaserControlPanel.vue'
-import CameraControlPanel from '@/modules/camera/CameraControlPanel.vue'
+import CameraControlPanel from '@/modules/camera/panels/CameraControlPanel.vue'
 import AuxiliaryFunctionPanel from '@/modules/motion/panels/AuxiliaryPanel.vue'
 import HomeOperationHelp from '@/modules/editor/panels/HomeOperationHelp.vue'
-import StratProgramRunning from '@/modules/motion/panels/StartProgramPanel.vue'
+import StratProgramRunning from '@/modules/program/panels/StartProgramPanel.vue'
 import CameraPic from '@/modules/camera/CameraPic.vue'
 import ShowAndDrawInHome from '@/modules/editor/panels/ShowAndDrawPanel.vue'
-import TaskProgressAside from '@/modules/motion/panels/TaskProgressAside.vue'
+import TaskProgressAside from '@/modules/program/panels/TaskProgressAside.vue'
 import ControllerSettings from '@/modules/motion/pages/ControllerSettingsPage.vue'
 import DetailedRs232Send from '@/modules/laser/pages/LaserSettingsPage.vue'
 import SvgIcon from '@/shared/components/SvgIcon.vue'
@@ -22,13 +22,13 @@ import { useNotification } from '@/shared/composables/useNotification'
 import { useControllerSettingsStore } from '@/modules/motion/stores/useControllerSettingsStore'
 import { useAuxiliaryFunctionPanelStore } from '@/modules/motion/stores/useAuxiliaryFunctionPanelStore'
 import { deviceFeatureRoutes } from '@/app/router'
-import { bootstrapControllerOnce } from '@/modules/motion/composables/controller/useBootstrap'
-import { parseRs232SessionFromLocalStorage } from '@/modules/laser/utils/rs232'
-import { syncRs232Workbench } from '@/modules/laser/api/rs232'
-import { syncProduct4PCenterRotation } from '@/modules/motion/api'
+import { bootstrapControllerOnce } from '@/modules/motion/services/bootstrapService'
+import { parseRs232SessionFromLocalStorage } from '@/modules/laser'
+import { syncRs232Workbench } from '@/modules/laser'
+import { syncProduct4PCenterRotation } from '@/modules/program/api'
 
-import { useMotionKeyboard } from '@/modules/motion/composables/motion/useMotionKeyboard'
-import { useProgramRunner } from '@/modules/motion/composables/program/useProgramRunner'
+import { useMotionKeyboard } from '@/modules/motion/composables/useMotionKeyboard'
+import { useProgramRunner } from '@/modules/program/composables/useProgramRunner'
 
 const { error, success } = useNotification()
 const controllerSettingsStore = useControllerSettingsStore()
@@ -37,7 +37,7 @@ const auxiliaryFunctionPanelStore = useAuxiliaryFunctionPanelStore()
 const featureLinks = deviceFeatureRoutes
 
 const {
-  Qkey, Wkey, Ekey, Rkey, moveStep, unsubscribe: unsubscribeKeyboard
+  unsubscribe: unsubscribeKeyboard
 } = useMotionKeyboard()
 
 const {

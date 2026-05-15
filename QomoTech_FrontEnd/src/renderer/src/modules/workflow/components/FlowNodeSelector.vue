@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { NODE_DEFINITIONS, NODE_CATEGORY_META } from '../config/selfProcessConfig'
-import type { NodeCategory } from '@/types/selfProcessTypes'
+import type { NodeCategory } from '../types/selfProcessTypes'
 
 const props = defineProps<{
   x: number

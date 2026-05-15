@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { toRef } from 'vue'
-import { useAxisJog } from '@/modules/motion/composables/motion/useAxisJog'
+import { useAxisJog } from '../composables/useAxisJog'
 
 const props = defineProps<{
   axisCount: number

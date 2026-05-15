@@ -1,7 +1,8 @@
-import type { ControllerParameters ,ControllerAxisCount ,} from '../index'
-import { applyControllerAxisCount } from '../config/controller'
+import type { ControllerParameters, ControllerAxisCount } from '../types'
+import { applyControllerAxisCount } from '../config'
 import { cloneSettings } from '@/shared/utils/settings'
 
+  /** 类型守卫：判断原始数据是否符合 ControllerParameters 形状。 */
 export function isControllerParametersShape(data: unknown): data is ControllerParameters {
   if (!data || typeof data !== 'object') return false
   const o = data as Record<string, unknown>
@@ -25,6 +26,7 @@ export function isControllerParametersShape(data: unknown): data is ControllerPa
   return true
 }
 
+  /** 规范化控制器参数：确保轴数量与 axes 数组长度一致。 */
 export function normalizeControllerParameters(payload: ControllerParameters): ControllerParameters {
   const ac = payload.communication.axis_count
   if (ac === 3 || ac === 5) {
@@ -39,6 +41,7 @@ export function normalizeControllerParameters(payload: ControllerParameters): Co
  * 提取仅与驱动器同步相关的字段签名，用于 watch 去重。
  * 包含 merge_params 子模型，避免拐角参数变化漏同步。
  */
+  /** 构建驱动器同步签名，用于 watch 去重。包含 merge_params 子模型。 */
 export function buildControllerDriverSyncSignature(value: ControllerParameters): string {
   return JSON.stringify({
     axis_count: value.communication.axis_count,

@@ -1,4 +1,4 @@
-import type { LaserSettingsPayload } from '../types/laser'
+import type { LaserSettingsPayload } from '../types'
 
 /** 厂家默认参数 */
 export const DEFAULTS_BY_MANUFACTURER: Record<string, LaserSettingsPayload> = {

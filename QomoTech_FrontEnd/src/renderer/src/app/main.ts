@@ -6,7 +6,7 @@ import { notify } from '@/shared/composables/useNotification'
 import pinia from '@/shared/stores/pinia'
 import App from './App.vue'
 import router from './router'
-import { startGlobalCameraReceiver } from '@/modules/camera/useCameraReceiver'
+import { startGlobalCameraReceiver } from '@/modules/camera/composables/useCameraReceiver'
 import { startHardwareMonitor } from '@/shared/api/hardware'
 import { createApp } from 'vue'
 

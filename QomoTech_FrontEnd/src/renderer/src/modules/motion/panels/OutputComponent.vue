@@ -1,15 +1,9 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
 import SvgIcon from '@/shared/components/SvgIcon.vue'
-import { useIoOutputs } from '@/modules/motion/composables/controller/useIoOutputs'
-import { useHome } from '@/modules/motion/composables/motion/useHome'
+import { useOutputComponentLogic } from './OutputComponent.logic'
 
-const { ioOutputs, handleIoOutputToggle } = useIoOutputs()
-const { isSetHome, autoHomeOnStart, homeStatusClass, handleHome, initAutoHome } = useHome()
-
-onMounted(async () => {
-  await initAutoHome()
-})
+const { ioOutputs, handleIoOutputToggle, isSetHome, autoHomeOnStart, homeStatusClass, handleHome } =
+  useOutputComponentLogic()
 </script>
 
 <template>
@@ -65,11 +59,7 @@ onMounted(async () => {
       {{ isSetHome }}
     </button>
     <label class="flex items-center gap-1 text-xs text-(--app-text-secondary) select-none">
-      <input
-        v-model="autoHomeOnStart"
-        type="checkbox"
-        class="h-4 w-4 accent-sky-500"
-      />
+      <input v-model="autoHomeOnStart" type="checkbox" class="h-4 w-4 accent-sky-500" />
       启动自动回零
     </label>
   </div>

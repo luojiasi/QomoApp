@@ -1,14 +1,9 @@
 import type { ParameterSection } from '@/shared/types'
 import type {
-  Rs232ApiContract,
   Rs232ComPortName,
-  Rs232DataBits,
-  Rs232FlowControl,
-  Rs232Parity,
   Rs232SendMode,
-  Rs232StopBits,
   Rs232WorkbenchState
-} from '../types/rs232'
+} from '../types'
 
 /** 下拉可选串口：COM1～COM10 */
 export const RS232_COM_PORT_OPTIONS: readonly Rs232ComPortName[] = [
@@ -16,29 +11,7 @@ export const RS232_COM_PORT_OPTIONS: readonly Rs232ComPortName[] = [
   'COM6', 'COM7', 'COM8', 'COM9', 'COM10'
 ] as const
 
-export const RS232_BAUD_RATE_OPTIONS = [
-  1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200, 230400
-] as const
-
-export const RS232_DATA_BITS_OPTIONS: readonly Rs232DataBits[] = [5, 6, 7, 8]
-
-export const RS232_PARITY_OPTIONS: readonly Rs232Parity[] = ['none', 'odd', 'even', 'mark', 'space']
-
-export const RS232_STOP_BITS_OPTIONS: readonly Rs232StopBits[] = [1, 1.5, 2]
-
-export const RS232_FLOW_CONTROL_OPTIONS: readonly Rs232FlowControl[] = [
-  'none', 'xon_xoff', 'rts_cts', 'dsr_dtr'
-]
-
 export const RS232_SEND_MODE_OPTIONS: readonly Rs232SendMode[] = ['ascii', 'hex']
-
-export const rs232ApiContracts: Rs232ApiContract[] = [
-  { id: 'rs232-list-ports', method: 'GET', endpoint: '/api/rs232/ports', summary: '获取本机可用串口列表（用于端口下拉选项）' },
-  { id: 'rs232-open-port', method: 'POST', endpoint: '/api/rs232/open', summary: '按串口配置打开连接并启动接收缓冲（port / receive）' },
-  { id: 'rs232-send', method: 'POST', endpoint: '/api/rs232/send', summary: '发送一帧数据（ASCII/HEX、CR/LF；需先 open）' },
-  { id: 'rs232-buffer', method: 'GET', endpoint: '/api/rs232/buffer', summary: '轮询接收缓冲区文本（?clear=true 可清空后端缓冲）' },
-  { id: 'rs232-close-port', method: 'POST', endpoint: '/api/rs232/close', summary: '关闭当前串口连接并释放资源' }
-]
 
 export const defaultRs232WorkbenchState: Rs232WorkbenchState = {
   port: {

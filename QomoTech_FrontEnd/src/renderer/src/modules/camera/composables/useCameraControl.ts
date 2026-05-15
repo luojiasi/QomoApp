@@ -1,5 +1,5 @@
 import type { ApiCallResult } from "@/shared/api/httpClient"
-import { connectCamera, fetchCameraDevices } from "../api/cameraSettingSetApi"
+import { connectCamera, fetchCameraDevices } from "../api"
 import type { CameraStatusPayload } from "../types"
 
 // 初始化相机并连接指定索引的相机

@@ -1,7 +1,7 @@
 import { readonly, ref } from 'vue'
 import { getBackendWsBaseUrl } from './wsClient'
 import { WsClient } from './wsClient'
-import { useGlobalCameraReceiverState } from '@/modules/camera/useCameraReceiver'
+import { useGlobalCameraReceiverState } from '@/modules/camera/composables/useCameraReceiver'
 
 interface AxisSnapshot {
   name: string

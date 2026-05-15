@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useSelfProcessStore } from '../store/useSelfProcessStore'
 import { getNodeDefinition } from '../config/selfProcessConfig'
-import type { NodeProperty, WorkflowNode } from '@/types/selfProcessTypes'
+import type { NodeProperty, WorkflowNode } from '../types/selfProcessTypes'
 
 const store = useSelfProcessStore()
 

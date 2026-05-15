@@ -1,5 +1,5 @@
-export * from './api'
 export * from './types'
+export * from './api'
 export * from './stores'
 export * from './composables'
 export * from './config'
