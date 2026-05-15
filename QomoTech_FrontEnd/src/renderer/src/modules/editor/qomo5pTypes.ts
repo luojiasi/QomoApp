@@ -1,4 +1,4 @@
-import type { DiamondDetailParameters } from './diamondTypes'
+import type { DiamondDetailParameters } from './common'
 
 export type EntityType = 'LINE' | 'ARC' | 'NONE' | 'CIRCLE' | 'IRREGULAR' | 'BEZIER'
 export type OpenDirectionType = 'LEFT' | 'RIGHT'

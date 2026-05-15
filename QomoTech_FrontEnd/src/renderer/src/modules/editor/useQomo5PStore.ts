@@ -15,7 +15,7 @@ import type {
   QomoProjectMeta,
   QomoWeldingBase
 } from './qomo5pTypes'
-import type { DiamondDetailParameters } from './diamondTypes'
+import type { DiamondDetailParameters } from './common'
 import { parseDxfToQomoEntities } from './cad/QomoDxf'
 import { parseQomoProject, serializeQomoProject } from './cad/QomoProject'
 import { downloadTextFile } from './cad/QomoProject'
@@ -38,7 +38,7 @@ import {
   createDefaultViewport,
   createDefaultLayer,
   createDefaultWelding
-} from './qomo5pConfig'
+} from './configs/qomo5pConfigs'
 
 const deepClone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T
 

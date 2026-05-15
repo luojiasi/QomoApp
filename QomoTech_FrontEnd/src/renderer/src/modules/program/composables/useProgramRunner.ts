@@ -5,7 +5,7 @@ import { useHardwareState } from '@/shared/api/hardware'
 import { startProgram } from '../api'
 import { useProgramStatus } from './useProgramStatus'
 import { useProgramControl } from './useProgramControl'
-import { offsetEntitiesByXYMpos } from '@/modules/editor/cad/entityOffset'
+import { QomoEntityWithSurface } from '@/modules/editor/qomo5pTypes'
 
 type XYMotionOffset = { x: number; y: number }
 
@@ -112,6 +112,40 @@ export function useProgramRunner() {
     if (programRunning.value && programStartedAtMs.value) {
       programElapsedMs.value = Date.now() - programStartedAtMs.value
     }
+  }
+
+  function offsetEntitiesByXYMpos(entities: QomoEntityWithSurface[], dx: number, dy: number): QomoEntityWithSurface[] {
+    return entities.map((entity) => {
+      if (entity.type === 'LINE') {
+        return {
+          ...entity,
+          start: { x: entity.start.x + dx, y: entity.start.y + dy },
+          end: { x: entity.end.x + dx, y: entity.end.y + dy }
+        }
+      }
+      if (entity.type === 'BEZIER') {
+        return {
+          ...entity,
+          points: entity.points.map((p) => ({ x: p.x + dx, y: p.y + dy }))
+        }
+      }
+      if (entity.type === 'ARC') {
+        return {
+          ...entity,
+          center: { x: entity.center.x + dx, y: entity.center.y + dy },
+          ...(entity.startPoint
+            ? { startPoint: { x: entity.startPoint.x + dx, y: entity.startPoint.y + dy } }
+            : {}),
+          ...(entity.endPoint
+            ? { endPoint: { x: entity.endPoint.x + dx, y: entity.endPoint.y + dy } }
+            : {})
+        }
+      }
+      return {
+        ...entity,
+        center: { x: entity.center.x + dx, y: entity.center.y + dy }
+      }
+    })
   }
 
   function resolveXYMotionOffsetFromHardwareState(): XYMotionOffset {

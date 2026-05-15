@@ -7,9 +7,7 @@ const props = defineProps<{
   embedded?: boolean
 }>()
 
-const emit = defineEmits<{
-  (e: 'back'): void
-}>()
+const emit = defineEmits<{(e: 'back'): void}>()
 
 const {
   controllerStore,

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import RouteTabs from '@/shared/components/RouteTabs.vue'
-import HomeUserBar from '@/shared/components/HomeUserBar.vue'
+import HomeUserBar from '@/modules/auth/components/HomeUserBar.vue'
 import RecipeParameterPanel from '@/modules/recipe/panels/RecipeParameterPanel.vue'
 import DriverControlPanel from '@/modules/motion/panels/DriverControlPanel.vue'
 import LaserControlPanel from '@/modules/laser/pages/LaserControlPanel.vue'
@@ -16,7 +16,7 @@ import ControllerSettings from '@/modules/motion/pages/ControllerSettingsPage.vu
 import DetailedRs232Send from '@/modules/laser/pages/LaserSettingsPage.vue'
 import SvgIcon from '@/shared/components/SvgIcon.vue'
 import StatusIndicators from '@/shared/components/StatusIndicators.vue'
-import ProgramControlButtons from '@/shared/components/ProgramControlButtons.vue'
+import ProgramControlButtons from '@/modules/program/panels/ProgramControlButtons.vue'
 
 import { useNotification } from '@/shared/composables/useNotification'
 import { useControllerSettingsStore } from '@/modules/motion/stores/useControllerSettingsStore'

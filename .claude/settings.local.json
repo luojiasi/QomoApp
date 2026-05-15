@@ -17,7 +17,9 @@
       "Bash(Get-Content \"D:\\\\Qomo\\\\QomoTech\\\\QomoTech_FrontEnd\\\\package.json\")",
       "Bash(ConvertFrom-Json)",
       "Bash(Select-Object -ExpandProperty scripts)",
-      "Bash(Remove-Item *)"
+      "Bash(Remove-Item *)",
+      "Bash(Get-ChildItem -Path \"D:\\\\Qomo\\\\QomoTech\\\\QomoTech_BackEnd\" -Depth 2 -Directory)",
+      "Bash(Select-Object FullName)"
     ]
   },
   "enabledPlugins": {}

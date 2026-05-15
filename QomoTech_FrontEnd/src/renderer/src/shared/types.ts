@@ -60,3 +60,16 @@ export interface SettingsSaveResult<T> {
   data: T
   updatedAt: string
 }
+
+//——————————这是坐标的通用类型————————————————————————————————
+
+export interface XY {
+  X: number
+  Y: number
+}
+
+export interface XYZ {
+  X: number
+  Y: number
+  Z: number
+}

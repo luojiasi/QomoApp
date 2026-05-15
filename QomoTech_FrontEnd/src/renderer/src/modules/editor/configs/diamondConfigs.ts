@@ -1,4 +1,4 @@
-import type { DiamondDetailParameters } from './diamondTypes'
+import type { DiamondDetailParameters } from '../common'
 
 export const diamondQuickAddConfigs: DiamondDetailParameters[] = [
   {

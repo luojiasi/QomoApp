@@ -9,7 +9,7 @@ import {
   rotateUAxisByAngle,
   zeroMotionAxis
 } from '../api'
-import { MAX_DECIMALS, roundMax } from '../utils'
+import {roundMax } from '../utils'
 
 function linearPlaceholder(mode: 'rel' | 'abs'): string { return mode === 'rel' ? '相对位移(mm)' : '绝对位置(mm)' }
 function rotationPlaceholder(): string { return '旋转角度(°)/圈数，正=顺时针' }

@@ -21,7 +21,9 @@ const ioMapForChild = ref<Array<{ digitalIn: boolean; digitalOut: boolean }>>([]
     :class="isDriverPanelExpanded ? 'min-h-[min(250px,42vh)]' : ''"
     @open-right-panel="(target) => emit('open-right-panel', target)"
   >
+
     <template #default>
+      <!-- TODO:我觉得可以将这个div和驱动器控制器里面的轴位置参数合并 -->
       <div
         class="rounded-xl border border-(--app-border) bg-(--app-card-soft) p-3 shadow-sm shadow-slate-900/5 ring-1 ring-slate-950/4 dark:shadow-md dark:shadow-black/25 dark:ring-white/5"
       >

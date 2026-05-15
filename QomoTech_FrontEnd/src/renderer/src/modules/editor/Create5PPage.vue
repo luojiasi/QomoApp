@@ -1183,8 +1183,8 @@ import {
 } from './qomo5pTypes'
 import { useQomo5PStore } from './useQomo5PStore'
 import { storeToRefs } from 'pinia'
-import type { DiamondDetailParameters } from './diamondTypes'
-import { diamondQuickAddConfigs } from './diamondConfig'
+import type { DiamondDetailParameters } from './common'
+import { diamondQuickAddConfigs } from './configs/diamondConfigs'
 const store = useQomo5PStore()
 const { viewport, layers, entities, selectedEntityIds } = storeToRefs(store)
 const { success, error } = useNotification()
