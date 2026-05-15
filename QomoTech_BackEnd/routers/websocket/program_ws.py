@@ -42,8 +42,9 @@ async def 程序状态(websocket: WebSocket):
         日志.error(f"程序状态 WebSocket 异常: {exc}")
     finally:
         _svc().取消订阅(q)
-        if websocket.client_state != WebSocketState.DISCONNECTED:
+        if (websocket.client_state != WebSocketState.DISCONNECTED
+                and websocket.application_state != WebSocketState.DISCONNECTED):
             try:
                 await websocket.close()
-            except Exception:
+            except RuntimeError:
                 pass

@@ -19,7 +19,8 @@
       "Bash(Select-Object -ExpandProperty scripts)",
       "Bash(Remove-Item *)",
       "Bash(Get-ChildItem -Path \"D:\\\\Qomo\\\\QomoTech\\\\QomoTech_BackEnd\" -Depth 2 -Directory)",
-      "Bash(Select-Object FullName)"
+      "Bash(Select-Object FullName)",
+      "PowerShell(Test-Path *)"
     ]
   },
   "enabledPlugins": {}
