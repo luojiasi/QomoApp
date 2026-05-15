@@ -52,7 +52,7 @@ export function useMotionKeyboard() {
       e.preventDefault()
       void (async () => {
         try {
-          const pos = auxiliaryFunctionPanelStore.loadAuxiliaryFunctionPanelQuickMoveToPosition()
+          const pos = await auxiliaryFunctionPanelStore.loadAuxiliaryFunctionPanelQuickMoveToPosition()
           if (!pos) { error('未找到设定点'); return }
           if (pos.X === 0 && pos.Y === 0 && pos.Z === 0) { error('请设定位置点快捷移动到指定位置'); return }
           const [zx, zy, zz, zu, zr] = await Promise.all([

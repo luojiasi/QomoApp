@@ -2,6 +2,7 @@ import { useAuxiliaryFunctionPanelStore } from '../stores/useAuxiliaryFunctionPa
 import { useHardwareState } from '@/shared/api/hardware'
 import { useNotification } from '@/shared/composables/useNotification'
 import { axisNameByNo } from './useAxisCenterCalib'
+import { QuickMovePositionPayload } from '@/modules/program/types'
 
 export function useQuickMoveToPosition() {
   const { error, success } = useNotification()
@@ -19,7 +20,7 @@ export function useQuickMoveToPosition() {
     return typeof value === 'number' && Number.isFinite(value) ? value.toFixed(3) : '-'
   }
 
-  function handleSaveQuickMoveToPosition(): void {
+  async function handleSaveQuickMoveToPosition(): Promise<void> {
     const X = getAxisPosition(0)
     const Y = getAxisPosition(1)
     const Z = getAxisPosition(2)
@@ -28,12 +29,12 @@ export function useQuickMoveToPosition() {
       return
     }
 
-    const value = {
+    const value: QuickMovePositionPayload = {
       X: Number(X.toFixed(3)),
       Y: Number(Y.toFixed(3)),
       Z: Number(Z.toFixed(3)),
     }
-    auxiliaryFunctionPanelStore.saveAuxiliaryFunctionPanelQuickMoveToPosition(value)
+    await auxiliaryFunctionPanelStore.saveAuxiliaryFunctionPanelQuickMoveToPosition(value)
     success('已保存当前 XYZ 到确点位置')
   }
 

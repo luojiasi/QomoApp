@@ -8,13 +8,14 @@
 from __future__ import annotations
 
 from fastapi import APIRouter
-from pydantic import BaseModel, Field
 
 from utils.logger import 获取日志记录器
 from services.SystemSettingService import (
     中心旋转补偿请求模型,
     获取4P旋转中心的补偿值,
     保存4P旋转中心的补偿值,
+    获取快速移动点,
+    保存快速移动点,
 )
 
 from routers.apiresponse import ApiResponse
@@ -39,3 +40,17 @@ def 保存中心旋转补偿(payload: 中心旋转补偿请求模型) -> ApiResp
     saved = 保存4P旋转中心的补偿值(中心旋转补偿请求模型(X=payload.X,Y=payload.Y,Z=payload.Z,))
     日志.info("保存 4P 中心旋转补偿: X=%.3f Y=%.3f Z=%.3f", payload.X, payload.Y, payload.Z)
     return ApiResponse(success=True, message="保存 4P 中心旋转参数成功", data=saved.model_dump())
+
+
+@路由.get("/quick-move-position", response_model=ApiResponse)
+def 获取快速移动点位置() -> ApiResponse:
+    data = 获取快速移动点().model_dump()
+    日志.info("读取快速移动点位置: %s", data)
+    return ApiResponse(success=True, message="读取快速移动点位置成功", data=data)
+
+
+@路由.post("/quick-move-position", response_model=ApiResponse)
+def 保存快速移动点位置(payload: 中心旋转补偿请求模型) -> ApiResponse:
+    saved = 保存快速移动点(中心旋转补偿请求模型(X=payload.X,Y=payload.Y,Z=payload.Z,))
+    日志.info("保存快速移动点位置: X=%.3f Y=%.3f Z=%.3f", payload.X, payload.Y, payload.Z)
+    return ApiResponse(success=True, message="保存快速移动点位置成功", data=saved.model_dump())

@@ -123,7 +123,7 @@ export function useHome() {
         return
       }
 
-      const quickMoveToPosition = auxiliaryFunctionPanelStore.loadAuxiliaryFunctionPanelQuickMoveToPosition()
+      const quickMoveToPosition = await auxiliaryFunctionPanelStore.loadAuxiliaryFunctionPanelQuickMoveToPosition()
       if (!quickMoveToPosition || (quickMoveToPosition.X === 0 && quickMoveToPosition.Y === 0 && quickMoveToPosition.Z === 0)) {
         const [moveX2, moveY2, moveZ2] = await Promise.all([
           moveMotionAxisRel(0, 80, { controllerSettings: controllerStore.controllerSettings }),

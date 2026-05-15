@@ -1,10 +1,16 @@
 <script setup lang="ts">
-import { inject, reactive } from 'vue'
+import { inject, onMounted, reactive } from 'vue'
 import StatusCard from '@/shared/components/StatusCard.vue'
 import PrimaryButton from '@/shared/components/PrimaryButton.vue'
+import { useAuxiliaryFunctionPanelStore } from '../stores/useAuxiliaryFunctionPanelStore'
 
 const quickFocus = reactive(inject<any>('quickFocus')!)
 const quickMove = reactive(inject<any>('quickMove')!)
+const store = useAuxiliaryFunctionPanelStore()
+
+onMounted(() => {
+  store.loadAuxiliaryFunctionPanelQuickMoveToPosition()
+})
 </script>
 
 <template>
