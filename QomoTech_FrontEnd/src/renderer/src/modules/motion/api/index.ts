@@ -164,11 +164,7 @@ export const moveMotionAxisRel = async (
 export const rotateUAxisByAngle = async (
   payload: UAxisRotateRequestPayload
 ): Promise<ApiCallResult<Record<string, unknown>>> =>
-  apiCall(
-    'motion/u/rotate-by-params',
-    'POST',
-    { params: payload } as unknown as Record<string, unknown>
-  )
+  apiCall('motion/u/rotate-by-params','POST',{ params: payload } as unknown as Record<string, unknown>)
 
 /** R 轴按圈数旋转。 */
 export const rotateRAxisByTurns = async (

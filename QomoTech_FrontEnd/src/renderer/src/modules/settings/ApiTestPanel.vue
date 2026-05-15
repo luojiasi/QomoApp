@@ -305,8 +305,8 @@ const groups: ApiGroup[] = [
     apis: [
       { label: '激光参数', method: 'POST', path: '/api/laser/apply', defaultBody: { laserPower: 80 } },
       { label: '关机', method: 'POST', path: '/api/shutdown', desc: '⚠ 关闭后端' },
-      { label: '4P中心补偿(GET)', method: 'GET', path: '/api/product4p/center-rotation' },
-      { label: '4P中心补偿(POST)', method: 'POST', path: '/api/product4p/center-rotation', defaultBody: { Xoffset: 0, Yoffset: 0, Zoffset: 0 } },
+      { label: '4P中心补偿(GET)', method: 'GET', path: '/api/system-setting/center-rotation' },
+      { label: '4P中心补偿(POST)', method: 'POST', path: '/api/system-setting/center-rotation', defaultBody: { Xoffset: 0, Yoffset: 0, Zoffset: 0 } },
     ],
   },
 ]

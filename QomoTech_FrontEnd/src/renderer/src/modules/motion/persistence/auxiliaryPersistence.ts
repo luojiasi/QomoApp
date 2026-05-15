@@ -42,39 +42,16 @@ export function saveQuickMoveToPosition(value: XYZ): void {
 }
 
 // --------------------------------------------------------------------
-// 中心校准偏移
+// 中心校准偏移（仅保存，读取从后端 API 获取）
 // --------------------------------------------------------------------
 
-/**
- * 从 localStorage 加载中心校准偏移（兼容 Xoffset/Yoffset/Zoffset 历史格式）。
- */
-export function loadCenterRotation(): XYZ | null {
-  if (!isBrowser()) return null
-  try {
-    const raw = window.localStorage.getItem(CENTER_ROTATION_STORAGE_KEY)
-    if (!raw) return null
-    const parsed = JSON.parse(raw) as Partial<{
-      Xoffset: unknown
-      Yoffset: unknown
-      Zoffset: unknown
-    }>
-    const X = Number(parsed.Xoffset)
-    const Y = Number(parsed.Yoffset)
-    const Z = Number(parsed.Zoffset)
-    if (!Number.isFinite(X) || !Number.isFinite(Y) || !Number.isFinite(Z)) return null
-    return { X, Y, Z }
-  } catch {
-    return null
-  }
-}
-
-/** 保存中心校准偏移到 localStorage（使用 Xoffset/Yoffset/Zoffset 历史格式）。 */
+/** 保存中心校准偏移到 localStorage。 */
 export function saveCenterRotation(value: XYZ): void {
   if (!isBrowser()) return
   try {
     window.localStorage.setItem(
       CENTER_ROTATION_STORAGE_KEY,
-      JSON.stringify({ Xoffset: value.X, Yoffset: value.Y, Zoffset: value.Z })
+      JSON.stringify({ X: value.X, Y: value.Y, Z: value.Z })
     )
   } catch (e) {
     console.warn('[auxiliary-persistence] 写入 localStorage 失败', e)

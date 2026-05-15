@@ -17,5 +17,8 @@ const quickMove = reactive(inject<any>('quickMove')!)
       <StatusCard label="Y" :value="quickMove.displayQuickMoveAxis('Y')" />
       <StatusCard label="Z" :value="quickMove.displayQuickMoveAxis('Z')" />
     </div>
+    <p class="text-sm text-gray-500">
+      注意:1.回零会根据此位置快速到达 ；2.H快捷键会根据此位置快速到达
+    </p>
   </div>
 </template>

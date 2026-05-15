@@ -15,7 +15,7 @@ import collections.abc
 import math
 from typing import Any
 
-from configs.product4P_config import 读取存储的4P旋转中心补偿值
+from services.SystemSettingService import 读取存储的4P旋转中心补偿值
 from core.calc_offset_ljs import OffsetEndpointCalculator
 from core.calc_rotation import 计算实体绕坐标轴旋转后的实体点
 from services.MotionService import MotionService

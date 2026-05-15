@@ -20,19 +20,16 @@ import ProgramControlButtons from '@/modules/program/panels/ProgramControlButton
 
 import { useNotification } from '@/shared/composables/useNotification'
 import { useControllerSettingsStore } from '@/modules/motion/stores/useControllerSettingsStore'
-import { useAuxiliaryFunctionPanelStore } from '@/modules/motion/stores/useAuxiliaryFunctionPanelStore'
 import { deviceFeatureRoutes } from '@/app/router'
 import { bootstrapControllerOnce } from '@/modules/motion/services/bootstrapService'
 import { parseRs232SessionFromLocalStorage } from '@/modules/laser'
 import { syncRs232Workbench } from '@/modules/laser'
-import { syncProduct4PCenterRotation } from '@/modules/program/api'
 
 import { useMotionKeyboard } from '@/modules/motion/composables/useMotionKeyboard'
 import { useProgramRunner } from '@/modules/program/composables/useProgramRunner'
 
 const { error, success } = useNotification()
 const controllerSettingsStore = useControllerSettingsStore()
-const auxiliaryFunctionPanelStore = useAuxiliaryFunctionPanelStore()
 
 const featureLinks = deviceFeatureRoutes
 
@@ -97,17 +94,6 @@ async function onRefreshClick(): Promise<void> {
   success('激光接口重连成功')
 }
 
-async function syncLocalProduct4PCenterRotationOnStartup(): Promise<void> {
-  const centerRotation = auxiliaryFunctionPanelStore.loadAxisCenterCalibCenterBasedXYSum()
-  const payload = { Xoffset: Number(centerRotation.X), Yoffset: Number(centerRotation.Y), Zoffset: Number(centerRotation.Z) }
-  if (!Number.isFinite(payload.Xoffset) || !Number.isFinite(payload.Yoffset) || !Number.isFinite(payload.Zoffset)) {
-    return
-  }
-  const syncResult = await syncProduct4PCenterRotation(payload)
-  if (!syncResult?.success) {
-    console.warn('[product4p] 启动同步中心旋转参数失败', syncResult?.message)
-  }
-}
 
 onMounted(async () => {
   initProgramRunner()
@@ -120,11 +106,6 @@ onMounted(async () => {
     }
   } catch {
     error('控制器初始化失败：无法连接后端或硬件未就绪。')
-  }
-  try {
-    await syncLocalProduct4PCenterRotationOnStartup()
-  } catch {
-    console.warn('[product4p] 启动同步中心旋转参数异常')
   }
 
   await initProgramSync()

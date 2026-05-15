@@ -19,9 +19,7 @@ const { isPanelExpanded, activeTab, tabs } = useAuxiliaryPanelLogic()
     :class="isPanelExpanded ? 'min-h-[min(220px,44vh)]' : ''"
   >
     <template #default>
-      <div
-        class="rounded-xl border border-(--app-border) bg-(--app-card-soft) p-3 shadow-sm shadow-slate-900/5 ring-1 ring-slate-950/4 dark:shadow-md dark:shadow-black/25 dark:ring-white/5"
-      >
+      <div class="rounded-xl border border-(--app-border) bg-(--app-card-soft) p-3 shadow-sm shadow-slate-900/5 ring-1 ring-slate-950/4 dark:shadow-md dark:shadow-black/25 dark:ring-white/5" >
         <p class="mb-2 text-xs text-(--app-text-muted)">功能入口</p>
         <TabBar v-model="activeTab" :tabs="tabs" />
       </div>

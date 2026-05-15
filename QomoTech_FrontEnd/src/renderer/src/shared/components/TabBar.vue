@@ -1,7 +1,8 @@
 <script setup lang="ts">
 defineProps<{
-  tabs: { id: string; label: string }[]
+  tabs: { id: string; label: string; disabled?: boolean }[]
   modelValue: string
+  /** 为 true 时禁用全部标签（与各 tab 的 disabled 取或） */
   disabled?: boolean
 }>()
 
@@ -16,7 +17,7 @@ const emit = defineEmits<{
       v-for="item in tabs"
       :key="item.id"
       type="button"
-      :disabled="disabled"
+      :disabled="Boolean(disabled) || Boolean(item.disabled)"
       class="rounded-lg border px-3 py-2.5 text-left text-sm font-medium transition outline-none focus-visible:ring-2 focus-visible:ring-sky-400/30"
       :class="
         modelValue === item.id

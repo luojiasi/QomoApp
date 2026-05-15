@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { inject, reactive } from 'vue'
+import { inject, reactive, onMounted } from 'vue'
 import StatusCard from '@/shared/components/StatusCard.vue'
 import FormField from '@/shared/components/FormField.vue'
 import PrimaryButton from '@/shared/components/PrimaryButton.vue'
@@ -7,6 +7,10 @@ import SafetyConfirm from '@/shared/components/SafetyConfirm.vue'
 import { axisCenterCalibDisplayAxes } from '../composables/useAxisCenterCalib'
 
 const state = reactive(inject<any>('axisCalib')!)
+
+onMounted(() => {
+  state.loadAxisCenterCalibOffset()
+})
 </script>
 
 <template>
@@ -28,7 +32,7 @@ const state = reactive(inject<any>('axisCalib')!)
               : 'border-(--app-border) bg-(--app-input-bg) text-(--app-text-muted)'
         "
       >
-        {{ index + 1 }}. {{ step.label }}
+        {{ Number(index) + 1 }}. {{ step.label }}
       </div>
     </div>
     <div class="grid gap-3 grid-cols-4">
@@ -42,6 +46,7 @@ const state = reactive(inject<any>('axisCalib')!)
       <FormField v-model="state.axisCenterCalibStartAngle" label="起始角" :disabled="state.isAxisCenterCalib" />
       <FormField v-model="state.axisCenterCalibAngleStep" label="角度步长" :disabled="state.isAxisCenterCalib" />
       <FormField v-model="state.axisCenterCalibSampleCount" label="采样点数" :min="3" :step="2" :disabled="state.isAxisCenterCalib" />
+      <FormField v-model="state.axisCenterCalibSpeed" label="采样轴运动速度" :min="0.01" :step="0.1" :disabled="state.isAxisCenterCalib" />
       <FormField v-model="state.axisCenterCalibSettleMs" label="等待时间(ms)" :min="0" :step="1" :disabled="state.isAxisCenterCalib" />
       <FormField v-model="state.axisCenterCalibLaserPulseMs" label="激光时间(ms)" :min="0" :step="1" :disabled="state.isAxisCenterCalib || !state.axisCenterCalibAutoPulse" />
     </div>

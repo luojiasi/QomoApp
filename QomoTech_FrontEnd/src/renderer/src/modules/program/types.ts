@@ -7,9 +7,9 @@ export type StartProgramControlAction = 'pause' | 'resume' | 'reset' | 'estop' |
 
 /** 产品 4P 中心旋转偏移 */
 export interface Product4PCenterRotationPayload {
-  Xoffset: number
-  Yoffset: number
-  Zoffset: number
+  X: number
+  Y: number
+  Z: number
 }
 
 /** 程序运行状态数据（WS 下行） */

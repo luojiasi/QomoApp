@@ -1,7 +1,7 @@
 import math
 from typing import Any, Dict, List, Optional, TypedDict, Union
 from core.calc_offset_ljs import 采样圆弧上的点
-from configs.product4P_config import 读取存储的4P旋转中心补偿值
+from services.SystemSettingService import 读取存储的4P旋转中心补偿值
 
 
 class Point3DDict(TypedDict):
@@ -105,7 +105,7 @@ def 计算点绕坐标轴旋转(
 
     axis = 规范旋转轴(rotation_axis)
     matrix = 构建绕坐标轴旋转矩阵(axis, float(angle_deg))
-    Z轴中心点的高度 = abs(读取存储的4P旋转中心补偿值().Zoffset)
+    Z轴中心点的高度 = abs(读取存储的4P旋转中心补偿值().Z)
 
     if isinstance(point_or_points, list):
         return [_旋转单个点(item, matrix , Z轴中心点的高度) for item in point_or_points]

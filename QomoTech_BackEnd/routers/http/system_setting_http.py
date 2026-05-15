@@ -11,22 +11,20 @@ from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
 from utils.logger import 获取日志记录器
-from configs.product4P_config import (
-    Product4PCenterRotation,
+from services.SystemSettingService import (
+    中心旋转补偿请求模型,
     获取4P旋转中心的补偿值,
     保存4P旋转中心的补偿值,
 )
+
 from routers.apiresponse import ApiResponse
 
-日志 = 获取日志记录器("4P产品HTTP")
+日志 = 获取日志记录器("SYSTEM SETTING HTTP")
+路由 = APIRouter(prefix="/api/system-setting", tags=["系统设置"])
 
-路由 = APIRouter(prefix="/api/product4p", tags=["4P 产品"])
 
 
-class 中心旋转补偿请求模型(BaseModel):
-    Xoffset: float = Field(default=0.0)
-    Yoffset: float = Field(default=0.0)
-    Zoffset: float = Field(default=0.0)
+
 
 
 @路由.get("/center-rotation", response_model=ApiResponse)
@@ -38,12 +36,6 @@ def 获取中心旋转补偿() -> ApiResponse:
 
 @路由.post("/center-rotation", response_model=ApiResponse)
 def 保存中心旋转补偿(payload: 中心旋转补偿请求模型) -> ApiResponse:
-    saved = 保存4P旋转中心的补偿值(
-        Product4PCenterRotation(
-            Xoffset=payload.Xoffset,
-            Yoffset=payload.Yoffset,
-            Zoffset=payload.Zoffset,
-        )
-    )
-    日志.info("保存 4P 中心旋转补偿: X=%.3f Y=%.3f Z=%.3f", payload.Xoffset, payload.Yoffset, payload.Zoffset)
+    saved = 保存4P旋转中心的补偿值(中心旋转补偿请求模型(X=payload.X,Y=payload.Y,Z=payload.Z,))
+    日志.info("保存 4P 中心旋转补偿: X=%.3f Y=%.3f Z=%.3f", payload.X, payload.Y, payload.Z)
     return ApiResponse(success=True, message="保存 4P 中心旋转参数成功", data=saved.model_dump())

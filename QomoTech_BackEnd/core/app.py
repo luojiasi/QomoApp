@@ -81,7 +81,7 @@ def 创建应用() -> FastAPI:
     from routers.http.camera_http import 路由 as camera_http_路由
     from routers.http.rs232_http import 路由 as rs232_http_路由
     from routers.http.program_http import 路由 as program_http_路由
-    from routers.http.product4p_http import 路由 as product4p_http_路由
+    from routers.http.system_setting_http import 路由 as system_setting_http_路由
     from routers.http.system_http import 路由 as system_http_路由
     from routers.websocket.motion_ws import 路由 as motion_ws_路由
     from routers.websocket.camera_ws import 路由 as camera_ws_路由
@@ -89,7 +89,7 @@ def 创建应用() -> FastAPI:
     app.include_router(motion_http_路由)
     app.include_router(camera_http_路由)
     app.include_router(program_http_路由)
-    app.include_router(product4p_http_路由)
+    app.include_router(system_setting_http_路由)
     app.include_router(system_http_路由)
     app.include_router(motion_ws_路由)
     app.include_router(camera_ws_路由)
