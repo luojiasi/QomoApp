@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QomoTech BackEnd 架构可视化</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22252f;
+    --border: #2a2d37;
+    --text: #e1e4eb;
+    --text2: #9ca3af;
+    --accent: #f97316;
+    --accent2: #fb923c;
+    --green: #22c55e;
+    --blue: #3b82f6;
+    --purple: #a855f7;
+    --red: #ef4444;
+    --yellow: #eab308;
+    --cyan: #06b6d4;
+    --pink: #ec4899;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif;
+    background: var(--bg); color: var(--text);
+    overflow-x: hidden;
+    line-height: 1.5;
+  }
+
+  /* ---- Header ---- */
+  .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 32px; display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top:0; z-index:100;
+  }
+  .header h1 { font-size: 1.4rem; font-weight: 700; }
+  .header h1 span { color: var(--accent); }
+  .badge {
+    font-size: 0.75rem; padding: 4px 10px; border-radius: 20px;
+    background: var(--accent); color:#fff; font-weight: 600;
+  }
+
+  /* ---- Main Layout ---- */
+  .main { max-width: 1400px; margin:0 auto; padding: 32px; }
+
+  /* ---- Section ---- */
+  .section { margin-bottom: 48px; }
+  .section-title {
+    font-size: 1.1rem; font-weight: 700; margin-bottom: 16px;
+    display: flex; align-items: center; gap:8px;
+  }
+  .section-title::before {
+    content:''; display:inline-block; width:4px; height:20px;
+    background: var(--accent); border-radius:2px;
+  }
+
+  /* ---- Stack Diagram ---- */
+  .stack {
+    display: flex; flex-direction: column; gap: 2px;
+    border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
+  }
+  .stack-row {
+    display: flex; align-items: center; gap:12px; padding: 14px 20px;
+    background: var(--surface);
+    transition: background .2s;
+  }
+  .stack-row:hover { background: var(--surface2); }
+  .stack-row .layer-label {
+    width: 120px; flex-shrink: 0; font-size: 0.8rem;
+    font-weight: 600; color: var(--text2); text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .stack-row .layer-items { display: flex; gap:8px; flex-wrap: wrap; flex:1; }
+  .chip {
+    font-size: 0.8rem; padding: 5px 12px; border-radius: 6px;
+    font-weight: 500; white-space: nowrap;
+  }
+  .chip-http    { background: #1e3a5f; color: #60a5fa; }
+  .chip-ws      { background: #1e3a3f; color: #22d3ee; }
+  .chip-service { background: #3b1f1f; color: #f87171; }
+  .chip-module  { background: #1e2f1e; color: #4ade80; }
+  .chip-util    { background: #2e1f3e; color: #c084fc; }
+  .chip-lib     { background: #3e2f1e; color: #fbbf24; }
+  .chip-config  { background: #2e1e3e; color: #e879f9; }
+
+  /* ---- Service Cards ---- */
+  .card-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 16px;
+  }
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; overflow: hidden; transition: border-color .2s;
+  }
+  .card:hover { border-color: var(--accent); }
+  .card-header {
+    padding: 16px 20px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap:10px;
+  }
+  .card-header .icon {
+    width: 36px; height: 36px; border-radius: 8px; display: flex;
+    align-items: center; justify-content: center; font-size: 1.1rem;
+  }
+  .card-header h3 { font-size: 0.95rem; font-weight: 600; }
+  .card-body { padding: 16px 20px; }
+  .card-body .tag-list { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag {
+    font-size: 0.72rem; padding: 3px 8px; border-radius: 4px;
+    background: var(--surface2); color: var(--text2);
+  }
+
+  /* ---- State Machine ---- */
+  .fsm-container {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 24px; overflow-x: auto;
+  }
+  .fsm-grid {
+    display: flex; align-items: center; justify-content: center;
+    gap: 0; flex-wrap: wrap;
+  }
+  .fsm-state {
+    width: 80px; height: 80px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.7rem; font-weight: 700; text-align: center;
+    position: relative; margin: 8px; line-height: 1.3;
+  }
+  .fsm-arrow {
+    font-size: 1.2rem; color: var(--text2); margin: 0 4px;
+  }
+  .fsm-disconnected { background: #374151; color: #9ca3af; }
+  .fsm-idle         { background: #1e3a5f; color: #93c5fd; }
+  .fsm-homing       { background: #3b2f1e; color: #fcd34d; }
+  .fsm-moving       { background: #1e3f2e; color: #86efac; }
+  .fsm-paused       { background: #3b1f2e; color: #fca5a5; }
+  .fsm-estop        { background: #4f1e1e; color: #f87171; }
+  .fsm-alarm        { background: #4f1e1e; color: #f87171; }
+
+  /* ---- Flow Diagram ---- */
+  .flow {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 28px; overflow-x: auto;
+  }
+  .flow-row { display: flex; align-items: center; justify-content: center; gap: 16px; flex-wrap: wrap; }
+  .flow-box {
+    padding: 12px 20px; border-radius: 8px; font-size: 0.8rem;
+    font-weight: 600; text-align: center; white-space: nowrap;
+  }
+  .flow-arrow { font-size: 1.3rem; color: var(--accent); font-weight: 700; }
+  .flow-box.client   { background: #1e3a5f; color: #93c5fd; }
+  .flow-box.router   { background: #2e1e3e; color: #d8b4fe; }
+  .flow-box.service  { background: #3b1f1f; color: #fca5a5; }
+  .flow-box.adapter  { background: #3e2f1e; color: #fde68a; }
+  .flow-box.hardware { background: #1e3f2e; color: #86efac; }
+
+  /* ---- Legend ---- */
+  .legend { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 12px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--text2); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 3px; }
+
+  /* ---- Tech Stack ---- */
+  .tech-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 10px;
+  }
+  .tech-item {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 16px; display: flex;
+    align-items: center; gap:10px;
+  }
+  .tech-item .tech-icon { font-size: 1.3rem; }
+  .tech-item .tech-name { font-size: 0.85rem; font-weight: 600; }
+  .tech-item .tech-ver { font-size: 0.7rem; color: var(--text2); margin-left: auto; }
+
+  /* ---- Responsive ---- */
+  @media (max-width: 768px) {
+    .main { padding: 16px; }
+    .stack-row { flex-direction: column; align-items: flex-start; }
+    .card-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>QomoTech <span>BackEnd</span> 架构可视化</h1>
+  <div style="display:flex;gap:10px;align-items:center;">
+    <span class="badge">FastAPI</span>
+    <span class="badge" style="background:var(--green)">Python 3.12+</span>
+    <span class="badge" style="background:var(--blue)">v1.0.0</span>
+  </div>
+</div>
+
+<div class="main">
+
+<!-- ============ 分层架构 ============ -->
+<div class="section">
+  <div class="section-title">分层架构</div>
+  <div class="stack">
+
+    <div class="stack-row">
+      <div class="layer-label">前端通信</div>
+      <div class="layer-items">
+        <span class="chip chip-http">REST API /api/*</span>
+        <span class="chip chip-ws">WebSocket /ws/*</span>
+        <span class="chip chip-http">CORS 中间件</span>
+      </div>
+    </div>
+
+    <div class="stack-row">
+      <div class="layer-label">路由层 Routers</div>
+      <div class="layer-items">
+        <span class="chip chip-http">motion_http.py</span>
+        <span class="chip chip-http">camera_http.py</span>
+        <span class="chip chip-http">rs232_http.py</span>
+        <span class="chip chip-http">program_http.py</span>
+        <span class="chip chip-http">product4p_http.py</span>
+        <span class="chip chip-http">system_http.py</span>
+        <span class="chip chip-ws">motion_ws.py</span>
+        <span class="chip chip-ws">camera_ws.py</span>
+        <span class="chip chip-ws">program_ws.py</span>
+      </div>
+    </div>
+
+    <div class="stack-row">
+      <div class="layer-label">服务编排层 Services</div>
+      <div class="layer-items">
+        <span class="chip chip-service">MotionService<br>(运动控制)</span>
+        <span class="chip chip-service">CameraService<br>(相机服务)</span>
+        <span class="chip chip-service">PragramService<br>(程序执行)</span>
+        <span class="chip chip-service">Rs232Service<br>(串口通信)</span>
+      </div>
+    </div>
+
+    <div class="stack-row">
+      <div class="layer-label">子组件层 Modules</div>
+      <div class="layer-items">
+        <span class="chip chip-module">state_machine<br>(状态机)</span>
+        <span class="chip chip-module">safe_controller<br>(安全控制)</span>
+        <span class="chip chip-module">status_monitor<br>(状态采集)</span>
+        <span class="chip chip-module">recipe_resolver<br>(配方解析)</span>
+        <span class="chip chip-module">motion_primitives<br>(运动原语)</span>
+        <span class="chip chip-module">geometry<br>(几何计算)</span>
+        <span class="chip chip-module">runner<br>(执行引擎)</span>
+      </div>
+    </div>
+
+    <div class="stack-row">
+      <div class="layer-label">适配器层 Adapters</div>
+      <div class="layer-items">
+        <span class="chip chip-lib">zmc_adapter<br>(ZMC运动控制卡)</span>
+        <span class="chip chip-lib">CGcamera_adapter<br>(CG相机SDK)</span>
+        <span class="chip chip-lib">rs232_adapter<br>(串口驱动)</span>
+      </div>
+    </div>
+
+    <div class="stack-row">
+      <div class="layer-label">硬件层 Hardware</div>
+      <div class="layer-items">
+        <span class="chip chip-lib">ZMC控制器<br>(X/Y/Z/U/R 五轴)</span>
+        <span class="chip chip-lib">工业相机</span>
+        <span class="chip chip-lib">激光器<br>(RS232)</span>
+      </div>
+    </div>
+
+    <div class="stack-row">
+      <div class="layer-label">基础设施</div>
+      <div class="layer-items">
+        <span class="chip chip-util">logger.py (日志)</span>
+        <span class="chip chip-util">path_utils.py (路径)</span>
+        <span class="chip chip-util">global_exceptions (异常)</span>
+        <span class="chip chip-config">app_config (配置)</span>
+        <span class="chip chip-config">pydantic-settings</span>
+        <span class="chip chip-config">PyInstaller (打包)</span>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#60a5fa"></div> HTTP REST 路由</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#22d3ee"></div> WebSocket 路由</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#f87171"></div> 业务服务</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#4ade80"></div> 子组件</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#fbbf24"></div> 硬件适配器</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#c084fc"></div> 工具/配置</div>
+  </div>
+</div>
+
+
+<!-- ============ 四大服务 ============ -->
+<div class="section">
+  <div class="section-title">四大核心服务</div>
+  <div class="card-grid">
+
+    <!-- MotionService -->
+    <div class="card">
+      <div class="card-header">
+        <div class="icon" style="background:#3b1f1f;color:#f87171;">⚙</div>
+        <div>
+          <h3>MotionService 运动控制</h3>
+          <span style="font-size:0.7rem;color:var(--text2)">单例 · 五轴联动</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="tag-list">
+          <span class="tag">归位回零</span><span class="tag">点动 JOG</span><span class="tag">绝对/相对运动</span>
+          <span class="tag">直线插补</span><span class="tag">圆弧插补</span><span class="tag">三点圆弧</span>
+          <span class="tag">螺旋插补</span><span class="tag">五轴联动直线</span><span class="tag">3+2 定向加工</span>
+          <span class="tag">连续轨迹 MERGE</span><span class="tag">暂停/继续/急停</span>
+          <span class="tag">U轴旋转</span><span class="tag">R轴旋转</span><span class="tag">IO输入输出</span>
+          <span class="tag">轴参数下发</span><span class="tag">软限位</span><span class="tag">反向间隙</span>
+          <span class="tag">状态快照</span><span class="tag">WebSocket订阅</span>
+        </div>
+        <div style="margin-top:12px;font-size:0.75rem;color:var(--text2)">
+          子组件：状态机 · 安全控制器 · ZMC适配器 · StatusMonitor
+        </div>
+      </div>
+    </div>
+
+    <!-- CameraService -->
+    <div class="card">
+      <div class="card-header">
+        <div class="icon" style="background:#1e3a5f;color:#60a5fa;">📷</div>
+        <div>
+          <h3>CameraService 相机服务</h3>
+          <span style="font-size:0.7rem;color:var(--text2)">单例 · CGimagetech SDK</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="tag-list">
+          <span class="tag">设备枚举</span><span class="tag">连接/断开</span><span class="tag">JPEG取帧</span>
+          <span class="tag">曝光控制</span><span class="tag">帧率调节</span><span class="tag">镜像翻转</span>
+          <span class="tag">白平衡</span><span class="tag">设置持久化</span><span class="tag">WebSocket推流</span>
+          <span class="tag">诊断信息</span>
+        </div>
+        <div style="margin-top:12px;font-size:0.75rem;color:var(--text2)">
+          子组件：相机状态机 · CGcamera适配器 · 设置持久化
+        </div>
+      </div>
+    </div>
+
+    <!-- PragramService -->
+    <div class="card">
+      <div class="card-header">
+        <div class="icon" style="background:#1e3f2e;color:#4ade80;">▶</div>
+        <div>
+          <h3>PragramService 程序执行</h3>
+          <span style="font-size:0.7rem;color:var(--text2)">单例 · 配方驱动加工</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="tag-list">
+          <span class="tag">配方解析</span><span class="tag">实体几何计算</span><span class="tag">XY修面切片</span>
+          <span class="tag">R轴切圆</span><span class="tag">4P切产品</span><span class="tag">扫黑+工作激光</span>
+          <span class="tag">V型/平行型开口</span><span class="tag">深度补偿</span><span class="tag">角度补偿</span>
+          <span class="tag">暂停/恢复/急停</span><span class="tag">任务跳过</span><span class="tag">进度推送</span>
+          <span class="tag">WebSocket状态广播</span>
+        </div>
+        <div style="margin-top:12px;font-size:0.75rem;color:var(--text2)">
+          子组件：ProgramRunner · RecipeResolver · MotionPrimitives · Geometry · Step
+        </div>
+      </div>
+    </div>
+
+    <!-- Rs232Service -->
+    <div class="card">
+      <div class="card-header">
+        <div class="icon" style="background:#3e2f1e;color:#fbbf24;">🔌</div>
+        <div>
+          <h3>Rs232Service 串口通信</h3>
+          <span style="font-size:0.7rem;color:var(--text2)">单例 · 激光器控制</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="tag-list">
+          <span class="tag">串口枚举</span><span class="tag">会话管理</span><span class="tag">数据发送/接收</span>
+          <span class="tag">KMJGQ_XYT 协议</span><span class="tag">KMJGQ_MM 协议</span><span class="tag">激光功率</span>
+          <span class="tag">激光频率</span><span class="tag">激光电流</span><span class="tag">占空比</span>
+          <span class="tag">出光/关光</span><span class="tag">会话持久化</span>
+        </div>
+        <div style="margin-top:12px;font-size:0.75rem;color:var(--text2)">
+          子组件：rs232_adapter · 激光持久化 · 会话持久化
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ============ 运动控制状态机 ============ -->
+<div class="section">
+  <div class="section-title">运动控制状态机</div>
+  <div class="fsm-container">
+    <div class="fsm-grid">
+      <div class="fsm-state fsm-disconnected">未连接</div>
+      <span class="fsm-arrow">→ connect →</span>
+      <div class="fsm-state fsm-idle">空闲</div>
+      <span class="fsm-arrow">↘</span>
+      <div style="display:flex;flex-direction:column;gap:8px;align-items:center;">
+        <div class="fsm-state fsm-homing">回零中</div>
+        <div class="fsm-state fsm-moving">运动中</div>
+      </div>
+      <span class="fsm-arrow">↘</span>
+      <div class="fsm-state fsm-paused">已暂停</div>
+      <span class="fsm-arrow">↘ resume</span>
+      <div class="fsm-state fsm-moving" style="opacity:0.6">运动中</div>
+      <span class="fsm-arrow" style="margin-left:16px;">|</span>
+      <div style="display:flex;flex-direction:column;gap:8px;align-items:center;">
+        <div class="fsm-state fsm-estop">急停</div>
+        <div class="fsm-state fsm-alarm">报警</div>
+      </div>
+      <span class="fsm-arrow">→ reset →</span>
+      <div class="fsm-state fsm-idle">空闲</div>
+    </div>
+    <div style="text-align:center;margin-top:16px;font-size:0.78rem;color:var(--text2)">
+      complete (全轴空闲) 自动触发 HOMING/MOVING → IDLE · stop 触发 → IDLE · 全局事件 ESTOP/ALARM 从任意状态进入
+    </div>
+  </div>
+</div>
+
+
+<!-- ============ 请求流程 ============ -->
+<div class="section">
+  <div class="section-title">请求处理流程</div>
+  <div class="flow">
+    <div class="flow-row">
+      <div class="flow-box client">Electron<br>前端</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-box router">FastAPI<br>路由层</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-box service">Service<br>单例编排</div>
+      <span class="flow-arrow">→</span>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div class="flow-box" style="background:#2e1e3e;color:#d8b4fe;">安全控制器<br>准入校验</div>
+        <span style="text-align:center;color:var(--text2);font-size:0.7rem;">↕</span>
+        <div class="flow-box" style="background:#2e1e3e;color:#d8b4fe;">状态机<br>迁移触发</div>
+      </div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-box adapter">硬件适配器<br>DLL调用</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-box hardware">ZMC控制器<br>相机/激光器</div>
+    </div>
+    <div style="text-align:center;margin-top:16px;font-size:0.78rem;color:var(--text2)">
+      同时：StatusMonitor 50ms 周期采集 → 状态快照 → WebSocket 广播到前端
+    </div>
+  </div>
+</div>
+
+
+<!-- ============ 程序执行流程 ============ -->
+<div class="section">
+  <div class="section-title">程序执行引擎 (ProgramRunner 状态机主循环)</div>
+  <div class="flow" style="padding:20px;">
+    <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;font-size:0.78rem;">
+      <span class="flow-box" style="background:#1e3a5f;color:#93c5fd;">检查连接</span><span class="flow-arrow">→</span>
+      <span class="flow-box" style="background:#1e3a5f;color:#93c5fd;">移动到起点</span><span class="flow-arrow">→</span>
+      <span class="flow-box" style="background:#1e3a5f;color:#93c5fd;">等待空闲</span><span class="flow-arrow">→</span>
+      <span class="flow-box" style="background:#3b2f1e;color:#fcd34d;">选择激光模式</span><span class="flow-arrow">→</span>
+      <span class="flow-box" style="background:#3b2f1e;color:#fcd34d;">发送激光参数</span><span class="flow-arrow">→</span>
+      <span class="flow-box" style="background:#3b2f1e;color:#fcd34d;">开启激光输出</span><span class="flow-arrow">→</span>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:8px;font-size:0.78rem;">
+      <span class="flow-box" style="background:#1e3f2e;color:#86efac;">Z轴下降</span><span class="flow-arrow">→</span>
+      <span class="flow-box" style="background:#1e3f2e;color:#86efac;">XY连续插补切割</span><span class="flow-arrow">→</span>
+      <span class="flow-box" style="background:#2e1e3e;color:#d8b4fe;">更新开口偏移</span><span class="flow-arrow">→</span>
+      <span class="flow-box" style="background:#2e1e3e;color:#d8b4fe;">计算下一层参数</span><span class="flow-arrow">↺</span>
+      <span class="flow-box" style="background:#4f1e1e;color:#f87171;">清理回Z轴</span><span class="flow-arrow">→</span>
+      <span class="flow-box" style="background:#374151;color:#9ca3af;">完成</span>
+    </div>
+    <div style="text-align:center;margin-top:12px;font-size:0.72rem;color:var(--text2)">
+      过程中持续检查：急停 / 跳过任务 / 暂停恢复 — 通过 WebSocket 实时推送进度百分比
+    </div>
+  </div>
+</div>
+
+
+<!-- ============ 技术栈 ============ -->
+<div class="section">
+  <div class="section-title">技术栈</div>
+  <div class="tech-grid">
+    <div class="tech-item">
+      <span class="tech-icon">🚀</span>
+      <span class="tech-name">FastAPI</span>
+      <span class="tech-ver">0.135</span>
+    </div>
+    <div class="tech-item">
+      <span class="tech-icon">🌐</span>
+      <span class="tech-name">Uvicorn</span>
+      <span class="tech-ver">0.42</span>
+    </div>
+    <div class="tech-item">
+      <span class="tech-icon">🔗</span>
+      <span class="tech-name">WebSocket</span>
+      <span class="tech-ver">16.0</span>
+    </div>
+    <div class="tech-item">
+      <span class="tech-icon">✅</span>
+      <span class="tech-name">Pydantic</span>
+      <span class="tech-ver">2.12</span>
+    </div>
+    <div class="tech-item">
+      <span class="tech-icon">⚙</span>
+      <span class="tech-name">pydantic-settings</span>
+      <span class="tech-ver">2.13</span>
+    </div>
+    <div class="tech-item">
+      <span class="tech-icon">🔌</span>
+      <span class="tech-name">pyserial</span>
+      <span class="tech-ver">3.5</span>
+    </div>
+    <div class="tech-item">
+      <span class="tech-icon">📦</span>
+      <span class="tech-name">PyInstaller</span>
+      <span class="tech-ver">6.14</span>
+    </div>
+    <div class="tech-item">
+      <span class="tech-icon">🖼</span>
+      <span class="tech-name">OpenCV</span>
+      <span class="tech-ver">4.10</span>
+    </div>
+    <div class="tech-item">
+      <span class="tech-icon">🔒</span>
+      <span class="tech-name">线程安全单例</span>
+      <span class="tech-ver">RLock</span>
+    </div>
+    <div class="tech-item">
+      <span class="tech-icon">⚡</span>
+      <span class="tech-name">asyncio</span>
+      <span class="tech-ver">async/await</span>
+    </div>
+    <div class="tech-item">
+      <span class="tech-icon">📝</span>
+      <span class="tech-name">自研日志系统</span>
+      <span class="tech-ver">按天轮转</span>
+    </div>
+    <div class="tech-item">
+      <span class="tech-icon">💥</span>
+      <span class="tech-name">faulthandler</span>
+      <span class="tech-ver">崩溃dump</span>
+    </div>
+  </div>
+</div>
+
+
+<!-- ============ 数据流向 ============ -->
+<div class="section">
+  <div class="section-title">数据流向总览</div>
+  <div class="flow" style="font-size:0.8rem;">
+    <pre style="color:var(--text2);line-height:2;white-space:pre-wrap;">
+   ┌──────────┐                  ┌──────────────────────────────────┐
+   │  Electron │  HTTP/WS        │  <span style="color:#f87171">FastAPI 后端</span>                   │
+   │  前端     │◄───────────────►│                                  │
+   │  Vue3    │                  │  routers/                        │
+   └──────────┘                  │    ├─ http/   (REST API)         │
+                                 │    └─ ws/     (WebSocket 推送)   │
+                                 │        │                         │
+                                 │  services/ (四大单例服务)         │
+                                 │    ├─ <span style="color:#fbbf24">MotionService</span>          │
+                                 │    ├─ <span style="color:#60a5fa">CameraService</span>          │
+                                 │    ├─ <span style="color:#4ade80">PragramService</span>         │
+                                 │    └─ <span style="color:#c084fc">Rs232Service</span>           │
+                                 │        │                         │
+                                 │  libs/ (原生DLL封装)              │
+                                 │    ├─ cameradll/  (CG相机)       │
+                                 │    └─ zmcdll/     (ZMC运动卡)    │
+                                 └──────────┬───────────────────────┘
+                                            │
+                               ┌────────────┼────────────┐
+                               │            │            │
+                          ┌────┴───┐  ┌────┴───┐  ┌────┴───┐
+                          │ ZMC    │  │ 工业   │  │ 激光器  │
+                          │ 控制器  │  │ 相机   │  │ RS232  │
+                          │ X/Y/Z  │  │        │  │        │
+                          │ U/R    │  │        │  │        │
+                          └────────┘  └────────┘  └────────┘</pre>
+  </div>
+</div>
+
+</div>
+</body>
+</html>

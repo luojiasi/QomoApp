@@ -29,6 +29,14 @@ export interface ActionDef {
   /** SET_TOOL / 复合 action 携带的额外数据 */
   data?: Record<string, string>
 }
+/** 通用编辑器设置 */
+export interface GeneralEditorConfig {
+  defaultProjectName: string
+  defaultExtrudeHeight: number
+  defaultOpenSize: number
+  defaultTiltAngle: number
+}
+
 /** 3D 场景配置 */
 export interface Scene3DConfig {
   cameraPosition: { x: number; y: number; z: number }

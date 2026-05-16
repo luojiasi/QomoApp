@@ -5,6 +5,7 @@ export function useRightPanel() {
   const rightPanelTabs: TabItem[] = [
     { id: 'layout', label: 'Layout' },
     { id: 'inspector', label: 'Inspector' },
+    { id: 'debug', label: 'Debug' },
   ]
 
   return { activeTab, rightPanelTabs }

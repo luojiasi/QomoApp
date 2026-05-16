@@ -2,14 +2,18 @@
 import SwitchableView from '../shares/SwitchableView.vue'
 import ShortcutEditor from './panels/ShortcutEditor.vue'
 import Scene3DPanel from './panels/Scene3DPanel.vue'
+import GeneralPanel from './panels/GeneralPanel.vue'
 import { useSettings } from '../composables/useSettings'
 import { useShortcutSettings } from '../composables/shortcuts/useShortcutSettings'
 import { useScene3DSettings } from '../composables/preview/useScene3DSettings'
+import { useGeneralSettings } from '../composables/canvas/useGeneralSettings'
 import { saveSceneConfig } from '../stores/preview3dStore'
+import { saveGeneralConfig } from '../stores/generalSettingsStore'
 
 const { isOpen, activeTab, settingsTabs, open, close } = useSettings()
 const shortcuts = useShortcutSettings()
 const scene3D = useScene3DSettings()
+const general = useGeneralSettings()
 
 const emit = defineEmits<{
   (e: 'saved'): void
@@ -40,6 +44,7 @@ function onKeydown(e: KeyboardEvent) {
 function save() {
   shortcuts.save()
   saveSceneConfig(scene3D.toData())
+  saveGeneralConfig(general.toData())
   emit('saved')
   close()
 }
@@ -70,9 +75,12 @@ function save() {
               @update:form="(patch) => Object.assign(scene3D.form, patch)"
               @reset="scene3D.reset"
             />
-            <div v-else class="sd-placeholder">
-              <span>通用设置（待开发）</span>
-            </div>
+            <GeneralPanel
+              v-else-if="activeTab === 'general'"
+              :form="general.form"
+              @update:form="(patch) => Object.assign(general.form, patch)"
+              @reset="general.reset"
+            />
           </SwitchableView>
         </div>
         <div class="sd-footer">

@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Geometry.ts 可视化测试</title>
+<style>
+  :root {
+    --bg: #0b1120;
+    --card: #111827;
+    --border: #1e293b;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --accent: #38bdf8;
+    --green: #4ade80;
+    --red: #f87171;
+    --amber: #fbbf24;
+    --violet: #a78bfa;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; padding: 24px; }
+  h1 { font-size: 1.5rem; margin-bottom: 4px; }
+  .subtitle { color: var(--muted); font-size: 0.85rem; margin-bottom: 24px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 16px; }
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .card h3 { font-size: 0.9rem; color: var(--accent); font-weight: 600; }
+  .card .desc { font-size: 0.75rem; color: var(--muted); }
+  canvas { width: 100%; aspect-ratio: 1; border: 1px solid var(--border); border-radius: 8px; background: #020617; }
+  .legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 0.72rem; }
+  .legend span { display: flex; align-items: center; gap: 4px; }
+  .legend .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .legend .line { width: 16px; height: 2px; display: inline-block; }
+</style>
+</head>
+<body>
+
+<h1>Geometry.ts — 纯几何函数可视化</h1>
+<p class="subtitle">entitiesEditor/utils/geometry.ts · 无 Three.js 依赖 · 所有函数在 Canvas2D 上验证</p>
+
+<div class="grid" id="grid"></div>
+
+<script type="module">
+// =============================================================================
+// 内联 geometry 函数（纯 JS，与 geometry.ts 逻辑一致）
+// =============================================================================
+
+function polarToCartesian(cx, cy, radius, angleDeg) {
+  const rad = angleDeg * Math.PI / 180
+  return { X: cx + radius * Math.cos(rad), Y: cy + radius * Math.sin(rad) }
+}
+
+function cartesianToPolar(cx, cy, px, py) {
+  const dx = px - cx, dy = py - cy
+  return { radius: Math.hypot(dx, dy), angleDeg: Math.atan2(dy, dx) * 180 / Math.PI }
+}
+
+function sampleArcPoints(center, radius, startDeg, endDeg, segments) {
+  let sweep = endDeg - startDeg
+  while (sweep > 360) sweep -= 360
+  while (sweep <= -360) sweep += 360
+  if (Math.abs(sweep) < 1e-9) sweep = sweep >= 0 ? 360 : -360
+  const step = sweep / Math.max(segments, 1)
+  const pts = []
+  for (let i = 0; i <= segments; i++) {
+    const a = startDeg + step * i
+    const r = a * Math.PI / 180
+    pts.push({ X: center.X + radius * Math.cos(r), Y: center.Y + radius * Math.sin(r) })
+  }
+  return pts
+}
+
+function evaluateBezierPoint(cp, t) {
+  if (cp.length === 0) return { X: 0, Y: 0 }
+  let w = cp.map(p => ({ ...p }))
+  while (w.length > 1) {
+    const n = []
+    for (let i = 0; i < w.length - 1; i++)
+      n.push({ X: w[i].X * (1 - t) + w[i + 1].X * t, Y: w[i].Y * (1 - t) + w[i + 1].Y * t })
+    w = n
+  }
+  return w[0]
+}
+
+function sampleBezierPoints(cp, segments) {
+  const s = Math.max(2, segments)
+  if (cp.length === 0) return []
+  if (cp.length === 1) return [{ ...cp[0] }]
+  const pts = []
+  for (let i = 0; i <= s; i++) pts.push(evaluateBezierPoint(cp, i / s))
+  return pts
+}
+
+function samplePolylineVertices(vertices) {
+  if (vertices.length < 2) return vertices.map(v => ({ ...v.point }))
+  const result = [], n = vertices.length
+  for (let i = 0; i < n; i++) {
+    const curr = vertices[i], next = vertices[(i + 1) % n], bulge = curr.bulge
+    if (Math.abs(bulge) < 1e-9) {
+      if (result.length === 0 || result[result.length - 1].X !== curr.point.X || result[result.length - 1].Y !== curr.point.Y)
+        result.push({ ...curr.point })
+      continue
+    }
+    const p1 = curr.point, p2 = next.point
+    const cdx = p2.X - p1.X, cdy = p2.Y - p1.Y, cl = Math.hypot(cdx, cdy)
+    if (cl < 1e-9) continue
+    const sa = 4 * Math.atan(bulge), radius = cl / (2 * Math.abs(Math.sin(sa / 2)))
+    const nx = -cdy / cl, ny = cdx / cl
+    const mtc = radius * Math.cos(sa / 2) * Math.sign(bulge)
+    const cx = (p1.X + p2.X) / 2 + nx * mtc, cy = (p1.Y + p2.Y) / 2 + ny * mtc
+    const saRad = Math.atan2(p1.Y - cy, p1.X - cx)
+    const eaRad = Math.atan2(p2.Y - cy, p2.X - cx)
+    let sweep = eaRad - saRad
+    if (bulge > 0) { while (sweep < 0) sweep += 2 * Math.PI }
+    else { while (sweep > 0) sweep -= 2 * Math.PI }
+    const sDeg = saRad * 180 / Math.PI, eDeg = sDeg + sweep * 180 / Math.PI
+    const segs = Math.max(4, Math.ceil(Math.abs(sa) / (Math.PI / 18)))
+    const arcPts = sampleArcPoints({ X: cx, Y: cy }, radius, sDeg, eDeg, segs)
+    if (result.length > 0) {
+      const last = result[result.length - 1]
+      if (Math.abs(last.X - arcPts[0].X) < 1e-9 && Math.abs(last.Y - arcPts[0].Y) < 1e-9) result.pop()
+    }
+    for (const pt of arcPts) result.push(pt)
+  }
+  return result
+}
+
+function sampleEllipsePoints(center, majorEnd, ratio, startDeg, endDeg, segments) {
+  const mr = Math.hypot(majorEnd.X, majorEnd.Y)
+  if (mr < 1e-9) return [center]
+  const rot = Math.atan2(majorEnd.Y, majorEnd.X), minorR = mr * ratio
+  const cosR = Math.cos(rot), sinR = Math.sin(rot)
+  let sweep = endDeg - startDeg
+  while (sweep > 360) sweep -= 360
+  while (sweep <= -360) sweep += 360
+  if (Math.abs(sweep) < 1e-9) sweep = sweep >= 0 ? 360 : -360
+  const step = sweep / Math.max(segments, 1)
+  const pts = []
+  for (let i = 0; i <= segments; i++) {
+    const tDeg = startDeg + step * i, t = tDeg * Math.PI / 180
+    const ct = Math.cos(t), st = Math.sin(t)
+    pts.push({
+      X: center.X + mr * ct * cosR - minorR * st * sinR,
+      Y: center.Y + mr * ct * sinR + minorR * st * cosR
+    })
+  }
+  return pts
+}
+
+function openSideSign(os) { return os === 'LEFT' ? 1 : -1 }
+
+function offsetSegment(start, end, openSide, openSize) {
+  const dx = end.X - start.X, dy = end.Y - start.Y, len = Math.hypot(dx, dy)
+  if (len < 1e-9) return [start, end]
+  const rx = -dy / len, ry = dx / len, sign = openSideSign(openSide)
+  const ox = rx * openSize * sign, oy = ry * openSize * sign
+  return [{ X: start.X + ox, Y: start.Y + oy }, { X: end.X + ox, Y: end.Y + oy }]
+}
+
+function offsetPolyline(points, openSide, openSize) {
+  if (points.length < 2 || openSize < 1e-9) return points.map(p => ({ ...p }))
+  const sign = openSideSign(openSide)
+  const sn = []
+  for (let i = 0; i < points.length - 1; i++) {
+    const p = points[i], q = points[i + 1], dx = q.X - p.X, dy = q.Y - p.Y
+    const len = Math.hypot(dx, dy)
+    sn.push(len < 1e-9 ? null : { X: (-dy / len) * sign, Y: (dx / len) * sign })
+  }
+  return points.map((p, i) => {
+    const cand = [i > 0 ? sn[i - 1] : null, i < sn.length ? sn[i] : null].filter(Boolean)
+    if (cand.length === 0) return { ...p }
+    const avg = cand.reduce((a, n) => ({ X: a.X + n.X, Y: a.Y + n.Y }), { X: 0, Y: 0 })
+    const len = Math.hypot(avg.X, avg.Y)
+    if (len < 1e-9) return { X: p.X + cand[0].X * openSize, Y: p.Y + cand[0].Y * openSize }
+    return { X: p.X + (avg.X / len) * openSize, Y: p.Y + (avg.Y / len) * openSize }
+  })
+}
+
+function computeArcOffsetRadius(entity, openSide, openSize) {
+  let sweep = entity.endAngle - entity.startAngle
+  if (Math.abs(sweep) < 1e-9) sweep = sweep >= 0 ? 360 : -360
+  const os = sweep >= 0 ? 1 : -1
+  return Math.max(1e-6, entity.radius + os * openSideSign(openSide) * openSize)
+}
+
+function pointsBounds(pts) {
+  if (pts.length === 0) return { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity }
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+  for (const p of pts) {
+    if (p.X < minX) minX = p.X; if (p.Y < minY) minY = p.Y
+    if (p.X > maxX) maxX = p.X; if (p.Y > maxY) maxY = p.Y
+  }
+  return { minX, minY, maxX, maxY }
+}
+
+function getEntityBounds(entity) {
+  switch (entity.kind) {
+    case 'LINE': return pointsBounds([entity.start, entity.end])
+    case 'ARC': return pointsBounds(sampleArcPoints(entity.center, entity.radius, entity.startAngle, entity.endAngle, 48))
+    case 'CIRCLE': return { minX: entity.center.X - entity.radius, minY: entity.center.Y - entity.radius, maxX: entity.center.X + entity.radius, maxY: entity.center.Y + entity.radius }
+    case 'ELLIPSE': return pointsBounds(sampleEllipsePoints(entity.center, entity.majorAxisEnd, entity.minorAxisRatio, entity.startParamDeg, entity.endParamDeg, 64))
+    case 'POLYLINE': return pointsBounds(samplePolylineVertices(entity.vertices))
+    case 'BEZIER': return pointsBounds(sampleBezierPoints(entity.controlPoints, 64))
+  }
+}
+
+function mergeBounds(a, b) {
+  return { minX: Math.min(a.minX, b.minX), minY: Math.min(a.minY, b.minY), maxX: Math.max(a.maxX, b.maxX), maxY: Math.max(a.maxY, b.maxY) }
+}
+
+// =============================================================================
+// Canvas 绘制辅助
+// =============================================================================
+
+function setupCanvas(canvas, worldMin, worldMax) {
+  const dpr = window.devicePixelRatio || 1
+  const w = canvas.clientWidth, h = canvas.clientHeight
+  canvas.width = w * dpr; canvas.height = h * dpr
+  const ctx = canvas.getContext('2d')
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+  ctx.clearRect(0, 0, w, h)
+
+  const pad = 30
+  const sx = (w - pad * 2) / (worldMax - worldMin)
+  const sy = (h - pad * 2) / (worldMax - worldMin)
+  const s = Math.min(sx, sy)
+  const ox = w / 2 - (worldMin + worldMax) / 2 * s
+  const oy = h / 2 + (worldMin + worldMax) / 2 * s // Y flip
+
+  function toScreen(p) { return [ox + p.X * s, oy - p.Y * s] }
+  function drawGrid() {
+    ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 0.5
+    const step = 5
+    for (let v = Math.floor(worldMin / step) * step; v <= worldMax; v += step) {
+      const [sx1, sy1] = toScreen({ X: v, Y: worldMin })
+      const [sx2, sy2] = toScreen({ X: v, Y: worldMax })
+      ctx.beginPath(); ctx.moveTo(sx1, sy1); ctx.lineTo(sx2, sy2); ctx.stroke()
+      const [sy3, sx3] = toScreen({ X: worldMin, Y: v })
+      const [sy4, sx4] = toScreen({ X: worldMax, Y: v })
+      ctx.beginPath(); ctx.moveTo(sx3, sy3); ctx.lineTo(sx4, sy4); ctx.stroke()
+    }
+    // axes
+    ctx.strokeStyle = '#334155'; ctx.lineWidth = 1
+    const [ax, ay] = toScreen({ X: 0, Y: 0 })
+    ctx.beginPath(); ctx.moveTo(0, ay); ctx.lineTo(w, ay); ctx.stroke()
+    ctx.beginPath(); ctx.moveTo(ax, 0); ctx.lineTo(ax, h); ctx.stroke()
+  }
+
+  function drawPoint(p, color, r = 3) {
+    const [x, y] = toScreen(p)
+    ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill()
+  }
+
+  function drawLine(p1, p2, color, width = 1.5, dash = []) {
+    const [x1, y1] = toScreen(p1), [x2, y2] = toScreen(p2)
+    ctx.strokeStyle = color; ctx.lineWidth = width; ctx.setLineDash(dash)
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke()
+    ctx.setLineDash([])
+  }
+
+  function drawPolyline(pts, color, width = 2, dash = []) {
+    if (pts.length < 2) return
+    ctx.strokeStyle = color; ctx.lineWidth = width; ctx.setLineDash(dash)
+    ctx.beginPath()
+    const [fx, fy] = toScreen(pts[0]); ctx.moveTo(fx, fy)
+    for (let i = 1; i < pts.length; i++) { const [x, y] = toScreen(pts[i]); ctx.lineTo(x, y) }
+    ctx.stroke(); ctx.setLineDash([])
+  }
+
+  function drawArrow(from, to, color, width = 1.5) {
+    const [x1, y1] = toScreen(from), [x2, y2] = toScreen(to)
+    const ang = Math.atan2(y2 - y1, x2 - x1)
+    const hl = 8
+    ctx.strokeStyle = color; ctx.lineWidth = width
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke()
+    ctx.fillStyle = color
+    ctx.beginPath(); ctx.moveTo(x2, y2)
+    ctx.lineTo(x2 - hl * Math.cos(ang - 0.5), y2 - hl * Math.sin(ang - 0.5))
+    ctx.lineTo(x2 - hl * Math.cos(ang + 0.5), y2 - hl * Math.sin(ang + 0.5))
+    ctx.closePath(); ctx.fill()
+  }
+
+  function drawRect(min, max, color, width = 1, dash = [6, 3]) {
+    const [x1, y1] = toScreen(min), [x2, y2] = toScreen(max)
+    ctx.strokeStyle = color; ctx.lineWidth = width; ctx.setLineDash(dash)
+    ctx.strokeRect(x1, y2, x2 - x1, y1 - y2)
+    ctx.setLineDash([])
+  }
+
+  function drawCross(p, color, size = 5) {
+    const [x, y] = toScreen(p)
+    ctx.strokeStyle = color; ctx.lineWidth = 1.5
+    ctx.beginPath(); ctx.moveTo(x - size, y - size); ctx.lineTo(x + size, y + size); ctx.stroke()
+    ctx.beginPath(); ctx.moveTo(x + size, y - size); ctx.lineTo(x - size, y + size); ctx.stroke()
+  }
+
+  function drawText(p, text, color = '#94a3b8', offsetX = 8, offsetY = -8) {
+    const [x, y] = toScreen(p)
+    ctx.fillStyle = color; ctx.font = '11px "Segoe UI", system-ui'
+    ctx.fillText(text, x + offsetX, y + offsetY)
+  }
+
+  function drawLabel(text, color = '#64748b') {
+    ctx.fillStyle = color; ctx.font = '10px "Segoe UI", system-ui'
+    ctx.fillText(text, 8, h - 8)
+  }
+
+  return { ctx, toScreen, drawGrid, drawPoint, drawLine, drawPolyline, drawArrow, drawRect, drawCross, drawText, drawLabel, w, h }
+}
+
+// =============================================================================
+// 各 Panel 绘制
+// =============================================================================
+
+function panel(id, title, desc, legends, worldMin, worldMax, drawFn) {
+  const card = document.createElement('div'); card.className = 'card'
+  card.innerHTML = `<h3>${title}</h3><p class="desc">${desc}</p>`
+  if (legends.length) {
+    card.innerHTML += `<div class="legend">${legends.map(l => `<span>${l}</span>`).join('')}</div>`
+  }
+  const canvas = document.createElement('canvas'); card.appendChild(canvas)
+  document.getElementById('grid').appendChild(card)
+  requestAnimationFrame(() => {
+    const api = setupCanvas(canvas, worldMin, worldMax)
+    api.drawGrid()
+    drawFn(api)
+  })
+}
+
+function legendDot(color, label) { return `<span class="dot" style="background:${color}"></span> ${label}` }
+function legendLine(color, label) { return `<span class="line" style="background:${color}"></span> ${label}` }
+
+// =============================================================================
+// Panel 1: 坐标转换
+// =============================================================================
+panel('coord', 'polarToCartesian / cartesianToPolar', '极坐标 → 笛卡尔 往复验证。紫点=原点，青线=半径，白点=结果。',
+  [legendDot('#a78bfa', '中心'), legendDot('#38bdf8', '结果点'), legendLine('#4ade80', '半径')],
+  -15, 15, api => {
+    const cx = 3, cy = 2, radius = 8, angleDeg = 60
+    const center = { X: cx, Y: cy }
+    const result = polarToCartesian(cx, cy, radius, angleDeg)
+    const back = cartesianToPolar(cx, cy, result.X, result.Y)
+
+    api.drawLine(center, result, '#4ade80', 1.5, [4, 3])
+    api.drawPoint(center, '#a78bfa', 5)
+    api.drawPoint(result, '#38bdf8', 6)
+    api.drawCross(center, '#a78bfa', 4)
+    api.drawText(center, `(${cx}, ${cy})`, '#a78bfa', 10, -10)
+    api.drawText(result, `(${result.X.toFixed(1)}, ${result.Y.toFixed(1)})`, '#38bdf8')
+    api.drawLabel(`angleDeg=${angleDeg}° → radius=${back.radius.toFixed(2)}, angleDeg=${back.angleDeg.toFixed(1)}°`)
+  })
+
+// =============================================================================
+// Panel 2: Arc 采样 — 整圆 + 半弧
+// =============================================================================
+panel('arc', 'sampleArcPoints', '左：整圆 0→360° 36段。右：半弧 30→210° 24段。所有点到圆心=半径。',
+  [legendDot('#fbbf24', '圆心'), legendLine('#38bdf8', '整圆采样点'), legendLine('#4ade80', '半弧采样点')],
+  -15, 15, api => {
+    const center = { X: -5, Y: 0 }
+    const full = sampleArcPoints(center, 6, 0, 360, 36)
+    const half = sampleArcPoints({ X: 5, Y: 0 }, 6, 30, 210, 24)
+    api.drawPoint(center, '#fbbf24', 4)
+    api.drawPoint({ X: 5, Y: 0 }, '#fbbf24', 4)
+    api.drawPolyline(full, '#38bdf8', 1.2)
+    api.drawPolyline(half, '#4ade80', 2)
+    api.drawPoint(half[0], '#4ade80', 4)
+    api.drawPoint(half[half.length - 1], '#f87171', 4)
+    api.drawText(half[0], 'start', '#4ade80')
+    api.drawText(half[half.length - 1], 'end', '#f87171')
+  })
+
+// =============================================================================
+// Panel 3: Bezier 采样
+// =============================================================================
+panel('bezier', 'sampleBezierPoints', '三次贝塞尔。灰线=控制多边形，白点=控制点，青线=采样曲线。',
+  [legendDot('#fbbf24', '控制点'), legendLine('#475569', '控制多边形'), legendLine('#38bdf8', '贝塞尔曲线')],
+  -15, 15, api => {
+    const cp = [{ X: -10, Y: -6 }, { X: -3, Y: 10 }, { X: 5, Y: -10 }, { X: 10, Y: 6 }]
+    const pts = sampleBezierPoints(cp, 48)
+    for (let i = 0; i < cp.length - 1; i++) api.drawLine(cp[i], cp[i + 1], '#475569', 1, [4, 3])
+    api.drawPolyline(pts, '#38bdf8', 2)
+    for (let i = 0; i < cp.length; i++) {
+      api.drawPoint(cp[i], '#fbbf24', 4)
+      api.drawText(cp[i], `P${i}`, '#fbbf24')
+    }
+    api.drawPoint(pts[0], '#4ade80', 5)
+    api.drawPoint(pts[pts.length - 1], '#f87171', 5)
+    api.drawText(pts[0], 't=0', '#4ade80', -30, 0)
+    api.drawText(pts[pts.length - 1], 't=1', '#f87171', 8, 0)
+  })
+
+// =============================================================================
+// Panel 4: Polyline 顶点采样（含 bulge 弧段）
+// =============================================================================
+panel('polyline', 'samplePolylineVertices', 'bulge=0 直线段 + bulge=1 半圆弧 + bulge=-0.5 小弧段。白点=顶点，青线=采样结果。',
+  [legendDot('#fbbf24', '顶点'), legendDot('#38bdf8', '采样点'), legendLine('#38bdf8', '采样结果')],
+  -15, 15, api => {
+    const verts = [
+      { point: { X: -10, Y: -6 }, bulge: 0 },
+      { point: { X: 0, Y: -6 }, bulge: 0.5 },
+      { point: { X: 6, Y: 4 }, bulge: 0 },
+      { point: { X: 12, Y: 4 }, bulge: -0.3 },
+      { point: { X: 12, Y: -4 }, bulge: 0 },
+    ]
+    const pts = samplePolylineVertices(verts)
+    api.drawPolyline(pts, '#38bdf8', 2)
+    for (let i = 0; i < verts.length; i++) {
+      api.drawPoint(verts[i].point, '#fbbf24', 4)
+      api.drawText(verts[i].point, `b=${verts[i].bulge}`, '#fbbf24', -28, -12)
+    }
+    // 标记弧段采样点
+    for (let i = 0; i < pts.length; i += Math.max(1, Math.floor(pts.length / 20))) {
+      api.drawPoint(pts[i], '#38bdf8', 2)
+    }
+  })
+
+// =============================================================================
+// Panel 5: Ellipse 采样
+// =============================================================================
+panel('ellipse', 'sampleEllipsePoints', '两椭圆：ratio=1（左=圆），ratio=0.4 旋转 30°（右=扁椭圆）。绿起点 红终点。',
+  [legendDot('#38bdf8', '采样点'), legendLine('#38bdf8', '椭圆曲线'), legendDot('#a78bfa', '中心')],
+  -18, 18, api => {
+    // 左：ratio=1 圆
+    const c1 = { X: -7, Y: 0 }, me1 = { X: 6, Y: 0 }
+    const pts1 = sampleEllipsePoints(c1, me1, 1.0, 0, 360, 48)
+    api.drawPolyline(pts1, '#38bdf8', 1.5)
+    api.drawPoint(c1, '#a78bfa', 3)
+    api.drawText(c1, 'ratio=1', '#a78bfa')
+    // 右：ratio=0.4 旋转 30°
+    const c2 = { X: 7, Y: 0 }
+    const r30 = 30 * Math.PI / 180
+    const me2 = { X: 6 * Math.cos(r30), Y: 6 * Math.sin(r30) }
+    const pts2 = sampleEllipsePoints(c2, me2, 0.4, 30, 330, 48)
+    api.drawPolyline(pts2, '#4ade80', 2)
+    api.drawPoint(pts2[0], '#4ade80', 4)
+    api.drawPoint(pts2[pts2.length - 1], '#f87171', 4)
+    api.drawPoint(c2, '#a78bfa', 3)
+    api.drawText(c2, 'ratio=0.4 rot=30°', '#a78bfa')
+    // 长轴虚线
+    api.drawLine(c2, { X: c2.X + me2.X, Y: c2.Y + me2.Y }, '#fbbf24', 1, [3, 3])
+    api.drawText({ X: c2.X + me2.X, Y: c2.Y + me2.Y }, 'major', '#fbbf24')
+    // @ts-ignore
+    api.drawText(pts2[0], 'start', '#4ade80', -28, -4)
+    api.drawText(pts2[pts2.length - 1], 'end', '#f87171')
+  })
+
+// =============================================================================
+// Panel 6: offsetSegment — LEFT vs RIGHT
+// =============================================================================
+panel('offsetSeg', 'offsetSegment', '三段不同方向的原始线段（灰虚线），LEFT 偏移（青）= 左法向，RIGHT 偏移（赤）= 右法向。箭头=法向。',
+  [legendLine('#475569', '原始线段'), legendLine('#38bdf8', 'LEFT偏移'), legendLine('#f87171', 'RIGHT偏移'), legendDot('#38bdf8', '左法向↑')],
+  -15, 15, api => {
+    const segments = [
+      [{ X: -12, Y: -8 }, { X: -2, Y: -8 }],
+      [{ X: -8, Y: 0 }, { X: -2, Y: 6 }],
+      [{ X: -12, Y: 10 }, { X: -2, Y: 6 }],
+    ]
+    const os = 2
+    for (const [s, e] of segments) {
+      api.drawLine(s, e, '#475569', 1.5, [5, 4])
+      const [ls, le] = offsetSegment(s, e, 'LEFT', os)
+      const [rs, re] = offsetSegment(s, e, 'RIGHT', os)
+      api.drawArrow(s, ls, '#38bdf8', 1.2)
+      api.drawArrow(e, le, '#38bdf8', 1.2)
+      api.drawArrow(s, rs, '#f87171', 1.2)
+      api.drawArrow(e, re, '#f87171', 1.2)
+      api.drawLine(ls, le, '#38bdf8', 2)
+      api.drawLine(rs, re, '#f87171', 2)
+    }
+    api.drawLabel('灰=原始  青=LEFT(+2)  赤=RIGHT(+2)')
+  })
+
+// =============================================================================
+// Panel 7: offsetPolyline — L 形折线等距偏移
+// =============================================================================
+panel('offsetPoly', 'offsetPolyline', 'L形折线（灰）→ LEFT偏移（青）→ RIGHT偏移（赤）。内角顶点取相邻段法向平均。',
+  [legendLine('#475569', '原始折线'), legendLine('#38bdf8', 'LEFT偏移'), legendLine('#f87171', 'RIGHT偏移'), legendDot('#fbbf24', '原始顶点'), legendDot('#38bdf8', '偏移顶点')],
+  -15, 15, api => {
+    const orig = [{ X: -10, Y: -6 }, { X: 6, Y: -6 }, { X: 6, Y: 8 }]
+    const left = offsetPolyline(orig, 'LEFT', 2.5)
+    const right = offsetPolyline(orig, 'RIGHT', 2.5)
+
+    api.drawPolyline(orig, '#475569', 2, [6, 4])
+    api.drawPolyline(left, '#38bdf8', 2)
+    api.drawPolyline(right, '#f87171', 2)
+
+    for (const p of orig) api.drawPoint(p, '#fbbf24', 5)
+    for (const p of left) api.drawPoint(p, '#38bdf8', 4)
+    for (const p of right) api.drawPoint(p, '#f87171', 4)
+
+    // 中点法向箭头
+    const mid = orig[1]
+    const lm = left[1], rm = right[1]
+    api.drawArrow(mid, lm, '#38bdf8', 1.2)
+    api.drawArrow(mid, rm, '#f87171', 1.2)
+  })
+
+// =============================================================================
+// Panel 8: computeArcOffsetRadius + Entity Bounds
+// =============================================================================
+panel('arcBounds', 'computeArcOffsetRadius & Bounds', 'CCW弧(0→180°): 原始=灰虚, LEFT偏移=青(扩大), RIGHT偏移=赤(缩小)。虚线框=包围盒。',
+  [legendLine('#475569', '原始弧'), legendLine('#38bdf8', 'LEFT偏移(扩)'), legendLine('#f87171', 'RIGHT偏移(缩)'), legendLine('#fbbf24', '包围盒')],
+  -15, 15, api => {
+    const arc = { kind: 'ARC', center: { X: 0, Y: 2 }, radius: 8, startAngle: 0, endAngle: 180, id: '', layerId: '', openSide: 'RIGHT', selected: false }
+    const origPts = sampleArcPoints(arc.center, arc.radius, arc.startAngle, arc.endAngle, 48)
+
+    const rLeft = computeArcOffsetRadius(arc, 'LEFT', 2)
+    const rRight = computeArcOffsetRadius(arc, 'RIGHT', 2)
+    const leftPts = sampleArcPoints(arc.center, rLeft, arc.startAngle, arc.endAngle, 48)
+    const rightPts = sampleArcPoints(arc.center, rRight, arc.startAngle, arc.endAngle, 48)
+
+    api.drawPolyline(origPts, '#475569', 2, [6, 4])
+    api.drawPolyline(leftPts, '#38bdf8', 1.8)
+    api.drawPolyline(rightPts, '#f87171', 1.8)
+
+    // 包围盒
+    const arcWithOpen = { ...arc, openSide: 'LEFT', kind: 'ARC', startPoint: undefined, endPoint: undefined }
+    const bbLeft = getEntityBounds({ ...arcWithOpen, openSide: 'LEFT' })
+    const bbRight = getEntityBounds({ ...arcWithOpen, openSide: 'RIGHT' })
+    api.drawRect({ X: bbLeft.minX, Y: bbLeft.minY }, { X: bbLeft.maxX, Y: bbLeft.maxY }, '#38bdf8', 0.8, [3, 3])
+    api.drawRect({ X: bbRight.minX, Y: bbRight.minY }, { X: bbRight.maxX, Y: bbRight.maxY }, '#f87171', 0.8, [3, 3])
+
+    api.drawPoint(arc.center, '#fbbf24', 4)
+    api.drawText({ X: arc.center.X, Y: arc.center.Y + 0.5 }, `orig R=${arc.radius}`, '#475569', -50, -14)
+    api.drawText({ X: arc.center.X + 2, Y: arc.center.Y + 2 }, `LEFT R=${rLeft.toFixed(1)}`, '#38bdf8', 8, 8)
+    api.drawText({ X: arc.center.X + 2, Y: arc.center.Y - 2 }, `RIGHT R=${rRight.toFixed(1)}`, '#f87171', 8, -6)
+  })
+
+// =============================================================================
+// Panel 9: 全部实体类型包围盒
+// =============================================================================
+panel('allBounds', 'getEntityBounds — 全部实体类型', '六种实体包围盒（黄虚线框）。LINE/CIRCLE/ARC/ELLIPSE/POLYLINE/BEZIER 全覆盖。',
+  [legendLine('#fbbf24', '包围盒'), legendLine('#38bdf8', '实体采样'), legendDot('#a78bfa', '实体')],
+  -18, 18, api => {
+    const entities = [
+      { kind: 'LINE', start: { X: -16, Y: -6 }, end: { X: -8, Y: -10 }, id: '', layerId: '', openSide: 'RIGHT', selected: false },
+      { kind: 'CIRCLE', center: { X: -2, Y: -6 }, radius: 3, id: '', layerId: '', openSide: 'RIGHT', selected: false },
+      { kind: 'ARC', center: { X: 9, Y: -6 }, radius: 3.5, startAngle: 20, endAngle: 160, id: '', layerId: '', openSide: 'RIGHT', selected: false },
+      { kind: 'ELLIPSE', center: { X: -14, Y: 7 }, majorAxisEnd: { X: 4, Y: 0 }, minorAxisRatio: 0.5, startParamDeg: 0, endParamDeg: 360, id: '', layerId: '', openSide: 'RIGHT', selected: false },
+      { kind: 'POLYLINE', vertices: [{ point: { X: 0, Y: 7 }, bulge: 0 }, { point: { X: 4, Y: 3 }, bulge: 0.5 }, { point: { X: 8, Y: 7 }, bulge: 0 }, { point: { X: 8, Y: 11 }, bulge: 0 }], closed: false, id: '', layerId: '', openSide: 'RIGHT', selected: false },
+      { kind: 'BEZIER', controlPoints: [{ X: -12, Y: 14 }, { X: -10, Y: 8 }, { X: -6, Y: 16 }], id: '', layerId: '', openSide: 'RIGHT', selected: false },
+    ]
+
+    for (const ent of entities) {
+      let pts
+      switch (ent.kind) {
+        case 'LINE': pts = [ent.start, ent.end]; api.drawLine(ent.start, ent.end, '#38bdf8', 2); break
+        case 'CIRCLE': pts = sampleArcPoints(ent.center, ent.radius, 0, 360, 36); api.drawPolyline(pts, '#38bdf8', 1.5); break
+        case 'ARC': pts = sampleArcPoints(ent.center, ent.radius, ent.startAngle, ent.endAngle, 32); api.drawPolyline(pts, '#38bdf8', 2); break
+        case 'ELLIPSE': pts = sampleEllipsePoints(ent.center, ent.majorAxisEnd, ent.minorAxisRatio, ent.startParamDeg, ent.endParamDeg, 48); api.drawPolyline(pts, '#38bdf8', 1.5); break
+        case 'POLYLINE': pts = samplePolylineVertices(ent.vertices); api.drawPolyline(pts, '#38bdf8', 2); break
+        case 'BEZIER': pts = sampleBezierPoints(ent.controlPoints, 48); api.drawPolyline(pts, '#38bdf8', 2); break
+      }
+      const bb = getEntityBounds(ent)
+      api.drawRect({ X: bb.minX, Y: bb.minY }, { X: bb.maxX, Y: bb.maxY }, '#fbbf24', 1, [4, 3])
+    }
+
+    // 标签
+    api.drawText({ X: -16, Y: -5 }, 'LINE', '#f87171', 0, -14)
+    api.drawText({ X: -2, Y: -6 }, 'CIRCLE', '#f87171', -16, -14)
+    api.drawText({ X: 9, Y: -6 }, 'ARC', '#f87171', -10, -14)
+    api.drawText({ X: -14, Y: 7 }, 'ELLIPSE', '#f87171', 0, -12)
+    api.drawText({ X: 0, Y: 7 }, 'POLYLINE', '#f87171', -20, -12)
+    api.drawText({ X: -12, Y: 14 }, 'BEZIER', '#f87171', 0, -12)
+  })
+
+// =============================================================================
+// Panel 10: 综合 — 多实体场景包围盒
+// =============================================================================
+panel('sceneBounds', 'getSceneBounds + mergeBounds', '两个独立包围盒（黄虚）→ mergeBounds 合并（青实线）。绿字=mins，赤字=maxs。',
+  [legendLine('#fbbf24', '实体包围盒'), legendLine('#4ade80', '合并包围盒'), legendLine('#38bdf8', '实体')],
+  -18, 18, api => {
+    const circle = { kind: 'CIRCLE', center: { X: -7, Y: 1 }, radius: 5, id: '', layerId: '', openSide: 'RIGHT', selected: false }
+    const line = { kind: 'LINE', start: { X: 2, Y: -4 }, end: { X: 12, Y: 6 }, id: '', layerId: '', openSide: 'RIGHT', selected: false }
+
+    const bb1 = getEntityBounds(circle), bb2 = getEntityBounds(line)
+    const merged = mergeBounds(bb1, bb2)
+
+    const circlePts = sampleArcPoints(circle.center, circle.radius, 0, 360, 36)
+    api.drawPolyline(circlePts, '#38bdf8', 1.5)
+    api.drawLine(line.start, line.end, '#38bdf8', 2)
+    api.drawRect({ X: bb1.minX, Y: bb1.minY }, { X: bb1.maxX, Y: bb1.maxY }, '#fbbf24', 0.8, [4, 3])
+    api.drawRect({ X: bb2.minX, Y: bb2.minY }, { X: bb2.maxX, Y: bb2.maxY }, '#fbbf24', 0.8, [4, 3])
+    api.drawRect({ X: merged.minX, Y: merged.minY }, { X: merged.maxX, Y: merged.maxY }, '#4ade80', 1.5, [])
+
+    api.drawText({ X: merged.minX, Y: merged.minY }, `min(${merged.minX.toFixed(0)}, ${merged.minY.toFixed(0)})`, '#4ade80', -60, 14)
+    api.drawText({ X: merged.maxX, Y: merged.maxY }, `max(${merged.maxX.toFixed(0)}, ${merged.maxY.toFixed(0)})`, '#f87171', 4, -6)
+
+    api.drawPoint(circle.center, '#a78bfa', 3)
+    api.drawPoint(line.start, '#a78bfa', 3)
+    api.drawPoint(line.end, '#a78bfa', 3)
+  })
+
+console.log('✅ 10 个可视化面板已渲染')
+</script>
+</body>
+</html>

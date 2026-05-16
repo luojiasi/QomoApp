@@ -6,6 +6,7 @@ import Preview3D from '../components/Preview3D.vue'
 import SwitchableView from '../shares/SwitchableView.vue'
 import LayoutPanel from '../components/panels/LayoutPanel.vue'
 import InspectorPanel from '../components/panels/InspectorPanel.vue'
+import StoreDebugger from '../components/panels/StoreDebugger.vue'
 import SettingsDialog from '../components/SettingsDialog.vue'
 import StatusBar from '../components/StatusBar.vue'
 import { useRightPanel } from '../composables/useRightPanel'
@@ -65,7 +66,8 @@ useKeyboardShortcuts(dispatchAction, { isOpen: settingsIsOpen, capturing: settin
       <div class="panel panel-right">
         <SwitchableView v-model="activeTab" :tabs="rightPanelTabs">
           <LayoutPanel v-if="activeTab === 'layout'" />
-          <InspectorPanel v-else />
+          <InspectorPanel v-else-if="activeTab === 'inspector'" />
+          <StoreDebugger v-else-if="activeTab === 'debug'" />
         </SwitchableView>
       </div>
     </div>

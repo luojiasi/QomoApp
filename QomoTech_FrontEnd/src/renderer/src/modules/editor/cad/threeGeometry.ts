@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import type { OpenDirectionType, Point } from '../qomo5pTypes'
 import type { QomoCircleSurfacesEntity, QomoEntityWithSurface, QomoIrregularSurfacesEntity } from '../qomo5pTypes'
-import type { DiamondDetailParameters } from '../diamondTypes'
+import type { DiamondDetailParameters } from '../common'
 
 const SELECTED_REFERENCE_SURFACE_OPACITY = 0.36
 const BASE_REFERENCE_SURFACE_OPACITY = 0.26
