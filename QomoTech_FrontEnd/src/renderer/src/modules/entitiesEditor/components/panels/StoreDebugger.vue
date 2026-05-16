@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useEditorStore } from '../../stores/editorStore'
+import { saveProject, exportProject, loadProjectIntoStore } from '../../stores/projectStore'
 import type { EntityKind, ToolMode, Point2D } from '../../commons/types'
 
 const store = useEditorStore()
@@ -203,6 +204,11 @@ const undoPreview = computed(() => {
         <span class="db-stat">撤销栈: <b>{{ store.undoStack.length }}</b></span>
         <span class="db-stat">重做栈: <b>{{ store.redoStack.length }}</b></span>
         <span class="db-stat">工具: <b>{{ store.activeTool }}</b> / <b>{{ store.drawSubTool }}</b></span>
+      </div>
+      <div class="db-actions">
+        <button class="db-btn db-btn-green" @click="saveProject()">💾 保存</button>
+        <button class="db-btn db-btn-orange" @click="exportProject()">📤 导出</button>
+        <button class="db-btn db-btn-grey" @click="loadProjectIntoStore()">📥 加载</button>
       </div>
     </div>
 
@@ -493,7 +499,8 @@ const undoPreview = computed(() => {
   flex-shrink: 0;
 }
 .db-title { font-size: 14px; font-weight: 700; color: #3b82f6; }
-.db-stats { display: flex; gap: 10px; }
+.db-stats { display: flex; gap: 10px; flex: 1; }
+.db-actions { display: flex; gap: 4px; }
 .db-stat { font-size: 11px; color: #71717a; }
 .db-stat b { color: #a1a1aa; }
 

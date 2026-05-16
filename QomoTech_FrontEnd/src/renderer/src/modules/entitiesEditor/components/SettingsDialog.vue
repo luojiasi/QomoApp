@@ -9,6 +9,7 @@ import { useScene3DSettings } from '../composables/preview/useScene3DSettings'
 import { useGeneralSettings } from '../composables/canvas/useGeneralSettings'
 import { saveSceneConfig } from '../stores/preview3dStore'
 import { saveGeneralConfig } from '../stores/generalSettingsStore'
+import { useEditorStore } from '../stores/editorStore'
 
 const { isOpen, activeTab, settingsTabs, open, close } = useSettings()
 const shortcuts = useShortcutSettings()
@@ -44,7 +45,11 @@ function onKeydown(e: KeyboardEvent) {
 function save() {
   shortcuts.save()
   saveSceneConfig(scene3D.toData())
-  saveGeneralConfig(general.toData())
+  const generalData = general.toData()
+  saveGeneralConfig(generalData)
+  // 同步项目名到当前项目的 meta
+  const store = useEditorStore()
+  store.projectMeta.name = generalData.defaultProjectName
   emit('saved')
   close()
 }

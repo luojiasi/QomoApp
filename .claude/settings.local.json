@@ -23,7 +23,8 @@
       "PowerShell(Test-Path *)",
       "Bash(Get-ChildItem *)",
       "Skill(superpowers:brainstorming)",
-      "PowerShell(Get-ChildItem -Recurse \"D:\\\\Qomo\\\\QomoTech\\\\QomoTech_FrontEnd\\\\src\\\\renderer\\\\src\\\\modules\\\\entitiesEditor\" -File | ForEach-Object { $_.FullName })"
+      "PowerShell(Get-ChildItem -Recurse \"D:\\\\Qomo\\\\QomoTech\\\\QomoTech_FrontEnd\\\\src\\\\renderer\\\\src\\\\modules\\\\entitiesEditor\" -File | ForEach-Object { $_.FullName })",
+      "Bash(Select-Object -First 200)"
     ]
   },
   "enabledPlugins": {}

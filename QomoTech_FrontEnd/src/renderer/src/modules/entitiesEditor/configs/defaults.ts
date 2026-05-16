@@ -6,6 +6,7 @@
 export const STORAGE_KEY_SHORTCUTS = 'qomo_shortcuts_v1'
 export const STORAGE_KEY_SCENE3D = 'qomo_scene3d_v1'
 export const STORAGE_KEY_GENERAL = 'qomo_general_v1'
+export const STORAGE_KEY_PROJECT = 'qomo_project_v1'
 
 
 // ── 快捷键 ──

@@ -15,12 +15,16 @@ import { useShortCutsDetails } from '../composables/shortcuts/useShortCutsDetail
 import { SETTINGS_STATE_KEY } from '../shares/types'
 import type { ActionDef, Scene3DConfig } from '../shares/types'
 import { loadSceneConfig, saveSceneConfig } from '../stores/preview3dStore'
+import { saveProject, exportProject, loadProjectIntoStore } from '../stores/projectStore'
 
 const { activeTab, rightPanelTabs } = useRightPanel()
 
 const settingsRef = ref<InstanceType<typeof SettingsDialog> | null>(null)
 const previewRef = ref<InstanceType<typeof Preview3D> | null>(null)
 const toolbarRef = ref<InstanceType<typeof EditorToolbar> | null>(null)
+
+// ── 页面初始化：从 localStorage 恢复上次保存的项目 ──
+loadProjectIntoStore()
 
 // ── 设置弹窗跨组件共享状态 ──
 const settingsIsOpen = ref(false)
@@ -34,10 +38,14 @@ function toggleSceneConfig(patch: Partial<Scene3DConfig>) {
   previewRef.value?.applyConfig(updated)
 }
 
+
+
 const { dispatchAction } = useShortCutsDetails({
   onSettingsOpen: () => settingsRef.value?.open(),
   onToggleGrid: () => toggleSceneConfig({ showGrid: !loadSceneConfig().showGrid }),
   onToggleAxes: () => toggleSceneConfig({ showAxes: !loadSceneConfig().showAxes }),
+  onSave: ()=>saveProject(),
+  onExport: ()=> exportProject(),
 })
 
 function onToolbarAction(a: ActionDef) {

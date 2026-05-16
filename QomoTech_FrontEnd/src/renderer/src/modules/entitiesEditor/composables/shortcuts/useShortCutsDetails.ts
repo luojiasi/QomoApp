@@ -12,10 +12,18 @@ export function useShortCutsDetails(handlers: {
   onSettingsOpen: () => void
   onToggleGrid: () => void
   onToggleAxes: () => void
+  onSave: () => void
+  onExport: () => void
 }) {
   function dispatchAction(a: ActionDef) {
     lastShortcut.value = toolTitle(a)
     switch (a.id) {
+      case 'SAVE':
+        handlers.onSave()
+        break
+      case 'EXPORT_LJS':
+        handlers.onExport()
+        break
       case 'SETTINGS':
         handlers.onSettingsOpen()
         break
