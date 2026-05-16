@@ -30,7 +30,7 @@ pnpm-debug.log*
 # OS/IDE
 .DS_Store
 Thumbs.db
-.vscode/
 .idea/
 .npm-cache-tmp/
 .pytest_cache/
+docs/
