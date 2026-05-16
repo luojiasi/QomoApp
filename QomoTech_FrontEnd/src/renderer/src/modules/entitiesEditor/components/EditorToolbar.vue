@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { useEditorToolbar, type ActionDef } from '../composables/useEditorToolbar'
+import { useEditorToolbar } from '../composables/useEditorToolbar'
+import type { ActionDef } from '../shares/types'
 
 const { fileGroup, shapeGroup, toolGroup, settingsGroup, toolTitle } = useEditorToolbar()
 

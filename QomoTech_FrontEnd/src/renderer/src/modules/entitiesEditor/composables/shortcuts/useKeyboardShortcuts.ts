@@ -1,7 +1,7 @@
 import { onMounted, onUnmounted } from 'vue'
-import { getResolvedActions } from '../stores/shortcutsStore'
-import { useSettings } from './useSettings'
-import type { ActionDef } from '../shares/types'
+import { getResolvedActions } from '../../stores/shortcutsStore'
+import { useSettings } from '../useSettings'
+import type { ActionDef } from '../../shares/types'
 
 /**
  * 全局键盘快捷键监听。

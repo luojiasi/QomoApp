@@ -9,12 +9,17 @@ import InspectorPanel from '../components/panels/InspectorPanel.vue'
 import SettingsDialog from '../components/SettingsDialog.vue'
 import StatusBar from '../components/StatusBar.vue'
 import { useRightPanel } from '../composables/useRightPanel'
-import { useKeyboardShortcuts } from '../composables/useKeyboardShortcuts'
+import { useKeyboardShortcuts } from '../composables/shortcuts/useKeyboardShortcuts'
+import { useShortCutsDetails } from '../composables/shortcuts/useShortCutsDetails'
 import type { ActionDef } from '../shares/types'
 
 const { activeTab, rightPanelTabs } = useRightPanel()
 
 const settingsRef = ref<InstanceType<typeof SettingsDialog> | null>(null)
+
+const { dispatchAction } = useShortCutsDetails({
+  onSettingsOpen: () => settingsRef.value?.open(),
+})
 
 /** 工具栏点击 → 分发 */
 function onToolbarAction(a: ActionDef) {
@@ -23,16 +28,6 @@ function onToolbarAction(a: ActionDef) {
 
 /** 键盘快捷键 → 分发 */
 useKeyboardShortcuts(dispatchAction)
-
-/** 统一 action 分发入口 */
-function dispatchAction(a: ActionDef) {
-  switch (a.id) {
-    case 'SETTINGS':
-      settingsRef.value?.open()
-      break
-    // 其余 action 在 composables 重建后逐项接入
-  }
-}
 </script>
 
 <template>
