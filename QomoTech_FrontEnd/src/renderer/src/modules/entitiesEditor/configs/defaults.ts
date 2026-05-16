@@ -7,6 +7,7 @@ export const STORAGE_KEY_SHORTCUTS = 'qomo_shortcuts_v1'
 export const STORAGE_KEY_SCENE3D = 'qomo_scene3d_v1'
 export const STORAGE_KEY_GENERAL = 'qomo_general_v1'
 export const STORAGE_KEY_PROJECT = 'qomo_project_v1'
+export const STORAGE_KEY_CANVAS2D = 'qomo_canvas2d_v1'
 
 
 // ── 快捷键 ──
@@ -92,18 +93,46 @@ export const GRID_ROTATION_X = Math.PI / 2 // Z-up：GridHelper 从 XY 翻到 XZ
 export const DEFAULT_HEIGHT = 5
 export const DEFAULT_OPEN_SIZE = 1
 export const DEFAULT_TILT_ANGLE = 0
-export const MIN_ZOOM = 0.1
-export const MAX_ZOOM = 10
+export const MIN_ZOOM = 2
+export const MAX_ZOOM = 100
 export const MAX_UNDO_STEPS = 50
 export const MAX_BEZIER_POINTS = 128
 export const OPEN_PATH_SAMPLE_SEGMENTS = 96
 
+// ============ 2D Canvas 渲染 ============
+// ── 网格 ──
+export const CANVAS_GRID_STEP = 2
+export const CANVAS_GRID_COLOR = '#1e293b'
+export const CANVAS_GRID_AXIS_COLOR = '#334155'
+export const CANVAS_AXIS_LINE_WIDTH = 2
+
+// ── 实体绘制 ──
+export const CANVAS_ENTITY_STROKE = '#94a3b8'
+export const CANVAS_ENTITY_LINE_WIDTH = 1.5
+
+// ── 选中 / 悬停 ──
+export const CANVAS_SELECTION_STROKE = '#3b82f6'
+export const CANVAS_SELECTION_LINE_WIDTH = 3
+export const CANVAS_HOVER_STROKE = '#818cf8'
+
+// ── 绘制预览 ──
+export const CANVAS_PREVIEW_STROKE = '#60a5fa'
+export const CANVAS_PREVIEW_DASH: number[] = [6, 4]
+
+// ── 框选矩形 ──
+export const CANVAS_SELECTION_RECT_STROKE = '#3b82f6'
+export const CANVAS_SELECTION_RECT_DASH: number[] = [6, 4]
+export const CANVAS_SELECTION_RECT_FILL = 'rgba(59, 130, 246, 0.08)'
+
+// ── 命中检测 ──
+export const CANVAS_HIT_PX = 12
+
 // ============ 编辑器初始状态 ============
 export const DEFAULT_LAYER_NAME = '默认图层'
-export const INITIAL_ZOOM = 1
+export const INITIAL_ZOOM = 50
 export const INITIAL_PAN_X = 0
 export const INITIAL_PAN_Y = 0
 export const INITIAL_VIEWPORT_WIDTH = 800
-export const INITIAL_VIEWPORT_HEIGHT = 600
+export const INITIAL_VIEWPORT_HEIGHT = 800
 export const PROJECT_VERSION = '1.0.0'
 export const PROJECT_DEFAULT_NAME = '未命名项目'

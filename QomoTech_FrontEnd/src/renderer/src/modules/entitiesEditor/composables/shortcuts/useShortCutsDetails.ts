@@ -2,11 +2,15 @@ import router from '@/app/router'
 import type { ActionDef } from '../../shares/types'
 import { lastShortcut } from '../useStatusBar'
 import { toolTitle } from '../../utils/shortcuts'
+import { useEditorStore } from '../../stores/editorStore'
+import { getSceneBounds } from '../../utils/geometry'
+import { MIN_ZOOM, MAX_ZOOM } from '../../configs/defaults'
 
 /**
  * 统一 action 分发入口 —— 工具栏点击 & 键盘快捷键 在此汇聚。
  *
- * 调用方传入各 action 的回调处理函数，dispatchAction 根据 action.id 路由到对应回调。
+ * 调用方传入依赖外部组件引用的回调（如设置弹窗、场景配置）；
+ * 仅依赖 store / 工具函数的 action 在此直接处理，避免 EditorPage 样板代码。
  */
 export function useShortCutsDetails(handlers: {
   onSettingsOpen: () => void
@@ -15,28 +19,57 @@ export function useShortCutsDetails(handlers: {
   onSave: () => void
   onExport: () => void
 }) {
+  const store = useEditorStore()
+
   function dispatchAction(a: ActionDef) {
     lastShortcut.value = toolTitle(a)
     switch (a.id) {
-      case 'SAVE':
-        handlers.onSave()
-        break
-      case 'EXPORT_LJS':
-        handlers.onExport()
-        break
-      case 'SETTINGS':
-        handlers.onSettingsOpen()
-        break
-      case 'BACKHOME':
-        router.back()
-        break
-      case 'TOGGLE_GRID':
-        handlers.onToggleGrid()
-        break
-      case 'TOGGLE_AXES':
-        handlers.onToggleAxes()
-        break
+      // ── 文件 ──
+      case 'SAVE':        handlers.onSave(); break
+      case 'IMPORT_DXF':  break // TODO: DXF 导入对话框
+      case 'EXPORT_LJS':  handlers.onExport(); break
+      case 'UNDO':        store.undo(); break
+      case 'REDO':        store.redo(); break
+
+      // ── 工具 ──
+      case 'SELECT':          store.setTool('SELECT'); break
+      case 'PAN':             store.setTool('PAN'); break
+      case 'DELETE_SELECTED': store.deleteSelected(); break
+      case 'FIT_VIEW':        fitView(); break
+
+      // ── 图形（DRAW 模式 + 子工具） ──
+      case 'DRAW_LINE':     store.setTool('DRAW'); store.setDrawSubTool('LINE'); break
+      case 'DRAW_ARC':      store.setTool('DRAW'); store.setDrawSubTool('ARC'); break
+      case 'DRAW_BEZIER':   store.setTool('DRAW'); store.setDrawSubTool('BEZIER'); break
+      case 'DRAW_CIRCLE':   store.setTool('DRAW'); store.setDrawSubTool('CIRCLE'); break
+      case 'DRAW_ELLIPSE':  store.setTool('DRAW'); store.setDrawSubTool('ELLIPSE'); break
+      case 'DRAW_POLYLINE': store.setTool('DRAW'); store.setDrawSubTool('POLYLINE'); break
+
+      // ── 视图 ──
+      case 'TOGGLE_GRID': handlers.onToggleGrid(); break
+      case 'TOGGLE_AXES': handlers.onToggleAxes(); break
+
+      // ── 设置 ──
+      case 'SETTINGS': handlers.onSettingsOpen(); break
+      case 'BACKHOME': router.back(); break
     }
+  }
+
+  /** 自适应全部实体到视口 */
+  function fitView() {
+    if (store.entities.length === 0) return
+    const bb = getSceneBounds(store.entities)
+    const worldW = bb.maxX - bb.minX || 1
+    const worldH = bb.maxY - bb.minY || 1
+
+    const pad = 0.1
+    const zoomX = store.viewport.width / (worldW * (1 + pad * 2))
+    const zoomY = store.viewport.height / (worldH * (1 + pad * 2))
+    const newZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.min(zoomX, zoomY)))
+
+    store.viewport.zoom = newZoom
+    store.viewport.panX = -(bb.minX + worldW / 2)
+    store.viewport.panY = -(bb.minY + worldH / 2)
   }
 
   return { dispatchAction }

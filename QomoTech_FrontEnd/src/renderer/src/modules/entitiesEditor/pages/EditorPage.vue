@@ -22,6 +22,7 @@ const { activeTab, rightPanelTabs } = useRightPanel()
 const settingsRef = ref<InstanceType<typeof SettingsDialog> | null>(null)
 const previewRef = ref<InstanceType<typeof Preview3D> | null>(null)
 const toolbarRef = ref<InstanceType<typeof EditorToolbar> | null>(null)
+const canvas2DRef = ref<InstanceType<typeof Canvas2D> | null>(null)
 
 // ── 页面初始化：从 localStorage 恢复上次保存的项目 ──
 loadProjectIntoStore()
@@ -55,6 +56,7 @@ function onToolbarAction(a: ActionDef) {
 function onSettingsSaved() {
   previewRef.value?.reloadConfig()
   toolbarRef.value?.reload()
+  canvas2DRef.value?.reloadConfig()
 }
 
 useKeyboardShortcuts(dispatchAction, { isOpen: settingsIsOpen, capturing: settingsCapturing })
@@ -69,7 +71,7 @@ useKeyboardShortcuts(dispatchAction, { isOpen: settingsIsOpen, capturing: settin
         <Preview3D ref="previewRef" />
       </div>
       <div class="panel panel-2d">
-        <Canvas2D />
+        <Canvas2D ref="canvas2DRef" />
       </div>
       <div class="panel panel-right">
         <SwitchableView v-model="activeTab" :tabs="rightPanelTabs">

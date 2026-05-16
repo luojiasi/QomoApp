@@ -14,6 +14,7 @@ export function useSettings() {
   const settingsTabs: TabItem[] = [
     { id: 'general', label: '通用' },
     { id: 'scene3d', label: '3D参数' },
+    { id: 'canvas2d', label: '2D画布' },
     { id: 'shortcuts', label: '快捷键' },
   ]
 

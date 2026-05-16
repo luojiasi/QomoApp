@@ -2,10 +2,12 @@
 import { onMounted, onUnmounted } from 'vue'
 import { useCanvas2D } from '@/modules/entitiesEditor/composables/canvas/useCanvas2D'
 
-const { canvasRef, setup, cleanup } = useCanvas2D()
+const { canvasRef, setup, cleanup, reloadConfig } = useCanvas2D()
 
 onMounted(() => setup())
 onUnmounted(() => cleanup())
+
+defineExpose({ reloadConfig })
 </script>
 
 <template>

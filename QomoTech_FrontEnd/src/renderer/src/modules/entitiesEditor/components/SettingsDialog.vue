@@ -3,18 +3,22 @@ import SwitchableView from '../shares/SwitchableView.vue'
 import ShortcutEditor from './panels/ShortcutEditor.vue'
 import Scene3DPanel from './panels/Scene3DPanel.vue'
 import GeneralPanel from './panels/GeneralPanel.vue'
+import Canvas2DPanel from './panels/Canvas2DPanel.vue'
 import { useSettings } from '../composables/useSettings'
 import { useShortcutSettings } from '../composables/shortcuts/useShortcutSettings'
 import { useScene3DSettings } from '../composables/preview/useScene3DSettings'
 import { useGeneralSettings } from '../composables/canvas/useGeneralSettings'
+import { useCanvas2DSettings } from '../composables/canvas/useCanvas2DSettings'
 import { saveSceneConfig } from '../stores/preview3dStore'
 import { saveGeneralConfig } from '../stores/generalSettingsStore'
+import { saveCanvas2DConfig } from '../stores/canvas2DSettingsStore'
 import { useEditorStore } from '../stores/editorStore'
 
 const { isOpen, activeTab, settingsTabs, open, close } = useSettings()
 const shortcuts = useShortcutSettings()
 const scene3D = useScene3DSettings()
 const general = useGeneralSettings()
+const canvas2D = useCanvas2DSettings()
 
 const emit = defineEmits<{
   (e: 'saved'): void
@@ -47,6 +51,7 @@ function save() {
   saveSceneConfig(scene3D.toData())
   const generalData = general.toData()
   saveGeneralConfig(generalData)
+  saveCanvas2DConfig(canvas2D.toData())
   // 同步项目名到当前项目的 meta
   const store = useEditorStore()
   store.projectMeta.name = generalData.defaultProjectName
@@ -85,6 +90,12 @@ function save() {
               :form="general.form"
               @update:form="(patch) => Object.assign(general.form, patch)"
               @reset="general.reset"
+            />
+            <Canvas2DPanel
+              v-else-if="activeTab === 'canvas2d'"
+              :form="canvas2D.form"
+              @update:form="(patch) => Object.assign(canvas2D.form, patch)"
+              @reset="canvas2D.reset"
             />
           </SwitchableView>
         </div>

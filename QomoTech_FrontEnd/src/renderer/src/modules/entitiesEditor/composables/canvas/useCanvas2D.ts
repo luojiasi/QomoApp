@@ -21,7 +21,7 @@
 //     // <canvas ref="canvasRef" />
 // =============================================================================
 
-import { ref, watch } from 'vue'
+import { ref, reactive, watch } from 'vue'
 import { useEditorStore } from '@/modules/entitiesEditor/stores/editorStore'
 import type {
   Point2D,
@@ -36,6 +36,7 @@ import type {
   ViewportState,
 } from '@/modules/entitiesEditor/commons/types'
 import { MIN_ZOOM, MAX_ZOOM } from '@/modules/entitiesEditor/configs/defaults'
+import { loadCanvas2DConfig, type Canvas2DConfig } from '@/modules/entitiesEditor/stores/canvas2DSettingsStore'
 import {
   sampleArcPoints,
   sampleBezierPoints,
@@ -43,35 +44,19 @@ import {
   sampleEllipsePoints,
   getEntityBounds,
 } from '@/modules/entitiesEditor/utils/geometry'
-
-// ── 绘制常量 ─────────────────────────────────────────────────────────────
-
-const GRID_STEP = 10
-const GRID_COLOR = '#1e293b'
-const GRID_AXIS_COLOR = '#334155'
-const AXIS_LINE_WIDTH = 2
-
-const ENTITY_STROKE = '#94a3b8'
-const ENTITY_LINE_WIDTH = 1.5
-
-const SELECTION_STROKE = '#3b82f6'
-const SELECTION_LINE_WIDTH = 3
-
-const HOVER_STROKE = '#818cf8'
-
-const PREVIEW_STROKE = '#60a5fa'
-const PREVIEW_DASH = [6, 4]
-
-const SELECTION_RECT_STROKE = '#3b82f6'
-const SELECTION_RECT_DASH = [6, 4]
-const SELECTION_RECT_FILL = 'rgba(59, 130, 246, 0.08)'
-
-const HIT_PX = 12
+import { cursorX, cursorY } from '@/modules/entitiesEditor/composables/useStatusBar'
 
 // ── composable ────────────────────────────────────────────────────────────
 
 export function useCanvas2D() {
   const store = useEditorStore()
+
+  const cfg = reactive<Canvas2DConfig>(loadCanvas2DConfig())
+
+  function reloadConfig() {
+    Object.assign(cfg, loadCanvas2DConfig())
+    scheduleRender()
+  }
 
   const canvasRef = ref<HTMLCanvasElement | null>(null)
 
@@ -215,7 +200,7 @@ export function useCanvas2D() {
     const tl = screenToWorld(0, 0)
     const br = screenToWorld(vp.width, vp.height)
 
-    const step = GRID_STEP
+    const step = cfg.gridStep
     const minX = Math.floor(Math.min(tl.X, br.X) / step) * step
     const maxX = Math.ceil(Math.max(tl.X, br.X) / step) * step
     const minY = Math.floor(Math.min(tl.Y, br.Y) / step) * step
@@ -224,7 +209,7 @@ export function useCanvas2D() {
     const lw = 1 / vp.zoom
 
     c.lineWidth = lw
-    c.strokeStyle = GRID_COLOR
+    c.strokeStyle = cfg.gridColor
 
     c.beginPath()
     for (let x = minX; x <= maxX; x += step) {
@@ -238,8 +223,8 @@ export function useCanvas2D() {
     c.stroke()
 
     // 坐标轴
-    c.lineWidth = AXIS_LINE_WIDTH / vp.zoom
-    c.strokeStyle = GRID_AXIS_COLOR
+    c.lineWidth = cfg.axisLineWidth / vp.zoom
+    c.strokeStyle = cfg.gridAxisColor
 
     c.beginPath()
     c.moveTo(minX, 0)
@@ -261,14 +246,14 @@ export function useCanvas2D() {
     hovered: boolean,
   ) {
     if (selected) {
-      c.strokeStyle = SELECTION_STROKE
-      c.lineWidth = SELECTION_LINE_WIDTH / store.viewport.zoom
+      c.strokeStyle = cfg.selectionStroke
+      c.lineWidth = cfg.selectionLineWidth / store.viewport.zoom
     } else if (hovered) {
-      c.strokeStyle = HOVER_STROKE
-      c.lineWidth = ENTITY_LINE_WIDTH / store.viewport.zoom
+      c.strokeStyle = cfg.hoverStroke
+      c.lineWidth = cfg.entityLineWidth / store.viewport.zoom
     } else {
-      c.strokeStyle = ENTITY_STROKE
-      c.lineWidth = ENTITY_LINE_WIDTH / store.viewport.zoom
+      c.strokeStyle = cfg.entityStroke
+      c.lineWidth = cfg.entityLineWidth / store.viewport.zoom
     }
 
     switch (entity.kind) {
@@ -326,12 +311,12 @@ export function useCanvas2D() {
     const w = Math.abs(rect.end.X - rect.start.X)
     const h = Math.abs(rect.end.Y - rect.start.Y)
 
-    c.fillStyle = SELECTION_RECT_FILL
+    c.fillStyle = cfg.selectionRectFill
     c.fillRect(minX, minY, w, h)
 
-    c.strokeStyle = SELECTION_RECT_STROKE
+    c.strokeStyle = cfg.selectionRectStroke
     c.lineWidth = 1 / store.viewport.zoom
-    c.setLineDash(SELECTION_RECT_DASH.map(d => d / store.viewport.zoom))
+    c.setLineDash(cfg.selectionRectDash.map(d => d / store.viewport.zoom))
     c.strokeRect(minX, minY, w, h)
     c.setLineDash([])
   }
@@ -341,9 +326,9 @@ export function useCanvas2D() {
   function drawPreview(c: CanvasRenderingContext2D, start: Point2D, end: Point2D) {
     const kind = store.drawSubTool
 
-    c.strokeStyle = PREVIEW_STROKE
-    c.lineWidth = ENTITY_LINE_WIDTH / store.viewport.zoom
-    c.setLineDash(PREVIEW_DASH.map(d => d / store.viewport.zoom))
+    c.strokeStyle = cfg.previewStroke
+    c.lineWidth = cfg.entityLineWidth / store.viewport.zoom
+    c.setLineDash(cfg.previewDash.map(d => d / store.viewport.zoom))
 
     if (kind === 'LINE') {
       c.beginPath()
@@ -374,7 +359,7 @@ export function useCanvas2D() {
   // ── 命中检测 ─────────────────────────────────────────────────────────
 
   function hitThreshold(): number {
-    return HIT_PX / store.viewport.zoom
+    return cfg.hitPx / store.viewport.zoom
   }
 
   /** 点到线段的最短距离 */
@@ -542,6 +527,9 @@ export function useCanvas2D() {
     const pt = getCanvasPoint(e)
     const world = screenToWorld(pt.x, pt.y)
 
+    cursorX.value = world.X
+    cursorY.value = world.Y
+
     if (store.activeTool === 'SELECT') {
       if (selectionRect.value) {
         selectionRect.value = { start: selectionRect.value.start, end: { ...world } }
@@ -681,5 +669,5 @@ export function useCanvas2D() {
 
   // ── Public API ───────────────────────────────────────────────────────
 
-  return { canvasRef, setup, cleanup }
+  return { canvasRef, setup, cleanup, reloadConfig }
 }
