@@ -1,34 +1,15 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
-import { useThreeScene } from "@/modules/entitiesEditor/composables/useThreeScene"
+import { usePreview3D } from '../composables/usePreview3D'
 
-const { init, resize, dispose } = useThreeScene()
-
-const canvasRef = ref<HTMLCanvasElement | null>(null)
-let observer: ResizeObserver | null = null
-
-onMounted(() => {
-  if (!canvasRef.value) return
-  init(canvasRef.value)
-
-  observer = new ResizeObserver((entries) => {
-    for (const entry of entries) {
-      const { width, height } = entry.contentRect
-      if (width > 0 && height > 0) resize(width, height)
-    }
-  })
-  observer.observe(canvasRef.value.parentElement ?? canvasRef.value)
-})
-
-onUnmounted(() => {
-  observer?.disconnect()
-  dispose()
-})
+const {} = usePreview3D()
 </script>
 
 <template>
   <div class="preview-3d">
-    <canvas ref="canvasRef" class="three-canvas" />
+    <div class="placeholder">
+      <span class="placeholder-icon">◈</span>
+      <span class="placeholder-text">3D Preview</span>
+    </div>
   </div>
 </template>
 
@@ -36,11 +17,19 @@ onUnmounted(() => {
 .preview-3d {
   width: 100%;
   height: 100%;
-  overflow: hidden;
+  background: #0a0a10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid #27272a;
 }
-.three-canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
+.placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  opacity: 0.35;
 }
+.placeholder-icon { font-size: 32px; color: #3b82f6; }
+.placeholder-text { font-size: 13px; color: #71717a; letter-spacing: 1px; text-transform: uppercase; }
 </style>

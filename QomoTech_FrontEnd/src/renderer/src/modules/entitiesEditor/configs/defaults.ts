@@ -2,8 +2,6 @@
 // entitiesEditor 默认配置与工厂函数
 // =============================================================================
 
-import type { EditorLayer, ExtrusionParams, ProjectMeta, ViewportState } from "@/modules/entitiesEditor/commons/types"
-import { generateId } from "@/modules/entitiesEditor/utils/idgen"
 
 // ============ 常量 ============
 
@@ -31,43 +29,20 @@ export const LOD_SEGMENTS_FAR = 16
 
 // ============ 工厂函数 ============
 
-export function createDefaultExtrusion(): ExtrusionParams {
-  return {
-    height: DEFAULT_HEIGHT,
-    tiltAngleDeg: DEFAULT_TILT_ANGLE,
-    openSize: DEFAULT_OPEN_SIZE,
-  }
+export function createDefaultExtrusion() {
+  return { height: DEFAULT_HEIGHT, tiltAngleDeg: DEFAULT_TILT_ANGLE, openSize: DEFAULT_OPEN_SIZE }
 }
 
-export function createDefaultLayer(name?: string): EditorLayer {
-  return {
-    id: generateId(),
-    name: name ?? 'Layer 1',
-    visible: true,
-    locked: false,
-    entityCount: 0,
-  }
+export function createDefaultLayer(name?: string) {
+  return { id: crypto.randomUUID?.() ?? `lyr_${Date.now()}`, name: name ?? 'Layer 1', visible: true, locked: false, entityCount: 0 }
 }
 
-export function createDefaultViewport(w?: number, h?: number): ViewportState {
-  return {
-    zoom: 1,
-    panX: 0,
-    panY: 0,
-    width: w ?? 800,
-    height: h ?? 600,
-  }
+export function createDefaultViewport(w = 800, h = 600) {
+  return { zoom: 1, panX: 0, panY: 0, width: w, height: h }
 }
 
-export function createEmptyMeta(name?: string): ProjectMeta {
+export function createEmptyMeta(name = 'Untitled') {
   const now = new Date().toISOString()
-  return {
-    version: PROJECT_VERSION,
-    name: name ?? 'Untitled',
-    createdAt: now,
-    updatedAt: now,
-    sourceFileName: '',
-    entityCount: 0,
-    unsupportedCount: 0,
-  }
+  return { version: PROJECT_VERSION, name, createdAt: now, updatedAt: now, sourceFileName: '', entityCount: 0, unsupportedCount: 0 }
 }
+

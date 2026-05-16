@@ -12,6 +12,7 @@ import RecipeManagementPage from '@/modules/recipe/RecipeManagementPage.vue'
 import LaserSettingsPage from '@/modules/laser/pages/LaserSettingsPage.vue'
 import { getDesktopBackendRuntimeStatus } from '@/shared/api/desktopBridge'
 import Create5PPage from '@/modules/editor/Create5PPage.vue'
+import Create5PNPage from '@/modules/entitiesEditor/pages/EditorPage.vue'
 import SelfProcessPage from '@/modules/workflow/SelfProcessPage.vue'
 import type { RouteShortcut } from '@/shared/types'
 
@@ -120,6 +121,20 @@ const routes: RouteRecordRaw[] = [
       requiresAuth: true,
       menu: {
         label: '5P',
+        icon: 'icon-gongzuotai',
+        description: '用于5P编辑器的页面。',
+        order: 50
+      }
+    }
+  },
+  {
+    path: '/create-5pN',
+    name: 'create-5pN',
+    component: Create5PNPage,
+    meta: {
+      requiresAuth: true,
+      menu: {
+        label: '5PN',
         icon: 'icon-gongzuotai',
         description: '用于5P编辑器的页面。',
         order: 50
