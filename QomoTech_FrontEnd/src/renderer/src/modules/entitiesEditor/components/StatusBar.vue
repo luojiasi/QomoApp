@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { useStatusBar } from '../composables/useStatusBar'
+import { useEditorStore } from '../stores/editorStore'
 
 const { statusText, cursorX, cursorY, zoomPercent, cameraDistance, lastShortcut } = useStatusBar()
+const store = useEditorStore()
 </script>
 
 <template>
@@ -9,7 +11,8 @@ const { statusText, cursorX, cursorY, zoomPercent, cameraDistance, lastShortcut 
     <span class="status-item">{{ statusText }}</span>
     <span class="status-spacer" />
     <span class="status-item">缩放距离: {{ cameraDistance.toFixed(0) }}</span>
-    <span class="status-item mobile-hidden">X: {{ cursorX.toFixed(2) }} Y: {{ cursorY.toFixed(2) }}</span>
+    <span class="status-item">实体: {{ store.entities.length }}</span>
+    <span class="status-item mobile-hidden">鼠标位置:({{ cursorX.toFixed(2) }},{{ cursorY.toFixed(2) }})</span>
     <span class="status-item">缩放: {{ zoomPercent }}%</span>
     <span class="status-item">上次快捷键操作: {{ lastShortcut }}</span>
   </div>
