@@ -1,5 +1,7 @@
 import router from '@/app/router'
 import type { ActionDef } from '../../shares/types'
+import { lastShortcut } from '../useStatusBar'
+import { toolTitle } from '../../utils/shortcuts'
 
 /**
  * 统一 action 分发入口 —— 工具栏点击 & 键盘快捷键 在此汇聚。
@@ -12,12 +14,13 @@ export function useShortCutsDetails(handlers: {
   onToggleAxes: () => void
 }) {
   function dispatchAction(a: ActionDef) {
+    lastShortcut.value = toolTitle(a)
     switch (a.id) {
       case 'SETTINGS':
         handlers.onSettingsOpen()
         break
       case 'BACKHOME':
-        router.push('/home')
+        router.back()
         break
       case 'TOGGLE_GRID':
         handlers.onToggleGrid()

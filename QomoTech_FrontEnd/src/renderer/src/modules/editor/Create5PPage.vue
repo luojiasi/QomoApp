@@ -43,13 +43,12 @@
         </div>
 
         <div class="flex items-center gap-2 px-30">
-          <button
+          <RouterLink
+            to="/home"
             class="rounded-md border border-red-700/30 bg-blue-700 px-2 py-1 text-xs hover:bg-red-800 hover:border-blue-700"
-            type="button"
-            @click="goHome"
           >
             返回首页
-          </button>
+          </RouterLink>
           <div class="mx-1 h-5 w-px bg-slate-700"></div>
           <button
             type="button"
@@ -1166,7 +1165,6 @@
 </template>
 
 <script setup lang="ts">
-import { useRouter } from 'vue-router'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useNotification } from '@/shared/composables/useNotification'
 import QomoCanvas from './panels/QomoCanvas.vue'
@@ -1240,9 +1238,6 @@ const bezierExpandedCoordinateFormula = (entity: QomoBezierSurfacesEntity, axis:
     )
     .join(' + ')
 }
-// 会首页的按钮
-const router = useRouter()
-const goHome = () => router.push('/home')
 // 文件菜单的按钮
 const fileMenuOpen = ref(false)
 const fileBtnRef = ref<HTMLElement | null>(null)

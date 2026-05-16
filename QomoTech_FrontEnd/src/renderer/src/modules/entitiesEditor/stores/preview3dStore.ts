@@ -14,6 +14,8 @@ import {
   AXES_SIZE,
   SHOW_GRID,
   SHOW_AXES,
+  CONTROLS_MIN_DISTANCE,
+  CONTROLS_MAX_DISTANCE,
   GRID_SIZE,
   GRID_DIVISIONS,
   GRID_COLOR_CENTER,
@@ -45,6 +47,8 @@ export function loadSceneConfig(): Scene3DConfig {
         gridColorEdge: saved.gridColorEdge ?? GRID_COLOR_EDGE,
         showGrid: saved.showGrid ?? SHOW_GRID,
         showAxes: saved.showAxes ?? SHOW_AXES,
+        controlsMinDistance: saved.controlsMinDistance ?? CONTROLS_MIN_DISTANCE,
+        controlsMaxDistance: saved.controlsMaxDistance ?? CONTROLS_MAX_DISTANCE,
       }
     }
   } catch { /* corrupted data, fall through to defaults */ }
@@ -64,6 +68,8 @@ export function loadSceneConfig(): Scene3DConfig {
     gridColorEdge: GRID_COLOR_EDGE,
     showGrid: SHOW_GRID,
     showAxes: SHOW_AXES,
+    controlsMinDistance: CONTROLS_MIN_DISTANCE,
+    controlsMaxDistance: CONTROLS_MAX_DISTANCE,
   }
 }
 

@@ -5,6 +5,7 @@
 import { ACTIONS } from '../configs/defaults'
 import type { ActionDef } from '../shares/types'
 import { STORAGE_KEY_SHORTCUTS } from '../configs/defaults'
+let _resolvedCache: ActionDef[] | null = null
 
 function loadOverrides(): Record<string, Partial<ActionDef>> {
   try {
@@ -17,13 +18,15 @@ function loadOverrides(): Record<string, Partial<ActionDef>> {
 
 export function saveOverrides(overrides: Record<string, Partial<ActionDef>>) {
   localStorage.setItem(STORAGE_KEY_SHORTCUTS, JSON.stringify(overrides))
+  _resolvedCache = null // 清除缓存
 }
 
 /** 合并默认值 + 用户覆盖 → 当前生效的快捷键列表。
  *  覆盖值为 null 表示用户主动清除了该字段。 */
 export function getResolvedActions(): ActionDef[] {
+  if (_resolvedCache) return _resolvedCache
   const o = loadOverrides()
-  return ACTIONS.map(a => {
+  _resolvedCache = ACTIONS.map(a => {
     const ov = o[a.id]
     if (!ov) return { ...a }
     const merged: any = { ...a }
@@ -36,6 +39,7 @@ export function getResolvedActions(): ActionDef[] {
     }
     return merged as ActionDef
   })
+  return _resolvedCache
 }
 
 /** 键盘事件 → 匹配已合并用户覆盖的快捷键 */

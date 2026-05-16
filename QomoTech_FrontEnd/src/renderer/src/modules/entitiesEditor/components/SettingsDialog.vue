@@ -98,8 +98,8 @@ function save() {
   width: 560px;
   max-width: 90vw;
   max-height: 80vh;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   background: #131316;
   border: 1px solid #27272a;
   border-radius: 12px;
@@ -126,11 +126,15 @@ function save() {
 }
 .sd-close:hover { color: #e4e4e7; background: #27272a; }
 .sd-body {
-  flex: 1;
   min-height: 0;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 .sd-body :deep(.switchable-view) {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
   border-left: none;
   background: transparent;
 }

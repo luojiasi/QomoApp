@@ -12,6 +12,8 @@ import {
   AXES_SIZE,
   SHOW_GRID,
   SHOW_AXES,
+  CONTROLS_MIN_DISTANCE,
+  CONTROLS_MAX_DISTANCE,
   GRID_SIZE,
   GRID_DIVISIONS,
   GRID_COLOR_CENTER,
@@ -26,6 +28,8 @@ export interface Scene3DForm {
   cameraFov: number
   cameraNear: number
   cameraFar: number
+  minDistance: number
+  maxDistance: number
   // 背景
   bgColor: string // hex string for display
   // 光照
@@ -62,6 +66,8 @@ export function useScene3DSettings() {
     cameraFov: CAMERA_FOV,
     cameraNear: CAMERA_NEAR,
     cameraFar: CAMERA_FAR,
+    minDistance: CONTROLS_MIN_DISTANCE,
+    maxDistance: CONTROLS_MAX_DISTANCE,
     bgColor: hexOf(SCENE_BACKGROUND),
     ambientIntensity: AMBIENT_LIGHT_INTENSITY,
     dirLightIntensity: DIRECTIONAL_LIGHT_INTENSITY,
@@ -84,6 +90,8 @@ export function useScene3DSettings() {
     form.cameraFov = CAMERA_FOV
     form.cameraNear = CAMERA_NEAR
     form.cameraFar = CAMERA_FAR
+    form.minDistance = CONTROLS_MIN_DISTANCE
+    form.maxDistance = CONTROLS_MAX_DISTANCE
     form.bgColor = hexOf(SCENE_BACKGROUND)
     form.ambientIntensity = AMBIENT_LIGHT_INTENSITY
     form.dirLightIntensity = DIRECTIONAL_LIGHT_INTENSITY
@@ -117,6 +125,8 @@ export function useScene3DSettings() {
       gridColorEdge: numOf(form.gridColorE),
       showGrid: form.showGrid,
       showAxes: form.showAxes,
+      controlsMinDistance: form.minDistance,
+      controlsMaxDistance: form.maxDistance,
     }
   }
 

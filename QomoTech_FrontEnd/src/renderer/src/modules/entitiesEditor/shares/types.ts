@@ -46,4 +46,6 @@ export interface Scene3DConfig {
   gridColorEdge: number
   showGrid: boolean
   showAxes: boolean
+  controlsMinDistance: number
+  controlsMaxDistance: number
 }

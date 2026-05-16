@@ -1,6 +1,7 @@
 ﻿<script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import {
   createRs232Sections,
   RS232_COM_PORT_OPTIONS,
@@ -26,6 +27,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'back'): void
 }>()
+
+const router = useRouter()
 
 const rs232Store = useRs232WorkbenchStore()
 const { workbench } = storeToRefs(rs232Store)
@@ -285,12 +288,12 @@ onMounted(async () => {
           <div>
             <h1 class="app-text-primary mt-1 text-3xl font-bold">激光设置</h1>
           </div>
-          <RouterLink
-            to="/home"
+          <button
             class="app-card-soft app-text-primary rounded-xl border border-(--app-border) px-5 py-3 text-center font-medium transition hover:bg-(--app-card)"
+            @click="router.back()"
           >
-            返回首页
-          </RouterLink>
+            返回
+          </button>
         </div>
       </div>
 

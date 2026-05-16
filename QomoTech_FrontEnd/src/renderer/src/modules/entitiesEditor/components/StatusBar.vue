@@ -1,15 +1,17 @@
 <script setup lang="ts">
 import { useStatusBar } from '../composables/useStatusBar'
 
-const { statusText, cursorX, cursorY, zoomPercent } = useStatusBar()
+const { statusText, cursorX, cursorY, zoomPercent, cameraDistance, lastShortcut } = useStatusBar()
 </script>
 
 <template>
   <div class="status-bar">
     <span class="status-item">{{ statusText }}</span>
     <span class="status-spacer" />
+    <span class="status-item">缩放距离: {{ cameraDistance.toFixed(0) }}</span>
     <span class="status-item mobile-hidden">X: {{ cursorX.toFixed(2) }} Y: {{ cursorY.toFixed(2) }}</span>
     <span class="status-item">缩放: {{ zoomPercent }}%</span>
+    <span class="status-item">上次快捷键操作: {{ lastShortcut }}</span>
   </div>
 </template>
 

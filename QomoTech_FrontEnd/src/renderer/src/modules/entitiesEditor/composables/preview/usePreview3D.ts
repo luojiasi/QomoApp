@@ -8,12 +8,15 @@ import {
   MAX_PIXEL_RATIO,
   CONTROLS_ENABLE_DAMPING,
   CONTROLS_DAMPING_FACTOR,
+  CONTROLS_MIN_DISTANCE,
+  CONTROLS_MAX_DISTANCE,
   AMBIENT_LIGHT_COLOR,
   DIRECTIONAL_LIGHT_COLOR,
   GRID_ROTATION_X,
 } from '../../configs/defaults'
 import { loadSceneConfig } from '../../stores/preview3dStore'
 import type { Scene3DConfig } from '../../shares/types'
+import { cameraDistance } from '../useStatusBar'
 
 export function usePreview3D() {
   const containerRef = ref<HTMLDivElement | null>(null)
@@ -43,6 +46,9 @@ export function usePreview3D() {
   function loop() {
     animationId = requestAnimationFrame(loop)
     controls?.update()
+    if (camera && controls) {
+      cameraDistance.value = camera.position.distanceTo(controls.target)
+    }
     if (renderer && scene && camera) renderer.render(scene, camera)
   }
 
@@ -56,6 +62,11 @@ export function usePreview3D() {
     camera.far = cfg.cameraFar
     camera.position.set(cfg.cameraPosition.x, cfg.cameraPosition.y, cfg.cameraPosition.z)
     camera.updateProjectionMatrix()
+
+    if (controls) {
+      controls.minDistance = cfg.controlsMinDistance
+      controls.maxDistance = cfg.controlsMaxDistance
+    }
 
     if (ambientLight) {
       ambientLight.intensity = cfg.ambientLightIntensity
@@ -105,6 +116,8 @@ export function usePreview3D() {
     controls = new OrbitControls(camera, renderer.domElement)
     controls.enableDamping = CONTROLS_ENABLE_DAMPING
     controls.dampingFactor = CONTROLS_DAMPING_FACTOR
+    controls.minDistance = cfg.controlsMinDistance ?? CONTROLS_MIN_DISTANCE
+    controls.maxDistance = cfg.controlsMaxDistance ?? CONTROLS_MAX_DISTANCE
     controls.target.set(CAMERA_TARGET.x, CAMERA_TARGET.y, CAMERA_TARGET.z)
     controls.update()
 

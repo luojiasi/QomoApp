@@ -70,6 +70,8 @@ const sections: { id: Section; label: string }[] = [
           <label class="s3d-field"><span>FOV</span><input type="number" :value="form.cameraFov" @input="updateField('cameraFov', Number(($event.target as HTMLInputElement).value))" min="10" max="120" step="1" /></label>
           <label class="s3d-field"><span>近裁面</span><input type="number" :value="form.cameraNear" @input="updateField('cameraNear', Number(($event.target as HTMLInputElement).value))" step="0.01" /></label>
           <label class="s3d-field"><span>远裁面</span><input type="number" :value="form.cameraFar" @input="updateField('cameraFar', Number(($event.target as HTMLInputElement).value))" step="100" /></label>
+          <label class="s3d-field"><span>最近缩放</span><input type="number" :value="form.minDistance" @input="updateField('minDistance', Number(($event.target as HTMLInputElement).value))" step="10" /></label>
+          <label class="s3d-field"><span>最远缩放</span><input type="number" :value="form.maxDistance" @input="updateField('maxDistance', Number(($event.target as HTMLInputElement).value))" step="100" /></label>
         </template>
 
         <!-- ── 光照 ── -->

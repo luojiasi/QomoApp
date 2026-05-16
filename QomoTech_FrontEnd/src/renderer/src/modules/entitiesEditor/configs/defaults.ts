@@ -32,7 +32,7 @@ export const ACTIONS: ActionDef[] = [
     { id: 'TOGGLE_AXES', label: '显示坐标轴', group: 'view', key: 'x' },
     // ── 设置 ──
     { id: 'SETTINGS', label: '打开设置', group: 'settings' },
-    { id: 'BACKHOME', label: '返回首页', group: 'settings' },
+    { id: 'BACKHOME', label: '返回', group: 'settings' },
   ]
 
 
@@ -53,6 +53,8 @@ export const MAX_PIXEL_RATIO = 2
 // ── OrbitControls ──
 export const CONTROLS_ENABLE_DAMPING = true
 export const CONTROLS_DAMPING_FACTOR = 0.08
+export const CONTROLS_MIN_DISTANCE = 20
+export const CONTROLS_MAX_DISTANCE = 500
 
 // ── 背景 ──
 export const SCENE_BACKGROUND = 0x020617
