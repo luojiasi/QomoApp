@@ -2,7 +2,9 @@
 import { useEditorToolbar } from '../composables/useEditorToolbar'
 import type { ActionDef } from '../shares/types'
 
-const { fileGroup, shapeGroup, toolGroup, settingsGroup, toolTitle } = useEditorToolbar()
+const { fileGroup, shapeGroup, toolGroup, settingsGroup, toolTitle, reload } = useEditorToolbar()
+
+defineExpose({ reload })
 
 const emit = defineEmits<{
   'action': [action: ActionDef]

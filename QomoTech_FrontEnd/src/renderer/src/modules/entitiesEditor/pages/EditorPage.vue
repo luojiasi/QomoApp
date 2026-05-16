@@ -17,6 +17,8 @@ import type { ActionDef } from '../shares/types'
 const { activeTab, rightPanelTabs } = useRightPanel()
 
 const settingsRef = ref<InstanceType<typeof SettingsDialog> | null>(null)
+const previewRef = ref<InstanceType<typeof Preview3D> | null>(null)
+const toolbarRef = ref<InstanceType<typeof EditorToolbar> | null>(null)
 
 // ── 设置弹窗跨组件共享状态 ──
 const settingsIsOpen = ref(false)
@@ -31,16 +33,21 @@ function onToolbarAction(a: ActionDef) {
   dispatchAction(a)
 }
 
+function onSettingsSaved() {
+  previewRef.value?.reloadConfig()
+  toolbarRef.value?.reload()
+}
+
 useKeyboardShortcuts(dispatchAction, { isOpen: settingsIsOpen, capturing: settingsCapturing })
 </script>
 
 <template>
   <div class="editor-page">
-    <EditorToolbar @action="onToolbarAction" />
+    <EditorToolbar ref="toolbarRef" @action="onToolbarAction" />
 
     <div class="main-area desktop-only">
       <div class="panel panel-3d">
-        <Preview3D />
+        <Preview3D ref="previewRef" />
       </div>
       <div class="panel panel-2d">
         <Canvas2D />
@@ -55,7 +62,7 @@ useKeyboardShortcuts(dispatchAction, { isOpen: settingsIsOpen, capturing: settin
 
     <StatusBar />
 
-    <SettingsDialog ref="settingsRef" />
+    <SettingsDialog ref="settingsRef" @saved="onSettingsSaved" />
   </div>
 </template>
 

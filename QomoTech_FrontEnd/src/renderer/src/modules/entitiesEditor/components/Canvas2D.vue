@@ -1,7 +1,5 @@
 <script setup lang="ts">
-import { useCanvas2D } from '../composables/useCanvas2D'
 
-const {} = useCanvas2D()
 </script>
 
 <template>

@@ -1,0 +1,185 @@
+<script setup lang="ts">
+import { ref } from 'vue'
+import { useScene3DSettings } from '../../composables/preview/useScene3DSettings'
+
+const { form, reset } = useScene3DSettings()
+
+type Section = 'camera' | 'lighting' | 'grid' | 'axes'
+
+const expanded = ref<Record<Section, boolean>>({
+  camera: false,
+  lighting: false,
+  grid: false,
+  axes: false,
+})
+
+function toggle(s: Section) {
+  expanded.value[s] = !expanded.value[s]
+}
+
+const sections: { id: Section; label: string }[] = [
+  { id: 'camera', label: '相机' },
+  { id: 'lighting', label: '光照' },
+  { id: 'grid', label: '网格' },
+  { id: 'axes', label: '坐标轴 & 背景' },
+]
+</script>
+
+<template>
+  <div class="scene3d-panel">
+    <div class="s3d-header">
+      <span class="s3d-title">3D 场景参数</span>
+      <button class="s3d-reset" @click="reset">恢复默认</button>
+    </div>
+
+    <div v-for="sec in sections" :key="sec.id" class="s3d-section">
+      <button class="s3d-section-btn" @click="toggle(sec.id)">
+        <span class="s3d-arrow" :class="{ open: expanded[sec.id] }">▸</span>
+        <span>{{ sec.label }}</span>
+      </button>
+
+      <div v-show="expanded[sec.id]" class="s3d-fields">
+
+        <!-- ── 相机 ── -->
+        <template v-if="sec.id === 'camera'">
+          <label class="s3d-field"><span>位置 X</span><input type="number" v-model.number="form.cameraX" step="1" /></label>
+          <label class="s3d-field"><span>位置 Y</span><input type="number" v-model.number="form.cameraY" step="1" /></label>
+          <label class="s3d-field"><span>位置 Z</span><input type="number" v-model.number="form.cameraZ" step="1" /></label>
+          <label class="s3d-field"><span>FOV</span><input type="number" v-model.number="form.cameraFov" min="10" max="120" step="1" /></label>
+          <label class="s3d-field"><span>近裁面</span><input type="number" v-model.number="form.cameraNear" step="0.01" /></label>
+          <label class="s3d-field"><span>远裁面</span><input type="number" v-model.number="form.cameraFar" step="100" /></label>
+        </template>
+
+        <!-- ── 光照 ── -->
+        <template v-if="sec.id === 'lighting'">
+          <label class="s3d-field"><span>环境光强度</span><input type="number" v-model.number="form.ambientIntensity" step="0.05" /></label>
+          <label class="s3d-field"><span>方向光强度</span><input type="number" v-model.number="form.dirLightIntensity" step="0.05" /></label>
+          <label class="s3d-field"><span>方向光 X</span><input type="number" v-model.number="form.dirLightX" step="1" /></label>
+          <label class="s3d-field"><span>方向光 Y</span><input type="number" v-model.number="form.dirLightY" step="1" /></label>
+          <label class="s3d-field"><span>方向光 Z</span><input type="number" v-model.number="form.dirLightZ" step="1" /></label>
+        </template>
+
+        <!-- ── 网格 ── -->
+        <template v-if="sec.id === 'grid'">
+          <label class="s3d-field"><span>网格尺寸</span><input type="number" v-model.number="form.gridSize" step="100" /></label>
+          <label class="s3d-field"><span>分段数</span><input type="number" v-model.number="form.gridDivisions" step="10" /></label>
+          <label class="s3d-field">
+            <span>中线颜色</span>
+            <input type="color" v-model="form.gridColorC" class="s3d-color" />
+            <code class="s3d-hex">{{ form.gridColorC }}</code>
+          </label>
+          <label class="s3d-field">
+            <span>边缘颜色</span>
+            <input type="color" v-model="form.gridColorE" class="s3d-color" />
+            <code class="s3d-hex">{{ form.gridColorE }}</code>
+          </label>
+        </template>
+
+        <!-- ── 坐标轴 & 背景 ── -->
+        <template v-if="sec.id === 'axes'">
+          <label class="s3d-field"><span>坐标轴大小</span><input type="number" v-model.number="form.axesSize" step="10" /></label>
+          <label class="s3d-field">
+            <span>背景色</span>
+            <input type="color" v-model="form.bgColor" class="s3d-color" />
+            <code class="s3d-hex">{{ form.bgColor }}</code>
+          </label>
+        </template>
+
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.scene3d-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  color: #d4d4d8;
+  overflow-y: auto;
+}
+.s3d-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px 8px;
+  flex-shrink: 0;
+}
+.s3d-title { font-size: 14px; font-weight: 600; }
+.s3d-reset {
+  font-size: 11px;
+  padding: 3px 10px;
+  background: #27272a;
+  border: none;
+  border-radius: 4px;
+  color: #a1a1aa;
+  cursor: pointer;
+}
+.s3d-reset:hover { background: #3f3f46; color: #e4e4e7; }
+
+/* ── 分类折叠 ── */
+.s3d-section { border-bottom: 1px solid #1f1f23; }
+.s3d-section-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #71717a;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.s3d-section-btn:hover { color: #a1a1aa; }
+.s3d-arrow {
+  font-size: 10px;
+  transition: transform 0.15s;
+  display: inline-block;
+}
+.s3d-arrow.open { transform: rotate(90deg); }
+
+/* ── 字段 ── */
+.s3d-fields { padding: 4px 14px 10px; }
+.s3d-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+.s3d-field span {
+  width: 72px;
+  flex-shrink: 0;
+  font-size: 12px;
+  color: #a1a1aa;
+}
+.s3d-field input[type="number"] {
+  flex: 1;
+  width: 0;
+  padding: 4px 6px;
+  font-size: 12px;
+  background: #18181b;
+  border: 1px solid #3f3f46;
+  border-radius: 4px;
+  color: #d4d4d8;
+  text-align: right;
+}
+.s3d-field input[type="number"]:focus { outline: none; border-color: #3b82f6; }
+.s3d-color {
+  width: 28px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid #3f3f46;
+  border-radius: 4px;
+  background: none;
+  cursor: pointer;
+}
+.s3d-hex {
+  font-size: 11px;
+  color: #52525b;
+  font-family: monospace;
+}
+</style>

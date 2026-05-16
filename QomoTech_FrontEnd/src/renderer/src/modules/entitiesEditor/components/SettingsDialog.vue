@@ -1,37 +1,47 @@
 <script setup lang="ts">
 import SwitchableView from '../shares/SwitchableView.vue'
 import ShortcutEditor from './panels/ShortcutEditor.vue'
+import Scene3DPanel from './panels/Scene3DPanel.vue'
 import { useSettings } from '../composables/useSettings'
+import { useShortcutSettings } from '../composables/shortcuts/useShortcutSettings'
+import { useScene3DSettings } from '../composables/preview/useScene3DSettings'
+import { saveSceneConfig } from '../stores/preview3dStore'
 
-const {
-  isOpen,
-  activeTab,
-  settingsTabs,
-  editingActions,
-  capturing,
+const { isOpen, activeTab, settingsTabs, open, close } = useSettings()
+const shortcuts = useShortcutSettings()
+const scene3D = useScene3DSettings()
+
+const emit = defineEmits<{
+  (e: 'saved'): void
+}>()
+
+defineExpose({
+  open: () => {
+    shortcuts.reload()
+    open()
+  },
   close,
-  save,
-  startCapture,
-  cancelCapture,
-  handleCapture,
-  clearAction,
-  resetAction,
-} = useSettings()
-
-defineExpose({ open: () => { isOpen.value = true }, close })
+})
 
 function onKeydown(e: KeyboardEvent) {
-  if (capturing.value) {
-    handleCapture(e)
+  if (shortcuts.capturing.value) {
+    shortcuts.handleCapture(e)
     return
   }
   if (e.key === 'Escape') {
-    if (capturing.value) {
-      cancelCapture()
+    if (shortcuts.capturing.value) {
+      shortcuts.cancelCapture()
     } else {
       close()
     }
   }
+}
+
+function save() {
+  shortcuts.save()
+  saveSceneConfig(scene3D.toData())
+  emit('saved')
+  close()
 }
 </script>
 
@@ -47,13 +57,14 @@ function onKeydown(e: KeyboardEvent) {
           <SwitchableView v-model="activeTab" :tabs="settingsTabs">
             <ShortcutEditor
               v-if="activeTab === 'shortcuts'"
-              :actions="editingActions"
-              :capturing="capturing"
-              @start-capture="startCapture"
-              @cancel-capture="cancelCapture"
-              @clear="clearAction"
-              @reset="resetAction"
+              :actions="shortcuts.editingActions.value"
+              :capturing="shortcuts.capturing.value"
+              @start-capture="shortcuts.startCapture"
+              @cancel-capture="shortcuts.cancelCapture"
+              @clear="shortcuts.clearAction"
+              @reset="shortcuts.resetAction"
             />
+            <Scene3DPanel v-else-if="activeTab === 'scene3d'" />
             <div v-else class="sd-placeholder">
               <span>通用设置（待开发）</span>
             </div>

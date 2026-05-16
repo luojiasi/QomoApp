@@ -29,3 +29,19 @@ export interface ActionDef {
   /** SET_TOOL / 复合 action 携带的额外数据 */
   data?: Record<string, string>
 }
+/** 3D 场景配置 */
+export interface Scene3DConfig {
+  cameraPosition: { x: number; y: number; z: number }
+  cameraFov: number
+  cameraNear: number
+  cameraFar: number
+  sceneBackground: number
+  ambientLightIntensity: number
+  directionalLightIntensity: number
+  directionalLightPosition: { x: number; y: number; z: number }
+  axesSize: number
+  gridSize: number
+  gridDivisions: number
+  gridColorCenter: number
+  gridColorEdge: number
+}

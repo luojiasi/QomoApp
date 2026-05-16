@@ -2,7 +2,7 @@
 // 快捷键持久化存储 —— localStorage 读写，与 shortcuts.ts 默认值合并
 // =============================================================================
 
-import { ACTIONS } from '../utils/shortcuts'
+import { ACTIONS } from '../configs/defaults'
 import type { ActionDef } from '../shares/types'
 import { STORAGE_KEY_SHORTCUTS } from '../configs/defaults'
 
