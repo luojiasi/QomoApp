@@ -1,8 +1,19 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useScene3DSettings } from '../../composables/preview/useScene3DSettings'
+import type { Scene3DForm } from '../../composables/preview/useScene3DSettings'
 
-const { form, reset } = useScene3DSettings()
+const props = defineProps<{
+  form: Scene3DForm
+}>()
+
+const emit = defineEmits<{
+  'update:form': [patch: Partial<Scene3DForm>]
+  'reset': []
+}>()
+
+function updateField<K extends keyof Scene3DForm>(key: K, value: Scene3DForm[K]) {
+  emit('update:form', { [key]: value } as Partial<Scene3DForm>)
+}
 
 type Section = 'camera' | 'lighting' | 'grid' | 'axes'
 
@@ -29,7 +40,18 @@ const sections: { id: Section; label: string }[] = [
   <div class="scene3d-panel">
     <div class="s3d-header">
       <span class="s3d-title">3D 场景参数</span>
-      <button class="s3d-reset" @click="reset">恢复默认</button>
+      <button class="s3d-reset" @click="emit('reset')">恢复默认</button>
+    </div>
+
+    <div class="s3d-toggles">
+      <label class="s3d-toggle">
+        <input type="checkbox" :checked="form.showGrid" @change="updateField('showGrid', ($event.target as HTMLInputElement).checked)" />
+        <span>显示网格</span>
+      </label>
+      <label class="s3d-toggle">
+        <input type="checkbox" :checked="form.showAxes" @change="updateField('showAxes', ($event.target as HTMLInputElement).checked)" />
+        <span>显示坐标轴</span>
+      </label>
     </div>
 
     <div v-for="sec in sections" :key="sec.id" class="s3d-section">
@@ -42,45 +64,45 @@ const sections: { id: Section; label: string }[] = [
 
         <!-- ── 相机 ── -->
         <template v-if="sec.id === 'camera'">
-          <label class="s3d-field"><span>位置 X</span><input type="number" v-model.number="form.cameraX" step="1" /></label>
-          <label class="s3d-field"><span>位置 Y</span><input type="number" v-model.number="form.cameraY" step="1" /></label>
-          <label class="s3d-field"><span>位置 Z</span><input type="number" v-model.number="form.cameraZ" step="1" /></label>
-          <label class="s3d-field"><span>FOV</span><input type="number" v-model.number="form.cameraFov" min="10" max="120" step="1" /></label>
-          <label class="s3d-field"><span>近裁面</span><input type="number" v-model.number="form.cameraNear" step="0.01" /></label>
-          <label class="s3d-field"><span>远裁面</span><input type="number" v-model.number="form.cameraFar" step="100" /></label>
+          <label class="s3d-field"><span>位置 X</span><input type="number" :value="form.cameraX" @input="updateField('cameraX', Number(($event.target as HTMLInputElement).value))" step="1" /></label>
+          <label class="s3d-field"><span>位置 Y</span><input type="number" :value="form.cameraY" @input="updateField('cameraY', Number(($event.target as HTMLInputElement).value))" step="1" /></label>
+          <label class="s3d-field"><span>位置 Z</span><input type="number" :value="form.cameraZ" @input="updateField('cameraZ', Number(($event.target as HTMLInputElement).value))" step="1" /></label>
+          <label class="s3d-field"><span>FOV</span><input type="number" :value="form.cameraFov" @input="updateField('cameraFov', Number(($event.target as HTMLInputElement).value))" min="10" max="120" step="1" /></label>
+          <label class="s3d-field"><span>近裁面</span><input type="number" :value="form.cameraNear" @input="updateField('cameraNear', Number(($event.target as HTMLInputElement).value))" step="0.01" /></label>
+          <label class="s3d-field"><span>远裁面</span><input type="number" :value="form.cameraFar" @input="updateField('cameraFar', Number(($event.target as HTMLInputElement).value))" step="100" /></label>
         </template>
 
         <!-- ── 光照 ── -->
         <template v-if="sec.id === 'lighting'">
-          <label class="s3d-field"><span>环境光强度</span><input type="number" v-model.number="form.ambientIntensity" step="0.05" /></label>
-          <label class="s3d-field"><span>方向光强度</span><input type="number" v-model.number="form.dirLightIntensity" step="0.05" /></label>
-          <label class="s3d-field"><span>方向光 X</span><input type="number" v-model.number="form.dirLightX" step="1" /></label>
-          <label class="s3d-field"><span>方向光 Y</span><input type="number" v-model.number="form.dirLightY" step="1" /></label>
-          <label class="s3d-field"><span>方向光 Z</span><input type="number" v-model.number="form.dirLightZ" step="1" /></label>
+          <label class="s3d-field"><span>环境光强度</span><input type="number" :value="form.ambientIntensity" @input="updateField('ambientIntensity', Number(($event.target as HTMLInputElement).value))" step="0.05" /></label>
+          <label class="s3d-field"><span>方向光强度</span><input type="number" :value="form.dirLightIntensity" @input="updateField('dirLightIntensity', Number(($event.target as HTMLInputElement).value))" step="0.05" /></label>
+          <label class="s3d-field"><span>方向光 X</span><input type="number" :value="form.dirLightX" @input="updateField('dirLightX', Number(($event.target as HTMLInputElement).value))" step="1" /></label>
+          <label class="s3d-field"><span>方向光 Y</span><input type="number" :value="form.dirLightY" @input="updateField('dirLightY', Number(($event.target as HTMLInputElement).value))" step="1" /></label>
+          <label class="s3d-field"><span>方向光 Z</span><input type="number" :value="form.dirLightZ" @input="updateField('dirLightZ', Number(($event.target as HTMLInputElement).value))" step="1" /></label>
         </template>
 
         <!-- ── 网格 ── -->
         <template v-if="sec.id === 'grid'">
-          <label class="s3d-field"><span>网格尺寸</span><input type="number" v-model.number="form.gridSize" step="100" /></label>
-          <label class="s3d-field"><span>分段数</span><input type="number" v-model.number="form.gridDivisions" step="10" /></label>
+          <label class="s3d-field"><span>网格尺寸</span><input type="number" :value="form.gridSize" @input="updateField('gridSize', Number(($event.target as HTMLInputElement).value))" step="100" /></label>
+          <label class="s3d-field"><span>分段数</span><input type="number" :value="form.gridDivisions" @input="updateField('gridDivisions', Number(($event.target as HTMLInputElement).value))" step="10" /></label>
           <label class="s3d-field">
             <span>中线颜色</span>
-            <input type="color" v-model="form.gridColorC" class="s3d-color" />
+            <input type="color" :value="form.gridColorC" @input="updateField('gridColorC', ($event.target as HTMLInputElement).value)" class="s3d-color" />
             <code class="s3d-hex">{{ form.gridColorC }}</code>
           </label>
           <label class="s3d-field">
             <span>边缘颜色</span>
-            <input type="color" v-model="form.gridColorE" class="s3d-color" />
+            <input type="color" :value="form.gridColorE" @input="updateField('gridColorE', ($event.target as HTMLInputElement).value)" class="s3d-color" />
             <code class="s3d-hex">{{ form.gridColorE }}</code>
           </label>
         </template>
 
         <!-- ── 坐标轴 & 背景 ── -->
         <template v-if="sec.id === 'axes'">
-          <label class="s3d-field"><span>坐标轴大小</span><input type="number" v-model.number="form.axesSize" step="10" /></label>
+          <label class="s3d-field"><span>坐标轴大小</span><input type="number" :value="form.axesSize" @input="updateField('axesSize', Number(($event.target as HTMLInputElement).value))" step="10" /></label>
           <label class="s3d-field">
             <span>背景色</span>
-            <input type="color" v-model="form.bgColor" class="s3d-color" />
+            <input type="color" :value="form.bgColor" @input="updateField('bgColor', ($event.target as HTMLInputElement).value)" class="s3d-color" />
             <code class="s3d-hex">{{ form.bgColor }}</code>
           </label>
         </template>
@@ -94,9 +116,7 @@ const sections: { id: Section; label: string }[] = [
 .scene3d-panel {
   display: flex;
   flex-direction: column;
-  height: 100%;
   color: #d4d4d8;
-  overflow-y: auto;
 }
 .s3d-header {
   display: flex;
@@ -116,6 +136,28 @@ const sections: { id: Section; label: string }[] = [
   cursor: pointer;
 }
 .s3d-reset:hover { background: #3f3f46; color: #e4e4e7; }
+
+/* ── 可见性开关 ── */
+.s3d-toggles {
+  display: flex;
+  gap: 12px;
+  padding: 6px 14px;
+  border-bottom: 1px solid #1f1f23;
+}
+.s3d-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #a1a1aa;
+  cursor: pointer;
+  user-select: none;
+}
+.s3d-toggle input[type="checkbox"] {
+  accent-color: #3b82f6;
+  cursor: pointer;
+}
+.s3d-toggle:hover { color: #e4e4e7; }
 
 /* ── 分类折叠 ── */
 .s3d-section { border-bottom: 1px solid #1f1f23; }

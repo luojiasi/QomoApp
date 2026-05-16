@@ -12,6 +12,8 @@ import {
   DIRECTIONAL_LIGHT_INTENSITY,
   DIRECTIONAL_LIGHT_POS,
   AXES_SIZE,
+  SHOW_GRID,
+  SHOW_AXES,
   GRID_SIZE,
   GRID_DIVISIONS,
   GRID_COLOR_CENTER,
@@ -41,6 +43,8 @@ export function loadSceneConfig(): Scene3DConfig {
         gridDivisions: saved.gridDivisions ?? GRID_DIVISIONS,
         gridColorCenter: saved.gridColorCenter ?? GRID_COLOR_CENTER,
         gridColorEdge: saved.gridColorEdge ?? GRID_COLOR_EDGE,
+        showGrid: saved.showGrid ?? SHOW_GRID,
+        showAxes: saved.showAxes ?? SHOW_AXES,
       }
     }
   } catch { /* corrupted data, fall through to defaults */ }
@@ -58,6 +62,8 @@ export function loadSceneConfig(): Scene3DConfig {
     gridDivisions: GRID_DIVISIONS,
     gridColorCenter: GRID_COLOR_CENTER,
     gridColorEdge: GRID_COLOR_EDGE,
+    showGrid: SHOW_GRID,
+    showAxes: SHOW_AXES,
   }
 }
 

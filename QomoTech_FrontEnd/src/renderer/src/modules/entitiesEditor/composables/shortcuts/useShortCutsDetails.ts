@@ -8,6 +8,8 @@ import type { ActionDef } from '../../shares/types'
  */
 export function useShortCutsDetails(handlers: {
   onSettingsOpen: () => void
+  onToggleGrid: () => void
+  onToggleAxes: () => void
 }) {
   function dispatchAction(a: ActionDef) {
     switch (a.id) {
@@ -17,7 +19,12 @@ export function useShortCutsDetails(handlers: {
       case 'BACKHOME':
         router.push('/home')
         break
-      // 其余 action 在 composables 重建后逐项接入
+      case 'TOGGLE_GRID':
+        handlers.onToggleGrid()
+        break
+      case 'TOGGLE_AXES':
+        handlers.onToggleAxes()
+        break
     }
   }
 

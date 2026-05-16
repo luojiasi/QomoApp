@@ -64,7 +64,12 @@ function save() {
               @clear="shortcuts.clearAction"
               @reset="shortcuts.resetAction"
             />
-            <Scene3DPanel v-else-if="activeTab === 'scene3d'" />
+            <Scene3DPanel
+              v-else-if="activeTab === 'scene3d'"
+              :form="scene3D.form"
+              @update:form="(patch) => Object.assign(scene3D.form, patch)"
+              @reset="scene3D.reset"
+            />
             <div v-else class="sd-placeholder">
               <span>通用设置（待开发）</span>
             </div>

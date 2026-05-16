@@ -12,7 +12,8 @@ import { useRightPanel } from '../composables/useRightPanel'
 import { useKeyboardShortcuts } from '../composables/shortcuts/useKeyboardShortcuts'
 import { useShortCutsDetails } from '../composables/shortcuts/useShortCutsDetails'
 import { SETTINGS_STATE_KEY } from '../shares/types'
-import type { ActionDef } from '../shares/types'
+import type { ActionDef, Scene3DConfig } from '../shares/types'
+import { loadSceneConfig, saveSceneConfig } from '../stores/preview3dStore'
 
 const { activeTab, rightPanelTabs } = useRightPanel()
 
@@ -25,8 +26,17 @@ const settingsIsOpen = ref(false)
 const settingsCapturing = ref<string | null>(null)
 provide(SETTINGS_STATE_KEY, { isOpen: settingsIsOpen, capturing: settingsCapturing })
 
+function toggleSceneConfig(patch: Partial<Scene3DConfig>) {
+  const cfg = loadSceneConfig()
+  const updated = { ...cfg, ...patch }
+  saveSceneConfig(updated)
+  previewRef.value?.applyConfig(updated)
+}
+
 const { dispatchAction } = useShortCutsDetails({
-  onSettingsOpen: () => settingsRef.value?.open()
+  onSettingsOpen: () => settingsRef.value?.open(),
+  onToggleGrid: () => toggleSceneConfig({ showGrid: !loadSceneConfig().showGrid }),
+  onToggleAxes: () => toggleSceneConfig({ showAxes: !loadSceneConfig().showAxes }),
 })
 
 function onToolbarAction(a: ActionDef) {

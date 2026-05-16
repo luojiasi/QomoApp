@@ -27,7 +27,9 @@ export const ACTIONS: ActionDef[] = [
     { id: 'PAN', label: '平移', group: 'tool', key: 'h' },
     { id: 'DELETE_SELECTED', label: '删除', group: 'tool', key: 'Delete' },
     { id: 'FIT_VIEW', label: '适应', group: 'tool', key: '0' },
-  
+    // ── 3D ──
+    { id: 'TOGGLE_GRID', label: '显示网格', group: 'view', key: 'g' },
+    { id: 'TOGGLE_AXES', label: '显示坐标轴', group: 'view', key: 'x' },
     // ── 设置 ──
     { id: 'SETTINGS', label: '打开设置', group: 'settings' },
     { id: 'BACKHOME', label: '返回首页', group: 'settings' },
@@ -64,6 +66,10 @@ export const DIRECTIONAL_LIGHT_POS = { x: 100, y: 180, z: 120 } as const
 
 // ── 坐标轴 ──
 export const AXES_SIZE = 120
+
+// ── 可见性 ──
+export const SHOW_GRID = true
+export const SHOW_AXES = true
 
 // ── 网格 ──
 export const GRID_SIZE = 600

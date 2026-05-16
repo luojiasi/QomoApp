@@ -64,20 +64,26 @@ export function usePreview3D() {
       dirLight.intensity = cfg.directionalLightIntensity
       dirLight.position.set(cfg.directionalLightPosition.x, cfg.directionalLightPosition.y, cfg.directionalLightPosition.z)
     }
-    if (axesHelper && axesHelper.parent) {
-      axesHelper.parent.remove(axesHelper)
+    if (axesHelper) {
+      if (axesHelper.parent) axesHelper.parent.remove(axesHelper)
       axesHelper.dispose()
+      axesHelper = null
     }
-    axesHelper = new THREE.AxesHelper(cfg.axesSize)
-    scene.add(axesHelper)
+    if (cfg.showAxes) {
+      axesHelper = new THREE.AxesHelper(cfg.axesSize)
+      scene.add(axesHelper)
+    }
 
-    if (gridHelper && gridHelper.parent) {
-      gridHelper.parent.remove(gridHelper)
+    if (gridHelper) {
+      if (gridHelper.parent) gridHelper.parent.remove(gridHelper)
       gridHelper.dispose()
+      gridHelper = null
     }
-    gridHelper = new THREE.GridHelper(cfg.gridSize, cfg.gridDivisions, cfg.gridColorCenter, cfg.gridColorEdge)
-    gridHelper.rotation.x = GRID_ROTATION_X
-    scene.add(gridHelper)
+    if (cfg.showGrid) {
+      gridHelper = new THREE.GridHelper(cfg.gridSize, cfg.gridDivisions, cfg.gridColorCenter, cfg.gridColorEdge)
+      gridHelper.rotation.x = GRID_ROTATION_X
+      scene.add(gridHelper)
+    }
   }
 
   onMounted(() => {
@@ -108,11 +114,15 @@ export function usePreview3D() {
     dirLight.position.set(cfg.directionalLightPosition.x, cfg.directionalLightPosition.y, cfg.directionalLightPosition.z)
     scene.add(dirLight)
 
-    axesHelper = new THREE.AxesHelper(cfg.axesSize)
-    scene.add(axesHelper)
-    gridHelper = new THREE.GridHelper(cfg.gridSize, cfg.gridDivisions, cfg.gridColorCenter, cfg.gridColorEdge)
-    gridHelper.rotation.x = GRID_ROTATION_X
-    scene.add(gridHelper)
+    if (cfg.showAxes) {
+      axesHelper = new THREE.AxesHelper(cfg.axesSize)
+      scene.add(axesHelper)
+    }
+    if (cfg.showGrid) {
+      gridHelper = new THREE.GridHelper(cfg.gridSize, cfg.gridDivisions, cfg.gridColorCenter, cfg.gridColorEdge)
+      gridHelper.rotation.x = GRID_ROTATION_X
+      scene.add(gridHelper)
+    }
 
     resize()
     loop()

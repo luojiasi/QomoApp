@@ -35,6 +35,7 @@ const emit = defineEmits<{
   display: flex;
   flex-direction: column;
   height: 100%;
+  overflow: hidden;
   background: #0d0d10;
   border-left: 1px solid #27272a;
 }
@@ -64,6 +65,13 @@ const emit = defineEmits<{
 }
 .tab-content {
   flex: 1;
-  overflow: hidden;
+  min-height: 0;
+  height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.tab-content::-webkit-scrollbar {
+  display: none;
 }
 </style>

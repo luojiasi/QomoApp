@@ -10,6 +10,8 @@ import {
   DIRECTIONAL_LIGHT_INTENSITY,
   DIRECTIONAL_LIGHT_POS,
   AXES_SIZE,
+  SHOW_GRID,
+  SHOW_AXES,
   GRID_SIZE,
   GRID_DIVISIONS,
   GRID_COLOR_CENTER,
@@ -32,6 +34,9 @@ export interface Scene3DForm {
   dirLightX: number
   dirLightY: number
   dirLightZ: number
+  // 可见性
+  showGrid: boolean
+  showAxes: boolean
   // 坐标轴
   axesSize: number
   // 网格
@@ -68,6 +73,8 @@ export function useScene3DSettings() {
     gridDivisions: GRID_DIVISIONS,
     gridColorC: hexOf(GRID_COLOR_CENTER),
     gridColorE: hexOf(GRID_COLOR_EDGE),
+    showGrid: SHOW_GRID,
+    showAxes: SHOW_AXES,
   })
 
   function reset() {
@@ -83,6 +90,8 @@ export function useScene3DSettings() {
     form.dirLightX = DIRECTIONAL_LIGHT_POS.x
     form.dirLightY = DIRECTIONAL_LIGHT_POS.y
     form.dirLightZ = DIRECTIONAL_LIGHT_POS.z
+    form.showGrid = SHOW_GRID
+    form.showAxes = SHOW_AXES
     form.axesSize = AXES_SIZE
     form.gridSize = GRID_SIZE
     form.gridDivisions = GRID_DIVISIONS
@@ -106,6 +115,8 @@ export function useScene3DSettings() {
       gridDivisions: form.gridDivisions,
       gridColorCenter: numOf(form.gridColorC),
       gridColorEdge: numOf(form.gridColorE),
+      showGrid: form.showGrid,
+      showAxes: form.showAxes,
     }
   }
 

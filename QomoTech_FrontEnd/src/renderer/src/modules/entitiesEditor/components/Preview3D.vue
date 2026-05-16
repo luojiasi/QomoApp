@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { usePreview3D } from '../composables/preview/usePreview3D'
 
-const { containerRef, reloadConfig } = usePreview3D()
+const { containerRef, reloadConfig, applyConfig } = usePreview3D()
 void containerRef
 
-defineExpose({ reloadConfig })
+defineExpose({ reloadConfig, applyConfig })
 </script>
 
 <template>
