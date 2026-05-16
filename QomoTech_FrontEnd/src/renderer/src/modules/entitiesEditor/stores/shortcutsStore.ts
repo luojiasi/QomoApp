@@ -19,20 +19,54 @@ export function saveOverrides(overrides: Record<string, Partial<ActionDef>>) {
   localStorage.setItem(STORAGE_KEY_SHORTCUTS, JSON.stringify(overrides))
 }
 
-/** 合并默认值 + 用户覆盖 → 当前生效的快捷键列表 */
+/** 合并默认值 + 用户覆盖 → 当前生效的快捷键列表。
+ *  覆盖值为 null 表示用户主动清除了该字段。 */
 export function getResolvedActions(): ActionDef[] {
   const o = loadOverrides()
-  return ACTIONS.map(a => (o[a.id] ? { ...a, ...o[a.id] } : { ...a }))
+  return ACTIONS.map(a => {
+    const ov = o[a.id]
+    if (!ov) return { ...a }
+    const merged: any = { ...a }
+    for (const [k, v] of Object.entries(ov)) {
+      if (v === null) {
+        delete merged[k]
+      } else {
+        merged[k] = v
+      }
+    }
+    return merged as ActionDef
+  })
 }
 
-/** 比对单个 action 与默认值的差异，返回仅含变化字段的对象（无变化则返回 null） */
+/** 键盘事件 → 匹配已合并用户覆盖的快捷键 */
+export function matchAction(event: KeyboardEvent): ActionDef | null {
+  const key = event.key
+  const ctrl = event.ctrlKey || event.metaKey
+  const shift = event.shiftKey
+  const alt = event.altKey
+
+  for (const a of getResolvedActions()) {
+    if (!a.key) continue
+    if (a.key.toLowerCase() !== key.toLowerCase()) continue
+    if ((a.ctrl ?? false) !== ctrl) continue
+    if ((a.shift ?? false) !== shift) continue
+    if ((a.alt ?? false) !== alt) continue
+    return a
+  }
+  return null
+}
+
+/** 比对单个 action 与默认值的差异。被清除的字段以 null 标记（JSON 可序列化）。无变化返回 null。 */
 export function diffAction(action: ActionDef): Partial<ActionDef> | null {
   const def = ACTIONS.find(a => a.id === action.id)
   if (!def) return null
   const d: Partial<ActionDef> = {}
-  if (action.key !== def.key) d.key = action.key
-  if (action.ctrl !== def.ctrl) d.ctrl = action.ctrl
-  if (action.shift !== def.shift) d.shift = action.shift
-  if (action.alt !== def.alt) d.alt = action.alt
+  const keys: (keyof Pick<ActionDef, 'key' | 'ctrl' | 'shift' | 'alt'>)[] = ['key', 'ctrl', 'shift', 'alt']
+  for (const k of keys) {
+    if (action[k] !== def[k]) {
+      // 用户清除 → undefined → 存 null；用户设置 → 存新值
+      ;(d as any)[k] = action[k] ?? null
+    }
+  }
   return Object.keys(d).length > 0 ? d : null
 }

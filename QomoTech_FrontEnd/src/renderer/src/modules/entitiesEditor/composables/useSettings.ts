@@ -1,12 +1,14 @@
-import { ref, shallowRef } from 'vue'
-import type { ActionDef, TabItem } from '../shares/types'
+import { ref, shallowRef, inject } from 'vue'
+import type { ActionDef, TabItem, SettingsState } from '../shares/types'
+import { SETTINGS_STATE_KEY } from '../shares/types'
 import { saveOverrides, getResolvedActions, diffAction } from '../stores/shortcutsStore'
 
-// ── 模块级单例状态（供 useKeyboardShortcuts 跨组件读取） ──
-const isOpen = ref(false)
-const capturing = ref<string | null>(null)
-
 export function useSettings() {
+  // 从父组件注入共享状态，未提供则 fallback 到本地（独立使用/测试）
+  const injected = inject<SettingsState | null>(SETTINGS_STATE_KEY, null)
+  const isOpen = injected?.isOpen ?? ref(false)
+  const capturing = injected?.capturing ?? ref<string | null>(null)
+
   const activeTab = ref('shortcuts')
 
   const settingsTabs: TabItem[] = [
@@ -62,6 +64,16 @@ export function useSettings() {
     return true
   }
 
+  /** 清空快捷键 → 设为"未设置" */
+  function clearAction(actionId: string) {
+    const idx = editingActions.value.findIndex(a => a.id === actionId)
+    if (idx === -1) return
+    const next = [...editingActions.value]
+    const { key: _k, ctrl: _c, shift: _s, alt: _a, ...rest } = next[idx]
+    next[idx] = rest as ActionDef
+    editingActions.value = next
+  }
+  /** 恢复默认快捷键 */
   function resetAction(actionId: string) {
     const resolved = getResolvedActions()
     const def = resolved.find(a => a.id === actionId)
@@ -72,7 +84,7 @@ export function useSettings() {
     next[idx] = { ...def }
     editingActions.value = next
   }
-
+  // 保存设置
   function save() {
     const o: Record<string, Partial<ActionDef>> = {}
     for (const a of editingActions.value) {
@@ -104,6 +116,7 @@ export function useSettings() {
     startCapture,
     cancelCapture,
     handleCapture,
+    clearAction,
     resetAction,
     formatShortcut,
   }

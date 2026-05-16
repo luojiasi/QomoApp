@@ -1,3 +1,4 @@
+import router from '@/app/router'
 import type { ActionDef } from '../../shares/types'
 
 /**
@@ -12,6 +13,9 @@ export function useShortCutsDetails(handlers: {
     switch (a.id) {
       case 'SETTINGS':
         handlers.onSettingsOpen()
+        break
+      case 'BACKHOME':
+        router.push('/home')
         break
       // 其余 action 在 composables 重建后逐项接入
     }

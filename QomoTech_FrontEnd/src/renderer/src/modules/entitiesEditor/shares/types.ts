@@ -1,8 +1,15 @@
+import type { Ref, InjectionKey } from 'vue'
 
 // ActionDef 定义
 export type ActionGroup = 'file' | 'shape' | 'tool' | 'settings'
 export type InspectorSection = 'params' | 'transform'
 
+/** provide/inject：设置弹窗共享状态 */
+export interface SettingsState {
+  isOpen: Ref<boolean>
+  capturing: Ref<string | null>
+}
+export const SETTINGS_STATE_KEY: InjectionKey<SettingsState> = Symbol('settingsState')
 
 /** SwitchableView 复用组件的 Tab 定义 */
 export interface TabItem {

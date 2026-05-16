@@ -6,11 +6,11 @@ import type { ActionDef ,ActionGroup } from '../shares/types'
 
 export const ACTIONS: ActionDef[] = [
   // ── 文件 ──
-  { id: 'UNDO', label: '撤销', group: 'file', key: 'z', ctrl: true },
-  { id: 'REDO', label: '重做', group: 'file', key: 'y', ctrl: true },
   { id: 'SAVE', label: '保存', group: 'file', key: 's', ctrl: true },
   { id: 'IMPORT_DXF', label: '导入DXF', group: 'file', key: 'o', ctrl: true },
   { id: 'EXPORT_LJS', label: '导出', group: 'file', key: 'e', ctrl: true },
+  { id: 'UNDO', label: '撤销', group: 'file', key: 'z', ctrl: true },
+  { id: 'REDO', label: '重做', group: 'file', key: 'y', ctrl: true },
 
   // ── 图形 ──
   { id: 'DRAW_LINE', label: '线', group: 'shape', key: 'l' },
@@ -25,6 +25,7 @@ export const ACTIONS: ActionDef[] = [
 
   // ── 设置 ──
   { id: 'SETTINGS', label: '设置', group: 'settings' },
+  { id: 'BACKHOME', label: '返回首页', group: 'settings' },
 ]
 
 /** 按 group 过滤 */
@@ -32,24 +33,6 @@ export function actionsByGroup(group: ActionGroup): ActionDef[] {return ACTIONS.
 
 /** 按 id 查找 */
 export function getAction(id: string): ActionDef | undefined {return ACTIONS.find(a => a.id === id)}
-
-/** 键盘事件匹配 Action */
-export function matchAction(event: KeyboardEvent): ActionDef | null {
-  const key = event.key
-  const ctrl = event.ctrlKey || event.metaKey
-  const shift = event.shiftKey
-  const alt = event.altKey
-
-  for (const a of ACTIONS) {
-    if (!a.key) continue
-    if (a.key.toLowerCase() !== key.toLowerCase()) continue
-    if ((a.ctrl ?? false) !== ctrl) continue
-    if ((a.shift ?? false) !== shift) continue
-    if ((a.alt ?? false) !== alt) continue
-    return a
-  }
-  return null
-}
 
 /** 生成 title 提示文本 */
 export function toolTitle(a: ActionDef): string {

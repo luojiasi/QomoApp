@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, provide } from 'vue'
 import EditorToolbar from '../components/EditorToolbar.vue'
 import Canvas2D from '../components/Canvas2D.vue'
 import Preview3D from '../components/Preview3D.vue'
@@ -11,23 +11,27 @@ import StatusBar from '../components/StatusBar.vue'
 import { useRightPanel } from '../composables/useRightPanel'
 import { useKeyboardShortcuts } from '../composables/shortcuts/useKeyboardShortcuts'
 import { useShortCutsDetails } from '../composables/shortcuts/useShortCutsDetails'
+import { SETTINGS_STATE_KEY } from '../shares/types'
 import type { ActionDef } from '../shares/types'
 
 const { activeTab, rightPanelTabs } = useRightPanel()
 
 const settingsRef = ref<InstanceType<typeof SettingsDialog> | null>(null)
 
+// ── 设置弹窗跨组件共享状态 ──
+const settingsIsOpen = ref(false)
+const settingsCapturing = ref<string | null>(null)
+provide(SETTINGS_STATE_KEY, { isOpen: settingsIsOpen, capturing: settingsCapturing })
+
 const { dispatchAction } = useShortCutsDetails({
-  onSettingsOpen: () => settingsRef.value?.open(),
+  onSettingsOpen: () => settingsRef.value?.open()
 })
 
-/** 工具栏点击 → 分发 */
 function onToolbarAction(a: ActionDef) {
   dispatchAction(a)
 }
 
-/** 键盘快捷键 → 分发 */
-useKeyboardShortcuts(dispatchAction)
+useKeyboardShortcuts(dispatchAction, { isOpen: settingsIsOpen, capturing: settingsCapturing })
 </script>
 
 <template>

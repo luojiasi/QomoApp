@@ -14,6 +14,7 @@ const {
   startCapture,
   cancelCapture,
   handleCapture,
+  clearAction,
   resetAction,
 } = useSettings()
 
@@ -50,6 +51,7 @@ function onKeydown(e: KeyboardEvent) {
               :capturing="capturing"
               @start-capture="startCapture"
               @cancel-capture="cancelCapture"
+              @clear="clearAction"
               @reset="resetAction"
             />
             <div v-else class="sd-placeholder">

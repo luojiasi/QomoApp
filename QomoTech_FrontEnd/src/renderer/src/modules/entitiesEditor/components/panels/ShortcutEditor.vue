@@ -10,6 +10,7 @@ const emit = defineEmits<{
   'start-capture': [id: string]
   'cancel-capture': []
   'reset': [id: string]
+  'clear': [id: string]
 }>()
 
 function formatShortcut(a: ActionDef): string {
@@ -44,12 +45,18 @@ function formatShortcut(a: ActionDef): string {
           <template v-if="capturing === a.id">按下新组合键…</template>
           <template v-else>{{ formatShortcut(a) }}</template>
         </button>
-        <button
-          v-if="capturing !== a.id"
-          class="se-reset-btn"
-          title="恢复默认"
-          @click="emit('reset', a.id)"
-        >↺</button>
+        <template v-if="capturing !== a.id">
+          <button
+            class="se-reset-btn"
+            title="设为未设置"
+            @click="emit('clear', a.id)"
+          >⊘</button>
+          <button
+            class="se-reset-btn"
+            title="恢复默认"
+            @click="emit('reset', a.id)"
+          >↺</button>
+        </template>
         <button
           v-else
           class="se-reset-btn"
