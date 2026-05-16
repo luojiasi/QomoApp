@@ -1,4 +1,5 @@
-import { actionsByGroup, toolTitle, type ActionDef } from '../utils/shortcuts'
+import { actionsByGroup, toolTitle } from '../utils/shortcuts'
+import type { ActionDef } from '../shares/types'
 
 export type { ActionDef }
 

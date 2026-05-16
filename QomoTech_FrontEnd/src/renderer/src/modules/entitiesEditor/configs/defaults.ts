@@ -6,6 +6,7 @@
 // ============ 常量 ============
 
 export const PROJECT_VERSION = '2.0.0'
+export const STORAGE_KEY_SHORTCUTS = 'qomo_shortcuts_v1'
 
 /** ★ 物体实际高度（旧版 baseHeight=60 + extrudeHeight=5 → 新版 height=5） */
 export const DEFAULT_HEIGHT = 5

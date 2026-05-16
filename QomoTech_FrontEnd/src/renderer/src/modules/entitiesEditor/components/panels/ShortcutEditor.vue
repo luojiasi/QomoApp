@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ActionDef } from '../../utils/shortcuts'
+import type { ActionDef } from '../../shares/types'
 
 defineProps<{
   actions: ActionDef[]

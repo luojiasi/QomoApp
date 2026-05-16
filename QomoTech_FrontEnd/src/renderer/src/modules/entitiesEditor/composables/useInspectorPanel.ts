@@ -1,6 +1,7 @@
 import { ref } from 'vue'
+import type { InspectorSection } from '../shares/types'
 
-export type InspectorSection = 'params' | 'transform'
+
 
 export interface InspectedEntity {
   id: string

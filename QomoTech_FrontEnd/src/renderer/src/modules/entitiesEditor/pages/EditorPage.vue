@@ -1,19 +1,43 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import EditorToolbar from '../components/EditorToolbar.vue'
 import Canvas2D from '../components/Canvas2D.vue'
 import Preview3D from '../components/Preview3D.vue'
 import SwitchableView from '../shares/SwitchableView.vue'
 import LayoutPanel from '../components/panels/LayoutPanel.vue'
 import InspectorPanel from '../components/panels/InspectorPanel.vue'
+import SettingsDialog from '../components/SettingsDialog.vue'
 import StatusBar from '../components/StatusBar.vue'
-import { useSwitchableView } from '../composables/useSwitchableView'
+import { useRightPanel } from '../composables/useRightPanel'
+import { useKeyboardShortcuts } from '../composables/useKeyboardShortcuts'
+import type { ActionDef } from '../shares/types'
 
-const { activeTab, rightPanelTabs } = useSwitchableView()
+const { activeTab, rightPanelTabs } = useRightPanel()
+
+const settingsRef = ref<InstanceType<typeof SettingsDialog> | null>(null)
+
+/** 工具栏点击 → 分发 */
+function onToolbarAction(a: ActionDef) {
+  dispatchAction(a)
+}
+
+/** 键盘快捷键 → 分发 */
+useKeyboardShortcuts(dispatchAction)
+
+/** 统一 action 分发入口 */
+function dispatchAction(a: ActionDef) {
+  switch (a.id) {
+    case 'SETTINGS':
+      settingsRef.value?.open()
+      break
+    // 其余 action 在 composables 重建后逐项接入
+  }
+}
 </script>
 
 <template>
   <div class="editor-page">
-    <EditorToolbar />
+    <EditorToolbar @action="onToolbarAction" />
 
     <div class="main-area desktop-only">
       <div class="panel panel-3d">
@@ -31,6 +55,8 @@ const { activeTab, rightPanelTabs } = useSwitchableView()
     </div>
 
     <StatusBar />
+
+    <SettingsDialog ref="settingsRef" />
   </div>
 </template>
 

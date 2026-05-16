@@ -2,20 +2,7 @@
 // 中央 Action 注册表 —— 工具栏按钮 & 键盘快捷键统一在此编辑
 // =============================================================================
 
-export type ActionGroup = 'file' | 'shape' | 'tool' | 'settings'
-
-export interface ActionDef {
-  id: string
-  label: string
-  group: ActionGroup
-  key?: string
-  ctrl?: boolean
-  shift?: boolean
-  alt?: boolean
-  icon?: string
-  /** SET_TOOL / 复合 action 携带的额外数据 */
-  data?: Record<string, string>
-}
+import type { ActionDef ,ActionGroup } from '../shares/types'
 
 export const ACTIONS: ActionDef[] = [
   // ── 文件 ──
@@ -41,14 +28,10 @@ export const ACTIONS: ActionDef[] = [
 ]
 
 /** 按 group 过滤 */
-export function actionsByGroup(group: ActionGroup): ActionDef[] {
-  return ACTIONS.filter(a => a.group === group)
-}
+export function actionsByGroup(group: ActionGroup): ActionDef[] {return ACTIONS.filter(a => a.group === group)}
 
 /** 按 id 查找 */
-export function getAction(id: string): ActionDef | undefined {
-  return ACTIONS.find(a => a.id === id)
-}
+export function getAction(id: string): ActionDef | undefined {return ACTIONS.find(a => a.id === id)}
 
 /** 键盘事件匹配 Action */
 export function matchAction(event: KeyboardEvent): ActionDef | null {

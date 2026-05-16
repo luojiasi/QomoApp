@@ -1,9 +1,8 @@
 import { ref } from 'vue'
 import type { TabItem } from '../shares/types'
 
-export type { TabItem }
 
-export function useSwitchableView() {
+export function useRightPanel() {
   const activeTab = ref<string>('layout')
 
   const rightPanelTabs: TabItem[] = [
