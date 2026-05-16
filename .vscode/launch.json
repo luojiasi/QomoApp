@@ -1,0 +1,59 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Frontend: Main",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceRoot}/QomoTech_FrontEnd",
+      "runtimeExecutable": "${workspaceRoot}/QomoTech_FrontEnd/node_modules/.bin/electron-vite",
+      "windows": {
+        "runtimeExecutable": "${workspaceRoot}/QomoTech_FrontEnd/node_modules/.bin/electron-vite.cmd"
+      },
+      "runtimeArgs": ["--sourcemap"],
+      "env": {
+        "REMOTE_DEBUGGING_PORT": "9222"
+      }
+    },
+    {
+      "name": "Frontend: Renderer",
+      "port": 9222,
+      "request": "attach",
+      "type": "chrome",
+      "webRoot": "${workspaceFolder}/QomoTech_FrontEnd/src/renderer",
+      "timeout": 60000,
+      "presentation": {
+        "hidden": true
+      }
+    },
+    {
+      "name": "Backend: FastAPI",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/QomoTech_BackEnd/run.py",
+      "python": "${workspaceFolder}/QomoTech_BackEnd/.venv/Scripts/python.exe",
+      "cwd": "${workspaceFolder}/QomoTech_BackEnd",
+      "console": "integratedTerminal"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Debug All",
+      "configurations": ["Frontend: Main", "Frontend: Renderer", "Backend: FastAPI"],
+      "stopAll": true,
+      "presentation": { "order": 1 }
+    },
+    {
+      "name": "Debug F",
+      "configurations": ["Frontend: Main", "Frontend: Renderer"],
+      "stopAll": true,
+      "presentation": { "order": 2 }
+    },
+    {
+      "name": "Debug B",
+      "configurations": ["Backend: FastAPI"],
+      "stopAll": true,
+      "presentation": { "order": 3 }
+    }
+  ]
+}
