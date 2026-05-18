@@ -270,7 +270,10 @@ export function useCanvas2D() {
       case 'LINE':     drawLine(entity); break
       case 'ARC':      drawArc(entity); break
       case 'CIRCLE':   drawCircle(entity); break
-      case 'BEZIER':   drawBezier(entity); break
+      case 'BEZIER':
+        drawBezier(entity)
+        if (selected) drawBezierControlPoints(c, entity)
+        break
       case 'POLYLINE': drawPolyline(entity); break
       case 'ELLIPSE':  drawEllipse(entity); break
     }
@@ -325,6 +328,39 @@ export function useCanvas2D() {
     c.beginPath(); c.moveTo(sampled[0].X, sampled[0].Y)
     for (let i = 1; i < sampled.length; i++) c.lineTo(sampled[i].X, sampled[i].Y)
     c.stroke()
+  }
+
+  /** 绘制贝塞尔控制点（选中时调用）：实心圆 + 控制多边形虚线 */
+  function drawBezierControlPoints(c: CanvasRenderingContext2D, e: BezierEntity) {
+    const pts = e.controlPoints
+    if (pts.length < 2) return
+
+    const zoom = store.viewport.zoom
+    const r = 5 / zoom        // 控制点半径（屏幕像素恒定）
+    const handleColor = '#fbbf24'
+    const handleStroke = '#d97706'
+    const polyColor = 'rgba(251,191,36,0.45)'
+
+    c.save()
+
+    // 控制多边形虚线
+    c.strokeStyle = polyColor
+    c.lineWidth = 1 / zoom
+    c.setLineDash([4 / zoom, 4 / zoom])
+    c.beginPath()
+    c.moveTo(pts[0].X, pts[0].Y)
+    for (let i = 1; i < pts.length; i++) c.lineTo(pts[i].X, pts[i].Y)
+    c.stroke()
+    c.setLineDash([])
+
+    // 控制点实心圆
+    c.fillStyle = handleColor
+    c.strokeStyle = handleStroke
+    c.lineWidth = 1.5 / zoom
+    for (const p of pts) {
+      c.beginPath(); c.arc(p.X, p.Y, r, 0, Math.PI * 2); c.fill(); c.stroke()
+    }
+    c.restore()
   }
 
   function drawPolyline(e: PolylineEntity) {
