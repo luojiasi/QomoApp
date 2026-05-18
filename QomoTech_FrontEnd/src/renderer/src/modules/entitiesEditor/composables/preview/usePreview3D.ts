@@ -1,4 +1,5 @@
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { storeToRefs } from 'pinia'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import {
@@ -17,9 +18,18 @@ import {
 import { loadSceneConfig } from '../../stores/preview3dStore'
 import type { Scene3DConfig } from '../../shares/types'
 import { cameraDistance } from '../useStatusBar'
+import { useEditorStore } from '../../stores/editorStore'
+import {
+  createAllEntityObjects,
+  applyMaterialConfig,
+  disposeSharedMaterials,
+} from './useCreatePreview3D'
+import type { Entity3DObject } from './useCreatePreview3D'
 
 export function usePreview3D() {
   const containerRef = ref<HTMLDivElement | null>(null)
+  const store = useEditorStore()
+  const { entities, selectedIds } = storeToRefs(store)
 
   let scene: THREE.Scene | null = null
   let camera: THREE.PerspectiveCamera | null = null
@@ -28,11 +38,13 @@ export function usePreview3D() {
   let animationId = 0
   let resizeObserver: ResizeObserver | null = null
 
-  // scene objects that need updating on config change
   let ambientLight: THREE.AmbientLight | null = null
   let dirLight: THREE.DirectionalLight | null = null
   let axesHelper: THREE.AxesHelper | null = null
   let gridHelper: THREE.GridHelper | null = null
+
+  let entityObjects: Map<string, Entity3DObject> = new Map()
+  let entityGroup: THREE.Group | null = null
 
   function resize() {
     if (!containerRef.value || !renderer || !camera) return
@@ -50,6 +62,22 @@ export function usePreview3D() {
       cameraDistance.value = camera.position.distanceTo(controls.target)
     }
     if (renderer && scene && camera) renderer.render(scene, camera)
+  }
+
+  function rebuildEntityObjects() {
+    if (!scene || !entityGroup) return
+    for (const obj of entityObjects.values()) obj.dispose()
+    entityObjects.clear()
+    scene.remove(entityGroup)
+
+    entityGroup = new THREE.Group()
+    scene.add(entityGroup)
+
+    const selectedSet = new Set(selectedIds.value)
+    entityObjects = createAllEntityObjects(entities.value, selectedSet)
+    for (const obj of entityObjects.values()) {
+      entityGroup.add(obj.object)
+    }
   }
 
   function applyConfig(cfg: Scene3DConfig) {
@@ -137,17 +165,31 @@ export function usePreview3D() {
       scene.add(gridHelper)
     }
 
+    applyMaterialConfig(cfg)
+    entityGroup = new THREE.Group()
+    scene.add(entityGroup)
+    rebuildEntityObjects()
+
     resize()
     loop()
 
     resizeObserver = new ResizeObserver(() => resize())
     resizeObserver.observe(containerRef.value)
+
+    watch([entities, selectedIds], () => {
+      rebuildEntityObjects()
+    }, { deep: true })
   })
 
   onBeforeUnmount(() => {
     cancelAnimationFrame(animationId)
     resizeObserver?.disconnect()
     controls?.dispose()
+
+    for (const obj of entityObjects.values()) obj.dispose()
+    entityObjects.clear()
+    disposeSharedMaterials()
+
     if (renderer) {
       renderer.dispose()
       if (renderer.domElement.parentNode) {
@@ -156,9 +198,12 @@ export function usePreview3D() {
     }
   })
 
-  /** 从 localStorage 重新读取配置并应用到场景 */
+  /** 从 localStorage 重新读取配置并热更新场景 */
   function reloadConfig() {
-    applyConfig(loadSceneConfig())
+    const cfg = loadSceneConfig()
+    applyConfig(cfg)
+    applyMaterialConfig(cfg)
+    rebuildEntityObjects()
   }
 
   return { containerRef, reloadConfig, applyConfig }

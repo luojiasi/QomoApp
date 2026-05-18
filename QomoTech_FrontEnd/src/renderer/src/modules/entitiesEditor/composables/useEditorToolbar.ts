@@ -10,6 +10,7 @@ function groupBy(actions: ActionDef[], group: ActionGroup): ActionDef[] {
 export function useEditorToolbar() {
   const fileGroup = shallowRef<ActionDef[]>([])
   const shapeGroup = shallowRef<ActionDef[]>([])
+  const diamondGroup = shallowRef<ActionDef[]>([])
   const toolGroup = shallowRef<ActionDef[]>([])
   const settingsGroup = shallowRef<ActionDef[]>([])
 
@@ -17,10 +18,11 @@ export function useEditorToolbar() {
     const resolved = getResolvedActions()
     fileGroup.value = groupBy(resolved, 'file')
     shapeGroup.value = groupBy(resolved, 'shape')
+    diamondGroup.value = groupBy(resolved, 'diamond')
     toolGroup.value = groupBy(resolved, 'tool')
     settingsGroup.value = groupBy(resolved, 'settings')
   }
   reload()
 
-  return { fileGroup, shapeGroup, toolGroup, settingsGroup, toolTitle, reload }
+  return { fileGroup, shapeGroup, diamondGroup, toolGroup, settingsGroup, toolTitle, reload }
 }

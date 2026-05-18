@@ -15,13 +15,14 @@ function updateField<K extends keyof Scene3DForm>(key: K, value: Scene3DForm[K])
   emit('update:form', { [key]: value } as Partial<Scene3DForm>)
 }
 
-type Section = 'camera' | 'lighting' | 'grid' | 'axes'
+type Section = 'camera' | 'lighting' | 'grid' | 'axes' | 'material'
 
 const expanded = ref<Record<Section, boolean>>({
   camera: false,
   lighting: false,
   grid: false,
   axes: false,
+  material: false,
 })
 
 function toggle(s: Section) {
@@ -33,6 +34,7 @@ const sections: { id: Section; label: string }[] = [
   { id: 'lighting', label: '光照' },
   { id: 'grid', label: '网格' },
   { id: 'axes', label: '坐标轴 & 背景' },
+  { id: 'material', label: '预览材质' },
 ]
 </script>
 
@@ -107,6 +109,49 @@ const sections: { id: Section; label: string }[] = [
             <input type="color" :value="form.bgColor" @input="updateField('bgColor', ($event.target as HTMLInputElement).value)" class="s3d-color" />
             <code class="s3d-hex">{{ form.bgColor }}</code>
           </label>
+        </template>
+
+        <!-- ── 预览材质 ── -->
+        <template v-if="sec.id === 'material'">
+          <label class="s3d-field">
+            <span>参考线颜色</span>
+            <input type="color" :value="form.materialDefaultColor" @input="updateField('materialDefaultColor', ($event.target as HTMLInputElement).value)" class="s3d-color" />
+            <code class="s3d-hex">{{ form.materialDefaultColor }}</code>
+          </label>
+          <label class="s3d-field">
+            <span>选中线颜色</span>
+            <input type="color" :value="form.materialSelectedColor" @input="updateField('materialSelectedColor', ($event.target as HTMLInputElement).value)" class="s3d-color" />
+            <code class="s3d-hex">{{ form.materialSelectedColor }}</code>
+          </label>
+          <label class="s3d-field"><span>参考线透明度</span><input type="number" :value="form.materialReferenceOpacity" @input="updateField('materialReferenceOpacity', Number(($event.target as HTMLInputElement).value))" step="0.05" min="0" max="1" /></label>
+
+          <div class="s3d-subsection">墙体</div>
+          <label class="s3d-field">
+            <span>顶部颜色</span>
+            <input type="color" :value="form.materialWallTopColor" @input="updateField('materialWallTopColor', ($event.target as HTMLInputElement).value)" class="s3d-color" />
+            <code class="s3d-hex">{{ form.materialWallTopColor }}</code>
+          </label>
+          <label class="s3d-field">
+            <span>底部颜色</span>
+            <input type="color" :value="form.materialWallBottomColor" @input="updateField('materialWallBottomColor', ($event.target as HTMLInputElement).value)" class="s3d-color" />
+            <code class="s3d-hex">{{ form.materialWallBottomColor }}</code>
+          </label>
+          <label class="s3d-field"><span>墙体透明度</span><input type="number" :value="form.materialWallOpacity" @input="updateField('materialWallOpacity', Number(($event.target as HTMLInputElement).value))" step="0.05" min="0" max="1" /></label>
+          <label class="s3d-field"><span>选中墙体透明度</span><input type="number" :value="form.materialSelectedWallOpacity" @input="updateField('materialSelectedWallOpacity', Number(($event.target as HTMLInputElement).value))" step="0.05" min="0" max="1" /></label>
+
+          <div class="s3d-subsection">顶/底盖</div>
+          <label class="s3d-field">
+            <span>盖颜色</span>
+            <input type="color" :value="form.materialCapColor" @input="updateField('materialCapColor', ($event.target as HTMLInputElement).value)" class="s3d-color" />
+            <code class="s3d-hex">{{ form.materialCapColor }}</code>
+          </label>
+          <label class="s3d-field">
+            <span>选中盖颜色</span>
+            <input type="color" :value="form.materialSelectedCapColor" @input="updateField('materialSelectedCapColor', ($event.target as HTMLInputElement).value)" class="s3d-color" />
+            <code class="s3d-hex">{{ form.materialSelectedCapColor }}</code>
+          </label>
+          <label class="s3d-field"><span>盖透明度</span><input type="number" :value="form.materialCapOpacity" @input="updateField('materialCapOpacity', Number(($event.target as HTMLInputElement).value))" step="0.05" min="0" max="1" /></label>
+          <label class="s3d-field"><span>选中盖透明度</span><input type="number" :value="form.materialSelectedCapOpacity" @input="updateField('materialSelectedCapOpacity', Number(($event.target as HTMLInputElement).value))" step="0.05" min="0" max="1" /></label>
         </template>
 
       </div>
@@ -225,5 +270,12 @@ const sections: { id: Section; label: string }[] = [
   font-size: 11px;
   color: #52525b;
   font-family: monospace;
+}
+.s3d-subsection {
+  font-size: 11px;
+  font-weight: 600;
+  color: #71717a;
+  text-transform: uppercase;
+  padding: 8px 0 2px;
 }
 </style>

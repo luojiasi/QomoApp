@@ -5,7 +5,7 @@ import { useEditorToolbar } from '../composables/useEditorToolbar'
 import type { ActionDef } from '../shares/types'
 import { getStrategies } from '../composables/canvas/drawStrategies';
 
-const { fileGroup, shapeGroup, toolGroup, settingsGroup, toolTitle, reload } = useEditorToolbar()
+const { fileGroup, shapeGroup, diamondGroup, toolGroup, settingsGroup, toolTitle, reload } = useEditorToolbar()
 
 defineExpose({ reload })
 
@@ -93,6 +93,24 @@ function closeCtxMenu() {
 
     <span class="panel-sep" />
 
+    <!-- ▸ 钻石操作 -->
+
+    <div class="tool-panel">
+      <span class="panel-label">钻石</span>
+      <div class="panel-btns">
+        <button
+          v-for="t in diamondGroup" :key="t.id"
+          class="tool-btn"
+          :title="toolTitle(t)"
+          @click="onClick(t)"
+        >
+          <span v-if="t.key" class="tool-key">{{ t.key }}</span>
+          <span class="tool-label">{{ t.label }}</span>
+        </button>
+      </div>
+    </div>
+
+    <span class="panel-sep" />
     <!-- ▸ 工具操作 -->
     <div class="tool-panel">
       <span class="panel-label">工具</span>

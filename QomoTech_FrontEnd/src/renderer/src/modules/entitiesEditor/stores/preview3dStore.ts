@@ -20,11 +20,20 @@ import {
   GRID_DIVISIONS,
   GRID_COLOR_CENTER,
   GRID_COLOR_EDGE,
+  MATERIAL_DEFAULT_COLOR,
+  MATERIAL_SELECTED_COLOR,
+  MATERIAL_WALL_TOP_COLOR,
+  MATERIAL_WALL_BOTTOM_COLOR,
+  MATERIAL_REFERENCE_OPACITY,
+  MATERIAL_WALL_OPACITY,
+  MATERIAL_SELECTED_WALL_OPACITY,
+  MATERIAL_CAP_COLOR,
+  MATERIAL_SELECTED_CAP_COLOR,
+  MATERIAL_CAP_OPACITY,
+  MATERIAL_SELECTED_CAP_OPACITY,
   STORAGE_KEY_SCENE3D,
 } from '../configs/defaults'
 import { Scene3DConfig } from '../shares/types'
-
-
 
 export function loadSceneConfig(): Scene3DConfig {
   try {
@@ -49,6 +58,17 @@ export function loadSceneConfig(): Scene3DConfig {
         showAxes: saved.showAxes ?? SHOW_AXES,
         controlsMinDistance: saved.controlsMinDistance ?? CONTROLS_MIN_DISTANCE,
         controlsMaxDistance: saved.controlsMaxDistance ?? CONTROLS_MAX_DISTANCE,
+        materialDefaultColor: saved.materialDefaultColor ?? MATERIAL_DEFAULT_COLOR,
+        materialSelectedColor: saved.materialSelectedColor ?? MATERIAL_SELECTED_COLOR,
+        materialWallTopColor: saved.materialWallTopColor ?? MATERIAL_WALL_TOP_COLOR,
+        materialWallBottomColor: saved.materialWallBottomColor ?? MATERIAL_WALL_BOTTOM_COLOR,
+        materialReferenceOpacity: saved.materialReferenceOpacity ?? MATERIAL_REFERENCE_OPACITY,
+        materialWallOpacity: saved.materialWallOpacity ?? MATERIAL_WALL_OPACITY,
+        materialSelectedWallOpacity: saved.materialSelectedWallOpacity ?? MATERIAL_SELECTED_WALL_OPACITY,
+        materialCapColor: saved.materialCapColor ?? MATERIAL_CAP_COLOR,
+        materialSelectedCapColor: saved.materialSelectedCapColor ?? MATERIAL_SELECTED_CAP_COLOR,
+        materialCapOpacity: saved.materialCapOpacity ?? MATERIAL_CAP_OPACITY,
+        materialSelectedCapOpacity: saved.materialSelectedCapOpacity ?? MATERIAL_SELECTED_CAP_OPACITY,
       }
     }
   } catch { /* corrupted data, fall through to defaults */ }
@@ -70,10 +90,20 @@ export function loadSceneConfig(): Scene3DConfig {
     showAxes: SHOW_AXES,
     controlsMinDistance: CONTROLS_MIN_DISTANCE,
     controlsMaxDistance: CONTROLS_MAX_DISTANCE,
+    materialDefaultColor: MATERIAL_DEFAULT_COLOR,
+    materialSelectedColor: MATERIAL_SELECTED_COLOR,
+    materialWallTopColor: MATERIAL_WALL_TOP_COLOR,
+    materialWallBottomColor: MATERIAL_WALL_BOTTOM_COLOR,
+    materialReferenceOpacity: MATERIAL_REFERENCE_OPACITY,
+    materialWallOpacity: MATERIAL_WALL_OPACITY,
+    materialSelectedWallOpacity: MATERIAL_SELECTED_WALL_OPACITY,
+    materialCapColor: MATERIAL_CAP_COLOR,
+    materialSelectedCapColor: MATERIAL_SELECTED_CAP_COLOR,
+    materialCapOpacity: MATERIAL_CAP_OPACITY,
+    materialSelectedCapOpacity: MATERIAL_SELECTED_CAP_OPACITY,
   }
 }
 
 export function saveSceneConfig(data: Scene3DConfig) {
   localStorage.setItem(STORAGE_KEY_SCENE3D, JSON.stringify(data))
 }
-

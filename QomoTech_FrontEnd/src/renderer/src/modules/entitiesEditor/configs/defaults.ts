@@ -27,7 +27,8 @@ export const ACTIONS: ActionDef[] = [
     { id: 'DRAW_ELLIPSE', label: '椭圆', group: 'shape', key: 'e' },
     { id: 'DRAW_POLYLINE', label: '多段线', group: 'shape', key: 'p' },
     { id: 'DRAW_BEZIER', label: '曲线', group: 'shape', key: 'b' },
-  
+    // —— 钻石工具 ——
+    { id: 'DRAW_DIAMOND', label: '钻石', group: 'diamond', key: 'd' },
     // ── 工具 ──
     { id: 'SELECT', label: '选择', group: 'tool', key: 'v' },
     { id: 'PAN', label: '平移', group: 'tool', key: 'h' },
@@ -85,6 +86,19 @@ export const GRID_DIVISIONS = 60
 export const GRID_COLOR_CENTER = 0x334155
 export const GRID_COLOR_EDGE = 0x1e293b
 export const GRID_ROTATION_X = Math.PI / 2 // Z-up：GridHelper 从 XY 翻到 XZ 面
+
+// ── 预览材质 ──
+export const MATERIAL_DEFAULT_COLOR = 0x60a5fa
+export const MATERIAL_SELECTED_COLOR = 0x3b82f6
+export const MATERIAL_WALL_TOP_COLOR = 0x818cf8
+export const MATERIAL_WALL_BOTTOM_COLOR = 0x3730a3
+export const MATERIAL_REFERENCE_OPACITY = 0.8
+export const MATERIAL_WALL_OPACITY = 0.35
+export const MATERIAL_SELECTED_WALL_OPACITY = 0.55
+export const MATERIAL_CAP_COLOR = 0x6ee7b7
+export const MATERIAL_SELECTED_CAP_COLOR = 0x34d399
+export const MATERIAL_CAP_OPACITY = 0.5
+export const MATERIAL_SELECTED_CAP_OPACITY = 0.7
 
 
 

@@ -18,6 +18,17 @@ import {
   GRID_DIVISIONS,
   GRID_COLOR_CENTER,
   GRID_COLOR_EDGE,
+  MATERIAL_DEFAULT_COLOR,
+  MATERIAL_SELECTED_COLOR,
+  MATERIAL_WALL_TOP_COLOR,
+  MATERIAL_WALL_BOTTOM_COLOR,
+  MATERIAL_REFERENCE_OPACITY,
+  MATERIAL_WALL_OPACITY,
+  MATERIAL_SELECTED_WALL_OPACITY,
+  MATERIAL_CAP_COLOR,
+  MATERIAL_SELECTED_CAP_COLOR,
+  MATERIAL_CAP_OPACITY,
+  MATERIAL_SELECTED_CAP_OPACITY,
 } from '../../configs/defaults'
 
 export interface Scene3DForm {
@@ -31,7 +42,7 @@ export interface Scene3DForm {
   minDistance: number
   maxDistance: number
   // 背景
-  bgColor: string // hex string for display
+  bgColor: string
   // 光照
   ambientIntensity: number
   dirLightIntensity: number
@@ -46,8 +57,20 @@ export interface Scene3DForm {
   // 网格
   gridSize: number
   gridDivisions: number
-  gridColorC: string // hex string
-  gridColorE: string // hex string
+  gridColorC: string
+  gridColorE: string
+  // 预览材质
+  materialDefaultColor: string
+  materialSelectedColor: string
+  materialWallTopColor: string
+  materialWallBottomColor: string
+  materialReferenceOpacity: number
+  materialWallOpacity: number
+  materialSelectedWallOpacity: number
+  materialCapColor: string
+  materialSelectedCapColor: string
+  materialCapOpacity: number
+  materialSelectedCapOpacity: number
 }
 
 function hexOf(c: number): string {
@@ -81,6 +104,17 @@ export function useScene3DSettings() {
     gridColorE: hexOf(GRID_COLOR_EDGE),
     showGrid: SHOW_GRID,
     showAxes: SHOW_AXES,
+    materialDefaultColor: hexOf(MATERIAL_DEFAULT_COLOR),
+    materialSelectedColor: hexOf(MATERIAL_SELECTED_COLOR),
+    materialWallTopColor: hexOf(MATERIAL_WALL_TOP_COLOR),
+    materialWallBottomColor: hexOf(MATERIAL_WALL_BOTTOM_COLOR),
+    materialReferenceOpacity: MATERIAL_REFERENCE_OPACITY,
+    materialWallOpacity: MATERIAL_WALL_OPACITY,
+    materialSelectedWallOpacity: MATERIAL_SELECTED_WALL_OPACITY,
+    materialCapColor: hexOf(MATERIAL_CAP_COLOR),
+    materialSelectedCapColor: hexOf(MATERIAL_SELECTED_CAP_COLOR),
+    materialCapOpacity: MATERIAL_CAP_OPACITY,
+    materialSelectedCapOpacity: MATERIAL_SELECTED_CAP_OPACITY,
   })
 
   function reset() {
@@ -105,6 +139,17 @@ export function useScene3DSettings() {
     form.gridDivisions = GRID_DIVISIONS
     form.gridColorC = hexOf(GRID_COLOR_CENTER)
     form.gridColorE = hexOf(GRID_COLOR_EDGE)
+    form.materialDefaultColor = hexOf(MATERIAL_DEFAULT_COLOR)
+    form.materialSelectedColor = hexOf(MATERIAL_SELECTED_COLOR)
+    form.materialWallTopColor = hexOf(MATERIAL_WALL_TOP_COLOR)
+    form.materialWallBottomColor = hexOf(MATERIAL_WALL_BOTTOM_COLOR)
+    form.materialReferenceOpacity = MATERIAL_REFERENCE_OPACITY
+    form.materialWallOpacity = MATERIAL_WALL_OPACITY
+    form.materialSelectedWallOpacity = MATERIAL_SELECTED_WALL_OPACITY
+    form.materialCapColor = hexOf(MATERIAL_CAP_COLOR)
+    form.materialSelectedCapColor = hexOf(MATERIAL_SELECTED_CAP_COLOR)
+    form.materialCapOpacity = MATERIAL_CAP_OPACITY
+    form.materialSelectedCapOpacity = MATERIAL_SELECTED_CAP_OPACITY
   }
 
   /** 导出为可持久化的纯数据 */
@@ -127,6 +172,17 @@ export function useScene3DSettings() {
       showAxes: form.showAxes,
       controlsMinDistance: form.minDistance,
       controlsMaxDistance: form.maxDistance,
+      materialDefaultColor: numOf(form.materialDefaultColor),
+      materialSelectedColor: numOf(form.materialSelectedColor),
+      materialWallTopColor: numOf(form.materialWallTopColor),
+      materialWallBottomColor: numOf(form.materialWallBottomColor),
+      materialReferenceOpacity: form.materialReferenceOpacity,
+      materialWallOpacity: form.materialWallOpacity,
+      materialSelectedWallOpacity: form.materialSelectedWallOpacity,
+      materialCapColor: numOf(form.materialCapColor),
+      materialSelectedCapColor: numOf(form.materialSelectedCapColor),
+      materialCapOpacity: form.materialCapOpacity,
+      materialSelectedCapOpacity: form.materialSelectedCapOpacity,
     }
   }
 
