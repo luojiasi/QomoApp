@@ -17,6 +17,7 @@ import type { Point2D, EntityKind } from '../../commons/types'
 import type { DrawStrategyDef, FieldDef } from './drawStrategies'
 import { useEditorStore } from '../../stores/editorStore'
 import { getDefaultStrategy } from './drawStrategies'
+import { DIAMOND_PRESETS } from '../../configs/defaults'
 
 // ── 字段运行时值 ────────────────────────────────────────
 
@@ -129,6 +130,12 @@ export function useDrawInteraction() {
     const v = s.values
     const input = buildEntityInput(s.kind, s.strategy.id, v)
     if (input) {
+      if (store.diamondShape) {
+        const radius = (input as any).radius ?? 3
+        const diameter = radius * 2
+        ;(input as any).diamondParams = { ...DIAMOND_PRESETS[0], L: diameter, W: diameter }
+        store.setDiamondShape(null)
+      }
       store.addEntity(input as any)
     }
     session.value = null

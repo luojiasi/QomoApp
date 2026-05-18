@@ -22,6 +22,7 @@ import type {
   EllipseEntity,
   PolylineEntity,
   BezierEntity,
+  DiamondParams,
   Point2D,
   OpenSide,
 } from '../../commons/types'
@@ -346,6 +347,113 @@ export interface Entity3DObject {
  * 返回的 object 可直接加入 Three.js scene。
  * 需先调用 applyMaterialConfig() 初始化材质参数。
  */
+/**
+ * 构建刻面钻石 3D 模型（台面→冠部→腰部→亭部）。
+ * 从旧 editor buildDiamond3DObject 迁移，适配 Entity3DObject 接口。
+ */
+/**
+ * 构建刻面钻石 3D 模型（台面→冠部→腰部→亭部）。
+ * 腰部半径使用传入的 2D 轮廓半径，而非 params.L/W 推算。
+ */
+function createDiamond3D(params: DiamondParams, center: Point2D, radius: number): THREE.Group | null {
+  if (!Number.isFinite(radius) || radius <= 0) return null
+
+  const crownH = (params.Crown / 100) * radius * 2
+  const pavilionH = (params.Pavilion / 100) * radius * 2
+  const girdleH = (params.Girdle / 100) * radius * 2
+  const totalH = crownH + girdleH + pavilionH
+  const tableR = (params.Table / 100) * radius
+  const R = radius
+  const halfH = totalH / 2
+
+  // Y-up 构建 → 最后 rotateX 转 Z-up
+  const yTop = -halfH
+  const yGirdleTop = -(halfH - crownH)
+  const yGirdleBot = -(halfH - crownH - girdleH)
+  const yBot = halfH
+
+  const N = 16
+  const positions: number[] = []
+  const normals: number[] = []
+
+  const pushTri = (a: THREE.Vector3, b: THREE.Vector3, c: THREE.Vector3) => {
+    const ab = new THREE.Vector3().copy(b).sub(a)
+    const ac = new THREE.Vector3().copy(c).sub(a)
+    const n = new THREE.Vector3().crossVectors(ab, ac).normalize()
+    positions.push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z)
+    normals.push(n.x, n.y, n.z, n.x, n.y, n.z, n.x, n.y, n.z)
+  }
+
+  for (let i = 0; i < N; i++) {
+    const a0 = (i / N) * Math.PI * 2
+    const a1 = ((i + 1) / N) * Math.PI * 2
+    const c0 = Math.cos(a0), s0 = Math.sin(a0)
+    const c1 = Math.cos(a1), s1 = Math.sin(a1)
+
+    const tc   = new THREE.Vector3(0,            yTop, 0)
+    const te0  = new THREE.Vector3(tableR * c0,  yTop, tableR * s0)
+    const te1  = new THREE.Vector3(tableR * c1,  yTop, tableR * s1)
+    const gt0  = new THREE.Vector3(R * c0, yGirdleTop, R * s0)
+    const gt1  = new THREE.Vector3(R * c1, yGirdleTop, R * s1)
+    const gb0  = new THREE.Vector3(R * c0, yGirdleBot, R * s0)
+    const gb1  = new THREE.Vector3(R * c1, yGirdleBot, R * s1)
+    const cu   = new THREE.Vector3(0,            yBot, 0)
+
+    // 台面
+    pushTri(tc, te0, te1)
+    // 冠部刻面
+    pushTri(te0, gt0, te1)
+    pushTri(te1, gt0, gt1)
+    // 腰部
+    pushTri(gt0, gb0, gt1)
+    pushTri(gb0, gb1, gt1)
+    // 亭部刻面
+    pushTri(gb0, cu, gb1)
+  }
+
+  const geometry = new THREE.BufferGeometry()
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
+  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3))
+  geometry.rotateX(-Math.PI / 2)
+
+  const bodyMat = new THREE.MeshPhysicalMaterial({
+    color: 0xd8ecff,
+    metalness: 0.0,
+    roughness: 0.05,
+    transparent: true,
+    opacity: 0.90,
+    side: THREE.DoubleSide,
+    envMapIntensity: 1.2,
+    clearcoat: 0.6,
+    clearcoatRoughness: 0.05,
+    flatShading: true,
+  })
+
+  const edgeGeom = new THREE.EdgesGeometry(geometry, 5)
+  const edgeMat = new THREE.LineBasicMaterial({
+    color: 0x6699cc,
+    transparent: true,
+    opacity: 0.25,
+  })
+
+  const mesh = new THREE.Mesh(geometry, bodyMat)
+  const wireframe = new THREE.LineSegments(edgeGeom, edgeMat)
+
+  const group = new THREE.Group()
+  group.add(mesh)
+  group.add(wireframe)
+
+  if (Number.isFinite(center.X) && Number.isFinite(center.Y)) {
+    group.position.set(center.X, center.Y, 0)
+  }
+
+  // 存储材质引用以便 setSelected / dispose
+  group.userData._diamondBodyMat = bodyMat
+  group.userData._diamondEdgeMat = edgeMat
+
+  return group
+}
+
 export function createEntity3D(entity: SurfaceEntity<EditorEntity>): Entity3DObject | null {
   const e = entity as SurfaceEntity<EditorEntity>
   const h = e.height
@@ -357,7 +465,13 @@ export function createEntity3D(entity: SurfaceEntity<EditorEntity>): Entity3DObj
   switch (e.kind) {
     case 'LINE':     obj = createLine3D(e, openSide, openSize, h); break
     case 'ARC':      obj = createArc3D(e, openSide, openSize, h); break
-    case 'CIRCLE':   obj = createCircle3D(e, openSide, openSize, h); break
+    case 'CIRCLE':
+      if (e.diamondParams) {
+        obj = createDiamond3D(e.diamondParams, e.center, e.radius)
+      } else {
+        obj = createCircle3D(e, openSide, openSize, h)
+      }
+      break
     case 'POLYLINE': obj = createPolyline3D(e, openSide, openSize, h); break
     case 'BEZIER':   obj = createBezier3D(e, openSide, openSize, h); break
     case 'ELLIPSE':  obj = createEllipse3D(e, openSide, openSize, h); break
@@ -367,6 +481,32 @@ export function createEntity3D(entity: SurfaceEntity<EditorEntity>): Entity3DObj
 
   obj.userData.entityId = entity.id
   obj.userData.entityKind = entity.kind
+
+  // Diamond 使用自有材质，走独立路径
+  if (e.kind === 'CIRCLE' && e.diamondParams) {
+    const bodyMat = obj.userData._diamondBodyMat as THREE.MeshPhysicalMaterial
+    const edgeMat = obj.userData._diamondEdgeMat as THREE.LineBasicMaterial
+    return {
+      object: obj,
+      setSelected(selected: boolean) {
+        bodyMat.opacity = selected ? 0.65 : 0.90
+        bodyMat.emissive = selected ? new THREE.Color(0x3b82f6) : new THREE.Color(0x000000)
+        bodyMat.emissiveIntensity = selected ? 0.4 : 0
+        edgeMat.opacity = selected ? 0.6 : 0.25
+        edgeMat.color.set(selected ? 0x3b82f6 : 0x6699cc)
+      },
+      dispose() {
+        obj!.traverse((child) => {
+          if (child instanceof THREE.Mesh || child instanceof THREE.Line || child instanceof THREE.LineLoop || child instanceof THREE.LineSegments) {
+            child.geometry?.dispose()
+          }
+        })
+        bodyMat.dispose()
+        edgeMat.dispose()
+        if (obj!.parent) obj!.parent.remove(obj!)
+      },
+    }
+  }
 
   const mats = getSharedMaterials()
   const lineChildren: THREE.Line[] = []

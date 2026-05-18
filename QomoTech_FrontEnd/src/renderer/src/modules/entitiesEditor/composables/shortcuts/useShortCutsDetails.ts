@@ -47,6 +47,7 @@ export function useShortCutsDetails(handlers: {
       case 'DRAW_CIRCLE':   store.setTool('DRAW'); store.setDrawSubTool('CIRCLE'); break
       case 'DRAW_ELLIPSE':  store.setTool('DRAW'); store.setDrawSubTool('ELLIPSE'); break
       case 'DRAW_POLYLINE': store.setTool('DRAW'); store.setDrawSubTool('POLYLINE'); break
+      case 'DRAW_DIAMOND':  store.setDiamondShape('ROUND'); store.setTool('DRAW'); store.setDrawSubTool('CIRCLE'); break
 
       // ── 视图 ──
       case 'TOGGLE_GRID': handlers.onToggleGrid(); break

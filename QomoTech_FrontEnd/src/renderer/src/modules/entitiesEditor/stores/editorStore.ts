@@ -46,6 +46,7 @@ import type {
   ToolMode,
   EntityKind,
   ProjectMeta,
+  DiamondShape,
 } from '../commons/types'
 import {
   MAX_UNDO_STEPS,
@@ -151,6 +152,9 @@ export const useEditorStore = defineStore('entitiesEditor', () => {
 
   /** DRAW 模式下的子图元类型：LINE | ARC | CIRCLE 等。 */
   const drawSubTool    = ref<EntityKind>('LINE')
+
+  /** 钻石绘制模式：非 null 时，提交 CIRCLE/POLYLINE 实体时自动附加 diamondParams */
+  const diamondShape   = ref<DiamondShape | null>(null)
 
   /** 项目元信息：名称、版本、实体数、更新时间等。 */
   const projectMeta    = ref<ProjectMeta>(createInitialMeta())
@@ -287,6 +291,16 @@ export const useEditorStore = defineStore('entitiesEditor', () => {
    */
   function setDrawSubTool(kind: EntityKind) {
     drawSubTool.value = kind
+  }
+
+  /**
+   * 设置钻石绘制模式。
+   * 非 null 时，下一个提交的 CIRCLE/POLYLINE 实体将自动附加 diamondParams。
+   *
+   * @param shape - 钻石形状，null = 退出钻石模式
+   */
+  function setDiamondShape(shape: DiamondShape | null) {
+    diamondShape.value = shape
   }
 
   /**
@@ -540,6 +554,7 @@ export const useEditorStore = defineStore('entitiesEditor', () => {
     selectedIds,
     activeTool,
     drawSubTool,
+    diamondShape,
     projectMeta,
     undoStack,
     redoStack,
@@ -552,6 +567,7 @@ export const useEditorStore = defineStore('entitiesEditor', () => {
     redo,
     setTool,
     setDrawSubTool,
+    setDiamondShape,
     setSelection,
     addEntity,
     updateEntity,

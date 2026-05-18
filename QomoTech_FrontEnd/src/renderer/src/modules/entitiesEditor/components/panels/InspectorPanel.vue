@@ -229,6 +229,39 @@ const count = computed(() => props.entities?.length ?? 0)
               </div>
             </template>
 
+            <!-- ── 钻石参数（任何实体有 diamondParams 时显示） ── -->
+            <template v-if="entity.diamondParams">
+              <div class="section-label">钻石参数</div>
+              <label class="field"><span>长 (L)</span>
+                <input type="number" :value="entity.diamondParams.L" step="0.01" min="0.1"
+                  @input="emit('update', 'diamondParams.L', +($event.target as HTMLInputElement).value, entity.id)" />
+              </label>
+              <label class="field"><span>宽 (W)</span>
+                <input type="number" :value="entity.diamondParams.W" step="0.01" min="0.1"
+                  @input="emit('update', 'diamondParams.W', +($event.target as HTMLInputElement).value, entity.id)" />
+              </label>
+              <label class="field"><span>深度 %</span>
+                <input type="number" :value="entity.diamondParams.Depth" step="0.1" min="0" max="100"
+                  @input="emit('update', 'diamondParams.Depth', +($event.target as HTMLInputElement).value, entity.id)" />
+              </label>
+              <label class="field"><span>亭部 %</span>
+                <input type="number" :value="entity.diamondParams.Pavilion" step="0.1" min="0" max="100"
+                  @input="emit('update', 'diamondParams.Pavilion', +($event.target as HTMLInputElement).value, entity.id)" />
+              </label>
+              <label class="field"><span>冠部 %</span>
+                <input type="number" :value="entity.diamondParams.Crown" step="0.1" min="0" max="100"
+                  @input="emit('update', 'diamondParams.Crown', +($event.target as HTMLInputElement).value, entity.id)" />
+              </label>
+              <label class="field"><span>腰部 %</span>
+                <input type="number" :value="entity.diamondParams.Girdle" step="0.1" min="0" max="100"
+                  @input="emit('update', 'diamondParams.Girdle', +($event.target as HTMLInputElement).value, entity.id)" />
+              </label>
+              <label class="field"><span>台面 %</span>
+                <input type="number" :value="entity.diamondParams.Table" step="0.1" min="0" max="100"
+                  @input="emit('update', 'diamondParams.Table', +($event.target as HTMLInputElement).value, entity.id)" />
+              </label>
+            </template>
+
             <!-- ── 挤出参数（共用到所有实体） ── -->
             <div class="section-label">挤出参数</div>
             <label class="field">
