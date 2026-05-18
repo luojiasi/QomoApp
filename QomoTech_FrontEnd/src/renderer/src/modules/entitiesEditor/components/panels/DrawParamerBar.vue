@@ -9,7 +9,7 @@ const {
   activeFieldDef,
   multiPoints,
   bulges,
-  canComplete,
+  // canComplete,
   toggleValue,
   toggleToggle,
   completePoint,

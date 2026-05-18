@@ -8,13 +8,8 @@ import type {
   BoundingBox,
   EditorEntity,
   OpenSide,
-  LineEntity,
   ArcEntity,
-  CircleEntity,
-  EllipseEntity,
-  PolylineEntity,
   PolylineVertex,
-  BezierEntity
 } from '../commons/types'
 
 // =============================================================================

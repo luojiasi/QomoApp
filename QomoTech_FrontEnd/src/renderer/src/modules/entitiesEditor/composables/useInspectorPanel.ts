@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 import { useEditorStore } from '../stores/editorStore'
 import type { SurfaceEntity, EditorEntity } from '../commons/types'
 

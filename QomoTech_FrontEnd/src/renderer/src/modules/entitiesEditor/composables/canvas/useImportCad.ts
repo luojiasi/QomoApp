@@ -6,9 +6,9 @@
 // =============================================================================
 
 import DxfParser from 'dxf-parser'
-import type { Point2D, EditorLayer, EditorEntity, SurfaceEntity, PolylineVertex } from '../commons/types'
-import { generateId } from '../utils/idgen'
-import { loadGeneralConfig } from '../stores/generalSettingsStore'
+import type { Point2D, EditorLayer, EditorEntity, SurfaceEntity, PolylineVertex } from '../../commons/types'
+import { generateId } from '../../utils/idgen'
+import { loadGeneralConfig } from '../../stores/generalSettingsStore'
 
 // ── 类型 ──────────────────────────────────────────────
 
@@ -164,9 +164,16 @@ function convertSpline(e: DxfLikeEntity, layerId: string): SurfaceEntity<EditorE
 // ── 主入口 ────────────────────────────────────────────
 
 export function importDxf(text: string): DxfImportResult {
+  console.log('[importDxf] 文本长度:', text.length, '前200字符:', text.slice(0, 200))
+
   const parser = new DxfParser()
   const dxf = parser.parseSync(text) as unknown as DxfLikeDocument
   const source = Array.isArray(dxf.entities) ? dxf.entities : []
+
+  console.log('[importDxf] 解析到实体数:', source.length)
+
+  // 统计各类型
+  const typeCounts: Record<string, number> = {}
 
   const layerMap = buildLayerMap(source)
   const entities: SurfaceEntity<EditorEntity>[] = []
@@ -174,7 +181,8 @@ export function importDxf(text: string): DxfImportResult {
 
   for (const e of source) {
     const lid = layerMap.get(layerName(e))?.id ?? '0'
-    const type = String(e.type ?? '').toUpperCase()
+    const type = String(e.type ?? '').toUpperCase().trim()
+    typeCounts[type] = (typeCounts[type] ?? 0) + 1
 
     let converted: SurfaceEntity<EditorEntity> | null = null
 
@@ -188,6 +196,10 @@ export function importDxf(text: string): DxfImportResult {
     if (converted) entities.push(converted)
     else unsupported++
   }
+
+  console.log('[importDxf] 类型分布:', typeCounts)
+  console.log('[importDxf] 成功转换:', entities.length, '不支持:', unsupported)
+  console.log('[importDxf] 图层:', layerMap.size)
 
   const layers = Array.from(layerMap.values())
   return { layers, entities, unsupportedCount: unsupported }

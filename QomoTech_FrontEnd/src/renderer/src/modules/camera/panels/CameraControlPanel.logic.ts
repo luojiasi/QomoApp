@@ -4,7 +4,7 @@ import { useNotification } from '@/shared/composables/useNotification'
 import { useCameraSettingsStore } from '../stores/useCameraSettingsStore'
 import { bootstrapCameraSettings, disconnectCamera } from '../api'
 import { initSdkEnumAndConnectIndex0 } from '../composables/useCameraControl'
-import { clampInt, clampFloat, numericEqual } from '../utils'
+import { clampInt, numericEqual } from '../utils'
 
 export function useCameraControlPanelLogic() {
   const { success, error, info } = useNotification()

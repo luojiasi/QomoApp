@@ -115,13 +115,13 @@ export function useCanvas2D() {
     }
   }
 
-  function worldToScreen(wx: number, wy: number): { x: number; y: number } {
-    const vp: ViewportState = store.viewport
-    return {
-      x: (wx + vp.panX) * vp.zoom + vp.width / 2,
-      y: vp.height / 2 - (wy + vp.panY) * vp.zoom,
-    }
-  }
+  // function worldToScreen(wx: number, wy: number): { x: number; y: number } {
+    // const vp: ViewportState = store.viewport
+    // return {
+      // x: (wx + vp.panX) * vp.zoom + vp.width / 2,
+      // y: vp.height / 2 - (wy + vp.panY) * vp.zoom,
+    // }
+  // }
 
   // ── Canvas 尺寸 ──────────────────────────────────────────────────────
 

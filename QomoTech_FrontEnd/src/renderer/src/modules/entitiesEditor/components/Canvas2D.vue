@@ -3,14 +3,16 @@ import { onMounted, onUnmounted, provide } from 'vue'
 import { useCanvas2D } from '@/modules/entitiesEditor/composables/canvas/useCanvas2D'
 import DrawParamerBar from './panels/DrawParamerBar.vue'
 
-const { canvasRef, setup, cleanup, reloadConfig, drawInteraction } = useCanvas2D()
+const canvas2D = useCanvas2D()
+const { setup, cleanup, reloadConfig, drawInteraction } = canvas2D
+const canvasRef = canvas2D.canvasRef
 
 provide('drawInteraction', drawInteraction)
 
 onMounted(() => setup())
 onUnmounted(() => cleanup())
 
-defineExpose({ reloadConfig })
+defineExpose({ canvasRef, reloadConfig })
 </script>
 
 <template>

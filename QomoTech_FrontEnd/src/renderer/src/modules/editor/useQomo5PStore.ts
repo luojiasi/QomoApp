@@ -31,7 +31,7 @@ import {
   sortLinesAndAttachNodeForExport
 } from './cad/qomoEntityGeometry'
 
-import { QOMO5P_DRAFT_KEY} from '@/shared/constants/storageKeys'
+import { CENTER_ROTATION_STORAGE_KEY, QOMO5P_DRAFT_KEY } from '@/shared/constants/storageKeys'
 import {
   QOMO5P_PROJECT_VERSION,
   DEFAULT_ENTITY_BASE_HEIGHT,
