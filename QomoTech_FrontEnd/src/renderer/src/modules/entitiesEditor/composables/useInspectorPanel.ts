@@ -21,7 +21,7 @@ export function useInspectorPanel() {
     return store.entities.filter(e => set.has(e.id))
   })
 
-  function updateField(field: string, value: number | boolean | string, entityId?: string) {
+  function updateField(field: string, value: number | boolean | string | Record<string, unknown>[], entityId?: string) {
     const id = entityId ?? selectedEntity.value?.id
     if (!id) return
 

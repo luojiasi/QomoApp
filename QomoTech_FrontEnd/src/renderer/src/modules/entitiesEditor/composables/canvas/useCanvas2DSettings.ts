@@ -1,6 +1,7 @@
 import { reactive } from 'vue'
 import { loadCanvas2DConfig, type Canvas2DConfig } from '../../stores/canvas2DSettingsStore'
 import {
+  DEFAULT_SNAP_TO_GRID,
   CANVAS_GRID_STEP, CANVAS_GRID_COLOR, CANVAS_GRID_AXIS_COLOR,
   CANVAS_AXIS_LINE_WIDTH, CANVAS_ENTITY_STROKE, CANVAS_ENTITY_LINE_WIDTH,
   CANVAS_SELECTION_STROKE, CANVAS_SELECTION_LINE_WIDTH, CANVAS_HOVER_STROKE,
@@ -10,6 +11,7 @@ import {
 } from '../../configs/defaults'
 
 export interface Canvas2DForm {
+  snaptoGrid: boolean
   gridStep: number
   gridColor: string
   gridAxisColor: string
@@ -34,6 +36,7 @@ export function useCanvas2DSettings() {
   const initial = loadCanvas2DConfig()
 
   const form = reactive<Canvas2DForm>({
+    snaptoGrid: initial.snaptoGrid,
     gridStep: initial.gridStep,
     gridColor: initial.gridColor,
     gridAxisColor: initial.gridAxisColor,
@@ -52,6 +55,7 @@ export function useCanvas2DSettings() {
   })
 
   function reset() {
+    form.snaptoGrid = DEFAULT_SNAP_TO_GRID
     form.gridStep = CANVAS_GRID_STEP
     form.gridColor = CANVAS_GRID_COLOR
     form.gridAxisColor = CANVAS_GRID_AXIS_COLOR
@@ -71,6 +75,7 @@ export function useCanvas2DSettings() {
 
   function toData(): Canvas2DConfig {
     return {
+      snaptoGrid: form.snaptoGrid,
       gridStep: form.gridStep,
       gridColor: form.gridColor,
       gridAxisColor: form.gridAxisColor,
@@ -91,6 +96,7 @@ export function useCanvas2DSettings() {
 
   function reload() {
     const c = loadCanvas2DConfig()
+    form.snaptoGrid = c.snaptoGrid
     form.gridStep = c.gridStep
     form.gridColor = c.gridColor
     form.gridAxisColor = c.gridAxisColor

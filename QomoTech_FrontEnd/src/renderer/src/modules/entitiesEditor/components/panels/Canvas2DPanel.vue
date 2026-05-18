@@ -53,6 +53,10 @@ const sections: { id: Section; label: string }[] = [
 
         <!-- ── 网格 ── -->
         <template v-if="sec.id === 'grid'">
+          <label class="c2d-field"><span>吸附网格</span>
+            <input type="checkbox" :checked="form.snaptoGrid"
+              @change="updateField('snaptoGrid', ($event.target as HTMLInputElement).checked)" />
+          </label>
           <label class="c2d-field"><span>网格步长</span><input type="number" :value="form.gridStep" @input="updateField('gridStep', Number(($event.target as HTMLInputElement).value))" min="1" step="1" /></label>
           <label class="c2d-field">
             <span>网格颜色</span>

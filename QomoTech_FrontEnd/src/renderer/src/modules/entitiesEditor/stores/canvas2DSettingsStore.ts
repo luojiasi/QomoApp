@@ -4,6 +4,7 @@
 
 import {
   STORAGE_KEY_CANVAS2D,
+  DEFAULT_SNAP_TO_GRID,
   CANVAS_GRID_STEP,
   CANVAS_GRID_COLOR,
   CANVAS_GRID_AXIS_COLOR,
@@ -22,6 +23,7 @@ import {
 } from '../configs/defaults'
 
 export interface Canvas2DConfig {
+  snaptoGrid: boolean
   gridStep: number
   gridColor: string
   gridAxisColor: string
@@ -45,6 +47,7 @@ export function loadCanvas2DConfig(): Canvas2DConfig {
     if (raw) {
       const saved = JSON.parse(raw)
       return {
+        snaptoGrid: saved.snaptoGrid ?? DEFAULT_SNAP_TO_GRID,
         gridStep: saved.gridStep ?? CANVAS_GRID_STEP,
         gridColor: saved.gridColor ?? CANVAS_GRID_COLOR,
         gridAxisColor: saved.gridAxisColor ?? CANVAS_GRID_AXIS_COLOR,
@@ -64,6 +67,7 @@ export function loadCanvas2DConfig(): Canvas2DConfig {
     }
   } catch { /* corrupted data, fall through to defaults */ }
   return {
+    snaptoGrid: DEFAULT_SNAP_TO_GRID,
     gridStep: CANVAS_GRID_STEP,
     gridColor: CANVAS_GRID_COLOR,
     gridAxisColor: CANVAS_GRID_AXIS_COLOR,

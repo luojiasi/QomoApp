@@ -714,6 +714,16 @@ export function useCanvas2D() {
 
   // ── 鼠标事件处理 ─────────────────────────────────────────────────────
 
+  /** 将世界坐标吸附到最近网格交点（仅在 snapToGrid 启用时生效） */
+  function snapToGridPoint(world: Point2D): Point2D {
+    if (!cfg.snaptoGrid) return world
+    const step = cfg.gridStep
+    return {
+      X: Math.round(world.X / step) * step,
+      Y: Math.round(world.Y / step) * step,
+    }
+  }
+
   function handleMouseDown(e: MouseEvent) {
     const pt = getCanvasPoint(e)
     const world = screenToWorld(pt.x, pt.y)
@@ -731,8 +741,8 @@ export function useCanvas2D() {
       }
       scheduleRender()
     } else if (tool === 'DRAW') {
-      // 点击式绘制：委托给交互状态机
-      drawInteraction.handleCanvasClick(world)
+      // 点击式绘制：委托给交互状态机（吸附后）
+      drawInteraction.handleCanvasClick(snapToGridPoint(world))
       scheduleRender()
     } else if (tool === 'PAN') {
       panStart.value = {
@@ -750,9 +760,9 @@ export function useCanvas2D() {
 
     cursorX.value = world.X
     cursorY.value = world.Y
-    cursorWorld.value = world
 
     if (store.activeTool === 'SELECT') {
+      cursorWorld.value = world
       if (selectionRect.value) {
         selectionRect.value = { start: selectionRect.value.start, end: { ...world } }
         scheduleRender()
@@ -762,8 +772,10 @@ export function useCanvas2D() {
         if (prev !== hoveredId.value) scheduleRender()
       }
     } else if (store.activeTool === 'DRAW' && drawInteraction.isActive.value) {
+      cursorWorld.value = snapToGridPoint(world)
       scheduleRender()
     } else if (store.activeTool === 'PAN' && panStart.value) {
+      cursorWorld.value = world
       const dx = e.clientX - panStart.value.sx
       const dy = e.clientY - panStart.value.sy
       store.viewport.panX = panStart.value.panX + dx / store.viewport.zoom

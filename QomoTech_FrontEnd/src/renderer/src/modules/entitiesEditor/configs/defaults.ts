@@ -102,6 +102,7 @@ export const OPEN_PATH_SAMPLE_SEGMENTS = 96
 // ── 网格 ──
 export const CANVAS_GRID_STEP = 2
 export const CANVAS_GRID_COLOR = '#1e293b'
+export const DEFAULT_SNAP_TO_GRID = false
 export const CANVAS_GRID_AXIS_COLOR = '#334155'
 export const CANVAS_AXIS_LINE_WIDTH = 2
 
