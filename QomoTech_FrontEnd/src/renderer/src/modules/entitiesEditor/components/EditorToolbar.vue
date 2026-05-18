@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import { reactive } from 'vue';
+import { EntityKind } from '../commons/types';
 import { useEditorToolbar } from '../composables/useEditorToolbar'
 import type { ActionDef } from '../shares/types'
+import { getStrategies } from '../composables/canvas/drawStrategies';
 
 const { fileGroup, shapeGroup, toolGroup, settingsGroup, toolTitle, reload } = useEditorToolbar()
 
@@ -8,11 +11,46 @@ defineExpose({ reload })
 
 const emit = defineEmits<{
   'action': [action: ActionDef]
+  'context-strategy': [{ kind: EntityKind; strategyId: string }]
 }>()
 
 function onClick(a: ActionDef) {
   emit('action', a)
 }
+// ── 右键策略菜单 ──
+const ctxMenu = reactive({
+  visible: false,
+  x: 0,
+  y: 0,
+  kind: null as EntityKind | null,
+})
+/** 将工具栏 action id 映射为 EntityKind */
+function actionIdToKind(id: string): EntityKind | null {
+  const map: Record<string, EntityKind> = {
+    DRAW_LINE: 'LINE', DRAW_CIRCLE: 'CIRCLE', DRAW_ARC: 'ARC',
+    DRAW_BEZIER: 'BEZIER', DRAW_POLYLINE: 'POLYLINE', DRAW_ELLIPSE: 'ELLIPSE',
+  }
+  return map[id] ?? null
+}
+
+function onShapeContextMenu(e: MouseEvent, kind: EntityKind) {
+  e.preventDefault()
+  ctxMenu.visible = true
+  ctxMenu.x = e.clientX
+  ctxMenu.y = e.clientY
+  ctxMenu.kind = kind
+}
+function onCtxStrategySelect(strategyId: string) {
+  if (ctxMenu.kind) {
+    emit('context-strategy', { kind: ctxMenu.kind, strategyId })
+  }
+  closeCtxMenu()
+}
+function closeCtxMenu() {
+  ctxMenu.visible = false
+  ctxMenu.kind = null
+}
+
 </script>
 
 <template>
@@ -36,7 +74,7 @@ function onClick(a: ActionDef) {
 
     <span class="panel-sep" />
 
-    <!-- ▸ 图形操作 -->
+    <!-- ▸ 图形操作（支持右键切换策略） -->
     <div class="tool-panel">
       <span class="panel-label">图形</span>
       <div class="panel-btns">
@@ -45,6 +83,7 @@ function onClick(a: ActionDef) {
           class="tool-btn"
           :title="toolTitle(t)"
           @click="onClick(t)"
+          @contextmenu.prevent="onShapeContextMenu($event, actionIdToKind(t.id)!)"
         >
           <span v-if="t.key" class="tool-key">{{ t.key }}</span>
           <span class="tool-label">{{ t.label }}</span>
@@ -90,6 +129,32 @@ function onClick(a: ActionDef) {
 
     <!-- ▸ 预留窗口控制按钮空间 (Win: ~138px) -->
     <div class="window-controls-spacer" />
+
+    <!-- ▸ 右键策略弹出菜单 -->
+    <teleport to="body">
+      <div
+        v-if="ctxMenu.visible"
+        class="ctx-menu-backdrop"
+        @mousedown="closeCtxMenu"
+      />
+      <div
+        v-if="ctxMenu.visible"
+        class="ctx-menu"
+        :style="{ left: ctxMenu.x + 'px', top: ctxMenu.y + 'px' }"
+      >
+        <div class="ctx-header">{{ ctxMenu.kind }}</div>
+        <button
+          v-for="s in (ctxMenu.kind ? getStrategies(ctxMenu.kind) : [])"
+          :key="s.id"
+          class="ctx-item"
+          :class="{ 'ctx-default': s.default }"
+          @click="onCtxStrategySelect(s.id)"
+        >
+          <span class="ctx-dot">{{ s.default ? '●' : '○' }}</span>
+          <span>{{ s.label }}</span>
+        </button>
+      </div>
+    </teleport>
   </div>
 </template>
 
@@ -189,5 +254,60 @@ function onClick(a: ActionDef) {
   .tool-label { display: none; }
   .tool-btn { padding: 4px 5px; }
   .window-controls-spacer { display: none; }
+}
+
+/* ── 右键菜单 ── */
+.ctx-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  background: transparent;
+}
+.ctx-menu {
+  position: fixed;
+  z-index: 1000;
+  min-width: 140px;
+  background: #18181b;
+  border: 1px solid #3f3f46;
+  border-radius: 6px;
+  padding: 4px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+}
+.ctx-header {
+  padding: 4px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #52525b;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid #27272a;
+  margin-bottom: 2px;
+}
+.ctx-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 5px 10px;
+  font-size: 12px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  color: #d4d4d8;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s;
+}
+.ctx-item:hover {
+  background: #27272a;
+}
+.ctx-dot {
+  font-size: 10px;
+  color: #52525b;
+  width: 12px;
+  text-align: center;
+}
+.ctx-default .ctx-dot {
+  color: #3b82f6;
 }
 </style>

@@ -12,6 +12,16 @@
 //   - PAN 模式：拖拽平移
 //   - 滚轮以鼠标为中心缩放
 //
+// 【职责】
+//   - screenToWorld / worldToScreen 坐标转换
+//   - 网格绘制
+//   - 遍历 store.entities 绘制全部图元（LINE/ARC/CIRCLE/BEZIER/POLYLINE/ELLIPSE）
+//   - 选中/悬停高亮、框选矩形、绘制预览线
+//   - SELECT 模式：点击选中、框选
+//   - DRAW 模式：点击式绘制（委托给 useDrawInteraction 状态机）
+//   - PAN 模式：拖拽平移
+//   - 滚轮以鼠标为中心缩放
+//
 // 【使用方式】
 //   在 Canvas2D.vue 中：
 //
@@ -38,13 +48,12 @@ import type {
 import { MIN_ZOOM, MAX_ZOOM } from '@/modules/entitiesEditor/configs/defaults'
 import { loadCanvas2DConfig, type Canvas2DConfig } from '@/modules/entitiesEditor/stores/canvas2DSettingsStore'
 import {
-  sampleArcPoints,
   sampleBezierPoints,
   samplePolylineVertices,
-  sampleEllipsePoints,
   getEntityBounds,
 } from '@/modules/entitiesEditor/utils/geometry'
 import { cursorX, cursorY } from '@/modules/entitiesEditor/composables/useStatusBar'
+import { useDrawInteraction } from './useDrawInteraction'
 
 // ── composable ────────────────────────────────────────────────────────────
 
@@ -61,13 +70,11 @@ export function useCanvas2D() {
   const canvasRef = ref<HTMLCanvasElement | null>(null)
 
   // ── 交互状态 ─────────────────────────────────────────────────────────
-
-  /** 绘制起点（世界坐标） */
-  const drawStartPoint = ref<Point2D | null>(null)
-  /** 绘制预览终点（世界坐标） */
-  const drawPreviewPoint = ref<Point2D | null>(null)
-  /** 是否正在绘制（DRAW 模式拖拽中） */
-  const isDrawing = ref(false)
+  /** 绘制交互状态机 */
+  const drawInteraction = useDrawInteraction()
+  
+  /** 鼠标世界坐标（用于绘制预览线） */
+  const cursorWorld = ref<Point2D>({ X: 0, Y: 0 })
   /** 框选矩形（世界坐标），null 表示无框选 */
   const selectionRect = ref<{ start: Point2D; end: Point2D } | null>(null)
   /** PAN 拖拽起点（屏幕坐标 + 初始 viewport.panX/Y） */
@@ -187,8 +194,8 @@ export function useCanvas2D() {
     }
 
     // 绘制预览
-    if (isDrawing.value && drawStartPoint.value && drawPreviewPoint.value) {
-      drawPreview(c, drawStartPoint.value, drawPreviewPoint.value)
+    if (drawInteraction.isActive.value) {
+      drawInteractionPreview(c)
     }
 
     c.restore()
@@ -270,10 +277,16 @@ export function useCanvas2D() {
     const c = getCtx()!; c.beginPath(); c.moveTo(e.start.X, e.start.Y); c.lineTo(e.end.X, e.end.Y); c.stroke()
   }
 
+  /** 使用 Canvas 原生 ctx.arc() 绘制圆弧，替代折线采样 */
   function drawArc(e: ArcEntity) {
-    const pts = sampleArcPoints(e.center, e.radius, e.startAngle, e.endAngle, 64)
-    const c = getCtx()!; c.beginPath(); c.moveTo(pts[0].X, pts[0].Y)
-    for (let i = 1; i < pts.length; i++) c.lineTo(pts[i].X, pts[i].Y)
+    const c = getCtx()!
+    const startRad = (e.startAngle * Math.PI) / 180
+    const endRad = (e.endAngle * Math.PI) / 180
+    // 世界 CCW → counterclockwise=false（canvas CW = world CCW after Y-flip）
+    // 世界 CW  → counterclockwise=true
+    const ccw = e.startAngle > e.endAngle
+    c.beginPath()
+    c.arc(e.center.X, e.center.Y, e.radius, startRad, endRad, ccw)
     c.stroke()
   }
 
@@ -281,10 +294,33 @@ export function useCanvas2D() {
     const c = getCtx()!; c.beginPath(); c.arc(e.center.X, e.center.Y, e.radius, 0, Math.PI * 2); c.stroke()
   }
 
+  /**
+   * 绘制贝塞尔曲线：
+   * - 3 控制点 → 二次贝塞尔（quadraticCurveTo）
+   * - 4 控制点 → 三次贝塞尔（bezierCurveTo）
+   * - 其他阶数 → 保留 De Casteljau 采样
+   */
   function drawBezier(e: BezierEntity) {
-    const pts = sampleBezierPoints(e.controlPoints, 64)
-    const c = getCtx()!; c.beginPath(); c.moveTo(pts[0].X, pts[0].Y)
-    for (let i = 1; i < pts.length; i++) c.lineTo(pts[i].X, pts[i].Y)
+    const c = getCtx()!
+    const pts = e.controlPoints
+    if (pts.length < 2) return // 无足够点绘制
+    if (pts.length === 3) {
+      c.beginPath()
+      c.moveTo(pts[0].X, pts[0].Y)
+      c.quadraticCurveTo(pts[1].X, pts[1].Y, pts[2].X, pts[2].Y)
+      c.stroke()
+      return
+    }
+    if (pts.length === 4) {
+      c.beginPath()
+      c.moveTo(pts[0].X, pts[0].Y)
+      c.bezierCurveTo(pts[1].X, pts[1].Y, pts[2].X, pts[2].Y, pts[3].X, pts[3].Y)
+      c.stroke()
+      return
+    }
+    const sampled = sampleBezierPoints(e.controlPoints, 64)
+    c.beginPath(); c.moveTo(sampled[0].X, sampled[0].Y)
+    for (let i = 1; i < sampled.length; i++) c.lineTo(sampled[i].X, sampled[i].Y)
     c.stroke()
   }
 
@@ -296,10 +332,18 @@ export function useCanvas2D() {
     c.stroke()
   }
 
+  /** 使用 Canvas 原生 ctx.ellipse() 绘制椭圆，替代折线采样 */
   function drawEllipse(e: EllipseEntity) {
-    const pts = sampleEllipsePoints(e.center, e.majorAxisEnd, e.minorAxisRatio, e.startParamDeg, e.endParamDeg, 64)
-    const c = getCtx()!; c.beginPath(); c.moveTo(pts[0].X, pts[0].Y)
-    for (let i = 1; i < pts.length; i++) c.lineTo(pts[i].X, pts[i].Y)
+    const c = getCtx()!
+    const rx = Math.hypot(e.majorAxisEnd.X, e.majorAxisEnd.Y)
+    const ry = rx * e.minorAxisRatio
+    const rotationRad = Math.atan2(e.majorAxisEnd.Y, e.majorAxisEnd.X)
+    const startRad = (e.startParamDeg * Math.PI) / 180
+    const endRad = (e.endParamDeg * Math.PI) / 180
+    // 与 ARC 相同的 CCW/CW 约定
+    const ccw = e.startParamDeg > e.endParamDeg
+    c.beginPath()
+    c.ellipse(e.center.X, e.center.Y, rx, ry, rotationRad, startRad, endRad, ccw)
     c.stroke()
   }
 
@@ -321,36 +365,124 @@ export function useCanvas2D() {
     c.setLineDash([])
   }
 
-  // ── 绘制预览 ─────────────────────────────────────────────────────────
+  // ── 交互预览绘制 ────────────────────────────────────────────────────
+  //
+  // 根据 drawInteraction 当前状态，在画布上绘制虚线预览：
+  //   - 已确定的点与光标之间连线
+  //   - 依赖 cursorWorld 获取当前鼠标世界坐标
 
-  function drawPreview(c: CanvasRenderingContext2D, start: Point2D, end: Point2D) {
-    const kind = store.drawSubTool
+  function drawInteractionPreview(c: CanvasRenderingContext2D) {
+    const s = drawInteraction.session.value
+    if (!s) return
+    const kind = s.kind
+    const v = s.values
+    const cur = cursorWorld.value
 
     c.strokeStyle = cfg.previewStroke
     c.lineWidth = cfg.entityLineWidth / store.viewport.zoom
     c.setLineDash(cfg.previewDash.map(d => d / store.viewport.zoom))
 
+    /** 辅助：从 values 读取第 i 个 point 字段的值（仅已填的点有效） */
+    function pointAt(i: number): Point2D | null {
+      const fv = v[i]
+      if (!fv || fv.kind !== 'point' || !fv.filled) return null
+      return fv.value
+    }
+
     if (kind === 'LINE') {
-      c.beginPath()
-      c.moveTo(start.X, start.Y)
-      c.lineTo(end.X, end.Y)
-      c.stroke()
-    } else if (kind === 'CIRCLE') {
-      const r = Math.hypot(end.X - start.X, end.Y - start.Y)
-      c.beginPath()
-      c.arc(start.X, start.Y, r, 0, Math.PI * 2)
-      c.stroke()
+      const p0 = pointAt(0) // start
+      const p1 = pointAt(1) // end
+      if (p0 && !p1) {
+        // 有起点，橡皮筋跟随鼠标
+        c.beginPath(); c.moveTo(p0.X, p0.Y); c.lineTo(cur.X, cur.Y); c.stroke()
+      }
     } else if (kind === 'ARC') {
-      // 简单预览：显示圆心到鼠标的圆
-      const r = Math.hypot(end.X - start.X, end.Y - start.Y)
-      c.beginPath()
-      c.arc(start.X, start.Y, r, 0, Math.PI * 2)
-      c.stroke()
-      // 半径线
-      c.beginPath()
-      c.moveTo(start.X, start.Y)
-      c.lineTo(end.X, end.Y)
-      c.stroke()
+      // 字段顺序：center(0), start(1), end(2)
+      const center = pointAt(0)
+      const start = pointAt(1)
+      if (center && !start) {
+        // 阶段1：圆心已定 → 画圆心到鼠标的直线
+        c.beginPath(); c.moveTo(center.X, center.Y); c.lineTo(cur.X, cur.Y); c.stroke()
+      } else if (center && start) {
+        // 阶段2：圆心+起点已定 → 辅助线 + 圆弧预览
+        const radius = Math.hypot(start.X - center.X, start.Y - center.Y)
+        if (radius < 1e-6) return
+        const startDeg = Math.atan2(start.Y - center.Y, start.X - center.X) * 180 / Math.PI
+        const endDeg = Math.atan2(cur.Y - center.Y, cur.X - center.X) * 180 / Math.PI
+        // 辅助线：圆心到光标（淡色）
+        c.setLineDash([])
+        c.globalAlpha = 0.3
+        c.beginPath(); c.moveTo(center.X, center.Y); c.lineTo(cur.X, cur.Y); c.stroke()
+        c.globalAlpha = 1
+        c.setLineDash(cfg.previewDash.map(d => d / store.viewport.zoom))
+        // 圆弧预览
+        const startRad = startDeg * Math.PI / 180
+        const endRad = endDeg * Math.PI / 180
+        const ccw = startDeg > endDeg
+        c.beginPath()
+        c.arc(center.X, center.Y, radius, startRad, endRad, ccw)
+        c.stroke()
+      }
+    } else if (kind === 'CIRCLE') {
+      // 字段顺序：center(0), P2(1)
+      const center = pointAt(0)
+      if (center) {
+        const radius = Math.hypot(cur.X - center.X, cur.Y - center.Y)
+        // 辅助线：圆心到光标
+        c.setLineDash([])
+        c.globalAlpha = 0.3
+        c.beginPath(); c.moveTo(center.X, center.Y); c.lineTo(cur.X, cur.Y); c.stroke()
+        c.globalAlpha = 1
+        c.setLineDash(cfg.previewDash.map(d => d / store.viewport.zoom))
+        // 圆预览
+        c.beginPath(); c.arc(center.X, center.Y, radius, 0, Math.PI * 2); c.stroke()
+      }
+    } else if (kind === 'POLYLINE') {
+      const mv = v[0]
+      if (mv && mv.kind === 'multiPoint' && mv.points.length > 0) {
+        const pts = mv.points
+        c.beginPath(); c.moveTo(pts[0].X, pts[0].Y)
+        for (let i = 1; i < pts.length; i++) c.lineTo(pts[i].X, pts[i].Y)
+        // 连接到光标
+        c.lineTo(cur.X, cur.Y)
+        c.stroke()
+      }
+    } else if (kind === 'BEZIER') {
+      const mv = v[0]
+      if (mv && mv.kind === 'multiPoint' && mv.points.length >= 2) {
+        const pts = mv.points
+        // 以光标作为临时末控点，采样实际贝塞尔曲线预览
+        const allPts = [...pts, { X: cur.X, Y: cur.Y }]
+        const curve = sampleBezierPoints(allPts, 48)
+        if (curve.length >= 2) {
+          c.beginPath(); c.moveTo(curve[0].X, curve[0].Y)
+          for (let i = 1; i < curve.length; i++) c.lineTo(curve[i].X, curve[i].Y)
+          c.stroke()
+        }
+        // 控制多边形（淡色实线）
+        c.setLineDash([])
+        c.globalAlpha = 0.25
+        c.beginPath(); c.moveTo(pts[0].X, pts[0].Y)
+        for (let i = 1; i < pts.length; i++) c.lineTo(pts[i].X, pts[i].Y)
+        c.lineTo(cur.X, cur.Y)
+        c.stroke()
+        c.globalAlpha = 1
+        c.setLineDash(cfg.previewDash.map(d => d / store.viewport.zoom))
+      }
+    } else if (kind === 'ELLIPSE') {
+      const p0 = pointAt(0) // center
+      const p1 = pointAt(1) // shortAxis
+      if (p0 && !p1) {
+        c.beginPath(); c.moveTo(p0.X, p0.Y); c.lineTo(cur.X, cur.Y); c.stroke()
+      } else if (p0 && p1) {
+        // 短轴端点，计算椭圆并用光标作为长轴端点
+        const ry = Math.hypot(p1.X - p0.X, p1.Y - p0.Y)
+        const rx = Math.hypot(cur.X - p0.X, cur.Y - p0.Y)
+        const rot = Math.atan2(p1.Y - p0.Y, p1.X - p0.X)
+        c.beginPath()
+        c.ellipse(p0.X, p0.Y, rx, ry, rot, 0, Math.PI * 2)
+        c.stroke()
+      }
     }
 
     c.setLineDash([])
@@ -385,6 +517,50 @@ export function useCanvas2D() {
 
   /** 将角度归一化到 [0, 360) */
   function normDeg(a: number): number { return ((a % 360) + 360) % 360 }
+
+  /**
+   * 椭圆命中检测：
+   * 1. 将点变换到椭圆局部坐标系（平移+旋转）
+   * 2. 计算归一化距离，判断是否在椭圆边界阈值内
+   * 3. 检查参数角是否在起止范围内
+   */
+  function hitEllipseEntity(world: Point2D, e: EllipseEntity, threshold: number): boolean {
+    const rx = Math.hypot(e.majorAxisEnd.X, e.majorAxisEnd.Y)
+    const ry = rx * e.minorAxisRatio
+    if (rx < 1e-9) return false
+    const rot = Math.atan2(e.majorAxisEnd.Y, e.majorAxisEnd.X)
+
+    // 世界 → 椭圆局部（平移 + 反向旋转）
+    const dx = world.X - e.center.X
+    const dy = world.Y - e.center.Y
+    const cosR = Math.cos(-rot)
+    const sinR = Math.sin(-rot)
+    const lx = dx * cosR - dy * sinR
+    const ly = dx * sinR + dy * cosR
+
+    // 归一化距离
+    const nd = Math.hypot(lx / rx, ly / ry)
+    const scaleAvg = Math.max(rx, ry)
+    if (Math.abs(nd - 1) * scaleAvg > threshold) return false
+
+    // 部分椭圆：检查参数角
+    const na = normDeg(e.startParamDeg)
+    const ne = normDeg(e.endParamDeg)
+    if (Math.abs(ne - na) < 0.01 && Math.abs(360 - Math.abs(e.endParamDeg - e.startParamDeg)) < 0.01) {
+      return true // 接近全椭圆，不检查角度
+    }
+
+    const paramDeg = (Math.atan2(ly / ry, lx / rx) * 180) / Math.PI
+    const np = normDeg(paramDeg)
+    const angleTol = (threshold / scaleAvg) * (180 / Math.PI) + 2
+
+    if (e.startParamDeg <= e.endParamDeg) {
+      // CCW
+      return np >= na - angleTol && np <= ne + angleTol
+    }
+    // CW
+    return np <= na + angleTol && np >= ne - angleTol
+  }
 
   function hitArcEntity(world: Point2D, e: ArcEntity, threshold: number): boolean {
     const dist = Math.hypot(world.X - e.center.X, world.Y - e.center.Y)
@@ -429,9 +605,7 @@ export function useCanvas2D() {
       case 'POLYLINE':
         return hitPolyline(world.X, world.Y, samplePolylineVertices(entity.vertices), threshold)
       case 'ELLIPSE':
-        return hitPolyline(world.X, world.Y,
-          sampleEllipsePoints(entity.center, entity.majorAxisEnd, entity.minorAxisRatio, entity.startParamDeg, entity.endParamDeg, 64),
-          threshold)
+        return hitEllipseEntity(world, entity, threshold)
       default:
         return false
     }
@@ -509,9 +683,8 @@ export function useCanvas2D() {
       }
       scheduleRender()
     } else if (tool === 'DRAW') {
-      isDrawing.value = true
-      drawStartPoint.value = { ...world }
-      drawPreviewPoint.value = { ...world }
+      // 点击式绘制：委托给交互状态机
+      drawInteraction.handleCanvasClick(world)
       scheduleRender()
     } else if (tool === 'PAN') {
       panStart.value = {
@@ -529,6 +702,7 @@ export function useCanvas2D() {
 
     cursorX.value = world.X
     cursorY.value = world.Y
+    cursorWorld.value = world
 
     if (store.activeTool === 'SELECT') {
       if (selectionRect.value) {
@@ -539,8 +713,7 @@ export function useCanvas2D() {
         hoveredId.value = hitTest(world)
         if (prev !== hoveredId.value) scheduleRender()
       }
-    } else if (store.activeTool === 'DRAW' && isDrawing.value) {
-      drawPreviewPoint.value = { ...world }
+    } else if (store.activeTool === 'DRAW' && drawInteraction.isActive.value) {
       scheduleRender()
     } else if (store.activeTool === 'PAN' && panStart.value) {
       const dx = e.clientX - panStart.value.sx
@@ -563,11 +736,7 @@ export function useCanvas2D() {
       store.setSelection(ids)
       selectionRect.value = null
       scheduleRender()
-    } else if (tool === 'DRAW' && isDrawing.value && drawStartPoint.value) {
-      finishDrawing(drawStartPoint.value, world)
-      isDrawing.value = false
-      drawStartPoint.value = null
-      drawPreviewPoint.value = null
+    } else if (tool === 'DRAW') {
       scheduleRender()
     } else if (tool === 'PAN') {
       panStart.value = null
@@ -581,29 +750,6 @@ export function useCanvas2D() {
     zoomAt(pt.x, pt.y, factor)
   }
 
-  // ── 绘制完成 ─────────────────────────────────────────────────────────
-
-  function finishDrawing(start: Point2D, end: Point2D) {
-    const kind = store.drawSubTool
-    const dist = Math.hypot(end.X - start.X, end.Y - start.Y)
-
-    if (kind === 'LINE') {
-      if (dist < 0.5) return
-      store.addEntity({
-        kind: 'LINE',
-        start: { X: start.X, Y: start.Y },
-        end: { X: end.X, Y: end.Y },
-      } as any)
-    } else if (kind === 'CIRCLE') {
-      if (dist < 0.5) return
-      store.addEntity({
-        kind: 'CIRCLE',
-        center: { X: start.X, Y: start.Y },
-        radius: dist,
-      } as any)
-    }
-    // ARC / BEZIER / POLYLINE / ELLIPSE — 多步绘制，预留扩展
-  }
 
   // ── 监听 ─────────────────────────────────────────────────────────────
   //
@@ -624,6 +770,30 @@ export function useCanvas2D() {
     { deep: true },
   )
 
+  // ── 键盘事件 ─────────────────────────────────────────────────────────
+
+  function handleKeyDown(e: KeyboardEvent) {
+    if (store.activeTool !== 'DRAW' || !drawInteraction.isActive.value) return
+
+    switch (e.key) {
+      case 'Escape':
+        e.preventDefault()
+        drawInteraction.cancel()
+        scheduleRender()
+        break
+      case 'Enter':
+        e.preventDefault()
+        drawInteraction.commit()
+        scheduleRender()
+        break
+      case 'Backspace':
+        e.preventDefault()
+        drawInteraction.popLastPoint()
+        scheduleRender()
+        break
+    }
+  }
+
   // ── 生命周期 ─────────────────────────────────────────────────────────
 
   function setup() {
@@ -635,8 +805,15 @@ export function useCanvas2D() {
     window.addEventListener('mouseup', handleMouseUp)
     canvas.addEventListener('wheel', handleWheel, { passive: false })
 
-    // 阻止 canvas 上的右键菜单
-    canvas.addEventListener('contextmenu', e => e.preventDefault())
+    // 阻止 canvas 上的右键菜单，右键提交 multiPoint 工具
+    canvas.addEventListener('contextmenu', e => {
+      e.preventDefault()
+      if (store.activeTool === 'DRAW' && drawInteraction.isActive.value) {
+        drawInteraction.commit()
+        scheduleRender()
+      }
+    })
+    window.addEventListener('keydown', handleKeyDown)
 
     // ResizeObserver
     const parent = canvas.parentElement
@@ -657,6 +834,7 @@ export function useCanvas2D() {
       canvas.removeEventListener('wheel', handleWheel)
       canvas.removeEventListener('contextmenu', e => e.preventDefault())
     }
+    window.removeEventListener('keydown', handleKeyDown)
     if (resizeObserver) {
       resizeObserver.disconnect()
       resizeObserver = null
