@@ -304,7 +304,18 @@ export function useCanvas2D() {
   }
 
   function drawDiamond(e: DiamondEntity) {
-    const c = getCtx()!; c.beginPath(); c.arc(e.center.X, e.center.Y, e.radius, 0, Math.PI * 2); c.stroke()
+    const c = getCtx()!
+    if (e.contours && e.contours.length > 0) {
+      for (const contour of e.contours) {
+        const pts = samplePolylineVertices(contour)
+        if (pts.length < 2) continue
+        c.beginPath(); c.moveTo(pts[0].X, pts[0].Y)
+        for (let i = 1; i < pts.length; i++) c.lineTo(pts[i].X, pts[i].Y)
+        c.closePath(); c.stroke()
+      }
+    } else {
+      c.beginPath(); c.arc(e.center.X, e.center.Y, e.radius, 0, Math.PI * 2); c.stroke()
+    }
   }
 
   /**
@@ -652,8 +663,18 @@ export function useCanvas2D() {
       case 'ARC':
         return hitArcEntity(world, entity, threshold)
       case 'CIRCLE':
-      case 'DIAMOND':
         return Math.abs(Math.hypot(world.X - entity.center.X, world.Y - entity.center.Y) - entity.radius) <= threshold
+      case 'DIAMOND': {
+        const e = entity
+        if (e.contours && e.contours.length > 0) {
+          for (const contour of e.contours) {
+            const pts = samplePolylineVertices(contour)
+            if (hitPolyline(world.X, world.Y, pts, threshold)) return true
+          }
+          return false
+        }
+        return Math.abs(Math.hypot(world.X - e.center.X, world.Y - e.center.Y) - e.radius) <= threshold
+      }
       case 'BEZIER':
         return hitPolyline(world.X, world.Y, sampleBezierPoints(entity.controlPoints, 64), threshold)
       case 'POLYLINE':

@@ -4,7 +4,10 @@
       "Bash(Get-ChildItem -Path \"D:\\\\Qomo\\\\QomoTech\\\\QomoTech_FrontEnd\\\\src\\\\renderer\\\\src\\\\modules\\\\entitiesEditor\" -Recurse -File)",
       "Bash(Select-Object FullName)",
       "Bash(npx vue-tsc *)",
-      "Bash(Select-Object -First 60)"
+      "Bash(Select-Object -First 60)",
+      "WebFetch(domain:m.ilovezuan.com)",
+      "WebFetch(domain:wapbaike.baidu.com)",
+      "WebFetch(domain:baike.baidu.com)"
     ]
   }
 }

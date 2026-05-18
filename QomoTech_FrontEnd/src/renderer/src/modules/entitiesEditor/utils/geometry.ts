@@ -384,13 +384,25 @@ export function getEntityBounds(entity: EditorEntity): BoundingBox {
       )
 
     case 'CIRCLE':
-    case 'DIAMOND':
       return {
         minX: entity.center.X - entity.radius,
         minY: entity.center.Y - entity.radius,
         maxX: entity.center.X + entity.radius,
         maxY: entity.center.Y + entity.radius
       }
+    case 'DIAMOND': {
+      if (entity.contours && entity.contours.length > 0) {
+        const allPts: Point2D[] = []
+        for (const c of entity.contours) allPts.push(...samplePolylineVertices(c))
+        return pointsBounds(allPts)
+      }
+      return {
+        minX: entity.center.X - entity.radius,
+        minY: entity.center.Y - entity.radius,
+        maxX: entity.center.X + entity.radius,
+        maxY: entity.center.Y + entity.radius
+      }
+    }
 
     case 'ELLIPSE':
       return pointsBounds(

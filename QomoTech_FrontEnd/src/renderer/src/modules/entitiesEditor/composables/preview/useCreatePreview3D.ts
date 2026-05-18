@@ -355,6 +355,21 @@ export interface Entity3DObject {
  * 构建刻面钻石 3D 模型（台面→冠部→腰部→亭部）。
  * 腰部半径使用传入的 2D 轮廓半径，而非 params.L/W 推算。
  */
+/** 生成方形轮廓顶点（XZ 平面，Y-up 构建用） */
+function getSquareProfile(R: number, segsPerEdge: number): { x: number; z: number }[] {
+  const verts: { x: number; z: number }[] = []
+  const step = (2 * R) / segsPerEdge
+  // 右边缘：X=R, Z 从 -R → R（不含末点，避免重复）
+  for (let i = 0; i < segsPerEdge; i++) verts.push({ x: R, z: -R + i * step })
+  // 上边缘：Z=R, X 从 R → -R
+  for (let i = 0; i < segsPerEdge; i++) verts.push({ x: R - i * step, z: R })
+  // 左边缘：X=-R, Z 从 R → -R
+  for (let i = 0; i < segsPerEdge; i++) verts.push({ x: -R, z: R - i * step })
+  // 下边缘：Z=-R, X 从 -R → R
+  for (let i = 0; i < segsPerEdge; i++) verts.push({ x: -R + i * step, z: -R })
+  return verts
+}
+
 function createDiamond3D(params: DiamondParams, center: Point2D, radius: number): THREE.Group | null {
   if (!Number.isFinite(radius) || radius <= 0) return null
 
@@ -372,7 +387,6 @@ function createDiamond3D(params: DiamondParams, center: Point2D, radius: number)
   const yGirdleBot = -(halfH - crownH - girdleH)
   const yBot = halfH
 
-  const N = 16
   const positions: number[] = []
   const normals: number[] = []
 
@@ -384,20 +398,35 @@ function createDiamond3D(params: DiamondParams, center: Point2D, radius: number)
     normals.push(n.x, n.y, n.z, n.x, n.y, n.z, n.x, n.y, n.z)
   }
 
-  for (let i = 0; i < N; i++) {
-    const a0 = (i / N) * Math.PI * 2
-    const a1 = ((i + 1) / N) * Math.PI * 2
-    const c0 = Math.cos(a0), s0 = Math.sin(a0)
-    const c1 = Math.cos(a1), s1 = Math.sin(a1)
+  const isSquare = params.shape === 'SQUARE'
+  const profileVerts = isSquare ? getSquareProfile(R, 4) : []
 
-    const tc   = new THREE.Vector3(0,            yTop, 0)
-    const te0  = new THREE.Vector3(tableR * c0,  yTop, tableR * s0)
-    const te1  = new THREE.Vector3(tableR * c1,  yTop, tableR * s1)
-    const gt0  = new THREE.Vector3(R * c0, yGirdleTop, R * s0)
-    const gt1  = new THREE.Vector3(R * c1, yGirdleTop, R * s1)
-    const gb0  = new THREE.Vector3(R * c0, yGirdleBot, R * s0)
-    const gb1  = new THREE.Vector3(R * c1, yGirdleBot, R * s1)
-    const cu   = new THREE.Vector3(0,            yBot, 0)
+  function profileXZ(i: number, total: number, scale: number): { x: number; z: number } {
+    if (isSquare) {
+      const v = profileVerts[i]
+      return { x: v.x * scale, z: v.z * scale }
+    }
+    const a = (i / total) * Math.PI * 2
+    return { x: Math.cos(a) * R * scale, z: Math.sin(a) * R * scale }
+  }
+
+  const totalSegs = isSquare ? profileVerts.length : 16
+
+  for (let i = 0; i < totalSegs; i++) {
+    const j = (i + 1) % totalSegs
+    const v0 = profileXZ(i, totalSegs, 1)
+    const v1 = profileXZ(j, totalSegs, 1)
+    const t0 = profileXZ(i, totalSegs, tableR / R)
+    const t1 = profileXZ(j, totalSegs, tableR / R)
+
+    const tc   = new THREE.Vector3(0,       yTop, 0)
+    const te0  = new THREE.Vector3(t0.x,    yTop, t0.z)
+    const te1  = new THREE.Vector3(t1.x,    yTop, t1.z)
+    const gt0  = new THREE.Vector3(v0.x, yGirdleTop, v0.z)
+    const gt1  = new THREE.Vector3(v1.x, yGirdleTop, v1.z)
+    const gb0  = new THREE.Vector3(v0.x, yGirdleBot, v0.z)
+    const gb1  = new THREE.Vector3(v1.x, yGirdleBot, v1.z)
+    const cu   = new THREE.Vector3(0,       yBot, 0)
 
     // 台面
     pushTri(tc, te0, te1)
