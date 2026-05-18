@@ -18,6 +18,7 @@ export function useShortCutsDetails(handlers: {
   onToggleAxes: () => void
   onSave: () => void
   onExport: () => void
+  onImportDxf: () => void
 }) {
   const store = useEditorStore()
 
@@ -26,7 +27,7 @@ export function useShortCutsDetails(handlers: {
     switch (a.id) {
       // ── 文件 ──
       case 'SAVE':        handlers.onSave(); break
-      case 'IMPORT_DXF':  break // TODO: DXF 导入对话框
+      case 'IMPORT_DXF':  handlers.onImportDxf(); break
       case 'EXPORT_LJS':  handlers.onExport(); break
       case 'UNDO':        store.undo(); break
       case 'REDO':        store.redo(); break

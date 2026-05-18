@@ -18,6 +18,7 @@ import { SETTINGS_STATE_KEY } from '../shares/types'
 import type { ActionDef, Scene3DConfig } from '../shares/types'
 import { loadSceneConfig, saveSceneConfig } from '../stores/preview3dStore'
 import { saveProject, exportProject, loadProjectIntoStore } from '../stores/projectStore'
+import { importDxf } from '../composables/canvas/useImportCad'
 import { EntityKind } from '../commons/types'
 import { useEditorStore } from '../stores/editorStore'
 
@@ -35,6 +36,7 @@ const settingsRef = ref<InstanceType<typeof SettingsDialog> | null>(null)
 const previewRef = ref<InstanceType<typeof Preview3D> | null>(null)
 const toolbarRef = ref<InstanceType<typeof EditorToolbar> | null>(null)
 const canvas2DRef = ref<InstanceType<typeof Canvas2D> | null>(null)
+const fileInputRef = ref<HTMLInputElement | null>(null)
 
 // ── 页面初始化：从 localStorage 恢复上次保存的项目 ──
 loadProjectIntoStore()
@@ -59,7 +61,27 @@ const { dispatchAction } = useShortCutsDetails({
   onToggleAxes: () => toggleSceneConfig({ showAxes: !loadSceneConfig().showAxes }),
   onSave: ()=>saveProject(),
   onExport: ()=> exportProject(),
+  onImportDxf: () => fileInputRef.value?.click(),
 })
+
+function handleImportDxf(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+
+  const reader = new FileReader()
+  reader.onload = () => {
+    const text = reader.result as string
+    const result = importDxf(text)
+    editorStore.replaceAllEntities(result.entities, result.layers, {
+      name: file.name.replace(/\.dxf$/i, ''),
+      sourceFileName: file.name,
+    })
+    saveProject()
+  }
+  reader.readAsText(file)
+  input.value = ''
+}
 
 function onToolbarAction(a: ActionDef) {
   dispatchAction(a)
@@ -110,6 +132,14 @@ useKeyboardShortcuts(dispatchAction, { isOpen: settingsIsOpen, capturing: settin
     </div>
 
     <StatusBar />
+
+    <input
+      ref="fileInputRef"
+      type="file"
+      accept=".dxf"
+      style="display: none"
+      @change="handleImportDxf"
+    />
 
     <SettingsDialog ref="settingsRef" @saved="onSettingsSaved" />
   </div>
