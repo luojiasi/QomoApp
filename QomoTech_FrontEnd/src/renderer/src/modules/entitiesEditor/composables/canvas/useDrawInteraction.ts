@@ -28,10 +28,10 @@ type FieldValue =
 
 /** 当前绘制会话 */
 export interface DrawSession {
-  kind: EntityKind
-  strategy: DrawStrategyDef
-  values: FieldValue[]
-  activeIdx: number // 当前等待输入的字段索引
+  kind: EntityKind           //类型
+  strategy: DrawStrategyDef  //策略
+  values: FieldValue[]       //值
+  activeIdx: number          // 当前等待输入的字段索引
 }
 
 // ── 辅助 ───────────────────────────────────────────────
@@ -79,9 +79,16 @@ export function useDrawInteraction() {
 
   // ── 内部方法 ──────────────────────────────────────────
 
-  /** 启动新会话 */
+  /** 启动新会话
+  DrawSession {
+    kind: 'LINE',
+    strategy: { id: 'two-point', fields: [{id:'start',kind:'point'}, {id:'end',kind:'point'}] },
+    values: [ {kind:'point', filled:false}, {kind:'point', filled:false} ],
+    activeIdx: 0,   // 当前等待输入第几个字段
+  }
+   */
   function _start(kind: EntityKind) {
-    const strategy = getDefaultStrategy(kind)
+    const strategy = getDefaultStrategy(kind)   //获取默认策略
     session.value = {
       kind,
       strategy,
@@ -146,6 +153,7 @@ export function useDrawInteraction() {
       if (!session.value) return
     }
 
+    // 获取当前等待的字段定义
     const s = session.value!
     const def = _activeFieldDef()
     if (!def) {
@@ -164,9 +172,7 @@ export function useDrawInteraction() {
         _advance()
 
         // 所有 point 字段填完后自动 commit
-        if (_allFieldsFilled()) {
-          _commit()
-        }
+        if (_allFieldsFilled()) _commit()
         break
       }
       case 'multiPoint':

@@ -83,7 +83,7 @@ export function useCanvas2D() {
   const hoveredId = ref<string | null>(null)
 
   // ── rAF 脏标记 ──────────────────────────────────────────────────────
-
+  // 作用：将同一帧内的多次重绘请求合并为一次实际渲染。
   let rafId = 0
   let dirty = false
 
@@ -180,9 +180,13 @@ export function useCanvas2D() {
     // 网格
     drawGrid(c, vp)
 
-    // 实体
+    // 实体（只绘制可见图层）
+    const visibleLayerIds = new Set(
+      store.layers.filter(l => l.visible).map(l => l.id)
+    )
     const selectedSet = new Set(store.selectedIds)
     for (const entity of store.entities) {
+      if (!visibleLayerIds.has(entity.layerId)) continue
       const selected = selectedSet.has(entity.id)
       const hovered = entity.id === hoveredId.value
       drawEntity(c, entity, selected, hovered)
@@ -245,7 +249,6 @@ export function useCanvas2D() {
   }
 
   // ── 实体绘制 ─────────────────────────────────────────────────────────
-
   function drawEntity(
     c: CanvasRenderingContext2D,
     entity: SurfaceEntity<EditorEntity>,
@@ -376,8 +379,9 @@ export function useCanvas2D() {
     if (!s) return
     const kind = s.kind
     const v = s.values
-    const cur = cursorWorld.value
+    const cur = cursorWorld.value  //当前鼠标世界坐标
 
+    //设置虚线样式
     c.strokeStyle = cfg.previewStroke
     c.lineWidth = cfg.entityLineWidth / store.viewport.zoom
     c.setLineDash(cfg.previewDash.map(d => d / store.viewport.zoom))
@@ -614,9 +618,13 @@ export function useCanvas2D() {
   /** 返回命中的实体 id（按绘制顺序反向，后绘制的优先），未命中返回 null */
   function hitTest(world: Point2D): string | null {
     const threshold = hitThreshold()
+    const visibleLayerIds = new Set(
+      store.layers.filter(l => l.visible).map(l => l.id)
+    )
     for (let i = store.entities.length - 1; i >= 0; i--) {
-      if (hitTestEntity(world, store.entities[i], threshold)) {
-        return store.entities[i].id
+      const e = store.entities[i]
+      if (visibleLayerIds.has(e.layerId) && hitTestEntity(world, e, threshold)) {
+        return e.id
       }
     }
     return null
@@ -631,7 +639,11 @@ export function useCanvas2D() {
     const maxY = Math.max(rect.start.Y, rect.end.Y)
 
     const ids: string[] = []
+    const visibleLayerIds = new Set(
+      store.layers.filter(l => l.visible).map(l => l.id)
+    )
     for (const e of store.entities) {
+      if (!visibleLayerIds.has(e.layerId)) continue
       const bb = getEntityBounds(e)
       if (bb.maxX >= minX && bb.minX <= maxX && bb.maxY >= minY && bb.minY <= maxY) {
         ids.push(e.id)

@@ -11,6 +11,7 @@ import SettingsDialog from '../components/SettingsDialog.vue'
 import StatusBar from '../components/StatusBar.vue'
 import { useRightPanel } from '../composables/useRightPanel'
 import { useInspectorPanel } from '../composables/useInspectorPanel'
+import { useLayoutPanel } from '../composables/useLayoutPanel'
 import { useKeyboardShortcuts } from '../composables/shortcuts/useKeyboardShortcuts'
 import { useShortCutsDetails } from '../composables/shortcuts/useShortCutsDetails'
 import { SETTINGS_STATE_KEY } from '../shares/types'
@@ -23,6 +24,12 @@ import { useEditorStore } from '../stores/editorStore'
 const { activeTab, rightPanelTabs } = useRightPanel()
 const { selectedEntity, selectedEntities, updateField } = useInspectorPanel()
 const editorStore = useEditorStore()
+
+// ── 图层面板桥接 ──
+const { layers: panelLayers, addLayer, deleteLayer, toggleLayer } = useLayoutPanel()
+function onAddLayer()           { addLayer() }
+function onDeleteLayer(id: string) { deleteLayer(id) }
+function onToggleLayer(id: string) { toggleLayer(id) }
 
 const settingsRef = ref<InstanceType<typeof SettingsDialog> | null>(null)
 const previewRef = ref<InstanceType<typeof Preview3D> | null>(null)
@@ -89,7 +96,13 @@ useKeyboardShortcuts(dispatchAction, { isOpen: settingsIsOpen, capturing: settin
       </div>
       <div class="panel panel-right">
         <SwitchableView v-model="activeTab" :tabs="rightPanelTabs">
-          <LayoutPanel v-if="activeTab === 'layout'" />
+          <LayoutPanel
+            v-if="activeTab === 'layout'"
+            :layers="panelLayers"
+            @add-layer="onAddLayer"
+            @delete-layer="onDeleteLayer"
+            @toggle-layer="onToggleLayer"
+          />
           <InspectorPanel v-else-if="activeTab === 'inspector'" :entities="selectedEntities" @update="updateField" />
           <StoreDebugger v-else-if="activeTab === 'debug'" />
         </SwitchableView>

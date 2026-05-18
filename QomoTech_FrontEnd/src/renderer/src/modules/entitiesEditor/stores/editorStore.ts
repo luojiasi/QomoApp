@@ -469,6 +469,26 @@ export const useEditorStore = defineStore('entitiesEditor', () => {
     syncMeta()
   }
 
+  /**
+   * 将实体移动到指定图层。
+   * 目标图层不存在或与当前图层相同时无操作。
+   *
+   * @param entityId - 实体 id
+   * @param targetLayerId - 目标图层 id
+   */
+  function moveEntityToLayer(entityId: string, targetLayerId: string) {
+    const entity = entities.value.find(e => e.id === entityId)
+    if (!entity) return
+    if (entity.layerId === targetLayerId) return
+    if (!layers.value.some(l => l.id === targetLayerId)) return
+    captureSnapshot()
+    entity.layerId = targetLayerId
+    if (!dirtyEntityIds.value.includes(entityId)) {
+      dirtyEntityIds.value.push(entityId)
+    }
+    syncMeta()
+  }
+
   // ── Viewport（视口，不进入撤销栈）────────────────────────────────────
 
   /**
@@ -540,6 +560,7 @@ export const useEditorStore = defineStore('entitiesEditor', () => {
     createLayer,
     deleteLayer,
     updateLayer,
+    moveEntityToLayer,
     setViewportSize,
     resetViewport,
     clearDirty,

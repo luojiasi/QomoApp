@@ -23,11 +23,10 @@ export const ACTIONS: ActionDef[] = [
     // ── 图形 ──
     { id: 'DRAW_LINE', label: '线', group: 'shape', key: 'l' },
     { id: 'DRAW_ARC', label: '弧', group: 'shape', key: 'a' },
-    { id: 'DRAW_BEZIER', label: '曲线', group: 'shape', key: 'b' },
     { id: 'DRAW_CIRCLE', label: '圆', group: 'shape', key: 'c' },
     { id: 'DRAW_ELLIPSE', label: '椭圆', group: 'shape', key: 'e' },
     { id: 'DRAW_POLYLINE', label: '多段线', group: 'shape', key: 'p' },
-    { id: 'DRAW_BEZIER', label: '贝塞尔曲线', group: 'shape', key: 'b' },
+    { id: 'DRAW_BEZIER', label: '曲线', group: 'shape', key: 'b' },
   
     // ── 工具 ──
     { id: 'SELECT', label: '选择', group: 'tool', key: 'v' },
