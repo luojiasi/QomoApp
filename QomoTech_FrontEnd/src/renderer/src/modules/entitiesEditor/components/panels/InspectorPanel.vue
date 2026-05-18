@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useInspectorPanel, type InspectedEntity } from '../../composables/useInspectorPanel'
+import { type InspectedEntity } from '../../composables/useInspectorPanel'
 import PointRow from '../../shares/PointRow.vue'
 
 const props = defineProps<{
@@ -10,8 +10,6 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update': [field: string, value: number | boolean | string | Record<string, unknown>[], entityId?: string]
 }>()
-
-const { activeSection } = useInspectorPanel()
 
 // 折叠状态：多选时每个实体可折叠
 const collapsed = ref<Set<string>>(new Set())
@@ -26,9 +24,10 @@ function isCollapsed(id: string) {
   return collapsed.value.has(id)
 }
 
-import type { Point2D, BezierEntity, ExtrusionParams } from '../../commons/types'
+import type { Point2D, BezierEntity, PolylineVertex, PolylineEntity, ExtrusionParams } from '../../commons/types'
 
 type BezierInspectedEntity = BezierEntity & ExtrusionParams
+type PolylineInspectedEntity = PolylineEntity & ExtrusionParams
 
 function updateControlPoint(entity: BezierInspectedEntity, idx: number, axis: 'X' | 'Y', value: number) {
   const pts = entity.controlPoints.map((p: Point2D) => ({ ...p }))
@@ -47,6 +46,34 @@ function removeControlPoint(entity: BezierInspectedEntity) {
   if (entity.controlPoints.length <= 2) return
   const pts = entity.controlPoints.slice(0, -1).map((p: Point2D) => ({ ...p }))
   emit('update', 'controlPoints', pts as unknown as Record<string, unknown>[], entity.id)
+}
+
+// ── POLYLINE 顶点编辑 ──
+
+function updatePolyVertex(entity: PolylineInspectedEntity, idx: number, field: 'X' | 'Y' | 'bulge', value: number) {
+  const verts: PolylineVertex[] = entity.vertices.map(v => ({ point: { ...v.point }, bulge: v.bulge }))
+  if (field === 'bulge') {
+    verts[idx].bulge = value
+  } else {
+    verts[idx].point[field] = value
+  }
+  emit('update', 'vertices', verts as unknown as Record<string, unknown>[], entity.id)
+}
+
+function addPolyVertex(entity: PolylineInspectedEntity) {
+  const last = entity.vertices[entity.vertices.length - 1]
+  const p = last ? { X: last.point.X + 10, Y: last.point.Y } : { X: 0, Y: 0 }
+  const verts: PolylineVertex[] = [
+    ...entity.vertices.map(v => ({ point: { ...v.point }, bulge: v.bulge })),
+    { point: p, bulge: 0 },
+  ]
+  emit('update', 'vertices', verts as unknown as Record<string, unknown>[], entity.id)
+}
+
+function removePolyVertex(entity: PolylineInspectedEntity) {
+  if (entity.vertices.length <= 2) return
+  const verts = entity.vertices.slice(0, -1).map(v => ({ point: { ...v.point }, bulge: v.bulge }))
+  emit('update', 'vertices', verts as unknown as Record<string, unknown>[], entity.id)
 }
 
 const count = computed(() => props.entities?.length ?? 0)

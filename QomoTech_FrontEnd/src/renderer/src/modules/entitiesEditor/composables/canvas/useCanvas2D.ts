@@ -42,6 +42,7 @@ import type {
   CircleEntity,
   EllipseEntity,
   PolylineEntity,
+  PolylineVertex,
   BezierEntity,
   ViewportState,
 } from '@/modules/entitiesEditor/commons/types'
@@ -480,12 +481,18 @@ export function useCanvas2D() {
     } else if (kind === 'POLYLINE') {
       const mv = v[0]
       if (mv && mv.kind === 'multiPoint' && mv.points.length > 0) {
-        const pts = mv.points
-        c.beginPath(); c.moveTo(pts[0].X, pts[0].Y)
-        for (let i = 1; i < pts.length; i++) c.lineTo(pts[i].X, pts[i].Y)
-        // 连接到光标
-        c.lineTo(cur.X, cur.Y)
-        c.stroke()
+        // 含 bulge 的顶点采样 → 预览弧段效果
+        const verts: PolylineVertex[] = mv.points.map((p, i) => ({
+          point: p,
+          bulge: (mv as unknown as Record<string, unknown>).bulges?.[i] as number ?? 0,
+        }))
+        verts.push({ point: cur, bulge: 0 })
+        const sampled = samplePolylineVertices(verts)
+        if (sampled.length >= 2) {
+          c.beginPath(); c.moveTo(sampled[0].X, sampled[0].Y)
+          for (let i = 1; i < sampled.length; i++) c.lineTo(sampled[i].X, sampled[i].Y)
+          c.stroke()
+        }
       }
     } else if (kind === 'BEZIER') {
       const mv = v[0]
@@ -907,5 +914,5 @@ export function useCanvas2D() {
 
   // ── Public API ───────────────────────────────────────────────────────
 
-  return { canvasRef, setup, cleanup, reloadConfig }
+  return { canvasRef, setup, cleanup, reloadConfig, drawInteraction }
 }

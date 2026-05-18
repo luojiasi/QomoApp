@@ -23,7 +23,7 @@ import { getDefaultStrategy } from './drawStrategies'
 type FieldValue =
   | { kind: 'point'; value: Point2D; filled: boolean }
   | { kind: 'number'; value: number }
-  | { kind: 'multiPoint'; points: Point2D[] }
+  | { kind: 'multiPoint'; points: Point2D[]; bulges: number[] }
   | { kind: 'toggle'; value: boolean }
 
 /** 当前绘制会话 */
@@ -44,7 +44,7 @@ function emptyValue(def: FieldDef): FieldValue {
     case 'number':
       return { kind: 'number', value: (def.default as number) ?? 0 }
     case 'multiPoint':
-      return { kind: 'multiPoint', points: [] }
+      return { kind: 'multiPoint', points: [], bulges: [] }
     case 'toggle':
       return { kind: 'toggle', value: (def.default as boolean) ?? false }
   }
@@ -198,6 +198,7 @@ export function useDrawInteraction() {
     let fv = s.values[s.activeIdx]
     if (fv && fv.kind === 'multiPoint') {
       fv.points.push({ X: world.X, Y: world.Y })
+      fv.bulges.push(0)
       return
     }
 
@@ -207,6 +208,7 @@ export function useDrawInteraction() {
       fv = s.values[prevIdx]
       if (fv && fv.kind === 'multiPoint') {
         fv.points.push({ X: world.X, Y: world.Y })
+        fv.bulges.push(0)
       }
     }
   }
@@ -257,6 +259,7 @@ export function useDrawInteraction() {
       const fv = s.values[i]
       if (fv.kind === 'multiPoint' && fv.points.length > 0) {
         fv.points.pop()
+        fv.bulges.pop()
         // 如果清空了，回退 activeIdx
         if (fv.points.length === 0 && s.activeIdx > i) {
           // 保持 activeIdx 不变（让用户重新从 multiPoint 开始）
@@ -276,7 +279,11 @@ export function useDrawInteraction() {
   watch(
     () => store.activeTool,
     (tool) => {
-      if (tool !== 'DRAW') cancel()
+      if (tool !== 'DRAW') {
+        cancel()
+      } else if (!session.value && store.drawSubTool) {
+        _start(store.drawSubTool)
+      }
     },
   )
 
@@ -383,7 +390,7 @@ function buildPolyline(values: FieldValue[]): object | null {
   return {
     kind: 'POLYLINE' as const,
     closed,
-    vertices: fv.points.map((p) => ({ point: p, bulge: 0 })),
+    vertices: fv.points.map((p, i) => ({ point: p, bulge: fv.bulges[i] ?? 0 })),
   }
 }
 

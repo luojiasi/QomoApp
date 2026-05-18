@@ -2,7 +2,6 @@ import type { Ref, InjectionKey } from 'vue'
 
 // ActionDef 定义
 export type ActionGroup = 'file' | 'shape' | 'tool' | 'settings' | 'view'
-export type InspectorSection = 'params' | 'transform'
 
 /** provide/inject：设置弹窗共享状态 */
 export interface SettingsState {

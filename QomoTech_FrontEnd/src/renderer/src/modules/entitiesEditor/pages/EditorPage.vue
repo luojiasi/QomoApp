@@ -22,7 +22,7 @@ import { EntityKind } from '../commons/types'
 import { useEditorStore } from '../stores/editorStore'
 
 const { activeTab, rightPanelTabs } = useRightPanel()
-const { selectedEntity, selectedEntities, updateField } = useInspectorPanel()
+const {selectedEntities, updateField } = useInspectorPanel()
 const editorStore = useEditorStore()
 
 // ── 图层面板桥接 ──
