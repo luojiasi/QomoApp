@@ -189,9 +189,27 @@ const count = computed(() => props.entities?.length ?? 0)
                 <input type="checkbox" :checked="entity.closed"
                   @change="emit('update', 'closed', ($event.target as HTMLInputElement).checked, entity.id)" />
               </label>
-              <div class="field readonly">
-                <span>顶点数</span>
-                <span class="readonly-value">{{ entity.vertices.length }}</span>
+              <div class="section-label">顶点 ({{ entity.vertices.length }})</div>
+              <div v-for="(vt, idx) in entity.vertices" :key="idx" class="poly-vertex-row">
+                <PointRow
+                  :label="String(idx + 1)" compact :step="0.1"
+                  :x="vt.point.X" :y="vt.point.Y"
+                  :entity-id="entity.id"
+                  x-field="X" y-field="Y"
+                  @update="(f, v) => updatePolyVertex(entity as PolylineInspectedEntity, idx, f as 'X' | 'Y', v)"
+                />
+                <label class="poly-bulge-field">
+                  <span>凸度：</span>
+                  <input type="number" :value="vt.bulge" step="0.01"
+                    @input="updatePolyVertex(entity as PolylineInspectedEntity, idx, 'bulge', +($event.target as HTMLInputElement).value)" />
+                </label>
+              </div>
+              <div class="bezier-actions">
+                <button class="action-btn" @click="addPolyVertex(entity as PolylineInspectedEntity)">+ 添加</button>
+                <button class="action-btn"
+                  :disabled="entity.vertices.length <= 2"
+                  @click="removePolyVertex(entity as PolylineInspectedEntity)"
+                >- 删除</button>
               </div>
             </template>
 
@@ -203,8 +221,11 @@ const count = computed(() => props.entities?.length ?? 0)
                 x-field="X" y-field="Y"
                 @update="(f, v) => updateControlPoint(entity, idx, f as 'X' | 'Y', v)" />
               <div class="bezier-actions">
-                <button class="action-btn" @click="addControlPoint(entity)">ADD 往后添加添加点</button>
-                <button class="action-btn":disabled="entity.controlPoints.length <= 2"@click="removeControlPoint(entity)"> DEL 删除最后一个点</button>
+                <button class="action-btn" @click="addControlPoint(entity)">+ 添加</button>
+                <button class="action-btn"
+                :disabled="entity.controlPoints.length <= 2"
+                @click="removeControlPoint(entity)"
+                >- 删除</button>
               </div>
             </template>
 
@@ -373,6 +394,35 @@ const count = computed(() => props.entities?.length ?? 0)
 }
 
 /* ── 贝塞尔控制点 ── */
+
+.poly-vertex-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+.poly-bulge-field {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.poly-bulge-field span {
+  font-size: 10px;
+  color: #52525b;
+}
+.poly-bulge-field input {
+  width: 60px;
+  padding: 2px 4px;
+  font-size: 11px;
+  background: #18181b;
+  border: 1px solid #3f3f46;
+  border-radius: 4px;
+  color: #d4d4d8;
+  text-align: right;
+  outline: none;
+}
+.poly-bulge-field input:focus { border-color: #3b82f6; }
 
 .bezier-actions {
   display: flex;
