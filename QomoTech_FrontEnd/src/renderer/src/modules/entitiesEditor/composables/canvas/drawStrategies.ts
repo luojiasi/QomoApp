@@ -83,6 +83,15 @@ export const DRAW_STRATEGIES: Record<EntityKind, DrawStrategyDef[]> = {
             ],
         },
     ],
+    DIAMOND: [
+        {
+            id: 'two-point', label: '圆心+半径', default: true,
+            fields: [
+                { id: 'center', label: '圆心', kind: 'point' },
+                { id: 'P2',     label: '半径点', kind: 'point' },
+            ],
+        },
+    ],
 }
 
 

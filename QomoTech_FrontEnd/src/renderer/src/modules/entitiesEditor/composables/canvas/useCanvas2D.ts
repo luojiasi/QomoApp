@@ -40,6 +40,7 @@ import type {
   LineEntity,
   ArcEntity,
   CircleEntity,
+  DiamondEntity,
   EllipseEntity,
   PolylineEntity,
   PolylineVertex,
@@ -271,6 +272,7 @@ export function useCanvas2D() {
       case 'LINE':     drawLine(entity); break
       case 'ARC':      drawArc(entity); break
       case 'CIRCLE':   drawCircle(entity); break
+      case 'DIAMOND':  drawDiamond(entity); break
       case 'BEZIER':
         drawBezier(entity)
         if (selected) drawBezierControlPoints(c, entity)
@@ -298,6 +300,10 @@ export function useCanvas2D() {
   }
 
   function drawCircle(e: CircleEntity) {
+    const c = getCtx()!; c.beginPath(); c.arc(e.center.X, e.center.Y, e.radius, 0, Math.PI * 2); c.stroke()
+  }
+
+  function drawDiamond(e: DiamondEntity) {
     const c = getCtx()!; c.beginPath(); c.arc(e.center.X, e.center.Y, e.radius, 0, Math.PI * 2); c.stroke()
   }
 
@@ -464,7 +470,7 @@ export function useCanvas2D() {
         c.arc(center.X, center.Y, radius, startRad, endRad, ccw)
         c.stroke()
       }
-    } else if (kind === 'CIRCLE') {
+    } else if (kind === 'CIRCLE' || kind === 'DIAMOND') {
       // 字段顺序：center(0), P2(1)
       const center = pointAt(0)
       if (center) {
@@ -646,6 +652,7 @@ export function useCanvas2D() {
       case 'ARC':
         return hitArcEntity(world, entity, threshold)
       case 'CIRCLE':
+      case 'DIAMOND':
         return Math.abs(Math.hypot(world.X - entity.center.X, world.Y - entity.center.Y) - entity.radius) <= threshold
       case 'BEZIER':
         return hitPolyline(world.X, world.Y, sampleBezierPoints(entity.controlPoints, 64), threshold)

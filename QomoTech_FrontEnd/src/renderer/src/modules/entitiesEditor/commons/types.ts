@@ -51,7 +51,7 @@ export interface ViewportState {
   width: number; height: number
 }
 // ─── 枚举 ──────────────────────────────────────────
-export type EntityKind = 'LINE' | 'ARC' | 'CIRCLE' | 'POLYLINE' | 'BEZIER' | 'ELLIPSE'
+export type EntityKind = 'LINE' | 'ARC' | 'CIRCLE' | 'POLYLINE' | 'BEZIER' | 'ELLIPSE' | 'DIAMOND'
 export type ToolMode = 'SELECT' | 'DRAW' | 'PAN'
 /** 钻石形状 */
 export type DiamondShape = 'ROUND' | 'SQUARE' | 'HEART' | 'EMERALD'
@@ -66,7 +66,8 @@ export type EditorEntity =
   | EllipseEntity
   | PolylineEntity
   | BezierEntity
-  
+  | DiamondEntity
+
 
 // ─── 实体定义 ──────────────────────────────────────
 export interface BaseEntity {
@@ -124,7 +125,14 @@ export interface BezierEntity extends BaseEntity {
   controlPoints: Point2D[]
 }
 
-
+/** DIAMOND — 钻石实体，2D 轮廓由 shape 决定，3D 走刻面构建 */
+export interface DiamondEntity extends BaseEntity {
+  kind: 'DIAMOND'
+  center: Point2D
+  radius: number
+  contours?: PolylineVertex[][]  // 非 ROUND 形状的多段线轮廓
+  diamondParams: DiamondParams
+}
 
 /** 钻石参数 */
 export interface DiamondParams {
@@ -140,7 +148,6 @@ export interface DiamondParams {
   P?: number      // 亭角参数
   Tilt?: number   // 倾斜角
   SW?: number     // 侧宽
-  
 }
 
 // ─── 3D 挤出参数 ───────────────────────────────────

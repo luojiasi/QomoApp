@@ -47,7 +47,7 @@ export function useShortCutsDetails(handlers: {
       case 'DRAW_CIRCLE':   store.setTool('DRAW'); store.setDrawSubTool('CIRCLE'); break
       case 'DRAW_ELLIPSE':  store.setTool('DRAW'); store.setDrawSubTool('ELLIPSE'); break
       case 'DRAW_POLYLINE': store.setTool('DRAW'); store.setDrawSubTool('POLYLINE'); break
-      case 'DRAW_DIAMOND':  store.setDiamondShape('ROUND'); store.setTool('DRAW'); store.setDrawSubTool('CIRCLE'); break
+      case 'DRAW_DIAMOND':  store.setDiamondShape('ROUND'); store.setTool('DRAW'); store.setDrawSubTool('DIAMOND'); break
 
       // ── 视图 ──
       case 'TOGGLE_GRID': handlers.onToggleGrid(); break
@@ -80,6 +80,7 @@ export function useShortCutsDetails(handlers: {
           break
         case 'ARC':
         case 'CIRCLE':
+        case 'DIAMOND':
           e.center = { X: e.center.X + offsetX, Y: e.center.Y + offsetY }
           break
         case 'ELLIPSE':

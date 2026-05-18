@@ -465,13 +465,8 @@ export function createEntity3D(entity: SurfaceEntity<EditorEntity>): Entity3DObj
   switch (e.kind) {
     case 'LINE':     obj = createLine3D(e, openSide, openSize, h); break
     case 'ARC':      obj = createArc3D(e, openSide, openSize, h); break
-    case 'CIRCLE':
-      if (e.diamondParams) {
-        obj = createDiamond3D(e.diamondParams, e.center, e.radius)
-      } else {
-        obj = createCircle3D(e, openSide, openSize, h)
-      }
-      break
+    case 'CIRCLE':   obj = createCircle3D(e, openSide, openSize, h); break
+    case 'DIAMOND':  obj = createDiamond3D(e.diamondParams, e.center, e.radius); break
     case 'POLYLINE': obj = createPolyline3D(e, openSide, openSize, h); break
     case 'BEZIER':   obj = createBezier3D(e, openSide, openSize, h); break
     case 'ELLIPSE':  obj = createEllipse3D(e, openSide, openSize, h); break
@@ -483,7 +478,7 @@ export function createEntity3D(entity: SurfaceEntity<EditorEntity>): Entity3DObj
   obj.userData.entityKind = entity.kind
 
   // Diamond 使用自有材质，走独立路径
-  if (e.kind === 'CIRCLE' && e.diamondParams) {
+  if (e.kind === 'DIAMOND') {
     const bodyMat = obj.userData._diamondBodyMat as THREE.MeshPhysicalMaterial
     const edgeMat = obj.userData._diamondEdgeMat as THREE.LineBasicMaterial
     return {

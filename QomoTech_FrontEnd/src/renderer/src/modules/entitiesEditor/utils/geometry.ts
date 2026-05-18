@@ -384,6 +384,7 @@ export function getEntityBounds(entity: EditorEntity): BoundingBox {
       )
 
     case 'CIRCLE':
+    case 'DIAMOND':
       return {
         minX: entity.center.X - entity.radius,
         minY: entity.center.Y - entity.radius,

@@ -13,7 +13,7 @@
 // =============================================================================
 
 import { computed, ref, watch } from 'vue'
-import type { Point2D, EntityKind } from '../../commons/types'
+import type { Point2D, EntityKind, DiamondShape } from '../../commons/types'
 import type { DrawStrategyDef, FieldDef } from './drawStrategies'
 import { useEditorStore } from '../../stores/editorStore'
 import { getDefaultStrategy } from './drawStrategies'
@@ -128,14 +128,9 @@ export function useDrawInteraction() {
     const s = session.value
     if (!s) return
     const v = s.values
-    const input = buildEntityInput(s.kind, s.strategy.id, v)
+    const input = buildEntityInput(s.kind, s.strategy.id, v, store.diamondShape)
     if (input) {
-      if (store.diamondShape) {
-        const radius = (input as any).radius ?? 3
-        const diameter = radius * 2
-        ;(input as any).diamondParams = { ...DIAMOND_PRESETS[0], L: diameter, W: diameter }
-        store.setDiamondShape(null)
-      }
+      if (s.kind === 'DIAMOND') store.setDiamondShape(null)
       store.addEntity(input as any)
     }
     session.value = null
@@ -322,6 +317,7 @@ function buildEntityInput(
   kind: EntityKind,
   _strategyId: string,
   values: FieldValue[],
+  diamondShape: DiamondShape | null,
 ): object | null {
   switch (kind) {
     case 'LINE':
@@ -336,6 +332,8 @@ function buildEntityInput(
       return buildBezier(values)
     case 'ELLIPSE':
       return buildEllipse(values)
+    case 'DIAMOND':
+      return buildDiamond(values, diamondShape)
     default:
       return null
   }
@@ -435,5 +433,24 @@ function buildEllipse(values: FieldValue[]): object | null {
     minorAxisRatio,
     startParamDeg: 0,
     endParamDeg: 360,
+  }
+}
+
+function buildDiamond(values: FieldValue[], diamondShape: DiamondShape | null): object | null {
+  const center = (values[0] as any)?.value as Point2D | undefined
+  const p2 = (values[1] as any)?.value as Point2D | undefined
+  if (!center || !p2) return null
+
+  const radius = dist(center, p2)
+  if (radius < 1e-6) return null
+
+  const shape = diamondShape ?? 'ROUND'
+  const diameter = radius * 2
+
+  return {
+    kind: 'DIAMOND' as const,
+    center,
+    radius,
+    diamondParams: { ...DIAMOND_PRESETS[0], shape, L: diameter, W: diameter },
   }
 }

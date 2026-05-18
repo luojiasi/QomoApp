@@ -154,7 +154,7 @@ export const PROJECT_VERSION = '1.0.0'
 import type { DiamondParams } from '../commons/types'
 
 export const DIAMOND_PRESETS: DiamondParams[] = [
-  { L: 6, W: 6, Depth: 62, Pavilion: 43.5, Crown: 14.7, Girdle: 4, Table: 58, R: 3.1167, P: 0.5529, Tilt: 0, SW: 3.37 }
+  { shape: 'ROUND', L: 6, W: 6, Depth: 62, Pavilion: 43.5, Crown: 14.7, Girdle: 4, Table: 58, R: 3.1167, P: 0.5529, Tilt: 0, SW: 3.37 },
 ]
 
 export const PROJECT_DEFAULT_NAME = '未命名项目'
