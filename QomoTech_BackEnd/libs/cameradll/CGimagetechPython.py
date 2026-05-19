@@ -336,7 +336,7 @@ class CGImageTechCamera:
         
     def initialize(self):
         """初始化SDK"""
-        status = self.DeviceInitialSDK(None, False, True)
+        status = self.DeviceInitialSDK(None, False, False)  # bPNP=False 避免热插拔检测线程在无相机连接时空闲崩溃
         if status == 0:
             self.initialized = True
             print("SDK初始化成功")

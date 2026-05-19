@@ -7,7 +7,8 @@
       "Bash(Select-Object -First 60)",
       "WebFetch(domain:m.ilovezuan.com)",
       "WebFetch(domain:wapbaike.baidu.com)",
-      "WebFetch(domain:baike.baidu.com)"
+      "WebFetch(domain:baike.baidu.com)",
+      "PowerShell(Get-ChildItem -Directory | Where-Object { $_.Name -notin @\\('node_modules', '.git', '__pycache__'\\) } | ForEach-Object { $_.Name })"
     ]
   }
 }

@@ -456,15 +456,10 @@ export interface TriangulatedStrip {
  *   [2] inner_top    (偏移点, z=height)
  *   [3] inner_bot    (偏移点, z=0)
  */
-function triangulateStripPair(
-  outer: Point2D[],
-  inner: Point2D[],
-  height: number
-): TriangulatedStrip {
+function triangulateStripPair(outer: Point2D[],inner: Point2D[],height: number): TriangulatedStrip {
   const N = Math.min(outer.length, inner.length)
-  if (N < 2) {
-    return { positions: new Float32Array(0), indices: new Uint32Array(0) }
-  }
+  if (N < 2) return { positions: new Float32Array(0), indices: new Uint32Array(0) }
+  
 
   const positions = new Float32Array(N * 12) // 4 vertices × 3 floats × N
   for (let i = 0; i < N; i++) {

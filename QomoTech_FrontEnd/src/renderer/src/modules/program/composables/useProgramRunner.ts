@@ -6,6 +6,8 @@ import { startProgram } from '../api'
 import { useProgramStatus } from './useProgramStatus'
 import { useProgramControl } from './useProgramControl'
 import { QomoEntityWithSurface } from '@/modules/editor/qomo5pTypes'
+import { SurfaceEntity, EditorEntity } from '@/modules/entitiesEditor/commons/types'
+import { exportEntitiesWithCalculated } from '@/modules/entitiesEditor/utils/entitiesWithCalculated'
 
 type XYMotionOffset = { x: number; y: number }
 
@@ -14,7 +16,7 @@ const PROGRAM_STARTED_AT_STORAGE_KEY = 'qomo.startProgram.startedAtMs'
   /** 程序运行编排：配方下发、XY 偏移、运行计时、状态同步。 */
 export function useProgramRunner() {
   const { error, success } = useNotification()
-  const qomo5pStore = useQomo5PStore()
+  const qomo5pStore = useQomo5PStore()  //旧的编辑器
   const { mposition: wsMposition } = useHardwareState()
 
   const programStartedAtMs = ref<number | null>(null)
@@ -148,6 +150,66 @@ export function useProgramRunner() {
     })
   }
 
+  function 根据当前轴位置计算实体偏移(entities: SurfaceEntity<EditorEntity>[], dx: number, dy: number): SurfaceEntity<EditorEntity>[] {
+    return entities.map((entity) => {
+      const k = entity.kind
+      if (k === 'LINE') {
+        return {
+          ...entity,
+          start: { X: entity.start.X + dx, Y: entity.start.Y + dy },
+          end: { X: entity.end.X + dx, Y: entity.end.Y + dy }
+        }
+      }
+      if (k === 'ARC') {
+        return {
+          ...entity,
+          center: { X: entity.center.X + dx, Y: entity.center.Y + dy },
+          ...(entity.startPoint ? { startPoint: { X: entity.startPoint.X + dx, Y: entity.startPoint.Y + dy } } : {}),
+          ...(entity.endPoint ? { endPoint: { X: entity.endPoint.X + dx, Y: entity.endPoint.Y + dy } } : {})
+        }
+      }
+      if (k === 'CIRCLE') {
+        return {
+          ...entity,
+          center: { X: entity.center.X + dx, Y: entity.center.Y + dy }
+        }
+      }
+      if (k === 'ELLIPSE') {
+        return {
+          ...entity,
+          center: { X: entity.center.X + dx, Y: entity.center.Y + dy },
+          majorAxisEnd: { X: entity.majorAxisEnd.X + dx, Y: entity.majorAxisEnd.Y + dy }
+        }
+      }
+      if (k === 'POLYLINE') {
+        return {
+          ...entity,
+          vertices: entity.vertices.map(v => ({
+            ...v,
+            point: { X: v.point.X + dx, Y: v.point.Y + dy }
+          }))
+        }
+      }
+      if (k === 'BEZIER') {
+        return {
+          ...entity,
+          controlPoints: entity.controlPoints.map(p => ({ X: p.X + dx, Y: p.Y + dy }))
+        }
+      }
+      if (k === 'DIAMOND') {
+        return {
+          ...entity,
+          center: { X: entity.center.X + dx, Y: entity.center.Y + dy },
+          ...(entity.contours
+            ? { contours: entity.contours.map(ring => ring.map(v => ({ ...v, point: { X: v.point.X + dx, Y: v.point.Y + dy } }))) }
+            : {})
+        }
+      }
+      return entity
+    })
+  }
+
+  
   function resolveXYMotionOffsetFromHardwareState(): XYMotionOffset {
     const positions = wsMposition.value
     const rawX = positions?.X ?? positions?.x ?? positions?.['0']
@@ -160,7 +222,7 @@ export function useProgramRunner() {
     }
   }
 
-    async function onRunClick(): Promise<void> {
+  async function onRunClick(): Promise<void> {
     if (!currentRunRecipePayload.value) {
       error('运行失败：当前没有可下发的配方，请先选择有效主配方。')
       return
@@ -168,19 +230,24 @@ export function useProgramRunner() {
     if (programRunning.value) return
 
     try {
-      const entities = qomo5pStore.exportEntitiesToHomeVue()
       const xyOffset = resolveXYMotionOffsetFromHardwareState()
       homeXyOffset.value = xyOffset
       runTrigger.value = true
-      const offsetEntities = offsetEntitiesByXYMpos(entities, xyOffset.x, xyOffset.y)
+      const offsetEntities = offsetEntitiesByXYMpos(qomo5pStore.exportEntitiesToHomeVue(), xyOffset.x, xyOffset.y)
+
       const payload = {
         recipe_payload: currentRunRecipePayload.value,
         entities: offsetEntities
       }
+      const offsetEditorEntities = 根据当前轴位置计算实体偏移(exportEntitiesWithCalculated(), xyOffset.x, xyOffset.y)
+      const editorPayload = {
+        recipe_payload: currentRunRecipePayload.value,
+        entities: offsetEditorEntities
+      }
 
       const result = await startProgram(payload)
       if (!result?.success) {
-        error(result?.message || '运行失败：后端未接受配方。')
+        error(result?.message || '运行失败：后端为提供失败参数。')
         return
       }
       const data = result?.data as { task_count?: number } | undefined

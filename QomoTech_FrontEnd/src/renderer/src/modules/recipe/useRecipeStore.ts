@@ -15,6 +15,8 @@ import { cloneSettings } from '@/shared/utils/settings'
 import { getNextSequence, normalizeRecipeState } from './recipeValidation'
 import { createSettingsSaveResult } from '@/shared/utils/useSettingsStore'
 import { RECIPE_STORAGE_KEYS } from '@/shared/constants/storageKeys'
+import { loadRecipeStateFromBackend, saveRecipeStateToBackend } from './persistence/recipePersistence'
+import { HEAVY_SETTINGS_PERSIST_DEBOUNCE_MS } from '@/shared/constants/constants'
 
 /** 加工配方 + 展开的水平/垂直工艺子配方，供其他模块快速读取 */
 type ProcessRecipeWithFormulaDetails<T extends MachiningProcessRecipe> = T & {
@@ -159,8 +161,33 @@ function persistStateToLocalStorage(state: RecipeManagerState): void {
 export const useRecipeSettingsStore = defineStore('recipe-settings', () => {
   const recipeState = ref<RecipeManagerState>(cloneSettings(defaultRecipeManagerState))
 
-  /** 页面初始化时从 localStorage 恢复配方数据，失败则写入默认值 */
+  /** 后端持久化防抖定时器 */
+  let backendPersistTimer: ReturnType<typeof setTimeout> | null = null
+
+  const clearBackendPersistTimer = (): void => {
+    if (backendPersistTimer !== null) {
+      clearTimeout(backendPersistTimer)
+      backendPersistTimer = null
+    }
+  }
+
+  const scheduleBackendPersist = (): void => {
+    clearBackendPersistTimer()
+    backendPersistTimer = setTimeout(() => {
+      backendPersistTimer = null
+      void saveRecipeStateToBackend(recipeState.value)
+    }, HEAVY_SETTINGS_PERSIST_DEBOUNCE_MS)
+  }
+
+  /** 页面初始化时优先从后端加载，其次 localStorage，均失败则写入默认值 */
   const loadRecipeState = async (): Promise<SettingsSaveResult<RecipeManagerState>> => {
+    const fromBackend = await loadRecipeStateFromBackend()
+    if (fromBackend) {
+      recipeState.value = fromBackend
+      persistStateToLocalStorage(recipeState.value)
+      return createSettingsSaveResult('已从服务端加载配方管理数据。', recipeState.value)
+    }
+
     const cached = readStateFromLocalStorage()
     if (cached) {
       recipeState.value = cached
@@ -169,16 +196,18 @@ export const useRecipeSettingsStore = defineStore('recipe-settings', () => {
     }
 
     persistStateToLocalStorage(recipeState.value)
-    return createSettingsSaveResult('未找到有效本地配方数据，已加载默认配方配置。', recipeState.value)
+    return createSettingsSaveResult('未找到有效配方数据，已加载默认配方配置。', recipeState.value)
   }
 
-  /** 外部覆盖整个配方状态并持久化（用于导入/替换等场景） */
+  /** 手动持久化：同时写入 localStorage 和后端 */
   const saveRecipeState = async (
     payload: RecipeManagerState
   ): Promise<SettingsSaveResult<RecipeManagerState>> => {
     recipeState.value = cloneSettings(payload)
     persistStateToLocalStorage(recipeState.value)
-    return createSettingsSaveResult('配方管理数据已保存到本地存储。', recipeState.value)
+    clearBackendPersistTimer()
+    await saveRecipeStateToBackend(recipeState.value)
+    return createSettingsSaveResult('配方管理数据已保存到服务端。', recipeState.value)
   }
 
   /** 切换当前选中的主配方 ID */
@@ -295,11 +324,12 @@ export const useRecipeSettingsStore = defineStore('recipe-settings', () => {
     )
   }
 
-  /** 深度监听配方状态变化，自动写入 localStorage，无需手动调保存 */
+  /** 深度监听配方状态变化：立即写入 localStorage，防抖写入后端 JSON 文件 */
   watch(
     recipeState,
     (state) => {
       persistStateToLocalStorage(state)
+      scheduleBackendPersist()
     },
     { deep: true }
   )

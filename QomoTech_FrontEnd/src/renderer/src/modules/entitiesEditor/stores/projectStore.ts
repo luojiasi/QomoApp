@@ -2,13 +2,16 @@
 // 项目持久化 —— localStorage 自动保存 + .ljs 文件导出
 // =============================================================================
 
-import type { SerializedProject, SurfaceEntity, EditorEntity } from '../commons/types'
+import type {SerializedProject,SurfaceEntity,EditorEntity} from '../commons/types'
+import type { ExportEntity } from '../utils/entityNodes'
+import { sortLinesAndAttachNodeForExport } from '../utils/entityNodes'
 import { useEditorStore } from './editorStore'
 import { STORAGE_KEY_PROJECT, PROJECT_VERSION } from '../configs/defaults'
 
 /** 将当前 store 状态序列化并写入 localStorage */
 export function saveProject() {
   const store = useEditorStore()
+  const entitiesWithNodes: ExportEntity[] = sortLinesAndAttachNodeForExport(store.entities)
   const data: SerializedProject = {
     format: 'QOMO5P-Project',
     version: PROJECT_VERSION,
@@ -16,7 +19,7 @@ export function saveProject() {
     data: {
       meta: { ...store.projectMeta },
       layers: store.layers.map(l => ({ ...l })),
-      entities: store.entities.map(e => ({ ...e })),
+      entities: entitiesWithNodes as unknown as SurfaceEntity[],
     },
   }
   localStorage.setItem(STORAGE_KEY_PROJECT, JSON.stringify(data))
@@ -62,6 +65,7 @@ export function loadProjectIntoStore(): boolean {
 /** 导出为 .ljs 文件（浏览器下载） */
 export function exportProject() {
   const store = useEditorStore()
+  const entitiesWithNodes: ExportEntity[] = sortLinesAndAttachNodeForExport(store.entities)
   const data: SerializedProject = {
     format: 'QOMO5P-Project',
     version: PROJECT_VERSION,
@@ -69,7 +73,7 @@ export function exportProject() {
     data: {
       meta: { ...store.projectMeta },
       layers: store.layers.map(l => ({ ...l })),
-      entities: store.entities.map(e => ({ ...e })),
+      entities: entitiesWithNodes as unknown as SurfaceEntity[],
     },
   }
   const json = JSON.stringify(data, null, 2)
