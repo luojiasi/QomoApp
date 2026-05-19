@@ -13,8 +13,8 @@ from typing import Any, Dict, List
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
-# from core.calc_offset_ljs import OffsetEndpointCalculator  # 旧的
-from core.calc_offset import OffsetEndpointCalculator  # 新的
+from core.calc_offset_ljs import OffsetEndpointCalculator  # 旧的
+# from core.calc_offset import OffsetEndpointCalculator  # 新的
 from services.PragramService import PragramService
 from routers.apiresponse import ApiResponse
 from utils.logger import 获取日志记录器
@@ -49,41 +49,40 @@ class 开始程序控制请求模型(BaseModel):
 # ==================================================================
 
 
-# @路由.post("/startProgram", summary="启动程序")
-# async def start_program(payload: 开始程序参数请求模型):
-#     """接收配方 + 实体，启动后台任务执行程序。"""
-#     if payload.recipe_payload is None or payload.entities is None:
-#         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="startProgram 入参缺少 recipe_payload 或 entities",)
-
-#     tasks = OffsetEndpointCalculator.calc_xy_points(payload.entities, 0)
-#     if not tasks:
-#         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="没有可执行的任务，请检查实体几何",)
-
-#     async def _run_program() -> None:
-#         try:
-#             await _svc().执行程序(配方数据=payload.recipe_payload,实体数据=payload.entities,)
-#         except Exception:
-#             日志.exception("startProgram 后台任务异常")
-
-#     asyncio.ensure_future(_run_program())
-
-#     return ApiResponse(success=True, message="程序已启动", data={"task_count": len(tasks)})
-
 @路由.post("/startProgram", summary="启动程序")
 async def start_program(payload: 开始程序参数请求模型):
     """接收配方 + 实体，启动后台任务执行程序。"""
-    tasks = OffsetEndpointCalculator.计算当前任务数量(payload.entities)
+    if payload.recipe_payload is None or payload.entities is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="startProgram 入参缺少 recipe_payload 或 entities",)
+
+    tasks = OffsetEndpointCalculator.calc_xy_points(payload.entities, 0)
     if not tasks:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="没有可执行的任务，请检查实体几何")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="没有可执行的任务，请检查实体几何",)
+
+    async def _run_program() -> None:
+        try:
+            await _svc().执行程序(配方数据=payload.recipe_payload,实体数据=payload.entities,)
+        except Exception:
+            日志.exception("startProgram 后台任务异常")
+
+    asyncio.ensure_future(_run_program())
+
+    return ApiResponse(success=True, message="程序已启动", data={"task_count": len(tasks)})
 
 
-    # async def _run_program() -> None:
-    #     try:
-    #         await _svc().执行程序(配方数据=payload.recipe_payload,实体数据=payload.entities,)
-    #     except Exception:
-    #         日志.exception("startProgram 后台任务异常")
-    # asyncio.ensure_future(_run_program())
-    return ApiResponse(success=True, message="程序已启动", data={"task_count": len(payload.entities)})
+
+from services.ProgramService4p import ProgramService4p
+@路由.post("/startProgram/4PTest", summary="启动4P测试程序")
+async def start_program_4p_test(payload: 开始程序参数请求模型):
+    """启动后台任务执行4P测试程序。"""
+    async def _run_program_4p_test() -> None:
+        try:
+            await ProgramService4p.执行程序4P(配方数据=payload.recipe_payload,实体数据=payload.entities)
+        except Exception:
+            日志.exception("startProgram/4PTest 后台任务异常")
+    asyncio.ensure_future(_run_program_4p_test())
+    return ApiResponse(success=True, message="4P测试程序已启动")
+
 # ==================================================================
 # 2. 程序状态
 # ==================================================================

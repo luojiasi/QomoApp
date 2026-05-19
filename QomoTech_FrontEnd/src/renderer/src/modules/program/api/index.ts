@@ -5,6 +5,10 @@ import type { Product4PCenterRotationPayload, QuickMovePositionPayload, StartPro
 export const startProgram = async (payload: Record<string, unknown>): Promise<ApiCallResult<Record<string, unknown>>> => 
   apiCall('startProgram', 'POST', payload)
 
+
+export const startProgram4PTest = async (payload: Record<string, unknown>): Promise<ApiCallResult<Record<string, unknown>>> => 
+  apiCall('startProgram/4PTest', 'POST', payload)
+
 /** 同步 系统设置 中心旋转偏移到后端。 */
 export const syncProduct4PCenterRotation = async (payload: Product4PCenterRotationPayload): Promise<ApiCallResult<Product4PCenterRotationPayload>> =>
   apiCall<Product4PCenterRotationPayload>('system-setting/center-rotation','POST',payload as unknown as Record<string, unknown>)

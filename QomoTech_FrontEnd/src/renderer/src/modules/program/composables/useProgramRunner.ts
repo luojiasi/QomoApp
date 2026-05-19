@@ -1,13 +1,14 @@
 import { ref, computed } from 'vue'
 import { useNotification } from '@/shared/composables/useNotification'
-import { useQomo5PStore } from '@/modules/editor/useQomo5PStore'
+// import { useQomo5PStore } from '@/modules/editor/useQomo5PStore'
 import { useHardwareState } from '@/shared/api/hardware'
-import { startProgram } from '../api'
+// import { startProgram} from '../api'
 import { useProgramStatus } from './useProgramStatus'
 import { useProgramControl } from './useProgramControl'
-import { QomoEntityWithSurface } from '@/modules/editor/qomo5pTypes'
-import { SurfaceEntity, EditorEntity } from '@/modules/entitiesEditor/commons/types'
+// import { QomoEntityWithSurface } from '@/modules/editor/qomo5pTypes'
+import { startProgram4PTest } from '../api'
 import { exportEntitiesWithCalculated } from '@/modules/entitiesEditor/utils/entitiesWithCalculated'
+import { useShow4PTable } from '@/modules/motion/panels/useShow4PTable'
 
 type XYMotionOffset = { x: number; y: number }
 
@@ -16,8 +17,19 @@ const PROGRAM_STARTED_AT_STORAGE_KEY = 'qomo.startProgram.startedAtMs'
   /** 程序运行编排：配方下发、XY 偏移、运行计时、状态同步。 */
 export function useProgramRunner() {
   const { error, success } = useNotification()
-  const qomo5pStore = useQomo5PStore()  //旧的编辑器
+  // const qomo5pStore = useQomo5PStore()
   const { mposition: wsMposition } = useHardwareState()
+
+  const {
+    dialogVisible: show4PDialogVisible,
+    isAcquiring: show4PIsAcquiring,
+    isAcquired: show4PIsAcquired,
+    tablePosition: show4PTablePosition,
+    acquireXYZPosition: show4PAcquire,
+    openDialog: show4POpenDialog,
+    closeDialog: show4PCloseDialog,
+    buildPayload: show4PBuildPayload
+  } = useShow4PTable()
 
   const programStartedAtMs = ref<number | null>(null)
   const programElapsedMs = ref(0)
@@ -116,98 +128,40 @@ export function useProgramRunner() {
     }
   }
 
-  function offsetEntitiesByXYMpos(entities: QomoEntityWithSurface[], dx: number, dy: number): QomoEntityWithSurface[] {
-    return entities.map((entity) => {
-      if (entity.type === 'LINE') {
-        return {
-          ...entity,
-          start: { x: entity.start.x + dx, y: entity.start.y + dy },
-          end: { x: entity.end.x + dx, y: entity.end.y + dy }
-        }
-      }
-      if (entity.type === 'BEZIER') {
-        return {
-          ...entity,
-          points: entity.points.map((p) => ({ x: p.x + dx, y: p.y + dy }))
-        }
-      }
-      if (entity.type === 'ARC') {
-        return {
-          ...entity,
-          center: { x: entity.center.x + dx, y: entity.center.y + dy },
-          ...(entity.startPoint
-            ? { startPoint: { x: entity.startPoint.x + dx, y: entity.startPoint.y + dy } }
-            : {}),
-          ...(entity.endPoint
-            ? { endPoint: { x: entity.endPoint.x + dx, y: entity.endPoint.y + dy } }
-            : {})
-        }
-      }
-      return {
-        ...entity,
-        center: { x: entity.center.x + dx, y: entity.center.y + dy }
-      }
-    })
-  }
+  // function offsetEntitiesByXYMpos(entities: QomoEntityWithSurface[], dx: number, dy: number): QomoEntityWithSurface[] {
+  //   return entities.map((entity) => {
+  //     if (entity.type === 'LINE') {
+  //       return {
+  //         ...entity,
+  //         start: { x: entity.start.x + dx, y: entity.start.y + dy },
+  //         end: { x: entity.end.x + dx, y: entity.end.y + dy }
+  //       }
+  //     }
+  //     if (entity.type === 'BEZIER') {
+  //       return {
+  //         ...entity,
+  //         points: entity.points.map((p) => ({ x: p.x + dx, y: p.y + dy }))
+  //       }
+  //     }
+  //     if (entity.type === 'ARC') {
+  //       return {
+  //         ...entity,
+  //         center: { x: entity.center.x + dx, y: entity.center.y + dy },
+  //         ...(entity.startPoint
+  //           ? { startPoint: { x: entity.startPoint.x + dx, y: entity.startPoint.y + dy } }
+  //           : {}),
+  //         ...(entity.endPoint
+  //           ? { endPoint: { x: entity.endPoint.x + dx, y: entity.endPoint.y + dy } }
+  //           : {})
+  //       }
+  //     }
+  //     return {
+  //       ...entity,
+  //       center: { x: entity.center.x + dx, y: entity.center.y + dy }
+  //     }
+  //   })
+  // }
 
-  function 根据当前轴位置计算实体偏移(entities: SurfaceEntity<EditorEntity>[], dx: number, dy: number): SurfaceEntity<EditorEntity>[] {
-    return entities.map((entity) => {
-      const k = entity.kind
-      if (k === 'LINE') {
-        return {
-          ...entity,
-          start: { X: entity.start.X + dx, Y: entity.start.Y + dy },
-          end: { X: entity.end.X + dx, Y: entity.end.Y + dy }
-        }
-      }
-      if (k === 'ARC') {
-        return {
-          ...entity,
-          center: { X: entity.center.X + dx, Y: entity.center.Y + dy },
-          ...(entity.startPoint ? { startPoint: { X: entity.startPoint.X + dx, Y: entity.startPoint.Y + dy } } : {}),
-          ...(entity.endPoint ? { endPoint: { X: entity.endPoint.X + dx, Y: entity.endPoint.Y + dy } } : {})
-        }
-      }
-      if (k === 'CIRCLE') {
-        return {
-          ...entity,
-          center: { X: entity.center.X + dx, Y: entity.center.Y + dy }
-        }
-      }
-      if (k === 'ELLIPSE') {
-        return {
-          ...entity,
-          center: { X: entity.center.X + dx, Y: entity.center.Y + dy },
-          majorAxisEnd: { X: entity.majorAxisEnd.X + dx, Y: entity.majorAxisEnd.Y + dy }
-        }
-      }
-      if (k === 'POLYLINE') {
-        return {
-          ...entity,
-          vertices: entity.vertices.map(v => ({
-            ...v,
-            point: { X: v.point.X + dx, Y: v.point.Y + dy }
-          }))
-        }
-      }
-      if (k === 'BEZIER') {
-        return {
-          ...entity,
-          controlPoints: entity.controlPoints.map(p => ({ X: p.X + dx, Y: p.Y + dy }))
-        }
-      }
-      if (k === 'DIAMOND') {
-        return {
-          ...entity,
-          center: { X: entity.center.X + dx, Y: entity.center.Y + dy },
-          ...(entity.contours
-            ? { contours: entity.contours.map(ring => ring.map(v => ({ ...v, point: { X: v.point.X + dx, Y: v.point.Y + dy } }))) }
-            : {})
-        }
-      }
-      return entity
-    })
-  }
 
   
   function resolveXYMotionOffsetFromHardwareState(): XYMotionOffset {
@@ -229,23 +183,24 @@ export function useProgramRunner() {
     }
     if (programRunning.value) return
 
+    show4POpenDialog()
+  }
+
+  async function on4PTableConfirm(): Promise<void> {
     try {
       const xyOffset = resolveXYMotionOffsetFromHardwareState()
       homeXyOffset.value = xyOffset
       runTrigger.value = true
-      const offsetEntities = offsetEntitiesByXYMpos(qomo5pStore.exportEntitiesToHomeVue(), xyOffset.x, xyOffset.y)
+      // const offsetEntities = offsetEntitiesByXYMpos(qomo5pStore.exportEntitiesToHomeVue(), xyOffset.x, xyOffset.y)
+      // const payload = {
+      //   recipe_payload: currentRunRecipePayload.value,
+      //   entities: offsetEntities
+      // }
+      // const result = await startProgram(payload)
 
-      const payload = {
-        recipe_payload: currentRunRecipePayload.value,
-        entities: offsetEntities
-      }
-      const offsetEditorEntities = 根据当前轴位置计算实体偏移(exportEntitiesWithCalculated(), xyOffset.x, xyOffset.y)
-      const editorPayload = {
-        recipe_payload: currentRunRecipePayload.value,
-        entities: offsetEditorEntities
-      }
+      const 参数 = show4PBuildPayload(currentRunRecipePayload.value!,exportEntitiesWithCalculated())
 
-      const result = await startProgram(editorPayload)
+      const result = await startProgram4PTest(参数)
       if (!result?.success) {
         error(result?.message || '运行失败：后端为提供失败参数。')
         return
@@ -260,9 +215,15 @@ export function useProgramRunner() {
       persistProgramStartedAtToStorage(programStartedAtMs.value)
       startProgramElapsedTimer()
       success(result?.message || '运行指令已发送。')
+
+      show4PCloseDialog()
     } catch {
       error('运行失败：无法连接后端。')
     }
+  }
+
+  function on4PTableCancel(): void {
+    show4PCloseDialog()
   }
 
   function init(): void {
@@ -297,6 +258,13 @@ export function useProgramRunner() {
     handleRunRecipeChange,
     handleUpperOpeningChange,
     onRunClick,
+    on4PTableConfirm,
+    on4PTableCancel,
+    show4PDialogVisible,
+    show4PIsAcquiring,
+    show4PIsAcquired,
+    show4PTablePosition,
+    show4PAcquire,
     onPauseToggleClick,
     onResetAlarmsClick,
     onEstopClick,

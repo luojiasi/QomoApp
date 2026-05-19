@@ -12,6 +12,7 @@ import StratProgramRunning from '@/modules/program/panels/StartProgramPanel.vue'
 import CameraPic from '@/modules/camera/CameraPic.vue'
 import ShowAndDrawInHome from '@/modules/editor/panels/ShowAndDrawPanel.vue'
 import TaskProgressAside from '@/modules/program/panels/TaskProgressAside.vue'
+import Show4PTable from '@/modules/motion/panels/Show4PTable.vue'
 import ControllerSettings from '@/modules/motion/pages/ControllerSettingsPage.vue'
 import DetailedRs232Send from '@/modules/laser/pages/LaserSettingsPage.vue'
 import SvgIcon from '@/shared/components/SvgIcon.vue'
@@ -49,13 +50,20 @@ const {
   runTrigger,
   handleRunRecipeChange, 
   handleUpperOpeningChange,
-  onRunClick, 
-  onPauseToggleClick, 
-  onResetAlarmsClick, 
-  onEstopClick, 
+  onRunClick,
+  on4PTableConfirm,
+  on4PTableCancel,
+  show4PDialogVisible,
+  show4PIsAcquiring,
+  show4PIsAcquired,
+  show4PTablePosition,
+  show4PAcquire,
+  onPauseToggleClick,
+  onResetAlarmsClick,
+  onEstopClick,
   onSkipTaskClick,
-  init: initProgramRunner, 
-  initSync: initProgramSync, 
+  init: initProgramRunner,
+  initSync: initProgramSync,
   cleanup: cleanupProgramRunner
 } = useProgramRunner()
 
@@ -196,6 +204,16 @@ onUnmounted(() => {
       :running="programRunning"
     />
   </div>
+
+  <Show4PTable
+    :visible="show4PDialogVisible"
+    :is-acquiring="show4PIsAcquiring"
+    :is-acquired="show4PIsAcquired"
+    :table-position="show4PTablePosition"
+    @acquire="show4PAcquire"
+    @confirm="on4PTableConfirm"
+    @cancel="on4PTableCancel"
+  />
 </template>
 
 <style>
