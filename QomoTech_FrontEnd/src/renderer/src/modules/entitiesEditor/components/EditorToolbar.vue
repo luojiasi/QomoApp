@@ -5,12 +5,10 @@ import { useEditorToolbar } from '../composables/useEditorToolbar'
 import type { ActionDef } from '../shares/types'
 import { getStrategies } from '../composables/canvas/drawStrategies';
 
-const DIAMOND_SHAPE_LABELS: { shape: DiamondShape; label: string }[] = [
-  { shape: 'ROUND', label: '圆形明亮式'},
-  { shape: 'SQUARE', label: '公主方' },
-  { shape: 'HEART', label: '心形' },
-  { shape: 'EMERALD', label: '祖母绿' },
-]
+import { SHAPE_LABELS } from '../composables/preview/diamount/types'
+
+const DIAMOND_SHAPE_OPTIONS: { shape: DiamondShape; label: string }[] =
+  Object.entries(SHAPE_LABELS).map(([shape, label]) => ({ shape: shape as DiamondShape, label }))
 
 const { fileGroup, shapeGroup, diamondGroup, toolGroup, settingsGroup, toolTitle, reload } = useEditorToolbar()
 
@@ -213,7 +211,7 @@ function closeDiamondMenu() {
       >
         <div class="ctx-header">钻石形状</div>
         <button
-          v-for="ds in DIAMOND_SHAPE_LABELS"
+          v-for="ds in DIAMOND_SHAPE_OPTIONS"
           :key="ds.shape"
           class="ctx-item"
           :class="{ 'ctx-default': ds.shape === 'ROUND' }"

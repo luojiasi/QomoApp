@@ -19,7 +19,7 @@ export const ACTIONS: ActionDef[] = [
     { id: 'EXPORT_LJS', label: '导出', group: 'file', key: 'e', ctrl: true },
     { id: 'UNDO', label: '撤销', group: 'file', key: 'z', ctrl: true },
     { id: 'REDO', label: '重做', group: 'file', key: 'y', ctrl: true },
-  
+
     // ── 图形 ──
     { id: 'DRAW_LINE', label: '线', group: 'shape', key: 'l' },
     { id: 'DRAW_ARC', label: '弧', group: 'shape', key: 'a' },
@@ -150,11 +150,19 @@ export const INITIAL_PAN_Y = 0
 export const INITIAL_VIEWPORT_WIDTH = 800
 export const INITIAL_VIEWPORT_HEIGHT = 800
 export const PROJECT_VERSION = '1.0.0'
-// ── 钻石预设 ──
-import type { DiamondParams } from '../commons/types'
 
-export const DIAMOND_PRESETS: DiamondParams[] = [
-  { shape: 'ROUND', L: 6, W: 6, Depth: 62, Pavilion: 43.5, Crown: 14.7, Girdle: 4, Table: 58, R: 3.1167, P: 0.5529, Tilt: 0, SW: 3.37 },
-]
+// ── 钻石预设 ──
+import type { DiamondParams, DiamondShape } from '../commons/types'
+
+export const DIAMOND_PRESETS: Record<DiamondShape, DiamondParams> = {
+  ROUND:    { shape: 'ROUND',    L: 6,   W: 6,   Depth: 62, Pavilion: 43.5, Crown: 14.7, Girdle: 4, Table: 58, R: 3.1167, P: 0.5529, Tilt: 0, SW: 3.37 },
+  PRINCESS: { shape: 'PRINCESS', L: 6,   W: 6,   Depth: 72, Pavilion: 49,   Crown: 19,   Girdle: 4, Table: 67 },
+  CUSHION:  { shape: 'CUSHION',  L: 6,   W: 6,   Depth: 65, Pavilion: 44,   Crown: 17,   Girdle: 4, Table: 58 },
+  EMERALD:  { shape: 'EMERALD',  L: 7,   W: 5,   Depth: 62, Pavilion: 45,   Crown: 13,   Girdle: 4, Table: 65 },
+  OVAL:     { shape: 'OVAL',     L: 8,   W: 5.5, Depth: 62, Pavilion: 43.5, Crown: 14.5, Girdle: 4, Table: 57 },
+  PEAR:     { shape: 'PEAR',     L: 8,   W: 5,   Depth: 62, Pavilion: 43.5, Crown: 14.5, Girdle: 4, Table: 57 },
+  MARQUISE: { shape: 'MARQUISE', L: 10,  W: 5,   Depth: 62, Pavilion: 43.5, Crown: 14.5, Girdle: 4, Table: 57 },
+  HEART:    { shape: 'HEART',    L: 6,   W: 6,   Depth: 62, Pavilion: 43.5, Crown: 14.5, Girdle: 4, Table: 57 },
+}
 
 export const PROJECT_DEFAULT_NAME = '未命名项目'

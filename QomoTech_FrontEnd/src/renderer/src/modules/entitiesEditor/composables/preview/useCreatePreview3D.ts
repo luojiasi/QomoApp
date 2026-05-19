@@ -35,6 +35,7 @@ import {
   offsetSegment,
 } from '../../utils/geometry'
 import type { Scene3DConfig } from '../../shares/types'
+import { getShapeDef } from './diamount'
 
 // ── 材质参数（运行时可变，由 applyMaterialConfig 更新） ───
 
@@ -355,20 +356,6 @@ export interface Entity3DObject {
  * 构建刻面钻石 3D 模型（台面→冠部→腰部→亭部）。
  * 腰部半径使用传入的 2D 轮廓半径，而非 params.L/W 推算。
  */
-/** 生成方形轮廓顶点（XZ 平面，Y-up 构建用） */
-function getSquareProfile(R: number, segsPerEdge: number): { x: number; z: number }[] {
-  const verts: { x: number; z: number }[] = []
-  const step = (2 * R) / segsPerEdge
-  // 右边缘：X=R, Z 从 -R → R（不含末点，避免重复）
-  for (let i = 0; i < segsPerEdge; i++) verts.push({ x: R, z: -R + i * step })
-  // 上边缘：Z=R, X 从 R → -R
-  for (let i = 0; i < segsPerEdge; i++) verts.push({ x: R - i * step, z: R })
-  // 左边缘：X=-R, Z 从 R → -R
-  for (let i = 0; i < segsPerEdge; i++) verts.push({ x: -R, z: R - i * step })
-  // 下边缘：Z=-R, X 从 -R → R
-  for (let i = 0; i < segsPerEdge; i++) verts.push({ x: -R + i * step, z: -R })
-  return verts
-}
 
 function createDiamond3D(params: DiamondParams, center: Point2D, radius: number): THREE.Group | null {
   if (!Number.isFinite(radius) || radius <= 0) return null
@@ -398,26 +385,21 @@ function createDiamond3D(params: DiamondParams, center: Point2D, radius: number)
     normals.push(n.x, n.y, n.z, n.x, n.y, n.z, n.x, n.y, n.z)
   }
 
-  const isSquare = params.shape === 'SQUARE'
-  const profileVerts = isSquare ? getSquareProfile(R, 4) : []
+  const shapeDef = getShapeDef(params.shape)
+  const profileVerts = shapeDef.getProfileVertices(R, params.L, params.W)
+  const totalSegs = profileVerts.length
 
-  function profileXZ(i: number, total: number, scale: number): { x: number; z: number } {
-    if (isSquare) {
-      const v = profileVerts[i]
-      return { x: v.x * scale, z: v.z * scale }
-    }
-    const a = (i / total) * Math.PI * 2
-    return { x: Math.cos(a) * R * scale, z: Math.sin(a) * R * scale }
+  function profileXZ(i: number, scale: number): { x: number; z: number } {
+    const v = profileVerts[i]
+    return { x: v.x * scale, z: v.z * scale }
   }
-
-  const totalSegs = isSquare ? profileVerts.length : 16
 
   for (let i = 0; i < totalSegs; i++) {
     const j = (i + 1) % totalSegs
-    const v0 = profileXZ(i, totalSegs, 1)
-    const v1 = profileXZ(j, totalSegs, 1)
-    const t0 = profileXZ(i, totalSegs, tableR / R)
-    const t1 = profileXZ(j, totalSegs, tableR / R)
+    const v0 = profileXZ(i, 1)
+    const v1 = profileXZ(j, 1)
+    const t0 = profileXZ(i, tableR / R)
+    const t1 = profileXZ(j, tableR / R)
 
     const tc   = new THREE.Vector3(0,       yTop, 0)
     const te0  = new THREE.Vector3(t0.x,    yTop, t0.z)

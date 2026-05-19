@@ -18,6 +18,7 @@ import type { DrawStrategyDef, FieldDef } from './drawStrategies'
 import { useEditorStore } from '../../stores/editorStore'
 import { getDefaultStrategy } from './drawStrategies'
 import { DIAMOND_PRESETS } from '../../configs/defaults'
+import { getShapeDef } from '../preview/diamount'
 
 // ── 字段运行时值 ────────────────────────────────────────
 
@@ -447,15 +448,13 @@ function buildDiamond(values: FieldValue[], diamondShape: DiamondShape | null): 
   const shape = diamondShape ?? 'ROUND'
   const diameter = radius * 2
 
+  const L = radius
+  const W = radius
+
   let contours: PolylineVertex[][] | undefined
-  if (shape === 'SQUARE') {
-    const R = radius
-    contours = [[
-      { point: { X: center.X - R, Y: center.Y - R }, bulge: 0 },
-      { point: { X: center.X + R, Y: center.Y - R }, bulge: 0 },
-      { point: { X: center.X + R, Y: center.Y + R }, bulge: 0 },
-      { point: { X: center.X - R, Y: center.Y + R }, bulge: 0 },
-    ]]
+  if (shape !== 'ROUND') {
+    const shapeDef = getShapeDef(shape)
+    contours = shapeDef.get2DContours(center, L, W)
   }
 
   return {
@@ -463,6 +462,6 @@ function buildDiamond(values: FieldValue[], diamondShape: DiamondShape | null): 
     center,
     radius,
     contours,
-    diamondParams: { ...DIAMOND_PRESETS[0], shape, L: diameter, W: diameter },
+    diamondParams: { ...DIAMOND_PRESETS[shape], shape, L: diameter, W: diameter },
   }
 }

@@ -54,7 +54,15 @@ export interface ViewportState {
 export type EntityKind = 'LINE' | 'ARC' | 'CIRCLE' | 'POLYLINE' | 'BEZIER' | 'ELLIPSE' | 'DIAMOND'
 export type ToolMode = 'SELECT' | 'DRAW' | 'PAN'
 /** 钻石形状 */
-export type DiamondShape = 'ROUND' | 'SQUARE' | 'HEART' | 'EMERALD'
+export type DiamondShape =
+  | 'ROUND'
+  | 'PRINCESS'
+  | 'CUSHION'
+  | 'EMERALD'
+  | 'OVAL'
+  | 'PEAR'
+  | 'MARQUISE'
+  | 'HEART'
 /** 开口方向（激光切割特有） */
 export type OpenSide = 'LEFT' | 'RIGHT'
 
