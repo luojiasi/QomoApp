@@ -75,12 +75,10 @@ from services.ProgramService4p import ProgramService4p
 @路由.post("/startProgram/4PTest", summary="启动4P测试程序")
 async def start_program_4p_test(payload: 开始程序参数请求模型):
     """启动后台任务执行4P测试程序。"""
-    async def _run_program_4p_test() -> None:
-        try:
-            await ProgramService4p.执行程序4P(配方数据=payload.recipe_payload,实体数据=payload.entities)
-        except Exception:
-            日志.exception("startProgram/4PTest 后台任务异常")
-    asyncio.ensure_future(_run_program_4p_test())
+    try:
+        await ProgramService4p().执行程序4P(配方数据=payload.recipe_payload,实体数据=payload.entities)
+    except Exception:
+        日志.exception("startProgram/4PTest 后台任务异常")
     return ApiResponse(success=True, message="4P测试程序已启动")
 
 # ==================================================================

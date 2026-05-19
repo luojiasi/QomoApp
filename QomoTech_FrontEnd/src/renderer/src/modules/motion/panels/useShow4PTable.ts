@@ -127,15 +127,8 @@ export function useShow4PTable() {
     dialogVisible.value = false
   }
 
-  function buildPayload(
-    currentRunRecipePayload: Record<string, unknown>,
-    entities: SurfaceEntity<EditorEntity>[]
-  ): Record<string, unknown> {
-    const offsetEditorEntities = 根据当前轴位置计算实体偏移(
-      entities,
-      tablePosition.value.x,
-      tablePosition.value.y
-    )
+  function buildPayload(currentRunRecipePayload: Record<string, unknown>,entities: SurfaceEntity<EditorEntity>[]): Record<string, unknown> {
+    const offsetEditorEntities = 根据当前轴位置计算实体偏移(entities,tablePosition.value.x,tablePosition.value.y)
     return {
       recipe_payload: currentRunRecipePayload,
       entities: offsetEditorEntities,
