@@ -69,17 +69,21 @@ class 开始程序控制请求模型(BaseModel):
 
 #     return ApiResponse(success=True, message="程序已启动", data={"task_count": len(tasks)})
 
-
 @路由.post("/startProgram", summary="启动程序")
 async def start_program(payload: 开始程序参数请求模型):
     """接收配方 + 实体，启动后台任务执行程序。"""
-    if payload.recipe_payload is None or payload.entities is None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="startProgram 入参缺少 recipe_payload 或 entities",)
-    tasks = OffsetEndpointCalculator.calc_xy_points(payload.entities, 0)
+    tasks = OffsetEndpointCalculator.计算当前任务数量(payload.entities)
     if not tasks:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="没有可执行的任务，请检查实体几何",)
-    return ApiResponse(success=True, message="程序已启动", data={"task_count": len(tasks)})
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="没有可执行的任务，请检查实体几何")
 
+
+    # async def _run_program() -> None:
+    #     try:
+    #         await _svc().执行程序(配方数据=payload.recipe_payload,实体数据=payload.entities,)
+    #     except Exception:
+    #         日志.exception("startProgram 后台任务异常")
+    # asyncio.ensure_future(_run_program())
+    return ApiResponse(success=True, message="程序已启动", data={"task_count": len(payload.entities)})
 # ==================================================================
 # 2. 程序状态
 # ==================================================================

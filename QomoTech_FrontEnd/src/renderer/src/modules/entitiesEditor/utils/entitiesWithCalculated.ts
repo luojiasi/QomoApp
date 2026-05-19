@@ -1,11 +1,10 @@
 // 通过一些计算然后给到runner
 
 import { useEditorStore } from '../stores/editorStore'
+import { sortLinesAndAttachNodeForExport } from './entityNodes'
+import type { SurfaceEntity, EditorEntity } from '../commons/types'
 
-const deepClone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T
-
-export function exportEntitiesWithCalculated() {
+export function exportEntitiesWithCalculated(): SurfaceEntity<EditorEntity>[] {
     const editorStore = useEditorStore()
-    const entities = deepClone(editorStore.entities)
-    return entities
+    return sortLinesAndAttachNodeForExport(editorStore.entities) as SurfaceEntity<EditorEntity>[]
 }

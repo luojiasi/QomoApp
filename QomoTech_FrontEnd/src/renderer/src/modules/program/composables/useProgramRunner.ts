@@ -245,7 +245,7 @@ export function useProgramRunner() {
         entities: offsetEditorEntities
       }
 
-      const result = await startProgram(payload)
+      const result = await startProgram(editorPayload)
       if (!result?.success) {
         error(result?.message || '运行失败：后端为提供失败参数。')
         return

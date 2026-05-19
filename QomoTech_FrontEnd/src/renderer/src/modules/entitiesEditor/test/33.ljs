@@ -1,0 +1,163 @@
+{
+  "format": "QOMO5P-Project",
+  "version": "1.0.0",
+  "savedAt": "2026-05-19T06:05:17.261Z",
+  "data": {
+    "meta": {
+      "version": "1.0.0",
+      "name": "风筝",
+      "createdAt": "2026-05-16T08:58:12.271Z",
+      "updatedAt": "2026-05-19T06:05:13.590Z",
+      "sourceFileName": "风筝.dxf",
+      "entityCount": 5,
+      "unsupportedCount": 0
+    },
+    "layers": [
+      {
+        "id": "0",
+        "name": "默认",
+        "visible": true,
+        "locked": false,
+        "entityCount": 5
+      },
+      {
+        "id": "dxf-layer_7u9kjn_5",
+        "name": "0",
+        "visible": true,
+        "locked": false,
+        "entityCount": 0
+      }
+    ],
+    "entities": [
+      {
+        "kind": "LINE",
+        "start": {
+          "X": 4,
+          "Y": 22
+        },
+        "end": {
+          "X": 2,
+          "Y": 12
+        },
+        "id": "ent_5z03eb_18",
+        "layerId": "0",
+        "openSide": "LEFT",
+        "height": 5,
+        "openSize": 1,
+        "tiltAngleDeg": 0,
+        "node": {
+          "start": null,
+          "end": {
+            "id": "ent_w1ydu9_19",
+            "endpoint": "start"
+          }
+        }
+      },
+      {
+        "kind": "LINE",
+        "start": {
+          "X": 2,
+          "Y": 12
+        },
+        "end": {
+          "X": 14,
+          "Y": 12
+        },
+        "id": "ent_w1ydu9_19",
+        "layerId": "0",
+        "openSide": "LEFT",
+        "height": 5,
+        "openSize": 1,
+        "tiltAngleDeg": 0,
+        "node": {
+          "start": {
+            "id": "ent_5z03eb_18",
+            "endpoint": "end"
+          },
+          "end": {
+            "id": "ent_lm8hxe_20",
+            "endpoint": "start"
+          }
+        }
+      },
+      {
+        "kind": "LINE",
+        "start": {
+          "X": 14,
+          "Y": 12
+        },
+        "end": {
+          "X": 10,
+          "Y": 4
+        },
+        "id": "ent_lm8hxe_20",
+        "layerId": "0",
+        "openSide": "LEFT",
+        "height": 5,
+        "openSize": 1,
+        "tiltAngleDeg": 0,
+        "node": {
+          "start": {
+            "id": "ent_w1ydu9_19",
+            "endpoint": "end"
+          },
+          "end": {
+            "id": "ent_cvx064_21",
+            "endpoint": "start"
+          }
+        }
+      },
+      {
+        "kind": "LINE",
+        "start": {
+          "X": 10,
+          "Y": 4
+        },
+        "end": {
+          "X": 20,
+          "Y": 12
+        },
+        "id": "ent_cvx064_21",
+        "layerId": "0",
+        "openSide": "LEFT",
+        "height": 5,
+        "openSize": 1,
+        "tiltAngleDeg": 0,
+        "node": {
+          "start": {
+            "id": "ent_lm8hxe_20",
+            "endpoint": "end"
+          },
+          "end": {
+            "id": "ent_yzfg34_22",
+            "endpoint": "start"
+          }
+        }
+      },
+      {
+        "kind": "LINE",
+        "start": {
+          "X": 20,
+          "Y": 12
+        },
+        "end": {
+          "X": 14,
+          "Y": 22
+        },
+        "id": "ent_yzfg34_22",
+        "layerId": "0",
+        "openSide": "LEFT",
+        "height": 5,
+        "openSize": 1,
+        "tiltAngleDeg": 0,
+        "node": {
+          "start": {
+            "id": "ent_cvx064_21",
+            "endpoint": "end"
+          },
+          "end": null
+        }
+      }
+    ]
+  }
+}

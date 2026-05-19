@@ -8,7 +8,8 @@
       "WebFetch(domain:m.ilovezuan.com)",
       "WebFetch(domain:wapbaike.baidu.com)",
       "WebFetch(domain:baike.baidu.com)",
-      "PowerShell(Get-ChildItem -Directory | Where-Object { $_.Name -notin @\\('node_modules', '.git', '__pycache__'\\) } | ForEach-Object { $_.Name })"
+      "PowerShell(Get-ChildItem -Directory | Where-Object { $_.Name -notin @\\('node_modules', '.git', '__pycache__'\\) } | ForEach-Object { $_.Name })",
+      "Bash(Get-ChildItem -Path \"D:\\\\Qomo\\\\QomoTech\\\\QomoTech_FrontEnd\\\\src\\\\renderer\\\\src\\\\modules\\\\editor\" -Recurse -File)"
     ]
   }
 }
