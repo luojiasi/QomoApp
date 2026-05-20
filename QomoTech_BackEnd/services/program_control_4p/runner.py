@@ -1,7 +1,7 @@
 import math
 from typing import Any
 
-from services import MotionService
+from services.MotionService import MotionService
 from services.program_control_4p.geometry import 计算钻石几何参数, 提取坐标
 
 
@@ -22,22 +22,38 @@ def _径向投影(钻石中心点x坐标: float, 钻石中心点y坐标: float, 
 # 切割步骤
 # ======================================================================
 
-async def _切台面(实体序号: int, 实体总数: int, 中心: tuple[float, float], 台面半径: float, 台面位置: dict[str, Any]) -> None:
-    """步骤1：U轴→90°，直线切割台面。"""
-    钻石中心点x坐标, 钻石中心点y坐标 = 中心
+async def _切台面(运动服务: MotionService, 台面配方数据: dict[str, Any], 实体序号: int, 实体总数: int, 台面位置: dict[str, Any],中心: tuple[float, float],长度:float,宽度:float) -> None:
+    """步骤1：U轴→90°，通过 PragramService 直线切割台面。"""
     台面位置X = 台面位置.get("x", 0)
     台面位置Y = 台面位置.get("y", 0)
     台面位置Z = 台面位置.get("z", 0)
     print(f"[4P] ── 1. 切割台面 (钻石 {实体序号}/{实体总数}) ──")
     print(f"    台面位置: ({台面位置X:.3f}, {台面位置Y:.3f}, {台面位置Z:.3f})")
-    print(f"    台面半径: {台面半径:.3f} mm")
     print(f"    U轴 → 90°")
-    # 先调用MotionService的U轴旋转角度
-    await MotionService.获取实例().U轴旋转角度(90)
-    print(f"    直线切割: ({钻石中心点x坐标 - 台面半径:.3f}, {钻石中心点y坐标:.3f}) → ({钻石中心点x坐标 + 台面半径:.3f}, {钻石中心点y坐标:.3f})")
+    await 运动服务.U轴旋转角度(90)
+    # 构造旧格式 LINE 实体（小写 x/y，type 非 kind）
+    起点Y = 台面位置Y - 长度/2
+    终点Y = 台面位置Y + 长度/2
+    台面实体 = {
+        "type": "LINE",
+        "start": {"x": 台面位置X, "y": 起点Y},
+        "end": {"x": 台面位置X, "y": 终点Y},
+        "surfaceAngle": 0,
+        "openDirection": "RIGHT",
+    }
+    print(f"    直线切割: ({台面位置X:.3f}, {起点Y:.3f}) → ({台面位置X:.3f}, {终点Y:.3f})")
+
+    from services.PragramService import PragramService
+    # 台面配方数据["extraHeight"] = 宽度
+    台面配方数据["extraHeight"] = 0.5
+    result = await PragramService.获取实例().执行程序(配方数据=台面配方数据, 实体数据=[台面实体])
+    print(f"    台面切割结果: {result}")
+
+    # U轴归位
+    await 运动服务.U轴旋转角度(0)
 
 
-async def _切腰棱_R轴(实体序号: int, 实体总数: int, 中心: tuple[float, float], 钻石半径: float) -> None:
+async def _切腰棱_R轴(运动服务: MotionService, 实体序号: int, 实体总数: int, 中心: tuple[float, float], 钻石半径: float) -> None:
     """步骤2-ROUND：R轴旋转切圆形腰棱。"""
     钻石中心点x坐标, 钻石中心点y坐标 = 中心
     print(f"[4P] ── 2. 切割腰棱(圆形) (钻石 {实体序号}/{实体总数}) ──")
@@ -45,7 +61,7 @@ async def _切腰棱_R轴(实体序号: int, 实体总数: int, 中心: tuple[fl
     print(f"    圆心: ({钻石中心点x坐标:.3f}, {钻石中心点y坐标:.3f}), 半径: {钻石半径:.3f} mm")
 
 
-async def _切腰棱_异形(实体序号: int, 实体总数: int, 中心: tuple[float, float], 异形钻石路径: list[dict[str, Any]]) -> None:
+async def _切腰棱_异形(运动服务: MotionService, 实体序号: int, 实体总数: int, 中心: tuple[float, float], 异形钻石路径: list[dict[str, Any]]) -> None:
     """步骤2-异形：沿 异形钻石路径 逐段切割腰棱。"""
     钻石中心点x坐标, 钻石中心点y坐标 = 中心
     print(f"[4P] ── 2. 切割腰棱(异形) (钻石 {实体序号}/{实体总数}) ──")
@@ -69,7 +85,7 @@ async def _切腰棱_异形(实体序号: int, 实体总数: int, 中心: tuple[
             print(f"    段{seg_idx + 1} [{kind}]: 未知类型，跳过")
 
 
-async def _切冠角_R轴(实体序号: int, 实体总数: int, 中心: tuple[float, float], 台面半径: float, 钻石半径: float, 冠角: float) -> None:
+async def _切冠角_R轴(运动服务: MotionService, 实体序号: int, 实体总数: int, 中心: tuple[float, float], 台面半径: float, 钻石半径: float, 冠角: float) -> None:
     """步骤3-ROUND：U轴→冠角°，R轴旋转从台面边缘切到腰棱。"""
     钻石中心点x坐标, 钻石中心点y坐标 = 中心
     print(f"[4P] ── 3. 切割冠角(圆形) (钻石 {实体序号}/{实体总数}) ──")
@@ -78,7 +94,7 @@ async def _切冠角_R轴(实体序号: int, 实体总数: int, 中心: tuple[fl
     print(f"    R轴旋转: 台面边缘(r={台面半径:.3f}) → 腰棱(r={钻石半径:.3f})")
 
 
-async def _切冠角_异形(实体序号: int, 实体总数: int, 中心: tuple[float, float], 异形钻石路径: list[dict[str, Any]], 台面半径: float, 冠角: float) -> None:
+async def _切冠角_异形(运动服务: MotionService, 实体序号: int, 实体总数: int, 中心: tuple[float, float], 异形钻石路径: list[dict[str, Any]], 台面半径: float, 冠角: float) -> None:
     """步骤3-异形：U轴→冠角°，沿 contours 逐段切割冠面（径向投影到台面边缘）。"""
     钻石中心点x坐标, 钻石中心点y坐标 = 中心
     print(f"[4P] ── 3. 切割冠角(异形) (钻石 {实体序号}/{实体总数}) ──")
@@ -111,7 +127,7 @@ async def _切冠角_异形(实体序号: int, 实体总数: int, 中心: tuple[
             print(f"    段{seg_idx + 1} [{kind}]: 未知类型，跳过")
 
 
-async def _切亭角_R轴(实体序号: int, 实体总数: int, 中心: tuple[float, float], 钻石半径: float, 亭角: float) -> None:
+async def _切亭角_R轴(运动服务: MotionService, 实体序号: int, 实体总数: int, 中心: tuple[float, float], 钻石半径: float, 亭角: float) -> None:
     """步骤4-ROUND：U轴→亭角°，R轴旋转从腰棱切到底尖。"""
     钻石中心点x坐标, 钻石中心点y坐标 = 中心
     print(f"[4P] ── 4. 切割亭角(圆形) (钻石 {实体序号}/{实体总数}) ──")
@@ -120,7 +136,7 @@ async def _切亭角_R轴(实体序号: int, 实体总数: int, 中心: tuple[fl
     print(f"    R轴旋转: 腰棱(r={钻石半径:.3f}) → 底尖({钻石中心点x坐标:.3f}, {钻石中心点y坐标:.3f})")
 
 
-async def _切亭角_异形(实体序号: int, 实体总数: int, 中心: tuple[float, float], 异形钻石路径: list[dict[str, Any]], 亭角: float) -> None:
+async def _切亭角_异形(运动服务: MotionService, 实体序号: int, 实体总数: int, 中心: tuple[float, float], 异形钻石路径: list[dict[str, Any]], 亭角: float) -> None:
     """步骤4-异形：U轴→亭角°，沿 异形钻石路径 逐段切割亭面到底尖。"""
     钻石中心点x坐标, 钻石中心点y坐标 = 中心
     print(f"[4P] ── 4. 切割亭角(异形) (钻石 {实体序号}/{实体总数}) ──")
@@ -153,7 +169,7 @@ async def _切亭角_异形(实体序号: int, 实体总数: int, 中心: tuple[
 class ProgramRunner4p:
 
     def __init__(self) -> None:
-        pass
+        self._运动 = MotionService.获取实例()
 
     async def 执行4P程序(self,*,配方数据: dict[str, Any],实体数据: list[dict[str, Any]],) -> dict[str, Any]:
         实体总数 = len(实体数据)
@@ -185,25 +201,26 @@ class ProgramRunner4p:
             print(f"    角度: 冠角={钻石几何参数['冠角']:.1f}° 亭角={钻石几何参数['亭角']:.1f}°")
 
             # ── 1. 切割台面 ──
-            await _切台面(当前切割序号, 实体总数, (钻石中心点x坐标, 钻石中心点y坐标), 钻石几何参数["台面半径"], 台面位置)
+            await _切台面(self._运动, 配方数据, 当前切割序号, 实体总数, 台面位置, (钻石中心点x坐标, 钻石中心点y坐标),钻石参数.get('L'),钻石参数.get('W'))
+
 
             # ── 2. 切割腰棱 ──
             if 是否是圆钻 or 异形钻石路径 is None:
-                await _切腰棱_R轴(当前切割序号, 实体总数, (钻石中心点x坐标, 钻石中心点y坐标), 钻石半径)
+                await _切腰棱_R轴(self._运动, 当前切割序号, 实体总数, (钻石中心点x坐标, 钻石中心点y坐标), 钻石半径)
             else:
-                await _切腰棱_异形(当前切割序号, 实体总数, (钻石中心点x坐标, 钻石中心点y坐标), 异形钻石路径)
+                await _切腰棱_异形(self._运动, 当前切割序号, 实体总数, (钻石中心点x坐标, 钻石中心点y坐标), 异形钻石路径)
 
             # ── 3. 切割冠角 ──
             if 是否是圆钻 or 异形钻石路径 is None:
-                await _切冠角_R轴(当前切割序号, 实体总数, (钻石中心点x坐标, 钻石中心点y坐标), 钻石几何参数["台面半径"], 钻石半径, 钻石几何参数["冠角"])
+                await _切冠角_R轴(self._运动, 当前切割序号, 实体总数, (钻石中心点x坐标, 钻石中心点y坐标), 钻石几何参数["台面半径"], 钻石半径, 钻石几何参数["冠角"])
             else:
-                await _切冠角_异形(当前切割序号, 实体总数, (钻石中心点x坐标, 钻石中心点y坐标), 异形钻石路径, 钻石几何参数["台面半径"], 钻石几何参数["冠角"])
+                await _切冠角_异形(self._运动, 当前切割序号, 实体总数, (钻石中心点x坐标, 钻石中心点y坐标), 异形钻石路径, 钻石几何参数["台面半径"], 钻石几何参数["冠角"])
 
             # ── 4. 切割亭角 ──
             if 是否是圆钻 or 异形钻石路径 is None:
-                await _切亭角_R轴(当前切割序号, 实体总数, (钻石中心点x坐标, 钻石中心点y坐标), 钻石半径, 钻石几何参数["亭角"])
+                await _切亭角_R轴(self._运动, 当前切割序号, 实体总数, (钻石中心点x坐标, 钻石中心点y坐标), 钻石半径, 钻石几何参数["亭角"])
             else:
-                await _切亭角_异形(当前切割序号, 实体总数, (钻石中心点x坐标, 钻石中心点y坐标), 异形钻石路径, 钻石几何参数["亭角"])
+                await _切亭角_异形(self._运动, 当前切割序号, 实体总数, (钻石中心点x坐标, 钻石中心点y坐标), 异形钻石路径, 钻石几何参数["亭角"])
 
         print(f"\n[4P] ====== 全部完成，共处理 {实体总数} 颗钻石 ======")
         return {"success": True, "task_count": 实体总数}

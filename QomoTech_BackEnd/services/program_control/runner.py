@@ -317,7 +317,7 @@ class ProgramRunner(ProgramContext):
             深度补偿K=深度补偿K, 深度补偿B=深度补偿B, 正切角度=tana,
         )
 
-        当前步骤 = ProgramStep.CHECK_CONNECTION
+        当前步骤 = ProgramStep.检查控制器是否连接
         是否需要跳转计算下一层开口 = False
         进度百分比 = 0
         上层量 = 0
@@ -354,95 +354,95 @@ class ProgramRunner(ProgramContext):
         上一轮是否需要闭合 = 判断当前图形是否闭合(原始点数据_插补数据)
 
         # ---- 状态机主循环 ----
-        while 当前步骤 <= ProgramStep.CLEANUP:
+        while 当前步骤 < ProgramStep.终止任务:
             if self._是否跳过请求:
                 return await self._运动原语.跳过任务并回Z轴(z轴目标=首次目标Z轴位置, 速度=切割速度)
             if self._是否急停请求:
-                当前步骤 = ProgramStep.CLEANUP
+                当前步骤 = ProgramStep.清理所有状态
 
             match 当前步骤:
-                case ProgramStep.CHECK_CONNECTION:
+                case ProgramStep.检查控制器是否连接:
                     是否连上 = self._运动.适配器.已连接 if self._运动.适配器 else False
                     if 是否连上:
-                        await self._运动原语.开启红光()
-                        当前步骤 = ProgramStep.MOVE_TO_START
+                        await self._运动原语.开启吹风()
+                        当前步骤 = ProgramStep.移动到起点
                     else:
-                        当前步骤 = ProgramStep.CLEANUP
+                        当前步骤 = ProgramStep.清理所有状态
 
-                case ProgramStep.MOVE_TO_START:
+                case ProgramStep.移动到起点:
                     起始点X = 当前没有偏移的点位[0].get('x')
                     起始点Y = 当前没有偏移的点位[0].get('y')
                     当前没有偏移的点位 = [{'x': 起始点X, 'y': 起始点Y}]
                     try:
                         await self._运动.绝对运动并设速度("X", 起始点X, 切割速度)
                         await self._运动.绝对运动并设速度("Y", 起始点Y, 切割速度)
-                        当前步骤 = ProgramStep.WAIT_XY_IDLE
+                        当前步骤 = ProgramStep.等待XY轴到位_20
                     except Exception:
-                        当前步骤 = ProgramStep.CLEANUP
+                        当前步骤 = ProgramStep.清理所有状态
 
-                case ProgramStep.WAIT_XY_IDLE:
+                case ProgramStep.等待XY轴到位_20:
                     结果 = await self._运动原语.安全拉取xy轴是否空闲()
                     if 结果.get("skip"):
                         return await self._运动原语.跳过任务并回Z轴(z轴目标=首次目标Z轴位置, 速度=切割速度)
                     if 结果.get("abort"):
                         return "abort"
                     if 结果.get("success"):
-                        当前步骤 = ProgramStep.SELECT_LASER_MODE
+                        当前步骤 = ProgramStep.选择激光模式
                     else:
                         return False
 
-                case ProgramStep.SELECT_LASER_MODE:
+                case ProgramStep.选择激光模式:
                     if 是否打开扫黑功能:
-                        当前步骤 = ProgramStep.SEND_BLACKENING_LASER
+                        当前步骤 = ProgramStep.发送扫黑激光参数
                         累计下降量 -= 扫黑上台的高度
                     else:
-                        当前步骤 = ProgramStep.SEND_WORK_LASER
+                        当前步骤 = ProgramStep.发送工作激光参数
 
-                case ProgramStep.SEND_BLACKENING_LASER:
+                case ProgramStep.发送扫黑激光参数:
                     厂家 = self._获取激光厂家()
                     if 厂家 == "KMJGQ_MM":
                         await self._串口.mm激光器操作(True)
                     else:
                         await self._串口.发送激光数据(str(扫黑功率), str(扫黑频率), str(扫黑电流), 厂家=厂家)
-                    当前步骤 = ProgramStep.ENABLE_LASER_OUTPUT
+                    当前步骤 = ProgramStep.打开激光输出
 
-                case ProgramStep.SEND_WORK_LASER:
+                case ProgramStep.发送工作激光参数:
                     厂家 = self._获取激光厂家()
                     if 厂家 == "KMJGQ_MM":
                         await self._串口.mm激光器操作(True)
                     else:
                         await self._串口.发送激光数据(str(工作功率), str(工作频率), str(工作电流), 厂家=厂家)
-                    当前步骤 = ProgramStep.ENABLE_LASER_OUTPUT
+                    当前步骤 = ProgramStep.打开激光输出
 
-                case ProgramStep.ENABLE_LASER_OUTPUT:
+                case ProgramStep.打开激光输出:
                     if not 是否打开激光:
                         await self._运动原语.开启激光输出()
                         是否打开激光 = True
-                    当前步骤 = ProgramStep.CHECK_DESCENT_LIMIT
+                    当前步骤 = ProgramStep.检查是否到达下降深度
 
-                case ProgramStep.CHECK_DESCENT_LIMIT:
-                    当前步骤 = ProgramStep.DESCEND_Z if 累计下降量 <= 总下降量 else ProgramStep.CLEANUP
+                case ProgramStep.检查是否到达下降深度:
+                    当前步骤 = ProgramStep.下降Z轴到达指定位置 if 累计下降量 <= 总下降量 else ProgramStep.清理所有状态
 
-                case ProgramStep.DESCEND_Z:
+                case ProgramStep.下降Z轴到达指定位置:
                     目标高度 = -累计下降量 + 当前Z轴的位置
                     try:
                         await self._运动.绝对运动并设速度("Z", 目标高度, 切割速度)
-                        当前步骤 = ProgramStep.WAIT_Z_IDLE
+                        当前步骤 = ProgramStep.等待下降Z轴到位
                     except Exception:
-                        当前步骤 = ProgramStep.CLEANUP
+                        当前步骤 = ProgramStep.清理所有状态
 
-                case ProgramStep.WAIT_Z_IDLE:
+                case ProgramStep.等待下降Z轴到位:
                     结果 = await self._运动原语.安全拉取是否空闲(轴号=2)
                     if 结果.get("skip"):
                         return await self._运动原语.跳过任务并回Z轴(z轴目标=首次目标Z轴位置, 速度=切割速度)
                     if 结果.get("abort"):
                         return "abort"
                     if 结果.get("success"):
-                        当前步骤 = ProgramStep.EXECUTE_XY_INTERPOLATION
+                        当前步骤 = ProgramStep.XY轴连续插补开始
                     else:
                         return False
 
-                case ProgramStep.EXECUTE_XY_INTERPOLATION:
+                case ProgramStep.XY轴连续插补开始:
                     点位合集 = OffsetEndpointCalculator.calc_xy_points(实体数据, 当前开口值)
                     当前运行点位: list[dict[str, Any]] = list(点位合集[原始任务序号])
                     是否闭合 = 判断当前图形是否闭合(当前运行点位)
@@ -456,34 +456,34 @@ class ProgramRunner(ProgramContext):
 
                     try:
                         await self._运动.连续插补XY(路径点=原始点数据_插补数据, 速度=目标运行速度)
-                        当前步骤 = ProgramStep.CHECK_REPEAT_CUT
+                        当前步骤 = ProgramStep.切割次数
                     except Exception:
-                        当前步骤 = ProgramStep.CLEANUP
+                        当前步骤 = ProgramStep.清理所有状态
 
-                case ProgramStep.CHECK_REPEAT_CUT:
+                case ProgramStep.切割次数:
                     if 是否在边缘位置 and (当前切割次数 + 1) < 边缘切割次数:
                         当前切割次数 += 1
                         if not 上一轮是否需要闭合:
                             是否需要反转 = not 是否需要反转
-                        当前步骤 = ProgramStep.EXECUTE_XY_INTERPOLATION
+                        当前步骤 = ProgramStep.XY轴连续插补开始
                     else:
                         当前切割次数 = 0
                         if 是否需要跳转计算下一层开口 and not 上一轮是否需要闭合:
                             是否需要反转 = not 是否需要反转
-                        当前步骤 = ProgramStep.WAIT_XY_IDLE_POST_CUT if not 是否需要跳转计算下一层开口 else ProgramStep.CALCULATE_NEXT_LAYER
+                        当前步骤 = ProgramStep.等待XY轴POST插入 if not 是否需要跳转计算下一层开口 else ProgramStep.计算下一层开口
 
-                case ProgramStep.WAIT_XY_IDLE_POST_CUT:
+                case ProgramStep.等待XY轴POST插入:
                     结果 = await self._运动原语.安全拉取xy轴是否空闲(休眠秒=0.01)
                     if 结果.get("skip"):
                         return await self._运动原语.跳过任务并回Z轴(z轴目标=首次目标Z轴位置, 速度=切割速度)
                     if 结果.get("abort"):
                         return "abort"
                     if 结果.get("success"):
-                        当前步骤 = ProgramStep.UPDATE_OPENING_OFFSET if not 是否需要跳转计算下一层开口 else ProgramStep.CALCULATE_NEXT_LAYER
+                        当前步骤 = ProgramStep.更新开口偏移值 if not 是否需要跳转计算下一层开口 else ProgramStep.计算下一层开口
                     else:
                         return False
 
-                case ProgramStep.UPDATE_OPENING_OFFSET:
+                case ProgramStep.更新开口偏移值:
                     当前开口值 = 当前开口值 + 每次开口的偏移量 if 是否是从小到大的开口偏移 else 当前开口值 - 每次开口的偏移量
                     当前开口值是否在范围内 = (
                         round(当前开口值, 6) > round(最小的偏移 / 1000, 6)
@@ -503,9 +503,9 @@ class ProgramRunner(ProgramContext):
                         是否需要跳转计算下一层开口 = True
                     if not 上一轮是否需要闭合:
                         是否需要反转 = not 是否需要反转
-                    当前步骤 = ProgramStep.EXECUTE_XY_INTERPOLATION
+                    当前步骤 = ProgramStep.XY轴连续插补开始
 
-                case ProgramStep.CALCULATE_NEXT_LAYER:
+                case ProgramStep.计算下一层开口:
                     进度百分比 = (
                         累计下降量 / 高度 * 100
                         if not 是否打开扫黑功能
@@ -538,44 +538,46 @@ class ProgramRunner(ProgramContext):
 
                     self.更新进度(current_task_jindubaifenbi=进度百分比)
                     是否需要跳转计算下一层开口 = False
-                    当前步骤 = ProgramStep.SELECT_LASER_MODE if not 是否打开扫黑功能 and not 是否打开激光 else ProgramStep.CHECK_DESCENT_LIMIT
+                    当前步骤 = ProgramStep.选择激光模式 if not 是否打开扫黑功能 and not 是否打开激光 else ProgramStep.检查是否到达下降深度
 
                 case ProgramStep.STEP_110:
                     当前步骤 = ProgramStep.STEP_150
 
                 case ProgramStep.STEP_150:
-                    当前步骤 = ProgramStep.CLEANUP
+                    当前步骤 = ProgramStep.清理所有状态
 
-                case ProgramStep.CLEANUP:
+                case ProgramStep.清理所有状态:
                     返回最原始的Z轴焦距位置 = 当前Z轴的位置 - float(焦距补偿)
                     try:
                         await self._运动.绝对运动并设速度("Z", 返回最原始的Z轴焦距位置, 切割速度)
-                        当前步骤 = ProgramStep.WAIT_Z_RETURN
+                        当前步骤 = ProgramStep.等待Z轴回指定位置
                     except Exception:
                         pass
 
-                case ProgramStep.WAIT_Z_RETURN:
+                case ProgramStep.等待Z轴回指定位置:
                     跳转计数 = 0
                     目标位置 = 当前Z轴的位置 - float(焦距补偿)
                     while 跳转计数 < 2000:
                         try:
                             实际位置 = await self._运动.取_z_实际位置()
                             if abs(实际位置 - 目标位置) <= 0.001:
-                                当前步骤 = ProgramStep.DONE
+                                当前步骤 = ProgramStep.结束程序运行
                                 break
                         except Exception:
-                            日志.exception("WAIT_Z_RETURN 轮询 Z 轴位置异常")
+                            日志.exception("等待Z轴回指定位置 轮询 Z 轴位置异常")
                         跳转计数 += 1
                         await asyncio.sleep(0.02)
                     else:
                         return False
 
-                case ProgramStep.DONE:
+                case ProgramStep.结束程序运行:
                     await self._运动.停止运动()
                     await self._运动原语.关闭红光()
-                    await self._运动原语.关闭激光输出()
-                    await self._串口.mm激光器操作(False)
-                    当前步骤 = ProgramStep.TERMINAL
+                    if self._获取激光厂家() == "KMJGQ_MM":
+                        await self._串口.mm激光器操作(False)
+                    else:
+                        await self._运动原语.关闭激光输出()
+                    当前步骤 = ProgramStep.终止任务
 
         return True
 
@@ -622,14 +624,11 @@ class ProgramRunner(ProgramContext):
         高度 = 总下降量 = float(配方数据.get('extraHeight', 0))
         角度 = 角度K * 高度 + 角度B
         tan角度 = math.tan(math.radians(角度))
-        下开口值, 上开口值 = 计算开口范围(
-            高度=高度, 下开口K=下开口K, 下开口B=下开口B,
-            深度补偿K=深度补偿K, 深度补偿B=深度补偿B, 正切角度=tan角度,
-        )
+        下开口值, 上开口值 = 计算开口范围(高度=高度, 下开口K=下开口K, 下开口B=下开口B,深度补偿K=深度补偿K, 深度补偿B=深度补偿B, 正切角度=tan角度,)
         最小的偏移 = 0
         最大的偏移 = 上开口值
 
-        当前步骤 = ProgramStep.CHECK_CONNECTION
+        当前步骤 = ProgramStep.检查控制器是否连接
         是否需要跳转计算下一层开口 = False
         进度百分比 = 0
         上层量 = 0
@@ -652,91 +651,91 @@ class ProgramRunner(ProgramContext):
         当前Z轴的位置 = await self._运动.取_z_实际位置() + float(焦距补偿)
         首次目标Z轴位置 = float(当前Z轴的位置) - float(焦距补偿)
 
-        R轴的圈数 = 0
+        R轴的圈数 = 1
 
-        while 当前步骤 <= ProgramStep.CLEANUP:
+        while 当前步骤 <= ProgramStep.结束程序运行:
             match 当前步骤:
-                case ProgramStep.CHECK_CONNECTION:
+                case ProgramStep.检查控制器是否连接:
                     是否连上 = self._运动.适配器.已连接 if self._运动.适配器 else False
                     if 是否连上:
-                        await self._运动原语.开启红光()
-                        当前步骤 = ProgramStep.MOVE_TO_START
+                        await self._运动原语.开启吹风()
+                        当前步骤 = ProgramStep.移动到起点
                     else:
-                        当前步骤 = ProgramStep.CLEANUP
+                        当前步骤 = ProgramStep.清理所有状态
 
-                case ProgramStep.MOVE_TO_START:
+                case ProgramStep.移动到起点:
                     圆中心点X = 实体列表[当前任务索引].get('center').get('x') + 实体列表[当前任务索引].get('radius')
                     圆中心点Y = 实体列表[当前任务索引].get('center').get('y')
                     try:
                         await self._运动.绝对运动并设速度("X", 圆中心点X, 10)
                         await self._运动.绝对运动并设速度("Y", 圆中心点Y, 10)
-                        当前步骤 = ProgramStep.WAIT_XY_IDLE
+                        当前步骤 = ProgramStep.等待XY轴到位_20
                     except Exception:
-                        当前步骤 = ProgramStep.CLEANUP
+                        当前步骤 = ProgramStep.清理所有状态
 
-                case ProgramStep.WAIT_XY_IDLE:
+                case ProgramStep.等待XY轴到位_20:
                     结果 = await self._运动原语.安全拉取xy轴是否空闲()
                     if 结果.get("skip"):
                         return await self._运动原语.跳过任务并回Z轴(z轴目标=首次目标Z轴位置, 速度=切割速度)
                     if 结果.get("abort"):
                         return "abort"
                     if 结果.get("success"):
-                        当前步骤 = ProgramStep.SELECT_LASER_MODE
+                        当前步骤 = ProgramStep.选择激光模式
                     else:
                         return False
 
-                case ProgramStep.SELECT_LASER_MODE:
+                case ProgramStep.选择激光模式:
                     if 是否打开扫黑功能:
-                        当前步骤 = ProgramStep.SEND_BLACKENING_LASER
+                        当前步骤 = ProgramStep.发送扫黑激光参数
                         累计下降量 -= 扫黑上台的高度
                     else:
-                        当前步骤 = ProgramStep.SEND_WORK_LASER
+                        当前步骤 = ProgramStep.发送工作激光参数
 
-                case ProgramStep.SEND_BLACKENING_LASER:
+                case ProgramStep.发送扫黑激光参数:
                     await self._串口.发送激光数据(str(扫黑功率), str(扫黑频率), str(扫黑电流), 厂家=self._获取激光厂家())
-                    当前步骤 = ProgramStep.ENABLE_LASER_OUTPUT
+                    当前步骤 = ProgramStep.打开激光输出
 
-                case ProgramStep.SEND_WORK_LASER:
+                case ProgramStep.发送工作激光参数:
                     await self._串口.发送激光数据(str(工作功率), str(工作频率), str(工作电流), 厂家=self._获取激光厂家())
-                    当前步骤 = ProgramStep.ENABLE_LASER_OUTPUT
+                    当前步骤 = ProgramStep.打开激光输出
 
-                case ProgramStep.ENABLE_LASER_OUTPUT:
+                case ProgramStep.打开激光输出:
                     if not 是否打开激光:
                         await self._运动原语.开启激光输出()
                         是否打开激光 = True
-                    当前步骤 = ProgramStep.START_R_AXIS_ROTATION
+                    当前步骤 = ProgramStep.打开R轴旋转
 
-                case ProgramStep.START_R_AXIS_ROTATION:
+                case ProgramStep.打开R轴旋转:
                     R轴旋转结果 = await self._运动.R轴一直进行旋转()
-                    当前步骤 = ProgramStep.CHECK_DESCENT_LIMIT if R轴旋转结果.get('success') else ProgramStep.CLEANUP
+                    当前步骤 = ProgramStep.检查是否到达下降深度 if R轴旋转结果.get('success') else ProgramStep.清理所有状态
 
-                case ProgramStep.CHECK_DESCENT_LIMIT:
-                    当前步骤 = ProgramStep.DESCEND_Z if 累计下降量 <= 总下降量 else ProgramStep.CLEANUP
+                case ProgramStep.检查是否到达下降深度:
+                    当前步骤 = ProgramStep.下降Z轴到达指定位置 if 累计下降量 <= 总下降量 else ProgramStep.清理所有状态
 
-                case ProgramStep.DESCEND_Z:
+                case ProgramStep.下降Z轴到达指定位置:
                     Z轴目标位置 = -累计下降量 + 当前Z轴的位置
                     try:
                         await self._运动.绝对运动并设速度("Z", Z轴目标位置, 切割速度)
-                        当前步骤 = ProgramStep.WAIT_Z_IDLE
+                        当前步骤 = ProgramStep.等待下降Z轴到位
                     except Exception:
-                        当前步骤 = ProgramStep.CLEANUP
+                        当前步骤 = ProgramStep.清理所有状态
 
-                case ProgramStep.WAIT_Z_IDLE:
+                case ProgramStep.等待下降Z轴到位:
                     结果 = await self._运动原语.安全拉取是否空闲(轴号=2)
                     if 结果.get("skip"):
                         return await self._运动原语.跳过任务并回Z轴(z轴目标=首次目标Z轴位置, 速度=切割速度)
                     if 结果.get("abort"):
                         return "abort"
                     if 结果.get("success"):
-                        当前步骤 = ProgramStep.EXECUTE_XY_INTERPOLATION
+                        当前步骤 = ProgramStep.XY轴连续插补开始
                     else:
                         return False
 
-                case ProgramStep.EXECUTE_XY_INTERPOLATION:
+                case ProgramStep.XY轴连续插补开始:
                     R轴的圈数 = await self._运动.获取R轴的当前位置()
-                    当前步骤 = ProgramStep.UPDATE_OPENING_OFFSET if R轴的圈数 is not None else ProgramStep.CLEANUP
+                    当前步骤 = ProgramStep.更新开口偏移值 if R轴的圈数 is not None else ProgramStep.清理所有状态
 
-                case ProgramStep.UPDATE_OPENING_OFFSET:
+                case ProgramStep.更新开口偏移值:
                     目标圈数 = float(R轴的圈数) + 1.0
                     跳出计数 = 0
                     已见暂停 = False
@@ -795,19 +794,19 @@ class ProgramRunner(ProgramContext):
 
                             try:
                                 await self._运动.绝对运动并设速度("X", X的目标距离, 切割速度)
-                                当前步骤 = ProgramStep.CALCULATE_NEXT_LAYER
+                                当前步骤 = ProgramStep.计算下一层开口
                             except Exception:
-                                当前步骤 = ProgramStep.CLEANUP
+                                当前步骤 = ProgramStep.清理所有状态
                             break
                         跳出计数 += 1
                         await asyncio.sleep(0.02)
                     else:
-                        当前步骤 = ProgramStep.CLEANUP
+                        当前步骤 = ProgramStep.清理所有状态
 
-                case ProgramStep.CALCULATE_NEXT_LAYER:
+                case ProgramStep.计算下一层开口:
                     if 是否需要跳转计算下一层开口:
                         是否是从小到大的开口偏移 = not 是否是从小到大的开口偏移
-                    当前步骤 = ProgramStep.EXECUTE_XY_INTERPOLATION if 当前开口值是否在范围内 and not 是否需要跳转计算下一层开口 else ProgramStep.STEP_110
+                    当前步骤 = ProgramStep.XY轴连续插补开始 if 当前开口值是否在范围内 and not 是否需要跳转计算下一层开口 else ProgramStep.STEP_110
 
                 case ProgramStep.STEP_110:
                     是否需要跳转计算下一层开口 = False
@@ -835,7 +834,7 @@ class ProgramRunner(ProgramContext):
                             上开口值=上开口值, 正切角度=tan角度, 累计下降量=累计下降量,
                         )
                     self.更新进度(current_task_jindubaifenbi=进度百分比)
-                    当前步骤 = ProgramStep.SELECT_LASER_MODE if not 是否打开扫黑功能 and not 是否打开激光 else ProgramStep.CHECK_DESCENT_LIMIT
+                    当前步骤 = ProgramStep.选择激光模式 if not 是否打开扫黑功能 and not 是否打开激光 else ProgramStep.检查是否到达下降深度
 
                 case ProgramStep.STEP_120:
                     当前步骤 = ProgramStep.STEP_130
@@ -847,13 +846,13 @@ class ProgramRunner(ProgramContext):
                     当前步骤 = ProgramStep.STEP_150
 
                 case ProgramStep.STEP_150:
-                    当前步骤 = ProgramStep.CLEANUP
+                    当前步骤 = ProgramStep.清理所有状态
 
-                case ProgramStep.CLEANUP:
+                case ProgramStep.清理所有状态:
                     await self._运动.停止运动()
                     await self._运动原语.关闭红光()
                     await self._运动原语.关闭激光输出()
-                    当前步骤 = ProgramStep.DONE
+                    当前步骤 = ProgramStep.结束程序运行
 
         return True
 
@@ -906,7 +905,7 @@ class ProgramRunner(ProgramContext):
             深度补偿K=深度补偿K, 深度补偿B=深度补偿B, 正切角度=tan角度,
         )
 
-        当前步骤 = ProgramStep.CHECK_CONNECTION
+        当前步骤 = ProgramStep.检查控制器是否连接
         是否需要跳转计算下一层开口 = False
         进度百分比 = 0
         上层量 = 0
@@ -939,39 +938,39 @@ class ProgramRunner(ProgramContext):
         原始点数据_插补数据 = 当前没有偏移的点位.copy()
         是否需要反转点位 = False
 
-        while 当前步骤 <= ProgramStep.DONE:
+        while 当前步骤 <= ProgramStep.结束程序运行:
             if self._是否跳过请求:
                 return await self._运动原语.跳过任务并回Z轴(z轴目标=Z轴原始初始位置, 速度=切割速度)
             if self._是否急停请求:
-                当前步骤 = ProgramStep.DONE
+                当前步骤 = ProgramStep.结束程序运行
 
             match 当前步骤:
-                case ProgramStep.CHECK_CONNECTION:
+                case ProgramStep.检查控制器是否连接:
                     是否连上 = self._运动.适配器.已连接 if self._运动.适配器 else False
                     if 是否连上:
-                        await self._运动原语.开启红光()
-                        当前步骤 = ProgramStep.MOVE_TO_START
+                        await self._运动原语.开启吹风()
+                        当前步骤 = ProgramStep.移动到起点
                     else:
-                        当前步骤 = ProgramStep.CLEANUP
+                        当前步骤 = ProgramStep.清理所有状态
 
-                case ProgramStep.MOVE_TO_START:
+                case ProgramStep.移动到起点:
                     起始点X = 当前没有偏移的点位[0].get('x')
                     起始点Y = 当前没有偏移的点位[0].get('y')
                     try:
                         await self._运动.绝对运动并设速度("X", 起始点X, 切割速度)
                         await self._运动.绝对运动并设速度("Y", 起始点Y, 切割速度)
-                        当前步骤 = ProgramStep.ROTATE_U_AXIS
+                        当前步骤 = ProgramStep.旋转U轴
                     except Exception:
-                        当前步骤 = ProgramStep.CLEANUP
+                        当前步骤 = ProgramStep.清理所有状态
 
-                case ProgramStep.ROTATE_U_AXIS:
+                case ProgramStep.旋转U轴:
                     旋转角度 = 实体数据[原始任务序号].get("surfaceAngle")
                     旋转结果 = await self._运动.U轴旋转角度(旋转角度=旋转角度)
                     if not 旋转结果.get('success'):
-                        当前步骤 = ProgramStep.CLEANUP
-                    当前步骤 = ProgramStep.WAIT_U_ROTATION
+                        当前步骤 = ProgramStep.清理所有状态
+                    当前步骤 = ProgramStep.等待U轴旋转到位
 
-                case ProgramStep.WAIT_U_ROTATION:
+                case ProgramStep.等待U轴旋转到位:
                     跳出计数 = 0
                     已见暂停 = False
                     while True:
@@ -987,60 +986,60 @@ class ProgramRunner(ProgramContext):
                         await asyncio.sleep(0.02)
                         是否到达旋转角度 = await self._运动.U轴是否到达旋转角度(旋转角度=旋转角度)
                         if 已见暂停:
-                            当前步骤 = ProgramStep.ROTATE_U_AXIS
+                            当前步骤 = ProgramStep.旋转U轴
                             break
                         if 是否到达旋转角度:
-                            当前步骤 = ProgramStep.ROTATE_U_AXIS
+                            当前步骤 = ProgramStep.旋转U轴
                             break
                         if 跳出计数 >= 2000:
-                            当前步骤 = ProgramStep.CLEANUP
+                            当前步骤 = ProgramStep.清理所有状态
                         跳出计数 += 1
-                    当前步骤 = ProgramStep.SELECT_LASER_MODE
+                    当前步骤 = ProgramStep.选择激光模式
 
-                case ProgramStep.SELECT_LASER_MODE:
+                case ProgramStep.选择激光模式:
                     if 是否打开扫黑功能:
-                        当前步骤 = ProgramStep.SEND_BLACKENING_LASER
+                        当前步骤 = ProgramStep.发送扫黑激光参数
                         累计下降量 -= 扫黑上台的高度
                     else:
-                        当前步骤 = ProgramStep.SEND_WORK_LASER
+                        当前步骤 = ProgramStep.发送工作激光参数
 
-                case ProgramStep.SEND_BLACKENING_LASER:
+                case ProgramStep.发送扫黑激光参数:
                     await self._串口.发送激光数据(str(扫黑功率), str(扫黑频率), str(扫黑电流), 厂家=self._获取激光厂家())
-                    当前步骤 = ProgramStep.ENABLE_LASER_OUTPUT
+                    当前步骤 = ProgramStep.打开激光输出
 
-                case ProgramStep.SEND_WORK_LASER:
+                case ProgramStep.发送工作激光参数:
                     await self._串口.发送激光数据(str(工作功率), str(工作频率), str(工作电流), 厂家=self._获取激光厂家())
-                    当前步骤 = ProgramStep.ENABLE_LASER_OUTPUT
+                    当前步骤 = ProgramStep.打开激光输出
 
-                case ProgramStep.ENABLE_LASER_OUTPUT:
+                case ProgramStep.打开激光输出:
                     if not 是否打开激光:
                         await self._运动原语.开启激光输出()
                         是否打开激光 = True
-                    当前步骤 = ProgramStep.CHECK_DESCENT_LIMIT
+                    当前步骤 = ProgramStep.检查是否到达下降深度
 
-                case ProgramStep.CHECK_DESCENT_LIMIT:
-                    当前步骤 = ProgramStep.DESCEND_Z if 累计下降量 <= 总下降量 else ProgramStep.CLEANUP
+                case ProgramStep.检查是否到达下降深度:
+                    当前步骤 = ProgramStep.下降Z轴到达指定位置 if 累计下降量 <= 总下降量 else ProgramStep.清理所有状态
 
-                case ProgramStep.DESCEND_Z:
+                case ProgramStep.下降Z轴到达指定位置:
                     Z轴目标位置 = -累计下降量 + 下降直到可以切产品的高度
                     try:
                         await self._运动.绝对运动并设速度("Z", Z轴目标位置, 切割速度)
-                        当前步骤 = ProgramStep.WAIT_Z_IDLE
+                        当前步骤 = ProgramStep.等待下降Z轴到位
                     except Exception:
-                        当前步骤 = ProgramStep.CLEANUP
+                        当前步骤 = ProgramStep.清理所有状态
 
-                case ProgramStep.WAIT_Z_IDLE:
+                case ProgramStep.等待下降Z轴到位:
                     结果 = await self._运动原语.安全拉取是否空闲(轴号=2)
                     if 结果.get("skip"):
                         return await self._运动原语.跳过任务并回Z轴(z轴目标=Z轴原始初始位置, 速度=切割速度)
                     if 结果.get("abort"):
                         return "abort"
                     if 结果.get("success"):
-                        当前步骤 = ProgramStep.EXECUTE_XY_INTERPOLATION
+                        当前步骤 = ProgramStep.XY轴连续插补开始
                     else:
-                        当前步骤 = ProgramStep.CLEANUP
+                        当前步骤 = ProgramStep.清理所有状态
 
-                case ProgramStep.EXECUTE_XY_INTERPOLATION:
+                case ProgramStep.XY轴连续插补开始:
                     计算所有实体旋转后偏移的点 = OffsetEndpointCalculator.计算绕坐标轴旋转后的偏移点位(计算当前任务实体旋转后的点, 当前开口值)
                     当前运行点位: list[dict[str, Any]] = list(计算所有实体旋转后偏移的点[原始任务序号].get("points"))
                     是否闭合 = (
@@ -1055,30 +1054,30 @@ class ProgramRunner(ProgramContext):
                     目标速度 = 切割速度 * 边缘切割速度百分比 if 是否在边缘位置 else 切割速度 * 中间切割速度百分比
                     try:
                         await self._运动.连续插补XY(路径点=原始点数据_插补数据, 速度=目标速度)
-                        当前步骤 = ProgramStep.CHECK_REPEAT_CUT
+                        当前步骤 = ProgramStep.切割次数
                     except Exception:
-                        当前步骤 = ProgramStep.CLEANUP
+                        当前步骤 = ProgramStep.清理所有状态
 
-                case ProgramStep.CHECK_REPEAT_CUT:
+                case ProgramStep.切割次数:
                     if 是否在边缘位置 and (当前切割次数 + 1) < 边缘切割次数:
                         当前切割次数 += 1
-                        当前步骤 = ProgramStep.EXECUTE_XY_INTERPOLATION
+                        当前步骤 = ProgramStep.XY轴连续插补开始
                     else:
                         当前切割次数 = 0
-                        当前步骤 = ProgramStep.WAIT_XY_IDLE_POST_CUT if not 是否需要跳转计算下一层开口 else ProgramStep.CALCULATE_NEXT_LAYER
+                        当前步骤 = ProgramStep.等待XY轴POST插入 if not 是否需要跳转计算下一层开口 else ProgramStep.计算下一层开口
 
-                case ProgramStep.WAIT_XY_IDLE_POST_CUT:
+                case ProgramStep.等待XY轴POST插入:
                     结果 = await self._运动原语.安全拉取xy轴是否空闲(休眠秒=0.01)
                     if 结果.get("skip"):
                         return await self._运动原语.跳过任务并回Z轴(z轴目标=Z轴原始初始位置, 速度=切割速度)
                     if 结果.get("abort"):
                         return "abort"
                     if 结果.get("success"):
-                        当前步骤 = ProgramStep.UPDATE_OPENING_OFFSET if not 是否需要跳转计算下一层开口 else ProgramStep.CALCULATE_NEXT_LAYER
+                        当前步骤 = ProgramStep.更新开口偏移值 if not 是否需要跳转计算下一层开口 else ProgramStep.计算下一层开口
                     else:
-                        当前步骤 = ProgramStep.CLEANUP
+                        当前步骤 = ProgramStep.清理所有状态
 
-                case ProgramStep.UPDATE_OPENING_OFFSET:
+                case ProgramStep.更新开口偏移值:
                     当前开口值 = 当前开口值 + 每次开口的偏移量 if 是否是从小到大的开口偏移 else 当前开口值 - 每次开口的偏移量
                     结果1 = 最小的偏移 / 1000 < 当前开口值
                     结果2 = 当前开口值 < 最大的偏移 / 1000
@@ -1094,9 +1093,9 @@ class ProgramRunner(ProgramContext):
                         是否在边缘位置 = True
                         是否是从小到大的开口偏移 = not 是否是从小到大的开口偏移
                         是否需要跳转计算下一层开口 = True
-                    当前步骤 = ProgramStep.EXECUTE_XY_INTERPOLATION
+                    当前步骤 = ProgramStep.XY轴连续插补开始
 
-                case ProgramStep.CALCULATE_NEXT_LAYER:
+                case ProgramStep.计算下一层开口:
                     进度百分比 = (
                         (累计下降量 + 扫黑上台的高度) / 高度 * 100 if 是否打开扫黑功能
                         else 累计下降量 / 高度 * 100
@@ -1122,40 +1121,40 @@ class ProgramRunner(ProgramContext):
                         )
                     self.更新进度(current_task_jindubaifenbi=进度百分比)
                     是否需要跳转计算下一层开口 = False
-                    当前步骤 = ProgramStep.SELECT_LASER_MODE if not 是否打开扫黑功能 and not 是否打开激光 else ProgramStep.CHECK_DESCENT_LIMIT
+                    当前步骤 = ProgramStep.选择激光模式 if not 是否打开扫黑功能 and not 是否打开激光 else ProgramStep.检查是否到达下降深度
 
                 case ProgramStep.STEP_110:
                     当前步骤 = ProgramStep.STEP_150
 
                 case ProgramStep.STEP_150:
-                    当前步骤 = ProgramStep.CLEANUP
+                    当前步骤 = ProgramStep.清理所有状态
 
-                case ProgramStep.CLEANUP:
+                case ProgramStep.清理所有状态:
                     try:
                         await self._运动.绝对运动并设速度("Z", Z轴原始初始位置, 切割速度)
-                        当前步骤 = ProgramStep.WAIT_Z_RETURN
+                        当前步骤 = ProgramStep.等待Z轴回指定位置
                     except Exception:
                         pass
 
-                case ProgramStep.WAIT_Z_RETURN:
+                case ProgramStep.等待Z轴回指定位置:
                     跳转计数 = 0
                     while 跳转计数 < 2000:
                         try:
                             实际位置 = await self._运动.取_z_实际位置()
                             if abs(实际位置 - Z轴原始初始位置) <= 0.001:
-                                当前步骤 = ProgramStep.DONE
+                                当前步骤 = ProgramStep.结束程序运行
                                 break
                         except Exception:
-                            日志.exception("4P WAIT_Z_RETURN 轮询 Z 轴位置异常")
+                            日志.exception("4P 等待Z轴回指定位置 轮询 Z 轴位置异常")
                         跳转计数 += 1
                         await asyncio.sleep(0.02)
                     else:
-                        当前步骤 = ProgramStep.CLEANUP
+                        当前步骤 = ProgramStep.清理所有状态
 
-                case ProgramStep.DONE:
+                case ProgramStep.结束程序运行:
                     await self._运动.停止运动()
                     await self._运动原语.关闭红光()
                     await self._运动原语.关闭激光输出()
-                    当前步骤 = ProgramStep.TERMINAL
+                    当前步骤 = ProgramStep.终止任务
 
         return True

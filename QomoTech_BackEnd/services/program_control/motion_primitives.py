@@ -196,7 +196,7 @@ class MotionPrimitives:
         """关闭激光输出 IO（输出 2）。"""
         await self._运动.设置输出(2, False)
 
-    async def 开启红光(self) -> None:
+    async def 开启吹风(self) -> None:
         """打开红光 IO（输出 0）。"""
         await self._运动.设置输出(0, True)
 
