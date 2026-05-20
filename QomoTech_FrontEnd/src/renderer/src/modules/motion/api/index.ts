@@ -69,19 +69,11 @@ export function buildMotionAllAxesParamsRequestPayload(
 }
 
 /** 批量下发全部轴参数到控制器。 */
-export const setMotionAllAxesParams = async (
-  payload: MotionAllAxesParamsRequestPayload
-): Promise<ApiCallResult<Record<string, unknown>>> =>
-  apiCall(
-    'motion/axis/params/batch',
-    'POST',
-    payload as unknown as Record<string, unknown>
-  )
+export const setMotionAllAxesParams = async (payload: MotionAllAxesParamsRequestPayload): Promise<ApiCallResult<Record<string, unknown>>> =>
+  apiCall('motion/axis/params/batch','POST',payload as unknown as Record<string, unknown>)
 
 /** 使用控制器参数批量下发轴参数（自动构建请求）。 */
-export const setMotionAllAxesParamsWithControllerSettings = async (
-  controllerSettings: ControllerParameters
-): Promise<ApiCallResult<Record<string, unknown>>> =>
+export const setMotionAllAxesParamsWithControllerSettings = async (controllerSettings: ControllerParameters): Promise<ApiCallResult<Record<string, unknown>>> =>
   setMotionAllAxesParams(buildMotionAllAxesParamsRequestPayload(controllerSettings))
 
 // -----------------------------------------------------------------------------
@@ -93,10 +85,7 @@ const isPositiveFiniteNumber = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value) && value > 0
 
 /** 从选项中提取轴速度：优先使用显式 speed，其次从控制器设置读取。 */
-const pickAxisSpeed = (
-  axisNo: number,
-  options?: { speed?: number; controllerSettings?: ControllerParameters }
-): number | undefined => {
+const pickAxisSpeed = (axisNo: number,options?: { speed?: number; controllerSettings?: ControllerParameters }): number | undefined => {
   const explicitSpeed = options?.speed
   if (isPositiveFiniteNumber(explicitSpeed)) return explicitSpeed
   const savedSpeed = options?.controllerSettings?.axes.find(
@@ -106,19 +95,14 @@ const pickAxisSpeed = (
 }
 
 /** 获取指定轴当前机械位置（dpos）。 */
-export const getMotionPosition = async (
-  axis: MotionAxis
-): Promise<ApiCallResult<number>> => apiCall<number>(`motion/dpos/${axis}`, 'GET')
+export const getMotionPosition = async (axis: MotionAxis): Promise<ApiCallResult<number>> => apiCall<number>(`motion/dpos/${axis}`, 'GET')
 
 /** 紧急停止所有轴运动。 */
-export const emergencyStopMotion = async (): Promise<
-  ApiCallResult<Record<string, unknown>>
-> => apiCall('motion/estop', 'POST')
+export const emergencyStopMotion = async (): Promise<ApiCallResult<Record<string, unknown>>> => 
+  apiCall('motion/estop', 'POST')
 
 /** 将指定轴位置归零。 */
-export const zeroMotionAxis = async (
-  axisNo: number
-): Promise<ApiCallResult<Record<string, unknown>>> => {
+export const zeroMotionAxis = async (axisNo: number): Promise<ApiCallResult<Record<string, unknown>>> => {
   const axisName = AXIS_NO_TO_NAME[axisNo]
   if (!axisName) return { success: false, message: `未知轴号: ${axisNo}` }
   return apiCall('motion/axis/zero', 'POST', {
@@ -127,11 +111,8 @@ export const zeroMotionAxis = async (
 }
 
 /** 绝对运动：将指定轴移动到目标位置（mm）。 */
-export const moveMotionAxisAbs = async (
-  axisNo: number,
-  targetMm: number,
-  options?: { speed?: number; controllerSettings?: ControllerParameters }
-): Promise<ApiCallResult<Record<string, unknown>>> => {
+export const moveMotionAxisAbs = async (axisNo: number,targetMm: number,options?: { speed?: number; controllerSettings?: ControllerParameters }): Promise<ApiCallResult<Record<string, unknown>>> => 
+{
   const axisName = AXIS_NO_TO_NAME[Number(axisNo)]
   if (!axisName) return { success: false, message: `未知轴号: ${axisNo}` }
   const body: Record<string, unknown> = {
@@ -144,11 +125,8 @@ export const moveMotionAxisAbs = async (
 }
 
 /** 相对运动：将指定轴移动指定距离（mm）。 */
-export const moveMotionAxisRel = async (
-  axisNo: number,
-  deltaMm: number,
-  options?: { speed?: number; controllerSettings?: ControllerParameters }
-): Promise<ApiCallResult<Record<string, unknown>>> => {
+export const moveMotionAxisRel = async (axisNo: number,deltaMm: number,options?: { speed?: number; controllerSettings?: ControllerParameters }): Promise<ApiCallResult<Record<string, unknown>>> => 
+{
   const axisName = AXIS_NO_TO_NAME[Number(axisNo)]
   if (!axisName) return { success: false, message: `未知轴号: ${axisNo}` }
   const body: Record<string, unknown> = {
@@ -161,15 +139,15 @@ export const moveMotionAxisRel = async (
 }
 
 /** U 轴按角度旋转。 */
-export const rotateUAxisByAngle = async (
-  payload: UAxisRotateRequestPayload
-): Promise<ApiCallResult<Record<string, unknown>>> =>
+export const rotateUAxisByAngle = async (payload: UAxisRotateRequestPayload): Promise<ApiCallResult<Record<string, unknown>>> =>
   apiCall('motion/u/rotate-by-params','POST',{ params: payload } as unknown as Record<string, unknown>)
 
+/** U 轴是否已到达目标角度（轴静止且 mpos 在容差内）。 */
+export const isUAxisAtTargetAngle = async (angle: number,tolerance = 0.001): Promise<ApiCallResult<boolean>> =>
+  apiCall<boolean>('motion/u/at-angle', 'GET', null, { angle, tolerance })
+
 /** R 轴按圈数旋转。 */
-export const rotateRAxisByTurns = async (
-  payload: RAxisRotateRequestPayload
-): Promise<ApiCallResult<Record<string, unknown>>> =>
+export const rotateRAxisByTurns = async (payload: RAxisRotateRequestPayload): Promise<ApiCallResult<Record<string, unknown>>> =>
   apiCall(
     'motion/r/rotate-turns',
     'POST',
@@ -181,19 +159,14 @@ export const rotateRAxisByTurns = async (
 // -----------------------------------------------------------------------------
 
 /** 设置 IO 输出口状态。 */
-export const setMotionIoOutput = async (
-  ioNo: number,
-  value: boolean
-): Promise<ApiCallResult<Record<string, unknown>>> =>
+export const setMotionIoOutput = async (ioNo: number,value: boolean): Promise<ApiCallResult<Record<string, unknown>>> =>
   apiCall('motion/io/output', 'POST', {
     io: ioNo,
     value
   } as unknown as Record<string, unknown>)
 
 /** 获取单个 IO 输出口状态。 */
-export const getMotionIoOutput = async (
-  ioNo: number
-): Promise<ApiCallResult<MotionIoOutputState>> => {
+export const getMotionIoOutput = async (ioNo: number): Promise<ApiCallResult<MotionIoOutputState>> => {
   const res = await apiCall<boolean>(`motion/io/output/${Number(ioNo)}`, 'GET')
   return res.success
     ? {

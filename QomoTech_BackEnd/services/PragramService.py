@@ -63,28 +63,21 @@ class PragramService:
     # 生命周期
     # ==================================================================
 
-    def 设置事件循环(self, loop: asyncio.AbstractEventLoop) -> None:
-        self._loop = loop
+    def 设置事件循环(self, loop: asyncio.AbstractEventLoop) -> None: self._loop = loop
 
     # ==================================================================
     # 运行状态
     # ==================================================================
 
     def 获取运行状态(self) -> dict[str, Any]:
-        if self._runner is not None:
-            return self._runner.获取运行状态()
+        if self._runner is not None: return self._runner.获取运行状态()
         return {"running": False,"paused": False,"total_tasks": 0,"current_task_index": 0,"进度百分比": 0.0,}
 
     # ==================================================================
     # 程序执行
     # ==================================================================
 
-    async def 执行程序(
-        self,
-        *,
-        配方数据: dict[str, Any],
-        实体数据: list[dict[str, Any]],
-    ) -> dict[str, Any]:
+    async def 执行程序(self,*,配方数据: dict[str, Any],实体数据: list[dict[str, Any]]) -> dict[str, Any]:
         """启动程序执行（创建新的 ProgramRunner 实例）。"""
         self._runner = ProgramRunner()
         # 注入广播回调：runner 更新进度时 → PragramService 广播到 WS

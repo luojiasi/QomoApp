@@ -23,12 +23,19 @@ export function useProgramRunner() {
   const {
     dialogVisible: show4PDialogVisible,
     isAcquiring: show4PIsAcquiring,
-    isAcquired: show4PIsAcquired,
-    tablePosition: show4PTablePosition,
+    diamondCount: show4PDiamondCount,
+    currentDiamondIndex: show4PCurrentDiamondIndex,
+    currentTablePosition: show4PTablePosition,
+    diamondPositions: show4PDiamondPositions,
+    isCurrentAcquired: show4PIsCurrentAcquired,
+    allAcquired: show4PAllAcquired,
     acquireXYZPosition: show4PAcquire,
+    goToNextDiamond: show4PNextDiamond,
+    goToPrevDiamond: show4PPrevDiamond,
     openDialog: show4POpenDialog,
     closeDialog: show4PCloseDialog,
-    buildPayload: show4PBuildPayload
+    buildPayload: show4PBuildPayload,
+    resolveXYOffsetFromHardware: show4PResolveXYOffset
   } = useShow4PTable()
 
   const programStartedAtMs = ref<number | null>(null)
@@ -189,7 +196,7 @@ export function useProgramRunner() {
         break
       }
     }
-    if (是否存在钻石) {show4POpenDialog();return }
+    if (是否存在钻石) {show4POpenDialog(exportEntitiesWithCalculated());return }
 
     try {
       const xyOffset = resolveXYMotionOffsetFromHardwareState()
@@ -225,11 +232,12 @@ export function useProgramRunner() {
 
   async function on4PTableConfirm(): Promise<void> {
     try {
-      const xyOffset = resolveXYMotionOffsetFromHardwareState()
+      const xyOffset = show4PResolveXYOffset()
       homeXyOffset.value = xyOffset
       runTrigger.value = true
-      const 参数 = show4PBuildPayload(currentRunRecipePayload.value!,exportEntitiesWithCalculated())
-
+      const 参数 = show4PBuildPayload(currentRunRecipePayload.value!, exportEntitiesWithCalculated(), xyOffset)
+      await show4PCloseDialog()
+      
       const result = await startProgram4PTest(参数)
       if (!result?.success) {
         error(result?.message || '运行失败：后端为提供失败参数。')
@@ -245,8 +253,6 @@ export function useProgramRunner() {
       persistProgramStartedAtToStorage(programStartedAtMs.value)
       startProgramElapsedTimer()
       success(result?.message || '运行指令已发送。')
-
-      show4PCloseDialog()
     } catch {
       error('运行失败：无法连接后端。')
     }
@@ -292,9 +298,15 @@ export function useProgramRunner() {
     on4PTableCancel,
     show4PDialogVisible,
     show4PIsAcquiring,
-    show4PIsAcquired,
+    show4PDiamondCount,
+    show4PCurrentDiamondIndex,
     show4PTablePosition,
+    show4PDiamondPositions,
+    show4PIsCurrentAcquired,
+    show4PAllAcquired,
     show4PAcquire,
+    show4PNextDiamond,
+    show4PPrevDiamond,
     onPauseToggleClick,
     onResetAlarmsClick,
     onEstopClick,

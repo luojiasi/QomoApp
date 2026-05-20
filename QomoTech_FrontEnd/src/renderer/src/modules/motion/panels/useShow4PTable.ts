@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useAxisJog } from '../composables/index'
 import { U_AXIS_NO  } from '../config'
 import { EditorEntity, SurfaceEntity } from '@/modules/entitiesEditor/commons/types'
@@ -85,10 +85,35 @@ export function useShow4PTable() {
 
   const dialogVisible = ref(false)
   const isAcquiring = ref(false)
-  const isAcquired = ref(false)
-  const tablePosition = ref<XYZPosition>({ x: 0, y: 0, z: 0 })
+
+  // ── Diamond wizard state ──
+  const diamondEntities = ref<SurfaceEntity<EditorEntity>[]>([])
+  const currentDiamondIndex = ref(0)
+  const diamondPositions = ref<Record<number, XYZPosition>>({})
+
   const { axisAbsoluteInputs, handleAbsoluteMove } = useAxisJog(ref(5))
 
+  // ── Computed ──
+  const diamondCount = computed(() => diamondEntities.value.length)
+
+  const currentTablePosition = computed(() =>
+    diamondPositions.value[currentDiamondIndex.value] ?? { x: 0, y: 0, z: 0 }
+  )
+
+  const isCurrentAcquired = computed(() =>
+    currentDiamondIndex.value in diamondPositions.value
+  )
+
+  const allAcquired = computed(() => {
+    const n = diamondCount.value
+    if (n === 0) return false
+    for (let i = 0; i < n; i++) {
+      if (!(i in diamondPositions.value)) return false
+    }
+    return true
+  })
+
+  // ── Hardware ──
   function resolveXYZFromHardwareState(): XYZPosition {
     const positions = wsMposition.value
     const rawX = positions?.X ?? positions?.x ?? positions?.['0']
@@ -104,27 +129,41 @@ export function useShow4PTable() {
     }
   }
 
+  function resolveXYOffsetFromHardware(): { x: number; y: number } {
+    const pos = resolveXYZFromHardwareState()
+    return { x: pos.x, y: pos.y }
+  }
+
   async function 移动到垂直位置进行台面确认(角度: number){
     axisAbsoluteInputs.value[U_AXIS_NO] = 角度
     await handleAbsoluteMove(U_AXIS_NO)
   }
 
+  // ── Actions ──
   function acquireXYZPosition() {
     isAcquiring.value = true
     try {
       const pos = resolveXYZFromHardwareState()
-      tablePosition.value = pos
-      isAcquired.value = true
+      diamondPositions.value = {
+        ...diamondPositions.value,
+        [currentDiamondIndex.value]: pos
+      }
     } finally {
       isAcquiring.value = false
     }
   }
 
-  async function openDialog() {
+  function goToDiamond(index: number) {if (index >= 0 && index < diamondCount.value) {currentDiamondIndex.value = index}}
+
+  function goToNextDiamond() {goToDiamond(currentDiamondIndex.value + 1)}
+
+  function goToPrevDiamond() {goToDiamond(currentDiamondIndex.value - 1)}
+
+  async function openDialog(entities: SurfaceEntity<EditorEntity>[]) {
+    diamondEntities.value = entities.filter(e => e.kind === 'DIAMOND')
+    diamondPositions.value = {}
+    currentDiamondIndex.value = 0
     dialogVisible.value = true
-    isAcquired.value = false
-    isAcquiring.value = false
-    tablePosition.value = { x: 0, y: 0, z: 0 }
     await 移动到垂直位置进行台面确认(90)
   }
 
@@ -133,23 +172,42 @@ export function useShow4PTable() {
     dialogVisible.value = false
   }
 
-  function buildPayload(currentRunRecipePayload: Record<string, unknown>,entities: SurfaceEntity<EditorEntity>[]): Record<string, unknown> {
-    const offsetEditorEntities = 根据当前轴位置计算实体偏移(entities,tablePosition.value.x,tablePosition.value.y)
+  // ── Payload builders ──
+  /** 只保留 DIAMOND 实体并按序号附加各自的 table_position。 */
+  function buildEntitiesWithTablePosition(offsetEditorEntities: SurfaceEntity<EditorEntity>[]): unknown[] {
+    let diamondIdx = 0
+    return offsetEditorEntities
+      .filter((entity) => entity.kind === 'DIAMOND')
+      .map((entity) => {
+        const pos = diamondPositions.value[diamondIdx] ?? { x: 0, y: 0, z: 0 }
+        diamondIdx++
+        return { ...entity, table_position: { ...pos } }
+      })
+  }
+
+  function buildPayload(currentRunRecipePayload: Record<string, unknown>,entities: SurfaceEntity<EditorEntity>[],xyOffset: { x: number; y: number }): Record<string, unknown> {
+    const offsetEditorEntities = 根据当前轴位置计算实体偏移(entities, xyOffset.x, xyOffset.y)
     return {
       recipe_payload: currentRunRecipePayload,
-      entities: offsetEditorEntities,
-      tablePosition: { ...tablePosition.value }
+      entities: buildEntitiesWithTablePosition(offsetEditorEntities)
     }
   }
 
   return {
     dialogVisible,
     isAcquiring,
-    isAcquired,
-    tablePosition,
+    diamondCount,
+    currentDiamondIndex,
+    currentTablePosition,
+    diamondPositions,
+    isCurrentAcquired,
+    allAcquired,
     acquireXYZPosition,
+    goToNextDiamond,
+    goToPrevDiamond,
     openDialog,
     closeDialog,
-    buildPayload
+    buildPayload,
+    resolveXYOffsetFromHardware
   }
 }

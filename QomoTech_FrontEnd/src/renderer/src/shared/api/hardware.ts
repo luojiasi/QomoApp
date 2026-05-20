@@ -5,7 +5,7 @@ import { useGlobalCameraReceiverState } from '@/modules/camera/composables/useCa
 
 interface AxisSnapshot {
   name: string
-  axis_id: number
+  axis_no: number
   dpos: number
   mpos: number
   idle: boolean
@@ -32,6 +32,7 @@ const HARDWARE_WS_RECONNECT_MS = 1000
 const controllerState = ref<string>('DISCONNECTED')
 const controllerConnected = ref(false)
 const axes = ref<AxisSnapshot[]>([])
+const axisIdle = ref<Record<string, boolean>>({})
 const position = ref<Record<string, number>>({})
 const mposition = ref<Record<string, number>>({})
 const ioIn = ref<Record<string, boolean>>({})
@@ -68,6 +69,7 @@ const wsClient = new WsClient({
       controllerConnected.value = data.state !== 'DISCONNECTED'
       position.value = data.position || {}
       mposition.value = data.mposition || {}
+      axisIdle.value = data.idle || {}
       axes.value = data.axes || []
       ioIn.value = data.io_in || {}
       ioOut.value = data.io_out || {}
@@ -111,6 +113,7 @@ export function useHardwareState() {
     controllerConnected: readonly(controllerConnected),
     wsConnected: readonly(wsConnected),
     axes: readonly(axes),
+    axisIdle: readonly(axisIdle),
     position: readonly(position),
     mposition: readonly(mposition),
     ioIn: readonly(ioIn),

@@ -1,4 +1,4 @@
-"""程序执行步骤枚举 —— 替换原 startPragram.py 中的魔术数字。"""
+"""程序执行步骤枚举"""
 
 from __future__ import annotations
 

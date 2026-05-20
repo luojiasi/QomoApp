@@ -23,7 +23,7 @@ from utils.logger import 获取日志记录器
 
 路由 = APIRouter(prefix="/api", tags=["程序运行"])
 
-
+# 应该委托给 self.程序执行器，而且 HTTP 路由里 program_http.py:87 调的 _svc() 是 PragramService，不是 ProgramService4p——4P 跑起来了状态也拿不到。
 def _svc() -> PragramService:
     return PragramService.获取实例()
 
@@ -35,8 +35,6 @@ class 开始程序参数请求模型(BaseModel):
     entities: List[Dict[str, Any]] = Field(
         ..., description="实体图形列表",
     )
-
-
 class 开始程序控制请求模型(BaseModel):
     action: str = Field(
         ..., pattern=r"^(pause|resume|reset|estop|skip)$",

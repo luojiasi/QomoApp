@@ -1,23 +1,53 @@
 from __future__ import annotations
 
+import asyncio
+import threading
 from typing import Any
 
-from core.calc_offset import OffsetEndpointCalculator
+from services.program_control_4p.runner import ProgramRunner4p
 from utils.logger import 获取日志记录器
 
 日志 = 获取日志记录器("程序服务")
 
 
 class ProgramService4p:
-    async def 执行程序4P(self,*,配方数据: dict[str, Any],实体数据: list[dict[str, Any]],) -> bool:
+
+    _实例: ProgramService4p | None = None
+    _实例锁 = threading.Lock()
+
+    @classmethod
+    def 获取实例(cls) -> ProgramService4p:
+        with cls._实例锁:
+            if cls._实例 is None:
+                cls._实例 = cls()
+            return cls._实例
+
+    def __init__(self) -> None:
+        self.程序执行器: ProgramRunner4p | None = None
+
+
+    # ==================================================================
+    # 生命周期
+    # ==================================================================
+    
+    # ==================================================================
+    # 运行状态
+    # ==================================================================
+    def 获取运行状态(self) -> dict[str, Any]:
+        # if self._runner is not None: return self._runner.获取运行状态()
+        return {"running": False,"paused": False,"total_tasks": 0,"current_task_index": 0,"进度百分比": 0.0,}
+    # ==================================================================
+    # 程序执行
+    # ==================================================================
+    async def 执行程序4P(self,*,配方数据: dict[str, Any],实体数据: list[dict[str, Any]]) -> dict[str, Any]:
         """启动程序执行（创建新的 ProgramRunner 实例）。"""
-        任务数量 = OffsetEndpointCalculator.计算当前任务数量(实体数据)
-        if 任务数量 == 0: return False
-        print(f"任务数量: {任务数量}")
-        await 执行4P程序(配方数据=配方数据,实体数据=实体数据,)
-        return True
+        self.程序执行器 = ProgramRunner4p()
+        return await self.程序执行器.执行4P程序(配方数据=配方数据,实体数据=实体数据,)
+    # ==================================================================
+    # 控制指令
+    # ==================================================================
+
+    # ==================================================================
+    # WebSocket 订阅 / 广播
+    # ==================================================================
         
-async def 执行4P程序(配方数据: dict[str, Any],实体数据: list[dict[str, Any]],) -> bool:
-    for 实体 in 实体数据:
-        print(f"实体: {实体}")
-    return True

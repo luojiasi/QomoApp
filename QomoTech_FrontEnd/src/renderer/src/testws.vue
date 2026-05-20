@@ -84,7 +84,7 @@
           <thead>
             <tr>
               <th>name</th>
-              <th>axis_id</th>
+              <th>axis_no</th>
               <th>dpos</th>
               <th>mpos</th>
               <th>idle</th>
@@ -93,9 +93,9 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="ax in state.axes.value" :key="ax.axis_id">
+            <tr v-for="ax in state.axes.value" :key="ax.axis_no">
               <td>{{ ax.name }}</td>
-              <td>{{ ax.axis_id }}</td>
+              <td>{{ ax.axis_no }}</td>
               <td>{{ ax.dpos }}</td>
               <td>{{ ax.mpos }}</td>
               <td>{{ ax.idle }}</td>

@@ -55,9 +55,15 @@ const {
   on4PTableCancel,
   show4PDialogVisible,
   show4PIsAcquiring,
-  show4PIsAcquired,
+  show4PDiamondCount,
+  show4PCurrentDiamondIndex,
   show4PTablePosition,
+  show4PDiamondPositions,
+  show4PIsCurrentAcquired,
+  show4PAllAcquired,
   show4PAcquire,
+  show4PNextDiamond,
+  show4PPrevDiamond,
   onPauseToggleClick,
   onResetAlarmsClick,
   onEstopClick,
@@ -208,9 +214,15 @@ onUnmounted(() => {
   <Show4PTable
     :visible="show4PDialogVisible"
     :is-acquiring="show4PIsAcquiring"
-    :is-acquired="show4PIsAcquired"
-    :table-position="show4PTablePosition"
+    :diamond-count="show4PDiamondCount"
+    :current-diamond-index="show4PCurrentDiamondIndex"
+    :is-current-acquired="show4PIsCurrentAcquired"
+    :all-acquired="show4PAllAcquired"
+    :current-table-position="show4PTablePosition"
+    :diamond-positions="show4PDiamondPositions"
     @acquire="show4PAcquire"
+    @next-diamond="show4PNextDiamond"
+    @prev-diamond="show4PPrevDiamond"
     @confirm="on4PTableConfirm"
     @cancel="on4PTableCancel"
   />
