@@ -1,12 +1,10 @@
 import { ref } from 'vue'
+import { useAxisJog } from '../composables/index'
+import { U_AXIS_NO  } from '../config'
 import { EditorEntity, SurfaceEntity } from '@/modules/entitiesEditor/commons/types'
 import { useHardwareState } from '@/shared/api/hardware'
 
-function 根据当前轴位置计算实体偏移(
-  entities: SurfaceEntity<EditorEntity>[],
-  dx: number,
-  dy: number
-): SurfaceEntity<EditorEntity>[] {
+function 根据当前轴位置计算实体偏移(entities: SurfaceEntity<EditorEntity>[],dx: number,dy: number): SurfaceEntity<EditorEntity>[] {
   return entities.map((entity) => {
     const k = entity.kind
     if (k === 'LINE') {
@@ -89,6 +87,7 @@ export function useShow4PTable() {
   const isAcquiring = ref(false)
   const isAcquired = ref(false)
   const tablePosition = ref<XYZPosition>({ x: 0, y: 0, z: 0 })
+  const { axisAbsoluteInputs, handleAbsoluteMove } = useAxisJog(ref(5))
 
   function resolveXYZFromHardwareState(): XYZPosition {
     const positions = wsMposition.value
@@ -105,6 +104,11 @@ export function useShow4PTable() {
     }
   }
 
+  async function 移动到垂直位置进行台面确认(角度: number){
+    axisAbsoluteInputs.value[U_AXIS_NO] = 角度
+    await handleAbsoluteMove(U_AXIS_NO)
+  }
+
   function acquireXYZPosition() {
     isAcquiring.value = true
     try {
@@ -116,14 +120,16 @@ export function useShow4PTable() {
     }
   }
 
-  function openDialog() {
+  async function openDialog() {
     dialogVisible.value = true
     isAcquired.value = false
     isAcquiring.value = false
     tablePosition.value = { x: 0, y: 0, z: 0 }
+    await 移动到垂直位置进行台面确认(90)
   }
 
-  function closeDialog() {
+  async function closeDialog() {
+    await 移动到垂直位置进行台面确认(0)
     dialogVisible.value = false
   }
 

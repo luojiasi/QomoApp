@@ -7,7 +7,10 @@
 - controlPoints 替代 points（贝塞尔）
 - 新增 POLYLINE（含 bulge）、DIAMOND（含 contours）
 """
+import math
 from typing import Any, Dict, List, Optional, Set
+
+OPEN_PATH_SAMPLE_SEGMENTS = 96
 
 
 def 计算图形任务的数量(entities: List[Dict[str, Any]]) -> int:
@@ -101,7 +104,151 @@ def 计算图形任务的数量(entities: List[Dict[str, Any]]) -> int:
 
     return 任务数量
 
+def _提取坐标(point: Dict[str, Any]) -> tuple[float, float]:
+    """从新格式点位提取 (X, Y)，兼容旧格式小写 x/y。"""
+    x = point.get("X")
+    y = point.get("Y")
+    if x is None:
+        x = point.get("x", 0)
+    if y is None:
+        y = point.get("y", 0)
+    return float(x), float(y)
 
+
+def _构建点位(x: float, y: float) -> Dict[str, Any]:
+    """构建新格式点位 {X, Y}。"""
+    return {"X": x, "Y": y}
+
+
+def 采样圆上的点(center: Dict[str, Any], radius: float, segments: int = 360) -> List[Dict[str, Any]]:
+    """采样整圆上的点列（0°~360°）。"""
+    return 采样圆弧上的点(center, radius, 0.0, 360.0, segments)
+
+
+def 采样圆弧上的点(
+    center: Dict[str, Any],
+    radius: float,
+    start_angle: float,
+    end_angle: float,
+    segments: int = OPEN_PATH_SAMPLE_SEGMENTS,
+) -> List[Dict[str, Any]]:
+    """按角度范围采样圆弧点列（新格式大写 X/Y）。
+
+    与前端 createArcPoints 一致：归一化扫角后均匀步进采样 segments+1 个点。
+    """
+    cx, cy = _提取坐标(center)
+
+    sweep = end_angle - start_angle
+    while sweep > 360:
+        sweep -= 360
+    while sweep <= -360:
+        sweep += 360
+    if abs(sweep) < 1e-9:
+        sweep = 360 if sweep >= 0 else -360
+
+    step = sweep / max(segments, 1)
+    points: List[Dict[str, Any]] = []
+    for idx in range(segments + 1):
+        angle = start_angle + step * idx
+        rad = math.radians(angle)
+        points.append(_构建点位(cx + radius * math.cos(rad), cy + radius * math.sin(rad)))
+    return points
+
+
+def 采样POLYLINE上的点(
+    points: List[Dict[str, Any]],
+    segments_per_arc: int = OPEN_PATH_SAMPLE_SEGMENTS,
+) -> List[Dict[str, Any]]:
+    """采样 POLYLINE 上的点列。
+
+    每个顶点可带 bulge 属性，表示从该顶点到下一顶点的弧线：
+    - bulge = 0 或不存在 → 直线段
+    - bulge > 0 → 逆时针弧（CCW）
+    - bulge < 0 → 顺时针弧（CW）
+
+    bulge 与弧的数学关系：bulge = tan(θ/4)，θ 为弧的圆心角。
+    """
+    if len(points) < 2:
+        return [_构建点位(*_提取坐标(p)) for p in points]
+
+    result: List[Dict[str, Any]] = [_构建点位(*_提取坐标(points[0]))]
+
+    for i in range(len(points) - 1):
+        x1, y1 = _提取坐标(points[i])
+        x2, y2 = _提取坐标(points[i + 1])
+        bulge = float(points[i].get("bulge", 0) or 0)
+
+        dx = x2 - x1
+        dy = y2 - y1
+        L = math.hypot(dx, dy)
+
+        if L < 1e-9 or abs(bulge) < 1e-9:
+            result.append(_构建点位(x2, y2))
+            continue
+
+        # bulged arc
+        s = bulge * L / 2  # signed sagitta
+        R = (L * L) / (8 * abs(s)) + abs(s) / 2
+        d_perp = math.sqrt(max(0.0, R * R - (L / 2) * (L / 2)))
+
+        mx = (x1 + x2) / 2
+        my = (y1 + y2) / 2
+        nx = -dy / L  # unit normal to the left of P1→P2
+        ny = dx / L
+        side = 1 if bulge > 0 else -1
+        cx = mx + nx * side * d_perp
+        cy = my + ny * side * d_perp
+
+        start_angle_rad = math.atan2(y1 - cy, x1 - cx)
+        end_angle_rad = math.atan2(y2 - cy, x2 - cx)
+
+        # determine sweep preserving bulge direction
+        if bulge > 0:
+            while end_angle_rad <= start_angle_rad:
+                end_angle_rad += 2 * math.pi
+        else:
+            while end_angle_rad >= start_angle_rad:
+                end_angle_rad -= 2 * math.pi
+
+        sweep_rad = end_angle_rad - start_angle_rad
+        segs = max(16, segments_per_arc)
+        step = sweep_rad / segs
+        for j in range(1, segs + 1):
+            a = start_angle_rad + step * j
+            result.append(_构建点位(cx + R * math.cos(a), cy + R * math.sin(a)))
+
+    return result
+
+
+def 采样贝塞尔曲线上的点(
+    control_points: List[Dict[str, Any]],
+    segments: int = OPEN_PATH_SAMPLE_SEGMENTS,
+) -> List[Dict[str, Any]]:
+    """将贝塞尔控制点离散采样为折线点列（De Casteljau 算法，新格式大写 X/Y）。
+
+    与前端 createBezierPoints 一致，segments 至少为 2。
+    """
+    if len(control_points) == 0:
+        return []
+    if len(control_points) == 1:
+        return [_构建点位(*_提取坐标(control_points[0]))]
+
+    安全取点数 = max(2, segments)
+    pts = [_提取坐标(p) for p in control_points]
+    result: List[Dict[str, Any]] = []
+    for idx in range(安全取点数 + 1):
+        t = idx / 安全取点数
+        working = [{"x": px, "y": py} for px, py in pts]
+        while len(working) > 1:
+            nxt = []
+            for j in range(len(working) - 1):
+                nxt.append({
+                    "x": working[j]["x"] * (1 - t) + working[j + 1]["x"] * t,
+                    "y": working[j]["y"] * (1 - t) + working[j + 1]["y"] * t,
+                })
+            working = nxt
+        result.append(_构建点位(working[0]["x"], working[0]["y"]))
+    return result
 
 class OffsetEndpointCalculator:
     @staticmethod

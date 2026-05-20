@@ -102,13 +102,7 @@ class ProgramRunner(ProgramContext):
         进度 = max(0.0, min(100.0, float(self._进度百分比)))
         return {"running": bool(self._是否运行中),"paused": bool(self._是否已暂停),"total_tasks": int(self._任务总数),"current_task_index": int(self._当前任务序号),"进度百分比": 进度}
 
-    def 更新进度(
-        self,
-        *,
-        任务总数: int | None = None,
-        当前任务序号: int | None = None,
-        current_task_jindubaifenbi: float | None = None,
-    ) -> None:
+    def 更新进度(self,*,任务总数: int | None = None,当前任务序号: int | None = None,current_task_jindubaifenbi: float | None = None) -> None:
         if 任务总数 is not None:self._任务总数 = max(0, int(任务总数))
         if 当前任务序号 is not None:self._当前任务序号 = max(0, int(当前任务序号))
         if current_task_jindubaifenbi is not None:self._进度百分比 = max(0.0, min(100.0, float(current_task_jindubaifenbi)))
@@ -207,12 +201,7 @@ class ProgramRunner(ProgramContext):
     # 主入口
     # ==================================================================
 
-    async def 执行程序(
-        self,
-        *,
-        配方数据: dict[str, Any],
-        实体数据: list[dict[str, Any]],
-    ) -> dict[str, Any]:
+    async def 执行程序(self,*,配方数据: dict[str, Any],实体数据: list[dict[str, Any]]) -> dict[str, Any]:
         """程序执行主入口 —— 原 ``执行开始任务程序_最重要的``。"""
         if not self._运动.适配器 or not self._运动.适配器.已连接:return {"success": False, "message": "motion 控制器未连接", "data": {"connected": False}}
         if self._执行锁.locked():return {"success": False, "message": "程序正在执行中（重复触发被拒绝）", "data": None}
@@ -233,7 +222,6 @@ class ProgramRunner(ProgramContext):
                     self._需恢复激光 = False
                 
                 self.更新进度(任务总数=len(所有任务列表), 当前任务序号=0, current_task_jindubaifenbi=0.0)
-
                 for 当前任务索引 in range(len(所有任务列表)):
                     self.更新进度(当前任务序号=当前任务索引 + 1, current_task_jindubaifenbi=0.0)
                     if self._是否急停请求:

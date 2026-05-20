@@ -13,10 +13,11 @@ class ProgramService4p:
         """启动程序执行（创建新的 ProgramRunner 实例）。"""
         任务数量 = OffsetEndpointCalculator.计算当前任务数量(实体数据)
         if 任务数量 == 0: return False
-        
+        print(f"任务数量: {任务数量}")
         await 执行4P程序(配方数据=配方数据,实体数据=实体数据,)
         return True
-
-
+        
 async def 执行4P程序(配方数据: dict[str, Any],实体数据: list[dict[str, Any]],) -> bool:
+    for 实体 in 实体数据:
+        print(f"实体: {实体}")
     return True

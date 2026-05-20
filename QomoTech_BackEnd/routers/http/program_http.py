@@ -52,12 +52,9 @@ class 开始程序控制请求模型(BaseModel):
 @路由.post("/startProgram", summary="启动程序")
 async def start_program(payload: 开始程序参数请求模型):
     """接收配方 + 实体，启动后台任务执行程序。"""
-    if payload.recipe_payload is None or payload.entities is None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="startProgram 入参缺少 recipe_payload 或 entities",)
-
+    if payload.recipe_payload is None or payload.entities is None: raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="startProgram 入参缺少 recipe_payload 或 entities",)
     tasks = OffsetEndpointCalculator.calc_xy_points(payload.entities, 0)
-    if not tasks:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="没有可执行的任务，请检查实体几何",)
+    if not tasks: raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="没有可执行的任务，请检查实体几何",)
 
     async def _run_program() -> None:
         try:

@@ -1020,31 +1020,19 @@ class OffsetEndpointCalculator:
         return 拼接偏移轮廓点列(原始实体列表, 偏移实体列表)
 
     @staticmethod
-    def calc_xy_points_flat(
-        entities_or_ljs_path: Any,
-        offset: Optional[float] = None,
-        invert_open_direction: bool = False,
-    ) -> List[PointDict]:
+    def calc_xy_points_flat(entities_or_ljs_path: Any,offset: Optional[float] = None,invert_open_direction: bool = False,) -> List[PointDict]:
         """将各连通图形的点列顺序拼成一条 list（兼容旧调用；图形之间无分隔点）。"""
-        groups = OffsetEndpointCalculator.calc_xy_points(
-            entities_or_ljs_path, offset, invert_open_direction=invert_open_direction
-        )
+        groups = OffsetEndpointCalculator.calc_xy_points(entities_or_ljs_path, offset, invert_open_direction=invert_open_direction)
         flat: List[PointDict] = []
         for g in groups:
             flat.extend(g)
         return flat
 
     @staticmethod
-    def calc_xy_points_from_ljs_file(
-        ljs_path: str,
-        offset: Optional[float] = None,
-        invert_open_direction: bool = False,
-    ) -> List[List[PointDict]]:
+    def calc_xy_points_from_ljs_file(ljs_path: str,offset: Optional[float] = None,invert_open_direction: bool = False,) -> List[List[PointDict]]:
         """
         从 .ljs 读取实体后计算偏移折线（等价于对路径调用 calc_xy_points）。
         invert_open_direction 为 True 时，在计算前对每个实体的 openDirection 做 RIGHT↔LEFT 反转
         （不改变磁盘文件，仅影响本次计算）。
         """
-        return OffsetEndpointCalculator.calc_xy_points(
-            ljs_path, offset, invert_open_direction=invert_open_direction
-        )
+        return OffsetEndpointCalculator.calc_xy_points(ljs_path, offset, invert_open_direction=invert_open_direction)
