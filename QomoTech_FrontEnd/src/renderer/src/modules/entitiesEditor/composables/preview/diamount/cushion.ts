@@ -3,8 +3,9 @@
 // 圆角矩形：4 条直边 + 4 段圆角弧，共 8 顶点。
 // =============================================================================
 
-import type { PolylineVertex, Point2D } from '../../../commons/types'
+import type { ContourSegment, Point2D } from '../../../commons/types'
 import type { ProfileVertex, ShapeDefinition } from './types'
+import { polylineVerticesToSegments } from '../../../utils/geometry'
 
 /** 垫形圆角比例（相对于半径） */
 const CORNER_RATIO = 0.25
@@ -12,32 +13,20 @@ const CORNER_RATIO = 0.25
 const BULGE_90 = Math.tan((Math.PI / 2) / 4) // ≈ 0.4142
 
 export const cushionDef: ShapeDefinition = {
-  get2DContours(center: Point2D, L: number, W: number): PolylineVertex[][] {
+  get2DContours(center: Point2D, L: number, W: number): ContourSegment[] {
     const R = Math.max(L, W)
     const cr = R * CORNER_RATIO
-    const out = (d: number) => d  // 正方向偏移
-    const neg = (d: number) => -d // 负方向偏移
 
-    // 顶点顺序：右上 → 左上 → 左下 → 右下（逆时针）
-    // 直边 + 圆角弧交替
-    return [[
-      // 上边（直线段）
+    return polylineVerticesToSegments([
       { point: { X: center.X + R - cr, Y: center.Y - R }, bulge: 0 },
-      // 左上圆角（圆弧段）
       { point: { X: center.X - R,       Y: center.Y - R + cr }, bulge: BULGE_90 },
-      // 左边（直线段）
       { point: { X: center.X - R,       Y: center.Y + R - cr }, bulge: 0 },
-      // 左下圆角（圆弧段）
       { point: { X: center.X - R + cr,  Y: center.Y + R }, bulge: BULGE_90 },
-      // 下边（直线段）
       { point: { X: center.X + R - cr,  Y: center.Y + R }, bulge: 0 },
-      // 右下圆角（圆弧段）
       { point: { X: center.X + R,       Y: center.Y + R - cr }, bulge: BULGE_90 },
-      // 右边（直线段）
       { point: { X: center.X + R,       Y: center.Y - R + cr }, bulge: 0 },
-      // 右上圆角（圆弧段，回到起点）
       { point: { X: center.X + R - cr,  Y: center.Y - R }, bulge: BULGE_90 },
-    ]]
+    ])
   },
 
   getProfileVertices(R: number, _L: number, _W: number): ProfileVertex[] {

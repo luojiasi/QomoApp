@@ -10,6 +10,7 @@ import type {
   OpenSide,
   ArcEntity,
   PolylineVertex,
+  ContourSegment,
 } from '../commons/types'
 
 // =============================================================================
@@ -185,6 +186,82 @@ export function samplePolylineVertices(vertices: PolylineVertex[]): Point2D[] {
   }
 
   return result
+}
+
+/**
+ * 轮廓段采样：LINE → 起止点，ARC → 圆弧采样
+ * 替换 samplePolylineVertices 用于钻石 contours
+ */
+export function sampleContourSegments(segments: ContourSegment[]): Point2D[] {
+  const result: Point2D[] = []
+  if (segments.length === 0) return result
+
+  for (const seg of segments) {
+    if (seg.kind === 'LINE') {
+      if (
+        result.length === 0 ||
+        result[result.length - 1].X !== seg.start.X ||
+        result[result.length - 1].Y !== seg.start.Y
+      ) {
+        result.push({ ...seg.start })
+      }
+      result.push({ ...seg.end })
+    } else {
+      const startRad = Math.atan2(seg.start.Y - seg.center.Y, seg.start.X - seg.center.X)
+      const endRad = Math.atan2(seg.end.Y - seg.center.Y, seg.end.X - seg.center.X)
+      const startDeg = (startRad * 180) / Math.PI
+      let sweepDeg = ((endRad - startRad) * 180) / Math.PI
+      if (seg.clockwise) {
+        while (sweepDeg > 0) sweepDeg -= 360
+      } else {
+        while (sweepDeg < 0) sweepDeg += 360
+      }
+      const endDeg = startDeg + sweepDeg
+      const segs = Math.max(4, Math.ceil(Math.abs(sweepDeg) / 10))
+      const arcPts = sampleArcPoints(seg.center, seg.radius, startDeg, endDeg, segs)
+
+      if (result.length > 0) {
+        const last = result[result.length - 1]
+        if (Math.abs(last.X - arcPts[0].X) < 1e-9 && Math.abs(last.Y - arcPts[0].Y) < 1e-9) {
+          result.pop()
+        }
+      }
+      for (const pt of arcPts) result.push(pt)
+    }
+  }
+  return result
+}
+
+/** PolylineVertex[] → ContourSegment[]：bulge=0→LINE，bulge≠0→ARC */
+export function polylineVerticesToSegments(vertices: PolylineVertex[]): ContourSegment[] {
+  const segments: ContourSegment[] = []
+  const n = vertices.length
+  if (n < 2) return segments
+
+  for (let i = 0; i < n; i++) {
+    const curr = vertices[i]
+    const next = vertices[(i + 1) % n]
+    if (Math.abs(curr.bulge) < 1e-9) {
+      segments.push({ kind: 'LINE', start: { ...curr.point }, end: { ...next.point } })
+      continue
+    }
+    const chordLen = Math.hypot(next.point.X - curr.point.X, next.point.Y - curr.point.Y)
+    if (chordLen < 1e-9) continue
+    const sweepAngle = 4 * Math.atan(curr.bulge)
+    const radius = chordLen / (2 * Math.abs(Math.sin(sweepAngle / 2)))
+    const nx = -(next.point.Y - curr.point.Y) / chordLen
+    const ny = (next.point.X - curr.point.X) / chordLen
+    const midToCenter = radius * Math.cos(sweepAngle / 2) * Math.sign(curr.bulge)
+    segments.push({
+      kind: 'ARC',
+      start: { ...curr.point },
+      end: { ...next.point },
+      center: { X: (curr.point.X + next.point.X) / 2 + nx * midToCenter, Y: (curr.point.Y + next.point.Y) / 2 + ny * midToCenter },
+      radius,
+      clockwise: curr.bulge < 0,
+    })
+  }
+  return segments
 }
 
 /** 椭圆采样：从中心、长轴端点、短轴比例、起止参数角计算点列 */
@@ -392,8 +469,7 @@ export function getEntityBounds(entity: EditorEntity): BoundingBox {
       }
     case 'DIAMOND': {
       if (entity.contours && entity.contours.length > 0) {
-        const allPts: Point2D[] = []
-        for (const c of entity.contours) allPts.push(...samplePolylineVertices(c))
+        const allPts = sampleContourSegments(entity.contours)
         return pointsBounds(allPts)
       }
       return {

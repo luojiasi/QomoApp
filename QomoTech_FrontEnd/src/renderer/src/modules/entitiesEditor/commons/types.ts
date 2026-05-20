@@ -105,6 +105,23 @@ export interface PolylineVertex {
   point: Point2D
   bulge: number   // 凸度：0 = 直线段，≠0 = 弧段（bulge = tan(弧角/4)）
 }
+
+/** 轮廓段 — 直线 */
+export interface LineContourSegment {
+  kind: 'LINE'
+  start: Point2D
+  end: Point2D
+}
+/** 轮廓段 — 圆弧 */
+export interface ArcContourSegment {
+  kind: 'ARC'
+  start: Point2D
+  end: Point2D
+  center: Point2D
+  radius: number
+  clockwise: boolean
+}
+export type ContourSegment = LineContourSegment | ArcContourSegment
 /** POLYLINE — 对应 DXF LWPOLYLINE，每顶点可直可弧 */
 export interface PolylineEntity extends BaseEntity {
   kind: 'POLYLINE'
@@ -123,7 +140,7 @@ export interface DiamondEntity extends BaseEntity {
   kind: 'DIAMOND'
   center: Point2D
   radius: number
-  contours?: PolylineVertex[][]  // 非 ROUND 形状的多段线轮廓
+  contours?: ContourSegment[]  // 非 ROUND 形状的轮廓段（LINE/ARC）
   diamondParams: DiamondParams
 }
 

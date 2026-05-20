@@ -3,17 +3,18 @@
 // 八角形：矩形四角各切一刀，8 段直线（bulge=0）。
 // =============================================================================
 
-import type { PolylineVertex, Point2D } from '../../../commons/types'
+import type { ContourSegment, Point2D } from '../../../commons/types'
 import type { ProfileVertex, ShapeDefinition } from './types'
+import { polylineVerticesToSegments } from '../../../utils/geometry'
 
 /** 切角比例：占半径的百分比 */
 const CUT_RATIO = 0.20
 
 export const emeraldDef: ShapeDefinition = {
-  get2DContours(center: Point2D, L: number, W: number): PolylineVertex[][] {
+  get2DContours(center: Point2D, L: number, W: number): ContourSegment[] {
     const cutX = L * CUT_RATIO
     const cutZ = W * CUT_RATIO
-    return [[
+    return polylineVerticesToSegments([
       { point: { X: center.X + L - cutX, Y: center.Y - W },     bulge: 0 },
       { point: { X: center.X + L,        Y: center.Y - W + cutZ }, bulge: 0 },
       { point: { X: center.X + L,        Y: center.Y + W - cutZ }, bulge: 0 },
@@ -22,7 +23,7 @@ export const emeraldDef: ShapeDefinition = {
       { point: { X: center.X - L,        Y: center.Y + W - cutZ }, bulge: 0 },
       { point: { X: center.X - L,        Y: center.Y - W + cutZ }, bulge: 0 },
       { point: { X: center.X - L + cutX, Y: center.Y - W },     bulge: 0 },
-    ]]
+    ])
   },
 
   getProfileVertices(R: number, L: number, W: number): ProfileVertex[] {

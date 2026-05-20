@@ -2,7 +2,7 @@
 // diamount/types.ts — 异形钻石形状的共享类型
 // =============================================================================
 
-import type { Point2D, PolylineVertex } from '../../../commons/types'
+import type { Point2D, ContourSegment } from '../../../commons/types'
 
 /** XZ 平面单个顶点（3D 轮廓用，Y-up 构建） */
 export interface ProfileVertex {
@@ -13,7 +13,7 @@ export interface ProfileVertex {
 /** 每个形状文件必须导出的定义 */
 export interface ShapeDefinition {
   /** 2D 精确轮廓：使用 bulge 弧段表示，供 Canvas 2D 渲染 */
-  get2DContours(center: Point2D, L: number, W: number): PolylineVertex[][]
+  get2DContours(center: Point2D, L: number, W: number): ContourSegment[]
   /** 3D 腰围顶点：供 Three.js 刻面构建 */
   getProfileVertices(R: number, L: number, W: number): ProfileVertex[]
 }

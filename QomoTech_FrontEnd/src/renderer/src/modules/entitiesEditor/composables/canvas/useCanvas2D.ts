@@ -52,6 +52,7 @@ import { loadCanvas2DConfig, type Canvas2DConfig } from '@/modules/entitiesEdito
 import {
   sampleBezierPoints,
   samplePolylineVertices,
+  sampleContourSegments,
   getEntityBounds,
 } from '@/modules/entitiesEditor/utils/geometry'
 import { cursorX, cursorY } from '@/modules/entitiesEditor/composables/useStatusBar'
@@ -306,9 +307,8 @@ export function useCanvas2D() {
   function drawDiamond(e: DiamondEntity) {
     const c = getCtx()!
     if (e.contours && e.contours.length > 0) {
-      for (const contour of e.contours) {
-        const pts = samplePolylineVertices(contour)
-        if (pts.length < 2) continue
+      const pts = sampleContourSegments(e.contours)
+      if (pts.length >= 2) {
         c.beginPath(); c.moveTo(pts[0].X, pts[0].Y)
         for (let i = 1; i < pts.length; i++) c.lineTo(pts[i].X, pts[i].Y)
         c.closePath(); c.stroke()
@@ -667,11 +667,8 @@ export function useCanvas2D() {
       case 'DIAMOND': {
         const e = entity
         if (e.contours && e.contours.length > 0) {
-          for (const contour of e.contours) {
-            const pts = samplePolylineVertices(contour)
-            if (hitPolyline(world.X, world.Y, pts, threshold)) return true
-          }
-          return false
+          const pts = sampleContourSegments(e.contours)
+          return hitPolyline(world.X, world.Y, pts, threshold)
         }
         return Math.abs(Math.hypot(world.X - e.center.X, world.Y - e.center.Y) - e.radius) <= threshold
       }

@@ -60,12 +60,14 @@ function 根据当前轴位置计算实体偏移(entities: SurfaceEntity<EditorE
         center: { X: entity.center.X + dx, Y: entity.center.Y + dy },
         ...(entity.contours
           ? {
-              contours: entity.contours.map((ring) =>
-                ring.map((v) => ({
-                  ...v,
-                  point: { X: v.point.X + dx, Y: v.point.Y + dy }
-                }))
-              )
+              contours: entity.contours.map((seg) => {
+                const offsetStart = { X: seg.start.X + dx, Y: seg.start.Y + dy }
+                const offsetEnd = { X: seg.end.X + dx, Y: seg.end.Y + dy }
+                if (seg.kind === 'LINE') {
+                  return { ...seg, start: offsetStart, end: offsetEnd }
+                }
+                return { ...seg, start: offsetStart, end: offsetEnd, center: { X: seg.center.X + dx, Y: seg.center.Y + dy } }
+              })
             }
           : {})
       }

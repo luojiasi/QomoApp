@@ -4,8 +4,9 @@
 // 3D：椭圆参数方程直接采样
 // =============================================================================
 
-import type { PolylineVertex, Point2D } from '../../../commons/types'
+import type { ContourSegment, Point2D, PolylineVertex } from '../../../commons/types'
 import type { ProfileVertex, ShapeDefinition } from './types'
+import { polylineVerticesToSegments } from '../../../utils/geometry'
 
 /** 三点确定圆弧的 bulge 值 */
 function threePointBulge(
@@ -18,7 +19,7 @@ function threePointBulge(
   const { x: cx, y: cy } = pmid
 
   const d = 2 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by))
-  if (Math.abs(d) < 1e-10) return 0 // 三点共线
+  if (Math.abs(d) < 1e-10) return 0
   const ux = ((ax * ax + ay * ay) * (by - cy) + (bx * bx + by * by) * (cy - ay) + (cx * cx + cy * cy) * (ay - by)) / d
   const uy = ((ax * ax + ay * ay) * (cx - bx) + (bx * bx + by * by) * (ax - cx) + (cx * cx + cy * cy) * (bx - ax)) / d
 
@@ -29,8 +30,8 @@ function threePointBulge(
 }
 
 export const ovalDef: ShapeDefinition = {
-  get2DContours(center: Point2D, L: number, W: number): PolylineVertex[][] {
-    const segs = 8 // 8 段椭圆弧
+  get2DContours(center: Point2D, L: number, W: number): ContourSegment[] {
+    const segs = 8
     const pts: PolylineVertex[] = []
 
     for (let i = 0; i < segs; i++) {
@@ -47,7 +48,7 @@ export const ovalDef: ShapeDefinition = {
         bulge: threePointBulge(p1, p2, pmid),
       })
     }
-    return [pts]
+    return polylineVerticesToSegments(pts)
   },
 
   getProfileVertices(R: number, L: number, W: number): ProfileVertex[] {

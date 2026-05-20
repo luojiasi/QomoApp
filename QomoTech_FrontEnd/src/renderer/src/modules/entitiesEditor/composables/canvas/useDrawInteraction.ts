@@ -13,7 +13,7 @@
 // =============================================================================
 
 import { computed, ref, watch } from 'vue'
-import type { Point2D, EntityKind, DiamondShape, PolylineVertex } from '../../commons/types'
+import type { Point2D, EntityKind, DiamondShape, ContourSegment } from '../../commons/types'
 import type { DrawStrategyDef, FieldDef } from './drawStrategies'
 import { useEditorStore } from '../../stores/editorStore'
 import { getDefaultStrategy } from './drawStrategies'
@@ -451,7 +451,7 @@ function buildDiamond(values: FieldValue[], diamondShape: DiamondShape | null): 
   const L = radius
   const W = radius
 
-  let contours: PolylineVertex[][] | undefined
+  let contours: ContourSegment[] | undefined
   if (shape !== 'ROUND') {
     const shapeDef = getShapeDef(shape)
     contours = shapeDef.get2DContours(center, L, W)

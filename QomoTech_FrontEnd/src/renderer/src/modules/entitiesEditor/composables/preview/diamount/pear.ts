@@ -3,14 +3,15 @@
 // 轮廓：底部大半圆 + 两侧直线汇聚到尖端（顶部）。
 // =============================================================================
 
-import type { PolylineVertex, Point2D } from '../../../commons/types'
+import type { ContourSegment, Point2D, PolylineVertex } from '../../../commons/types'
 import type { ProfileVertex, ShapeDefinition } from './types'
+import { polylineVerticesToSegments } from '../../../utils/geometry'
 
 /** 底部弧段占轮廓的比例弧角度数（从底部向两侧张开） */
 const BOTTOM_ARC_DEG = 210
 
 export const pearDef: ShapeDefinition = {
-  get2DContours(center: Point2D, L: number, W: number): PolylineVertex[][] {
+  get2DContours(center: Point2D, L: number, W: number): ContourSegment[] {
     const tipY = center.Y + L                       // 尖端（顶部）
     const botR = W                                   // 底部弧半径
     const botCenterY = center.Y - L * 0.35           // 底部弧圆心 Y
@@ -57,16 +58,12 @@ export const pearDef: ShapeDefinition = {
 
     const tip = { X: center.X, Y: tipY }
 
-    return [[
-      // 尖端（顶部）
+    return polylineVerticesToSegments([
       { point: tip, bulge: 0 },
-      // 右侧直线 → 右切点
       { point: rp, bulge: 0 },
-      // 底部弧段 → 左切点
       { point: lp, bulge: arcBulge },
-      // 左侧直线 → 回到尖端
       { point: tip, bulge: 0 },
-    ]]
+    ])
   },
 
   getProfileVertices(R: number, L: number, W: number): ProfileVertex[] {

@@ -3,8 +3,9 @@
 // 轮廓：顶部两瓣弧 + 底部V形尖，用 6 段弧+直线组合。
 // =============================================================================
 
-import type { PolylineVertex, Point2D } from '../../../commons/types'
+import type { ContourSegment, Point2D, PolylineVertex } from '../../../commons/types'
 import type { ProfileVertex, ShapeDefinition } from './types'
+import { polylineVerticesToSegments } from '../../../utils/geometry'
 
 /** 三点确定圆弧的 bulge 值 */
 function threePointBulge(
@@ -32,7 +33,7 @@ function heartPoint(t: number, R: number): { x: number; y: number } {
 }
 
 export const heartDef: ShapeDefinition = {
-  get2DContours(center: Point2D, L: number, W: number): PolylineVertex[][] {
+  get2DContours(center: Point2D, L: number, W: number): ContourSegment[] {
     const R = Math.max(L, W) / 16 // 归一化，使心形 ≈ L 宽
     const segs = 8
     const pts: PolylineVertex[] = []
@@ -51,7 +52,7 @@ export const heartDef: ShapeDefinition = {
         bulge: threePointBulge(p1, p2, pmid),
       })
     }
-    return [pts]
+    return polylineVerticesToSegments(pts)
   },
 
   getProfileVertices(Rradius: number, L: number, W: number): ProfileVertex[] {
