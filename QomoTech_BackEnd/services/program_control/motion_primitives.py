@@ -94,11 +94,7 @@ class MotionPrimitives:
             await asyncio.sleep(休眠秒)
         return {"success": False, "notMoving": False, "message": "等待轴静止超时"}
 
-    async def 安全拉取xy轴是否空闲(
-        self,
-        超时次数: int = 2000,
-        休眠秒: float = 0.02,
-    ) -> dict[str, Any]:
+    async def 安全拉取xy轴是否空闲(self,超时次数: int = 2000,休眠秒: float = 0.02) -> dict[str, Any]:
         """安全轮询 XY 双轴静止状态。"""
         for _ in range(超时次数):
             if self._上下文.是否已急停():

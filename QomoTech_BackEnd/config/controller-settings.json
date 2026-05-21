@@ -183,7 +183,7 @@
       "axis_name": "R",
       "axis_type": 1,
       "units": 200,
-      "speed": 100,
+      "speed": 50,
       "lspeed": 0,
       "accel": 500000,
       "decel": 500000,

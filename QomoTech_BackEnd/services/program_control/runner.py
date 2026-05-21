@@ -585,13 +585,7 @@ class ProgramRunner(ProgramContext):
     # R 轴切圆（原 ``用旋转轴去切圆``）
     # ==================================================================
 
-    async def _R轴切圆(
-        self,
-        原始任务序号: int,
-        配方数据: dict[str, Any],
-        实体数据: list[dict[str, Any]],
-        配方集: ProgramRecipeSet,
-    ) -> bool | str:
+    async def _R轴切圆(self,原始任务序号: int,配方数据: dict[str, Any],实体数据: list[dict[str, Any]],配方集: ProgramRecipeSet ,方向:str = 'RIGHT') -> bool | str:
         """R 轴旋转切圆程序。"""
         实体列表 = 实体数据
         当前任务索引 = 原始任务序号
@@ -628,7 +622,7 @@ class ProgramRunner(ProgramContext):
         最小的偏移 = 0
         最大的偏移 = 上开口值
 
-        当前步骤 = ProgramStep.检查控制器是否连接
+        当前步骤 = 0
         是否需要跳转计算下一层开口 = False
         进度百分比 = 0
         上层量 = 0
@@ -651,104 +645,96 @@ class ProgramRunner(ProgramContext):
         当前Z轴的位置 = await self._运动.取_z_实际位置() + float(焦距补偿)
         首次目标Z轴位置 = float(当前Z轴的位置) - float(焦距补偿)
 
-        R轴的圈数 = 1
+        #方向
+        R轴旋转切割的方向 = 方向.upper() == "LEFT"
+        R轴的圈数 = 0
+        设置R轴旋转圈数移动 = 2.0
 
-        while 当前步骤 <= ProgramStep.结束程序运行:
+        while 当前步骤 < 9999:
             match 当前步骤:
-                case ProgramStep.检查控制器是否连接:
+                case 0:
                     是否连上 = self._运动.适配器.已连接 if self._运动.适配器 else False
-                    if 是否连上:
-                        await self._运动原语.开启吹风()
-                        当前步骤 = ProgramStep.移动到起点
-                    else:
-                        当前步骤 = ProgramStep.清理所有状态
-
-                case ProgramStep.移动到起点:
+                    if 是否连上: await self._运动原语.开启吹风()
+                    当前步骤 = 10 if 是否连上 else 900
+                case 10:
                     圆中心点X = 实体列表[当前任务索引].get('center').get('x') + 实体列表[当前任务索引].get('radius')
                     圆中心点Y = 实体列表[当前任务索引].get('center').get('y')
                     try:
                         await self._运动.绝对运动并设速度("X", 圆中心点X, 10)
                         await self._运动.绝对运动并设速度("Y", 圆中心点Y, 10)
-                        当前步骤 = ProgramStep.等待XY轴到位_20
+                        当前步骤 = 20
                     except Exception:
-                        当前步骤 = ProgramStep.清理所有状态
+                        当前步骤 = 900
 
-                case ProgramStep.等待XY轴到位_20:
+                case 20:
                     结果 = await self._运动原语.安全拉取xy轴是否空闲()
-                    if 结果.get("skip"):
-                        return await self._运动原语.跳过任务并回Z轴(z轴目标=首次目标Z轴位置, 速度=切割速度)
-                    if 结果.get("abort"):
-                        return "abort"
-                    if 结果.get("success"):
-                        当前步骤 = ProgramStep.选择激光模式
-                    else:
-                        return False
+                    if 结果.get("skip"):return await self._运动原语.跳过任务并回Z轴(z轴目标=首次目标Z轴位置, 速度=切割速度)
+                    if 结果.get("abort"):return "abort"
+                    当前步骤 = 30 if 结果.get("success") else 900
+                case 30:
+                    # 判断是否打开扫黑功能
+                    当前步骤 = 31 if 是否打开扫黑功能 else 32
+                    累计下降量 = 累计下降量 + 扫黑上台的高度 if 是否打开扫黑功能 else 累计下降量
 
-                case ProgramStep.选择激光模式:
-                    if 是否打开扫黑功能:
-                        当前步骤 = ProgramStep.发送扫黑激光参数
-                        累计下降量 -= 扫黑上台的高度
-                    else:
-                        当前步骤 = ProgramStep.发送工作激光参数
-
-                case ProgramStep.发送扫黑激光参数:
+                case 31:
                     await self._串口.发送激光数据(str(扫黑功率), str(扫黑频率), str(扫黑电流), 厂家=self._获取激光厂家())
-                    当前步骤 = ProgramStep.打开激光输出
+                    当前步骤 =40
 
-                case ProgramStep.发送工作激光参数:
+                case 32:
                     await self._串口.发送激光数据(str(工作功率), str(工作频率), str(工作电流), 厂家=self._获取激光厂家())
-                    当前步骤 = ProgramStep.打开激光输出
+                    当前步骤 = 40
 
-                case ProgramStep.打开激光输出:
+                case 40:
                     if not 是否打开激光:
                         await self._运动原语.开启激光输出()
                         是否打开激光 = True
-                    当前步骤 = ProgramStep.打开R轴旋转
 
-                case ProgramStep.打开R轴旋转:
+                    当前步骤 = 50
+
+                case 50:
+
                     R轴旋转结果 = await self._运动.R轴一直进行旋转()
-                    当前步骤 = ProgramStep.检查是否到达下降深度 if R轴旋转结果.get('success') else ProgramStep.清理所有状态
+                    当前步骤 = 60 if R轴旋转结果.get('success') else 900
 
-                case ProgramStep.检查是否到达下降深度:
-                    当前步骤 = ProgramStep.下降Z轴到达指定位置 if 累计下降量 <= 总下降量 else ProgramStep.清理所有状态
+                case 60:
+                    # 判断是否到达下降深度
+                    当前步骤 = 70 if 累计下降量 <= 总下降量 else 900
 
-                case ProgramStep.下降Z轴到达指定位置:
+                case 70:
                     Z轴目标位置 = -累计下降量 + 当前Z轴的位置
                     try:
                         await self._运动.绝对运动并设速度("Z", Z轴目标位置, 切割速度)
-                        当前步骤 = ProgramStep.等待下降Z轴到位
+                        当前步骤 = 80
                     except Exception:
-                        当前步骤 = ProgramStep.清理所有状态
+                        当前步骤 = 900
 
-                case ProgramStep.等待下降Z轴到位:
+                case 80:
                     结果 = await self._运动原语.安全拉取是否空闲(轴号=2)
-                    if 结果.get("skip"):
-                        return await self._运动原语.跳过任务并回Z轴(z轴目标=首次目标Z轴位置, 速度=切割速度)
-                    if 结果.get("abort"):
-                        return "abort"
-                    if 结果.get("success"):
-                        当前步骤 = ProgramStep.XY轴连续插补开始
-                    else:
-                        return False
+                    if 结果.get("skip"):return await self._运动原语.跳过任务并回Z轴(z轴目标=首次目标Z轴位置, 速度=切割速度)
+                    if 结果.get("abort"):return "abort"
+                    当前步骤 = 90 if 结果.get("success") else 900
 
-                case ProgramStep.XY轴连续插补开始:
+                case 90:
                     R轴的圈数 = await self._运动.获取R轴的当前位置()
-                    当前步骤 = ProgramStep.更新开口偏移值 if R轴的圈数 is not None else ProgramStep.清理所有状态
+                    当前步骤 = 100 if R轴的圈数 is not None else 900
 
-                case ProgramStep.更新开口偏移值:
-                    目标圈数 = float(R轴的圈数) + 1.0
+                case 100:
+                    # 进行开口偏移
+                    目标圈数 = R轴的圈数+设置R轴旋转圈数移动
+
+
                     跳出计数 = 0
                     已见暂停 = False
                     while 跳出计数 < 5000:
                         if self._是否急停请求:
                             await self._运动原语.清除运行输出()
                             return "abort"
-                        if self._是否跳过请求:
-                            return await self._运动原语.跳过任务并回Z轴(z轴目标=首次目标Z轴位置, 速度=切割速度)
+                        if self._是否跳过请求:return await self._运动原语.跳过任务并回Z轴(z轴目标=首次目标Z轴位置, 速度=切割速度)
                         if self._是否已暂停:
                             已见暂停 = True
                             await asyncio.sleep(0.05)
                             continue
+
                         try:
                             R轴当前的圈数 = await self._运动.获取R轴的当前位置()
                         except Exception:
@@ -756,64 +742,67 @@ class ProgramRunner(ProgramContext):
                             跳出计数 += 1
                             await asyncio.sleep(0.02)
                             continue
+
+
                         if 已见暂停:
                             try:
                                 R轴恢复结果 = await self._运动.R轴一直进行旋转()
-                                if not R轴恢复结果 or not R轴恢复结果.get("success"):
-                                    return False
+                                if not R轴恢复结果 or not R轴恢复结果.get("success"):return False
                             except Exception:
                                 日志.exception("R轴切圆 R轴恢复旋转异常")
                                 return False
-                            if R轴当前的圈数 is None:
-                                return False
+                            if R轴当前的圈数 is None:return False
                             R轴的圈数 = float(R轴当前的圈数)
                             目标圈数 = R轴的圈数 + float(旋转切割的次数)
                             已见暂停 = False
                             continue
-                        if R轴当前的圈数 is not None and float(R轴当前的圈数) >= (目标圈数 - 0.001):
+
+                        if R轴当前的圈数 is not None and R轴当前的圈数 >= (目标圈数 - 0.001):
+                            
                             try:
                                 当前X, _ = await self._运动.取_xy_实际位置()
                             except Exception:
                                 日志.exception("R轴切圆 获取XY位置异常")
                                 return False
+
+                            # 开口值一直确实没问题，主要是目标位置发生了错误
                             当前开口值 = 当前开口值 + 每次开口的偏移量 if 是否是从小到大的开口偏移 else 当前开口值 - 每次开口的偏移量
-                            当前开口值是否在范围内 = (
-                                round(当前开口值, 6) >= round(最小的偏移 / 1000, 6)
-                                and round(当前开口值, 6) <= round(最大的偏移 / 1000, 6)
-                            )
+                            
+                            当前开口值是否在范围内 = (round(当前开口值, 6) >= round(最小的偏移 / 1000, 6)and round(当前开口值, 6) <= round(最大的偏移 / 1000, 6))
                             if not 当前开口值是否在范围内 and 是否是从小到大的开口偏移:
-                                X的目标距离 = 当前X + round(round(最大的偏移 / 1000, 6) - (当前开口值 - 每次开口的偏移量), 6)
+                                X的目标距离 = 当前X + round(round(最大的偏移 / 1000, 6) - (当前开口值 - 每次开口的偏移量), 6) 
                                 当前开口值 = round(最大的偏移 / 1000, 6)
                                 是否需要跳转计算下一层开口 = True
                             elif not 当前开口值是否在范围内 and not 是否是从小到大的开口偏移:
                                 X的目标距离 = 当前X - round(当前开口值 + 每次开口的偏移量 - round(最小的偏移 / 1000, 6), 6)
                                 当前开口值 = round(最小的偏移 / 1000, 6)
                                 是否需要跳转计算下一层开口 = True
-                            else:
-                                X的目标距离 = 当前X + 每次开口的偏移量 if 是否是从小到大的开口偏移 else 当前X - 每次开口的偏移量
+                                
+                            if 当前开口值是否在范围内:
+                                if R轴旋转切割的方向:
+                                    X的目标距离 = 当前X + 每次开口的偏移量 if 是否是从小到大的开口偏移 else 当前X - 每次开口的偏移量
+                                else:
+                                    X的目标距离 = 当前X - 每次开口的偏移量 if 是否是从小到大的开口偏移 else 当前X + 每次开口的偏移量
 
                             try:
                                 await self._运动.绝对运动并设速度("X", X的目标距离, 切割速度)
-                                当前步骤 = ProgramStep.计算下一层开口
+                                当前步骤 = 110
                             except Exception:
-                                当前步骤 = ProgramStep.清理所有状态
+                                当前步骤 = 900
                             break
+
                         跳出计数 += 1
                         await asyncio.sleep(0.02)
                     else:
-                        当前步骤 = ProgramStep.清理所有状态
+                        当前步骤 = 900
 
-                case ProgramStep.计算下一层开口:
-                    if 是否需要跳转计算下一层开口:
-                        是否是从小到大的开口偏移 = not 是否是从小到大的开口偏移
-                    当前步骤 = ProgramStep.XY轴连续插补开始 if 当前开口值是否在范围内 and not 是否需要跳转计算下一层开口 else ProgramStep.STEP_110
+                case 110:
+                    if 是否需要跳转计算下一层开口:是否是从小到大的开口偏移 = not 是否是从小到大的开口偏移
+                    当前步骤 = 90 if 当前开口值是否在范围内 and not 是否需要跳转计算下一层开口 else 120
 
-                case ProgramStep.STEP_110:
+                case 120:
                     是否需要跳转计算下一层开口 = False
-                    进度百分比 = (
-                        (累计下降量 + 扫黑上台的高度) / 高度 * 100 if 是否打开扫黑功能
-                        else 累计下降量 / 高度 * 100
-                    )
+                    进度百分比 = ((累计下降量 + 扫黑上台的高度) / 高度 * 100 if 是否打开扫黑功能 else 累计下降量 / 高度 * 100)
                     当层量 = int(进度百分比 // 变化百分比)
                     累计下降量 -= (当层量 - 上层量) * 每次下降步长量减少量
                     上层量 = 当层量
@@ -826,33 +815,18 @@ class ProgramRunner(ProgramContext):
                         累计下降量 = 0
 
                     if 开口形状 == "V型":
-                        最小的偏移, 最大的偏移 = 更新V型开口偏移(
-                            上开口值=上开口值, 正切角度=tan角度, 累计下降量=累计下降量,
-                        )
+                        最小的偏移, 最大的偏移 = 更新V型开口偏移(上开口值=上开口值, 正切角度=tan角度, 累计下降量=累计下降量)
                     if 开口形状 in ("//型", "||型"):
-                        最小的偏移, 最大的偏移 = 更新平行型开口偏移(
-                            上开口值=上开口值, 正切角度=tan角度, 累计下降量=累计下降量,
-                        )
+                        最小的偏移, 最大的偏移 = 更新平行型开口偏移(上开口值=上开口值, 正切角度=tan角度, 累计下降量=累计下降量)
                     self.更新进度(current_task_jindubaifenbi=进度百分比)
-                    当前步骤 = ProgramStep.选择激光模式 if not 是否打开扫黑功能 and not 是否打开激光 else ProgramStep.检查是否到达下降深度
+                    当前步骤 = 30 if not 是否打开扫黑功能 and not 是否打开激光 else 60
 
-                case ProgramStep.STEP_120:
-                    当前步骤 = ProgramStep.STEP_130
 
-                case ProgramStep.STEP_130:
-                    当前步骤 = ProgramStep.STEP_140
-
-                case ProgramStep.STEP_140:
-                    当前步骤 = ProgramStep.STEP_150
-
-                case ProgramStep.STEP_150:
-                    当前步骤 = ProgramStep.清理所有状态
-
-                case ProgramStep.清理所有状态:
+                case 900:
                     await self._运动.停止运动()
                     await self._运动原语.关闭红光()
                     await self._运动原语.关闭激光输出()
-                    当前步骤 = ProgramStep.结束程序运行
+                    当前步骤 = 9999
 
         return True
 
