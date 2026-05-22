@@ -238,19 +238,13 @@ class ProgramRunner(ProgramContext):
                     加工轴 = 垂直公式.get("cuttingAxis")
                     是否圆或圆弧 = 判断是否都是圆或者圆弧(实体数据=实体数据)
 
-                    if 加工轴 == 'R' and 是否圆或圆弧:
-                        结果 = await self._R轴切圆(原始任务序号=当前任务索引,配方数据=配方数据,实体数据=实体数据,配方集=配方集)
-                    elif 加工轴 == 'XY':
-                        结果 = await self._修面和切片(原始任务序号=当前任务索引,配方数据=配方数据,实体数据=实体数据,配方集=配方集)
-                    else:
-                        结果 = True  # 未知加工轴类型，跳过
+                    if 加工轴 == 'R' and 是否圆或圆弧:结果 = await self._R轴切圆(原始任务序号=当前任务索引,配方数据=配方数据,实体数据=实体数据,配方集=配方集)
+                    elif 加工轴 == 'XY':结果 = await self._修面和切片(原始任务序号=当前任务索引,配方数据=配方数据,实体数据=实体数据,配方集=配方集)
+                    else:结果 = True  # 未知加工轴类型，跳过
 
-                    if 结果 == "skip":
-                        continue
-                    if 结果 == "abort":
-                        return {"success": False, "message": "程序已急停", "data": None}
-                    if 结果 is False:
-                        return {"success": False, "message": "运动失败", "data": None}
+                    if 结果 == "skip":continue
+                    if 结果 == "abort":return {"success": False, "message": "程序已急停", "data": None}
+                    if 结果 is False:return {"success": False, "message": "运动失败", "data": None}
 
                 if self._是否急停请求:
                     await self._运动原语.清除运行输出()
@@ -585,7 +579,7 @@ class ProgramRunner(ProgramContext):
     # R 轴切圆（原 ``用旋转轴去切圆``）
     # ==================================================================
 
-    async def _R轴切圆(self,原始任务序号: int,配方数据: dict[str, Any],实体数据: list[dict[str, Any]],配方集: ProgramRecipeSet ,方向:str = 'RIGHT') -> bool | str:
+    async def _R轴切圆(self,原始任务序号: int,配方数据: dict[str, Any],实体数据: list[dict[str, Any]],配方集: ProgramRecipeSet) -> bool | str:
         """R 轴旋转切圆程序。"""
         实体列表 = 实体数据
         当前任务索引 = 原始任务序号
@@ -645,10 +639,13 @@ class ProgramRunner(ProgramContext):
         当前Z轴的位置 = await self._运动.取_z_实际位置() + float(焦距补偿)
         首次目标Z轴位置 = float(当前Z轴的位置) - float(焦距补偿)
 
-        #方向
-        R轴旋转切割的方向 = 方向.upper() == "LEFT"
+        #方向  True往外切，False往里切
+        R轴旋转切割的方向 = 实体列表[当前任务索引].get('openDirection').upper() == "RIGHT"
         R轴的圈数 = 0
         设置R轴旋转圈数移动 = 2.0
+
+        # 我这个引进来一个变量用来钻石切割，但是其他的地方是没有的，只有对钻石有关系，现在
+        R轴旋转切割的半径移动方向 = 实体列表[当前任务索引].get('钻石半径的偏移方向','DEFAULT').upper() # default 不偏移right 往右偏移 就是涉及到case10步骤，left 往左偏移，
 
         while 当前步骤 < 9999:
             match 当前步骤:
@@ -657,7 +654,10 @@ class ProgramRunner(ProgramContext):
                     if 是否连上: await self._运动原语.开启吹风()
                     当前步骤 = 10 if 是否连上 else 900
                 case 10:
-                    圆中心点X = 实体列表[当前任务索引].get('center').get('x') + 实体列表[当前任务索引].get('radius')
+                    if R轴旋转切割的半径移动方向 == 'RIGHT' or R轴旋转切割的半径移动方向 == 'DEFAULT':
+                        圆中心点X = 实体列表[当前任务索引].get('center').get('x') + 实体列表[当前任务索引].get('radius')
+                    else:
+                        圆中心点X = 实体列表[当前任务索引].get('center').get('x') - 实体列表[当前任务索引].get('radius')
                     圆中心点Y = 实体列表[当前任务索引].get('center').get('y')
                     try:
                         await self._运动.绝对运动并设速度("X", 圆中心点X, 10)

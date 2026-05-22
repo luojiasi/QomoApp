@@ -11,7 +11,9 @@
       "PowerShell(Get-ChildItem -Directory | Where-Object { $_.Name -notin @\\('node_modules', '.git', '__pycache__'\\) } | ForEach-Object { $_.Name })",
       "Bash(Get-ChildItem -Path \"D:\\\\Qomo\\\\QomoTech\\\\QomoTech_FrontEnd\\\\src\\\\renderer\\\\src\\\\modules\\\\editor\" -Recurse -File)",
       "Bash(Get-Content *)",
-      "PowerShell(Get-ChildItem -Path \"QomoTech_BackEnd\" -Recurse -Depth 4 | Where-Object { -not $_.PSIsContainer } | ForEach-Object { $_.FullName -replace [regex]::Escape\\(\\(Get-Location\\).Path + '\\\\'\\), '' })"
+      "PowerShell(Get-ChildItem -Path \"QomoTech_BackEnd\" -Recurse -Depth 4 | Where-Object { -not $_.PSIsContainer } | ForEach-Object { $_.FullName -replace [regex]::Escape\\(\\(Get-Location\\).Path + '\\\\'\\), '' })",
+      "Bash(Get-ChildItem -Path \"D:\\\\Qomo\\\\QomoTech\\\\QomoTech_BackEnd\" -Directory)",
+      "Bash(Select-Object Name)"
     ]
   }
 }

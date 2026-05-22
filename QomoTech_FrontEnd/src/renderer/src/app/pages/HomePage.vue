@@ -58,10 +58,14 @@ const {
   show4PDiamondCount,
   show4PCurrentDiamondIndex,
   show4PTablePosition,
-  show4PDiamondPositions,
-  show4PIsCurrentAcquired,
+  show4PCenterPosition,
+  show4PDiamondTablePositions,
+  show4PDiamondCenterPositions,
+  show4PIsCurrentCenterAcquired,
+  show4PIsCurrentTableAcquired,
   show4PAllAcquired,
-  show4PAcquire,
+  show4PAcquireCenter,
+  show4PAcquireTable,
   show4PNextDiamond,
   show4PPrevDiamond,
   onPauseToggleClick,
@@ -216,11 +220,15 @@ onUnmounted(() => {
     :is-acquiring="show4PIsAcquiring"
     :diamond-count="show4PDiamondCount"
     :current-diamond-index="show4PCurrentDiamondIndex"
-    :is-current-acquired="show4PIsCurrentAcquired"
+    :is-current-center-acquired="show4PIsCurrentCenterAcquired"
+    :is-current-table-acquired="show4PIsCurrentTableAcquired"
     :all-acquired="show4PAllAcquired"
+    :current-center-position="show4PCenterPosition"
     :current-table-position="show4PTablePosition"
-    :diamond-positions="show4PDiamondPositions"
-    @acquire="show4PAcquire"
+    :diamond-center-positions="show4PDiamondCenterPositions"
+    :diamond-table-positions="show4PDiamondTablePositions"
+    @acquire-center="show4PAcquireCenter"
+    @acquire-table="show4PAcquireTable"
     @next-diamond="show4PNextDiamond"
     @prev-diamond="show4PPrevDiamond"
     @confirm="on4PTableConfirm"

@@ -32,8 +32,6 @@ const router = useRouter()
 const authStore = useAuthStore()
 const licenseStore = useLicenseStore()
 const controllerSettingsStore = useControllerSettingsStore()
-let licenseTimer: number | null = null
-
 function isTypingFocusTarget(target: EventTarget | null): boolean {
   const el = target as HTMLElement | null
   if (!el) return false
@@ -103,17 +101,10 @@ onMounted(async () => {
   const inst = toastRef.value as unknown as NotificationToastExpose | null
   registerNotificationToast(inst)
   await syncLicenseStatus()
-  licenseTimer = window.setInterval(() => {
-    void syncLicenseStatus()
-  }, 30_000)
 })
 
 onUnmounted(() => {
   detachGlobalKeydown()
-  if (licenseTimer) {
-    window.clearInterval(licenseTimer)
-  }
-
   registerNotificationToast(null)
 })
 </script>

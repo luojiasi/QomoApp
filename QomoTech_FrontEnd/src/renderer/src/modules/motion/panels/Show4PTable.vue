@@ -6,14 +6,18 @@ defineProps<{
   isAcquiring: boolean
   diamondCount: number
   currentDiamondIndex: number
-  isCurrentAcquired: boolean
+  isCurrentCenterAcquired: boolean
+  isCurrentTableAcquired: boolean
   allAcquired: boolean
+  currentCenterPosition: XYZPosition
   currentTablePosition: XYZPosition
-  diamondPositions: Record<number, XYZPosition>
+  diamondCenterPositions: Record<number, XYZPosition>
+  diamondTablePositions: Record<number, XYZPosition>
 }>()
 
 const emit = defineEmits<{
-  acquire: []
+  acquireCenter: []
+  acquireTable: []
   nextDiamond: []
   prevDiamond: []
   confirm: []
@@ -25,7 +29,7 @@ const emit = defineEmits<{
   <div v-if="visible" class="show-4p-overlay">
     <div class="show-4p-dialog">
       <h3 class="show-4p-title">
-        台面位置设置 — 钻石 {{ currentDiamondIndex + 1 }}/{{ diamondCount }}
+        钻石定位 — 钻石 {{ currentDiamondIndex + 1 }}/{{ diamondCount }}
       </h3>
 
       <div class="show-4p-body">
@@ -37,31 +41,45 @@ const emit = defineEmits<{
             class="show-4p-dot"
             :class="{
               active: i - 1 === currentDiamondIndex,
-              done: diamondPositions[i - 1] !== undefined
+              done: diamondCenterPositions[i - 1] !== undefined && diamondTablePositions[i - 1] !== undefined
             }"
           >
             {{ i }}
           </span>
         </div>
 
-        <p v-if="!isCurrentAcquired && !isAcquiring" class="show-4p-hint">
-          请移动至钻石 {{ currentDiamondIndex + 1 }} 的台面位置
+        <!-- Hint: center not acquired -->
+        <p v-if="!isCurrentCenterAcquired && !isAcquiring" class="show-4p-hint">
+          步骤 1/2：请移动至钻石 {{ currentDiamondIndex + 1 }} 的中心点位置
+        </p>
+        <!-- Hint: center acquired, table not acquired -->
+        <p v-else-if="isCurrentCenterAcquired && !isCurrentTableAcquired && !isAcquiring" class="show-4p-hint">
+          步骤 2/2：请移动至钻石 {{ currentDiamondIndex + 1 }} 的台面位置
         </p>
         <p v-else-if="isAcquiring" class="show-4p-hint acquiring">
-          正在获取台面位置...
+          正在获取位置...
         </p>
         <p v-else class="show-4p-hint acquired">
-          钻石 {{ currentDiamondIndex + 1 }} 台面位置已获取
+          钻石 {{ currentDiamondIndex + 1 }} 中心点和台面已获取
         </p>
 
-        <div v-if="isCurrentAcquired" class="show-4p-position">
-          <span>X: {{ currentTablePosition.x.toFixed(3) }}</span>
-          <span>Y: {{ currentTablePosition.y.toFixed(3) }}</span>
-          <span>Z: {{ currentTablePosition.z.toFixed(3) }}</span>
+        <div v-if="isCurrentCenterAcquired || isCurrentTableAcquired" class="show-4p-position">
+          <div v-if="isCurrentCenterAcquired" class="show-4p-pos-group">
+            <span class="show-4p-pos-label">中心</span>
+            <span>X: {{ currentCenterPosition.x.toFixed(3) }}</span>
+            <span>Y: {{ currentCenterPosition.y.toFixed(3) }}</span>
+            <span>Z: {{ currentCenterPosition.z.toFixed(3) }}</span>
+          </div>
+          <div v-if="isCurrentTableAcquired" class="show-4p-pos-group">
+            <span class="show-4p-pos-label">台面</span>
+            <span>X: {{ currentTablePosition.x.toFixed(3) }}</span>
+            <span>Y: {{ currentTablePosition.y.toFixed(3) }}</span>
+            <span>Z: {{ currentTablePosition.z.toFixed(3) }}</span>
+          </div>
         </div>
 
         <!-- Summary of all diamonds -->
-        <div v-if="diamondCount > 1" class="show-4p-summary">
+        <div v-if="diamondCount >= 1" class="show-4p-summary">
           <div
             v-for="i in diamondCount"
             :key="i"
@@ -69,12 +87,20 @@ const emit = defineEmits<{
             :class="{ current: i - 1 === currentDiamondIndex }"
           >
             <span class="show-4p-summary-label">钻石 {{ i }}</span>
-            <span v-if="diamondPositions[i - 1]" class="show-4p-summary-pos">
-              X: {{ diamondPositions[i - 1].x.toFixed(3) }}
-              &nbsp;Y: {{ diamondPositions[i - 1].y.toFixed(3) }}
-              &nbsp;Z: {{ diamondPositions[i - 1].z.toFixed(3) }}
-            </span>
-            <span v-else class="show-4p-summary-empty">未获取</span>
+            <div class="show-4p-summary-status">
+              <span v-if="diamondCenterPositions[i - 1]" class="show-4p-status-tag center-done">中心 ✓</span>
+              <span v-else class="show-4p-status-tag center-pending">中心 -</span>
+              <span v-if="diamondTablePositions[i - 1]" class="show-4p-status-tag table-done">台面 ✓</span>
+              <span v-else class="show-4p-status-tag table-pending">台面 -</span>
+            </div>
+            <button
+              v-if="diamondCenterPositions[i - 1] === undefined && i - 1 === currentDiamondIndex"
+              class="show-4p-btn center-btn"
+              :disabled="isAcquiring"
+              @click="emit('acquireCenter')"
+            >
+              确定中心点
+            </button>
           </div>
         </div>
       </div>
@@ -82,8 +108,8 @@ const emit = defineEmits<{
       <div class="show-4p-actions">
         <button
           class="show-4p-btn acquire-btn"
-          :disabled="isAcquiring"
-          @click="emit('acquire')"
+          :disabled="isAcquiring || !isCurrentCenterAcquired || isCurrentTableAcquired"
+          @click="emit('acquireTable')"
         >
           获取XYZ坐标
         </button>
@@ -289,5 +315,53 @@ const emit = defineEmits<{
 .cancel-btn {
   border-color: var(--app-border);
   color: var(--app-text-secondary);
+}
+
+.show-4p-pos-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.show-4p-pos-label {
+  font-weight: 600;
+  color: #3b82f6;
+}
+
+.show-4p-status-tag {
+  font-size: 12px;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.center-done {
+  color: #22c55e;
+}
+
+.center-pending {
+  color: var(--app-text-secondary);
+}
+
+.table-done {
+  color: #22c55e;
+}
+
+.table-pending {
+  color: var(--app-text-secondary);
+}
+
+.center-btn {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid #3b82f6;
+  background: transparent;
+  color: #3b82f6;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.center-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 </style>

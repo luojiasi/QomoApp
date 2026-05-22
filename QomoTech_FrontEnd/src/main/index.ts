@@ -11,7 +11,6 @@ import {
   clearLicense,
   getCurrentDeviceFingerprint,
   getLicenseStatus,
-  startLicenseMonitor
 } from './license'
 
 const BACKEND_HOST = '127.0.0.1'
@@ -549,7 +548,6 @@ app.whenReady().then(() => {
   registerSaveJsonFileIpc()
   registerOpenDocumentIpc()
   registerWorkflowFileIpc()
-  startLicenseMonitor()
   void tryStartPackagedBackend()
   createWindow()
 
