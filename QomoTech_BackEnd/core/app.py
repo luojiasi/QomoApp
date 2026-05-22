@@ -39,7 +39,11 @@ async def 应用生命周期(app: FastAPI):
         日志.warning(f"相机服务启动失败: {exc}")
 
     from services.Rs232Service import Rs232Service
-    Rs232Service.获取实例().启动()
+    try:
+        日志.info('启动RS232服务')
+        Rs232Service.获取实例().启动()
+    except Exception as exc:
+        日志.warning(f"RS232服务启动失败: {exc}")
 
     yield
     try:

@@ -36,9 +36,29 @@ def 安装():
 
     if _已安装: return
 
-    # 注册 C 层崩溃处理器（段错误等），初始指向 stderr，
-    # 日志系统初始化后 logger 会自动重定向到日志文件
-    faulthandler.enable()
+    # 注册 C 层崩溃处理器（段错误等）。
+    # 立即写入日志文件，不等 logger 初始化——否则 logger 初始化之前发生的
+    # C 层崩溃（DLL 加载、SDK 初始化等）只输出到 stderr，Electron 启动
+    # 后端时 stdio 被 ignore，崩溃信息会丢失。
+    try:
+        import os as _os
+        from utils.path_utils import 路径工具
+        _崩溃日志目录 = _os.path.join(路径工具.获取应用根目录(), "logs")
+        _os.makedirs(_崩溃日志目录, exist_ok=True)
+        _崩溃日志路径 = _os.path.join(_崩溃日志目录, "errlog.txt")
+        _faulthandler_file = open(_崩溃日志路径, "a", encoding="utf-8")
+        faulthandler.enable(file=_faulthandler_file)
+        # 写入启动标记，方便确认 faulthandler 文件输出正常
+        import time as _time
+        _faulthandler_file.write(
+            f"\n{'='*60}\n"
+            f"Faulthandler 已启用 [{_time.strftime('%Y-%m-%d %H:%M:%S')}]\n"
+            f"日志文件: {_崩溃日志路径}\n"
+            f"{'='*60}\n"
+        )
+        _faulthandler_file.flush()
+    except Exception:
+        faulthandler.enable()
 
     _原始异常钩子 = sys.excepthook
     _原始线程异常钩子 = threading.excepthook

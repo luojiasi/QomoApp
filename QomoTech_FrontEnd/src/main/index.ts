@@ -212,6 +212,7 @@ const tryStartPackagedBackend = async (): Promise<void> => {
       }
       if (code !== 0 || signal) {
         backendStartupIssue = `run.exe 异常退出（code=${String(code)}, signal=${String(signal)}）`
+        void autoRestartBackend()
       }
     })
 
@@ -224,6 +225,29 @@ const tryStartPackagedBackend = async (): Promise<void> => {
   } catch (error) {
     backendStartupIssue =
       error instanceof Error ? `启动 run.exe 失败: ${error.message}` : `启动 run.exe 失败: ${String(error)}`
+  }
+}
+
+const autoRestartBackend = async (): Promise<void> => {
+  if (isBackendAutoRestarting) {
+    return
+  }
+
+  isBackendAutoRestarting = true
+  console.warn('[backend] 检测到后端异常退出，3 秒后自动重启...')
+
+  // 短暂延迟，避免后端立即崩溃时无限重启循环
+  await sleep(3000)
+
+  try {
+    await tryStartPackagedBackend()
+    if (await isBackendReachable()) {
+      console.info('[backend] 后端自动重启成功')
+    }
+  } catch (err) {
+    console.error(`[backend] 自动重启失败: ${String(err)}`)
+  } finally {
+    isBackendAutoRestarting = false
   }
 }
 

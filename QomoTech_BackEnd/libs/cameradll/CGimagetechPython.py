@@ -470,8 +470,10 @@ class CGImageTechCamera:
     def stop_stream(self):
         if not self.device_handle:
             return 0
-        status = self.DeviceStop(self.device_handle)
-        self.DeviceUnInit(self.device_handle)
+        try:
+            status = self.DeviceStop(self.device_handle)
+        except Exception:
+            status = -1
         self._streaming = False
         return status
 

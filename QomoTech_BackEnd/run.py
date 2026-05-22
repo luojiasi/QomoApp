@@ -80,9 +80,11 @@ if __name__ == "__main__":
     except Exception:
         import traceback
         try:
-            print(traceback.format_exc(), file=sys.stderr)
+            from utils.logger import 获取日志记录器
+            日志 = 获取日志记录器("主进程")
+            日志.critical(f"未捕获的异常导致进程退出:\n{traceback.format_exc()}")
         except Exception:
-            pass
+            print(traceback.format_exc(), file=sys.stderr)
         sys.exit(1)
     finally:
         from utils.logger import 停止 as _停止日志

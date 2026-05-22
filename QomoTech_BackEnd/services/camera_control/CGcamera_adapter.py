@@ -177,7 +177,10 @@ class 相机适配器:
                 日志.warning(f"停止推流异常: {exc}")
             self._已推流 = False
 
-        await asyncio.to_thread(cam.close_camera)
+        try:
+            await asyncio.to_thread(cam.close_camera)
+        except Exception as exc:
+            日志.warning(f"关闭相机异常: {exc}")
         self._已连接 = False
         self._选中索引 = None
         日志.info("相机已断开")
