@@ -3,7 +3,7 @@
 // 轮廓：底部大半圆 + 两侧直线汇聚到尖端（顶部）。
 // =============================================================================
 
-import type { ContourSegment, Point2D, PolylineVertex } from '../../../commons/types'
+import type { ContourSegment, Point2D } from '../../../commons/types'
 import type { ProfileVertex, ShapeDefinition } from './types'
 import { polylineVerticesToSegments } from '../../../utils/geometry'
 
@@ -66,7 +66,7 @@ export const pearDef: ShapeDefinition = {
     ])
   },
 
-  getProfileVertices(R: number, L: number, W: number): ProfileVertex[] {
+  getProfileVertices(_R: number, L: number, W: number): ProfileVertex[] {
     // 水滴形参数方程采样 32 点
     const N = 32
     const verts: ProfileVertex[] = []

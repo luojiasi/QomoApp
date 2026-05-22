@@ -80,6 +80,8 @@ export function useShortCutsDetails(handlers: {
           break
         case 'ARC':
         case 'CIRCLE':
+          e.center = { X: e.center.X + offsetX, Y: e.center.Y + offsetY }
+          break
         case 'DIAMOND':
           e.center = { X: e.center.X + offsetX, Y: e.center.Y + offsetY }
           if (e.contours) {

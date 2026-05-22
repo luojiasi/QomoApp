@@ -21,6 +21,7 @@ import ProgramControlButtons from '@/modules/program/panels/ProgramControlButton
 
 import { useNotification } from '@/shared/composables/useNotification'
 import { useControllerSettingsStore } from '@/modules/motion/stores/useControllerSettingsStore'
+import { useRecipeSettingsStore } from '@/modules/recipe/useRecipeStore'
 import { deviceFeatureRoutes } from '@/app/router'
 import { bootstrapControllerOnce } from '@/modules/motion/services/bootstrapService'
 import { parseRs232SessionFromLocalStorage } from '@/modules/laser'
@@ -31,6 +32,7 @@ import { useProgramRunner } from '@/modules/program/composables/useProgramRunner
 
 const { error, success } = useNotification()
 const controllerSettingsStore = useControllerSettingsStore()
+const recipeSettingsStore = useRecipeSettingsStore()
 
 const featureLinks = deviceFeatureRoutes
 
@@ -116,6 +118,7 @@ async function onRefreshClick(): Promise<void> {
 onMounted(async () => {
   initProgramRunner()
 
+  await recipeSettingsStore.loadRecipeState()
   await controllerSettingsStore.loadControllerSettings()
   try {
     const controllerRes = await bootstrapControllerOnce(controllerSettingsStore.controllerSettings)

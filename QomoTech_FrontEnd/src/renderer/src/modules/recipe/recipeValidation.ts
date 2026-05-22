@@ -43,12 +43,11 @@ function isProcessFormulaRecipe(value: unknown): value is ProcessFormulaRecipe {
 
 function isVerticalEdgeOrMiddleCutting(value: unknown): value is VerticalProcessFormulaRecipe['edgeCutting'] {
   if (!isObject(value)) return false
-  return (
-    typeof value.speed === 'number' &&
-    typeof value.cutTimes === 'number' &&
-    typeof value.cutSpeedNums === 'number' &&
-    isLinearFormulaCoefficients(value.change)
-  )
+  if (typeof value.speed !== 'number' || typeof value.cutTimes !== 'number') return false
+  if (!isLinearFormulaCoefficients(value.change)) return false
+  // cutSpeedNums 在类型中为可选字段
+  if (value.cutSpeedNums !== undefined && typeof value.cutSpeedNums !== 'number') return false
+  return true
 }
 
 function isVerticalDescentCutting(value: unknown): value is VerticalProcessFormulaRecipe['descentCutting'] {
@@ -143,35 +142,35 @@ function migrateVerticalFormulaRecipeRecord(raw: unknown): VerticalProcessFormul
   return null
 }
 
+function _normalizeFail(reason: string, detail?: unknown): null {
+  console.warn('[recipe-validation] normalizeRecipeState 失败:', reason, detail)
+  return null
+}
+
 /** 校验快照结构；垂直工艺配方若为旧版水平结构会迁移为新版 VerticalProcessFormulaRecipe。 */
 export function normalizeRecipeState(raw: unknown): RecipeManagerState | null {
-  if (!isObject(raw)) return null
+  if (!isObject(raw)) return _normalizeFail('raw 不是对象', typeof raw)
 
   const p = raw as Partial<RecipeManagerState>
 
-  if (
-    !Array.isArray(p.mainRecipes) ||
-    !Array.isArray(p.laserPowerRecipes) ||
-    !Array.isArray(p.blackeningRecipes) ||
-    !Array.isArray(p.horizontalFormulaRecipes) ||
-    !Array.isArray(p.verticalFormulaRecipes) ||
-    !Array.isArray(p.machiningRecipes)
-  ) {
-    return null
-  }
+  const missingArray = (
+    !Array.isArray(p.mainRecipes) ? 'mainRecipes' :
+    !Array.isArray(p.laserPowerRecipes) ? 'laserPowerRecipes' :
+    !Array.isArray(p.blackeningRecipes) ? 'blackeningRecipes' :
+    !Array.isArray(p.horizontalFormulaRecipes) ? 'horizontalFormulaRecipes' :
+    !Array.isArray(p.verticalFormulaRecipes) ? 'verticalFormulaRecipes' :
+    !Array.isArray(p.machiningRecipes) ? 'machiningRecipes' :
+    null
+  )
+  if (missingArray) return _normalizeFail(`缺少数组字段: ${missingArray}`)
 
-  if (typeof p.selectedMainRecipeId !== 'string' || !isObject(p.filter)) {
-    return null
-  }
+  if (typeof p.selectedMainRecipeId !== 'string') return _normalizeFail('selectedMainRecipeId 不是 string', typeof p.selectedMainRecipeId)
+  if (!isObject(p.filter)) return _normalizeFail('filter 不是对象', typeof p.filter)
 
   const filter = p.filter as Record<string, unknown>
-  if (typeof filter.keyword !== 'string') {
-    return null
-  }
+  if (typeof filter.keyword !== 'string') return _normalizeFail('filter.keyword 不是 string', typeof filter.keyword)
   const rs = filter.recipeStatus
-  if (rs !== 'all' && rs !== 'draft' && rs !== 'active' && rs !== 'archived') {
-    return null
-  }
+  if (rs !== 'all' && rs !== 'draft' && rs !== 'active' && rs !== 'archived') return _normalizeFail('recipeStatus 无效', rs)
 
   const libraryKeywords = createDefaultLibraryKeywords()
   if (isObject(filter.libraryKeywords)) {
@@ -188,34 +187,34 @@ export function normalizeRecipeState(raw: unknown): RecipeManagerState | null {
     libraryKeywords
   }
 
-  for (const r of p.laserPowerRecipes) {
-    if (!isObject(r)) return null
+  for (let i = 0; i < p.laserPowerRecipes!.length; i++) {
+    if (!isObject(p.laserPowerRecipes![i])) return _normalizeFail(`laserPowerRecipes[${i}] 不是对象`)
   }
 
-  for (const r of p.horizontalFormulaRecipes) {
-    if (!isProcessFormulaRecipe(r)) return null
+  for (let i = 0; i < p.horizontalFormulaRecipes!.length; i++) {
+    if (!isProcessFormulaRecipe(p.horizontalFormulaRecipes![i])) return _normalizeFail(`horizontalFormulaRecipes[${i}] 校验失败`, JSON.stringify(p.horizontalFormulaRecipes![i]).slice(0, 200))
   }
 
   const migratedVertical: VerticalProcessFormulaRecipe[] = []
-  for (const r of p.verticalFormulaRecipes) {
-    const migrated = migrateVerticalFormulaRecipeRecord(r)
-    if (!migrated) return null
+  for (let i = 0; i < p.verticalFormulaRecipes!.length; i++) {
+    const migrated = migrateVerticalFormulaRecipeRecord(p.verticalFormulaRecipes![i])
+    if (!migrated) return _normalizeFail(`verticalFormulaRecipes[${i}] 校验失败`, JSON.stringify(p.verticalFormulaRecipes![i]).slice(0, 600))
     migratedVertical.push(migrated)
   }
   ;(p as { verticalFormulaRecipes: VerticalProcessFormulaRecipe[] }).verticalFormulaRecipes = migratedVertical
 
-  for (const r of p.blackeningRecipes) {
-    if (!isObject(r)) return null
-    if (typeof (r as { laserPowerRecipeId?: unknown }).laserPowerRecipeId !== 'string') return null
-    if (typeof (r as { enabled?: unknown }).enabled !== 'boolean') return null
+  for (let i = 0; i < p.blackeningRecipes!.length; i++) {
+    if (!isObject(p.blackeningRecipes![i])) return _normalizeFail(`blackeningRecipes[${i}] 不是对象`)
+    if (typeof (p.blackeningRecipes![i] as { laserPowerRecipeId?: unknown }).laserPowerRecipeId !== 'string') return _normalizeFail(`blackeningRecipes[${i}] 缺少 laserPowerRecipeId`)
+    if (typeof (p.blackeningRecipes![i] as { enabled?: unknown }).enabled !== 'boolean') return _normalizeFail(`blackeningRecipes[${i}] enabled 不是 boolean`)
   }
 
-  for (const r of p.machiningRecipes) {
-    if (!isObject(r)) return null
-    const m = r as Partial<MachiningProcessRecipe>
-    if (typeof m.horizontalFormulaId !== 'string') return null
-    if (typeof m.verticalFormulaId !== 'string') return null
-    if (typeof m.laserPowerRecipeId !== 'string') return null
+  for (let i = 0; i < p.machiningRecipes!.length; i++) {
+    if (!isObject(p.machiningRecipes![i])) return _normalizeFail(`machiningRecipes[${i}] 不是对象`)
+    const m = p.machiningRecipes![i] as Partial<MachiningProcessRecipe>
+    if (typeof m.horizontalFormulaId !== 'string') return _normalizeFail(`machiningRecipes[${i}] 缺少 horizontalFormulaId`)
+    if (typeof m.verticalFormulaId !== 'string') return _normalizeFail(`machiningRecipes[${i}] 缺少 verticalFormulaId`)
+    if (typeof m.laserPowerRecipeId !== 'string') return _normalizeFail(`machiningRecipes[${i}] 缺少 laserPowerRecipeId`)
   }
 
   return cloneSettings(p as RecipeManagerState)

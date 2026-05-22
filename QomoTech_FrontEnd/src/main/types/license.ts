@@ -1,5 +1,4 @@
 export const LICENSE_VALID_DAYS = 90
-export const LICENSE_CHECK_INTERVAL_MS = 60_000
 export const LICENSE_ROLLBACK_TOLERANCE_MS = 120_000
 
 export type LicenseStatusCode =
@@ -29,7 +28,6 @@ export type ActivatedLicenseRecord = SignedLicensePayload & {
   expireAt: number
   signature: string
   lastVerifiedWallClock: number
-  lastVerifiedMonotonic: number
   invalidReason?: Exclude<LicenseStatusCode, 'valid' | 'missing'>
 }
 

@@ -55,7 +55,7 @@ export const heartDef: ShapeDefinition = {
     return polylineVerticesToSegments(pts)
   },
 
-  getProfileVertices(Rradius: number, L: number, W: number): ProfileVertex[] {
+  getProfileVertices(_Rradius: number, L: number, W: number): ProfileVertex[] {
     // 心形 3D 轮廓：用参数方程采样
     const R = Math.max(L, W) / 16
     const N = 32

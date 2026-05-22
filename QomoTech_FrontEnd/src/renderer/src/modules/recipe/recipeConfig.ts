@@ -46,9 +46,9 @@ export function createLaserPowerRecipe(sequence: number): LaserPowerRecipe {
     notes: '可被扫黑工艺配方与加工工艺配方引用。',
     updatedAt: createTimestamp(),
     laserManufacturer: '默认厂家',
-    laserPower: 930,
-    laserFrequency: 8000,
-    laserCurrent: 10
+    laserPower: 950,
+    laserFrequency: 7000,
+    laserCurrent: 85
   }
 }
 

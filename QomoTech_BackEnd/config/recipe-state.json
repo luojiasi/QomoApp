@@ -1,0 +1,252 @@
+{
+  "selectedMainRecipeId": "main-1",
+  "filter": {
+    "keyword": "",
+    "recipeStatus": "all",
+    "libraryKeywords": {
+      "blackening": "",
+      "machining": "",
+      "laserPower": "",
+      "horizontalFormula": "",
+      "verticalFormula": ""
+    }
+  },
+  "mainRecipes": [
+    {
+      "id": "main-1",
+      "code": "MP-001",
+      "name": "主配方 1",
+      "version": "v1.0.0",
+      "productModel": "QMT-01",
+      "status": "active",
+      "notes": "主配方必须同时选择扫黑、加工两个工艺配方。",
+      "updatedAt": "2026-5-22 15:56:34",
+      "blackeningRecipeId": "blackening-1",
+      "machiningRecipeId": "machining-1"
+    },
+    {
+      "id": "main-2",
+      "code": "MP-002",
+      "name": "主配方 2",
+      "version": "v1.0.0",
+      "productModel": "QMT-02",
+      "status": "draft",
+      "notes": "主配方必须同时选择扫黑、加工两个工艺配方。",
+      "updatedAt": "2026-5-22 15:56:34",
+      "blackeningRecipeId": "blackening-2",
+      "machiningRecipeId": "machining-2"
+    }
+  ],
+  "laserPowerRecipes": [
+    {
+      "id": "laser-power-1",
+      "code": "LP-001",
+      "name": "激光功率配方 1",
+      "notes": "可被扫黑工艺配方与加工工艺配方引用。",
+      "updatedAt": "2026-5-22 16:21:54",
+      "laserManufacturer": "默认厂家",
+      "laserPower": 950,
+      "laserFrequency": 5000,
+      "laserCurrent": 85
+    },
+    {
+      "id": "laser-power-2",
+      "code": "LP-002",
+      "name": "激光功率配方 2",
+      "notes": "可被扫黑工艺配方与加工工艺配方引用。",
+      "updatedAt": "2026-5-22 15:56:34",
+      "laserManufacturer": "默认厂家",
+      "laserPower": 950,
+      "laserFrequency": 7000,
+      "laserCurrent": 85
+    }
+  ],
+  "blackeningRecipes": [
+    {
+      "id": "blackening-1",
+      "code": "BH-001",
+      "name": "扫黑工艺配方 1",
+      "notes": "用于主配方中的扫黑工艺步骤。",
+      "updatedAt": "2026-5-22 15:56:34",
+      "enabled": true,
+      "descentStep": 0.1,
+      "descentCount": 2,
+      "blackeningSpeed": 20,
+      "blackeningStep": 0.012,
+      "jiaojubuchang": 300,
+      "saoheikaikou": {
+        "k": 0,
+        "b": 0
+      },
+      "laserPowerRecipeId": "laser-power-1"
+    },
+    {
+      "id": "blackening-2",
+      "code": "BH-002",
+      "name": "扫黑工艺配方 2",
+      "notes": "用于主配方中的扫黑工艺步骤。",
+      "updatedAt": "2026-5-22 15:56:34",
+      "enabled": true,
+      "descentStep": 0.1,
+      "descentCount": 2,
+      "blackeningSpeed": 20,
+      "blackeningStep": 0.012,
+      "jiaojubuchang": 300,
+      "saoheikaikou": {
+        "k": 0,
+        "b": 0
+      },
+      "laserPowerRecipeId": "laser-power-2"
+    }
+  ],
+  "horizontalFormulaRecipes": [
+    {
+      "name": "水平工艺配方 1",
+      "openingShape": "V型",
+      "angleFormula": {
+        "k": 0,
+        "b": 0.54
+      },
+      "lowerOpeningFormula": {
+        "k": 5,
+        "b": 35
+      },
+      "depthCompensationFormula": {
+        "k": 2,
+        "b": 0.5
+      },
+      "upperOpeningFormula": "由系统自动计算",
+      "compensationAngleFormula": {
+        "k": 0,
+        "b": 0
+      },
+      "focusCompensation": 0.08,
+      "id": "horizontal-formula-1",
+      "code": "HP-001",
+      "notes": "水平工艺共享配方，可被加工和清洗工艺同时引用。",
+      "updatedAt": "2026-5-22 15:56:34"
+    },
+    {
+      "name": "水平工艺配方 2",
+      "openingShape": "V型",
+      "angleFormula": {
+        "k": 0,
+        "b": 0.54
+      },
+      "lowerOpeningFormula": {
+        "k": 5,
+        "b": 35
+      },
+      "depthCompensationFormula": {
+        "k": 2,
+        "b": 0.5
+      },
+      "upperOpeningFormula": "由系统自动计算",
+      "compensationAngleFormula": {
+        "k": 0,
+        "b": 0
+      },
+      "focusCompensation": 0.08,
+      "id": "horizontal-formula-2",
+      "code": "HP-002",
+      "notes": "水平工艺共享配方，可被加工和清洗工艺同时引用。",
+      "updatedAt": "2026-5-22 15:56:34"
+    }
+  ],
+  "verticalFormulaRecipes": [
+    {
+      "cuttingAxis": "XY",
+      "changePercent": 10,
+      "xFeed": 0.01,
+      "xSpeed": 20,
+      "edgeCutting": {
+        "speed": 50,
+        "cutTimes": 2,
+        "cutSpeedNums": 5,
+        "change": {
+          "k": 1,
+          "b": 5
+        }
+      },
+      "middleCutting": {
+        "speed": 100,
+        "cutTimes": 1,
+        "change": {
+          "k": 0,
+          "b": 50
+        }
+      },
+      "descentCutting": {
+        "speed": 0.075,
+        "zFeed": 0.002,
+        "change": {
+          "k": 10,
+          "b": 0.075
+        }
+      },
+      "id": "vertical-formula-1",
+      "code": "VP-001",
+      "name": "垂直工艺配方 1",
+      "notes": "垂直工艺共享配方，可被加工和清洗工艺同时引用。",
+      "updatedAt": "2026-5-22 15:56:34"
+    },
+    {
+      "cuttingAxis": "XY",
+      "changePercent": 10,
+      "xFeed": 0.01,
+      "xSpeed": 20,
+      "edgeCutting": {
+        "speed": 50,
+        "cutTimes": 2,
+        "cutSpeedNums": 5,
+        "change": {
+          "k": 1,
+          "b": 5
+        }
+      },
+      "middleCutting": {
+        "speed": 100,
+        "cutTimes": 1,
+        "change": {
+          "k": 0,
+          "b": 50
+        }
+      },
+      "descentCutting": {
+        "speed": 0.075,
+        "zFeed": 0.002,
+        "change": {
+          "k": 10,
+          "b": 0.075
+        }
+      },
+      "id": "vertical-formula-2",
+      "code": "VP-002",
+      "name": "垂直工艺配方 2",
+      "notes": "垂直工艺共享配方，可被加工和清洗工艺同时引用。",
+      "updatedAt": "2026-5-22 15:56:34"
+    }
+  ],
+  "machiningRecipes": [
+    {
+      "id": "machining-1",
+      "code": "JG-001",
+      "name": "加工工艺配方 1",
+      "notes": "可选择共享的水平工艺配方与垂直工艺配方。",
+      "updatedAt": "2026-5-22 15:56:34",
+      "horizontalFormulaId": "horizontal-formula-1",
+      "verticalFormulaId": "vertical-formula-1",
+      "laserPowerRecipeId": "laser-power-1"
+    },
+    {
+      "id": "machining-2",
+      "code": "JG-002",
+      "name": "加工工艺配方 2",
+      "notes": "可选择共享的水平工艺配方与垂直工艺配方。",
+      "updatedAt": "2026-5-22 15:56:34",
+      "horizontalFormulaId": "horizontal-formula-2",
+      "verticalFormulaId": "vertical-formula-2",
+      "laserPowerRecipeId": "laser-power-2"
+    }
+  ]
+}

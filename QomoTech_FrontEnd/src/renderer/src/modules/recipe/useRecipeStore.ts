@@ -192,6 +192,9 @@ export const useRecipeSettingsStore = defineStore('recipe-settings', () => {
     if (cached) {
       recipeState.value = cached
       persistStateToLocalStorage(recipeState.value)
+      // 将 localStorage 数据同步到后端文件（首次迁移 + 兜底）
+      clearBackendPersistTimer()
+      void saveRecipeStateToBackend(recipeState.value)
       return createSettingsSaveResult('已从本地存储加载配方管理数据。', recipeState.value)
     }
 

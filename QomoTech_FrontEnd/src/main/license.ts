@@ -1,11 +1,9 @@
 import { promises as fs } from 'node:fs'
 import { join } from 'node:path'
-import { performance } from 'node:perf_hooks'
 import { verify } from 'node:crypto'
 import { app } from 'electron'
 import { getDeviceFingerprint } from './device'
 import {
-  LICENSE_CHECK_INTERVAL_MS,
   LICENSE_ROLLBACK_TOLERANCE_MS,
   LICENSE_VALID_DAYS,
   type ActivatedLicenseRecord,
@@ -22,7 +20,7 @@ const PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----
 MCowBQYDK2VwAyEAdxADOg64EXyCwv3KF4lHPi19VRYhQEDqVwrcmcld8eU=
 -----END PUBLIC KEY-----`
 
-let licenseMonitor: ReturnType<typeof setInterval> | null = null
+let lastSeenWallClock = 0
 
 const getLicenseFilePath = (): string => join(app.getPath('userData'), LICENSE_FILE_NAME)
 
@@ -108,7 +106,10 @@ const readLicenseRecord = async (): Promise<ActivatedLicenseRecord | null> => {
 }
 
 const writeLicenseRecord = async (record: ActivatedLicenseRecord): Promise<void> => {
-  await fs.writeFile(getLicenseFilePath(), JSON.stringify(record, null, 2), 'utf8')
+  const filePath = getLicenseFilePath()
+  const tmpPath = filePath + '.tmp'
+  await fs.writeFile(tmpPath, JSON.stringify(record, null, 2), 'utf8')
+  await fs.rename(tmpPath, filePath)
 }
 
 const deleteLicenseRecord = async (): Promise<void> => {
@@ -174,7 +175,9 @@ const validateRecord = async (
 
   const now = Date.now()
 
-  if (now + LICENSE_ROLLBACK_TOLERANCE_MS < record.lastVerifiedWallClock) {
+  // 跨会话：对比文件记录的 wall clock；会话内：对比内存中记录的最大值
+  const effectiveLastWallClock = Math.max(record.lastVerifiedWallClock, lastSeenWallClock)
+  if (now + LICENSE_ROLLBACK_TOLERANCE_MS < effectiveLastWallClock) {
     const nextRecord = await markInvalidReason(record, 'time_rollback')
     return toBaseStatus(
       'time_rollback',
@@ -189,16 +192,9 @@ const validateRecord = async (
     return toBaseStatus('expired', '当前密钥已过期，请重新输入密钥。', fingerprint, nextRecord)
   }
 
-  const nextRecord = {
-    ...record,
-    lastVerifiedWallClock: now,
-    lastVerifiedMonotonic: performance.now(),
-    invalidReason: undefined
-  }
+  lastSeenWallClock = Math.max(lastSeenWallClock, now)
 
-  await writeLicenseRecord(nextRecord)
-
-  return toBaseStatus('valid', '授权有效。', fingerprint, nextRecord)
+  return toBaseStatus('valid', '授权有效。', fingerprint, record)
 }
 
 export const getLicenseStatus = async (): Promise<LicenseStatus> => {
@@ -212,7 +208,8 @@ export const getLicenseStatus = async (): Promise<LicenseStatus> => {
     }
 
     return await validateRecord(record, fingerprint)
-  } catch {
+  } catch (err) {
+    console.error('[license] getLicenseStatus 异常:', err)
     return toBaseStatus('parse_error', '授权文件已损坏，请重新输入密钥。', fingerprint)
   }
 }
@@ -263,8 +260,7 @@ export const activateLicense = async (licenseKey: string): Promise<LicenseActiva
       signature: envelope.signature,
       activatedAt,
       expireAt: activatedAt + validDays * DAY_IN_MS,
-      lastVerifiedWallClock: activatedAt,
-      lastVerifiedMonotonic: performance.now()
+      lastVerifiedWallClock: activatedAt
     }
 
     await writeLicenseRecord(record)
@@ -292,14 +288,4 @@ export const clearLicense = async (): Promise<LicenseStatus> => {
 
 export const getCurrentDeviceFingerprint = (): string => getDeviceFingerprint()
 
-export const startLicenseMonitor = (): void => {
-  if (licenseMonitor) {
-    return
-  }
 
-  licenseMonitor = setInterval(() => {
-    void getLicenseStatus()
-  }, LICENSE_CHECK_INTERVAL_MS)
-
-  licenseMonitor.unref()
-}

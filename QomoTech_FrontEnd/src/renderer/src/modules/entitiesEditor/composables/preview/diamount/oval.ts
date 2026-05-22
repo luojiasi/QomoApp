@@ -51,7 +51,7 @@ export const ovalDef: ShapeDefinition = {
     return polylineVerticesToSegments(pts)
   },
 
-  getProfileVertices(R: number, L: number, W: number): ProfileVertex[] {
+  getProfileVertices(_R: number, L: number, W: number): ProfileVertex[] {
     // 直接用椭圆方程采样 32 点
     const N = 32
     const verts: ProfileVertex[] = []

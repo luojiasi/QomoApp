@@ -10,12 +10,13 @@ from __future__ import annotations
 import asyncio
 from typing import Any, Dict, List
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
 from core.calc_offset_ljs import OffsetEndpointCalculator  # 旧的
 # from core.calc_offset import OffsetEndpointCalculator  # 新的
 from services.PragramService import PragramService
+from services.SystemSettingService import 保存配方状态到文件, 从文件加载配方状态
 from routers.apiresponse import ApiResponse
 from utils.logger import 获取日志记录器
 
@@ -117,3 +118,21 @@ async def program_control(payload: 开始程序控制请求模型):
             detail=str(result.get("message", "操作失败")),
         )
     return ApiResponse(success=True, message=str(result.get("message", "操作成功")))
+
+
+# ==================================================================
+# 4. 配方状态持久化
+# ==================================================================
+
+
+@路由.get("/recipe/state", summary="读取配方状态文件")
+async def 读取配方状态():
+    data = 从文件加载配方状态()
+    return ApiResponse(success=True, message="OK" if data else "无已保存的配方数据", data=data)
+
+
+@路由.post("/recipe/state", summary="保存配方状态到文件")
+async def 保存配方状态(req: Request):
+    body = await req.json()
+    保存配方状态到文件(body)
+    return ApiResponse(success=True, message="配方数据已保存", data=None)

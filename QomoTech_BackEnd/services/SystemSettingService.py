@@ -1,8 +1,36 @@
 
 
 
+import json
+import os
+from typing import Any, Optional
+
 from configs import system_settings as 系统设置
 from configs.system_settings import 中心旋转补偿请求模型
+from utils.path_utils import 路径工具
+
+# ── 配方状态 JSON 文件持久化 ──────────────────────────────
+_配方配置目录 = "config"
+_配方状态文件 = "recipe-state.json"
+
+
+def _配方状态文件路径() -> str:
+    return os.path.join(路径工具.获取应用根目录(), _配方配置目录, _配方状态文件)
+
+
+def 保存配方状态到文件(data: dict[str, Any]) -> None:
+    path = _配方状态文件路径()
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
+
+def 从文件加载配方状态() -> Optional[dict[str, Any]]:
+    path = _配方状态文件路径()
+    if not os.path.exists(path):
+        return None
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
 
 # =====================================================
 # 设备旋转中心补偿值字段

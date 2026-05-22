@@ -321,15 +321,15 @@ function createWindow(): void {
     mainWindow.show()
     // 生产环境也打开 DevTools，便于排查打包后通信失败（“Failed to fetch”）。
     // 如需临时关闭：把这一段条件改为读取环境变量即可。
-    if (!is.dev) {
-      try {
-        if (!mainWindow.webContents.isDevToolsOpened()) {
-          mainWindow.webContents.openDevTools({ mode: 'detach' })
-        }
-      } catch {
-        // ignore
-      }
-    }
+    // if (!is.dev) {
+    //   try {
+    //     if (!mainWindow.webContents.isDevToolsOpened()) {
+    //       mainWindow.webContents.openDevTools({ mode: 'detach' })
+    //     }
+    //   } catch {
+    //     // ignore
+    //   }
+    // }
   })
 
   // 处理用户直接关闭窗口（X按钮）时：先停掉 run.exe，再等待 5000 端口不可达，再销毁前端窗口。

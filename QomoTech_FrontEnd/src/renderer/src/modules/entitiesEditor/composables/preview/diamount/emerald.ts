@@ -26,7 +26,7 @@ export const emeraldDef: ShapeDefinition = {
     ])
   },
 
-  getProfileVertices(R: number, L: number, W: number): ProfileVertex[] {
+  getProfileVertices(_R: number, L: number, W: number): ProfileVertex[] {
     // 直接用 8 个顶点 + 每条边插入均匀点
     const cutX = L * CUT_RATIO
     const cutZ = W * CUT_RATIO

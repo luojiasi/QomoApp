@@ -7,8 +7,6 @@ import type { ContourSegment, Point2D } from '../../../commons/types'
 import type { ProfileVertex, ShapeDefinition } from './types'
 import { polylineVerticesToSegments } from '../../../utils/geometry'
 
-/** 弧段数（每段弧对应一个四分之一马眼） */
-const ARC_SEGS = 4
 /** 马眼弧的 bulge = tan(半段弧角/4) */
 const MARQUISE_BULGE = Math.tan((Math.PI / 2) / 4) // ≈ 0.4142
 
@@ -22,7 +20,7 @@ export const marquiseDef: ShapeDefinition = {
     ])
   },
 
-  getProfileVertices(R: number, L: number, W: number): ProfileVertex[] {
+  getProfileVertices(_R: number, L: number, W: number): ProfileVertex[] {
     // 马眼形参数方程采样 32 点
     // 经典马眼：x = L * cos(t), z = W * sin(t) * (1 + cos(t)) / 2
     const N = 32

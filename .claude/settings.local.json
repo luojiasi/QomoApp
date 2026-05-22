@@ -13,7 +13,9 @@
       "Bash(Get-Content *)",
       "PowerShell(Get-ChildItem -Path \"QomoTech_BackEnd\" -Recurse -Depth 4 | Where-Object { -not $_.PSIsContainer } | ForEach-Object { $_.FullName -replace [regex]::Escape\\(\\(Get-Location\\).Path + '\\\\'\\), '' })",
       "Bash(Get-ChildItem -Path \"D:\\\\Qomo\\\\QomoTech\\\\QomoTech_BackEnd\" -Directory)",
-      "Bash(Select-Object Name)"
+      "Bash(Select-Object Name)",
+      "Bash(Get-ChildItem -Path \"D:\\\\Qomo\\\\QomoTech\\\\QomoTech_BackEnd\\\\config\\\\recipe-state.json\" -ErrorAction SilentlyContinue)",
+      "Bash(Select-Object FullName, Length, LastWriteTime)"
     ]
   }
 }
