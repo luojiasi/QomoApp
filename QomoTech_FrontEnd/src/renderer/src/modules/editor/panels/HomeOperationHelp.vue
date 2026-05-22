@@ -2,6 +2,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import CollapsiblePanelHeader from '@/shared/components/CollapsiblePanelHeader.vue'
+import UseHelpContent from '@/modules/editor/panels/UseHelpContent.vue'
 import { useNotification } from '@/shared/composables/useNotification'
 import { useQomo5PStore } from '../useQomo5PStore'
 import { storeToRefs } from 'pinia'
@@ -302,6 +303,8 @@ const getArcEndPoint = (e: QomoArcSurfacesEntity) => e.endPoint ?? polarToCartes
           </div>
         </div>
       </div>
+
+      <UseHelpContent />
     </div>
   </div>
 </template>
