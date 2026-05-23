@@ -285,7 +285,6 @@ const groups: ApiGroup[] = [
       { label: '断开相机', method: 'POST', path: '/api/camera/disconnect' },
       { label: '相机状态', method: 'GET', path: '/api/camera/status' },
       { label: '引导参数', method: 'POST', path: '/api/camera/bootstrap-settings', defaultBody: { auto_exposure: true } },
-      { label: '抓取单帧', method: 'GET', path: '/api/camera/frame', queryParams: 'timeout_ms=1000&quality=90', desc: '返回 JPEG 字节' },
       { label: '曝光参数', method: 'POST', path: '/api/camera/params/exposure', defaultBody: { exposure_time: 10000 } },
       { label: '帧率参数', method: 'POST', path: '/api/camera/params/frame-speed', defaultBody: { speed_level: 2 } },
       { label: '镜像参数', method: 'POST', path: '/api/camera/params/mirror', defaultBody: { horizontal: false, vertical: false } },

@@ -60,8 +60,6 @@ export const withApiQuery = (endpoint: string, queryParams: ApiQueryParams = nul
   return `${url}?${queryString}`
 }
 
-export const getCameraStreamUrl = (queryParams: ApiQueryParams = null) =>
-  withApiQuery('camera/frame', queryParams)
 
 export const apiCall = async <T = any>(endpoint: string, method: HttpMethod = 'GET', data: ApiPayload = null, queryParams: ApiQueryParams = null): Promise<ApiCallResult<T>> => {
   const url = method === 'GET' ? withApiQuery(endpoint, queryParams) : getBackendApiUrl(endpoint)

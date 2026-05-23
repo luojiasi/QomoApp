@@ -24,7 +24,6 @@ from __future__ import annotations
 from typing import Any, Dict, Literal, Optional
 
 from fastapi import APIRouter, HTTPException, Query, Request, status
-from fastapi.responses import Response
 from pydantic import BaseModel, Field, model_validator
 
 from services.camera_control.CGcamera_adapter import CameraError
@@ -267,35 +266,7 @@ async def 保存相机设置(req: Request):
 
 
 # ==================================================================
-# 3. 取帧
-# ==================================================================
-
-
-@路由.get("/frame", summary="抓取单帧 JPEG（直接返回 image/jpeg）")
-async def 取帧(
-    timeout_ms: int = Query(default=1000, ge=1, le=10_000),
-    quality: int = Query(default=90, ge=1, le=100),
-):
-    try:
-        jpeg = await _service().取_jpeg(timeout_ms=timeout_ms, quality=quality)
-    except CameraError as exc:
-        return Response(
-            content=str(exc),
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            media_type="text/plain; charset=utf-8",
-        )
-    except Exception as exc:
-        日志.exception(f"取帧异常: {exc}")
-        return Response(
-            content=str(exc),
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            media_type="text/plain; charset=utf-8",
-        )
-    return Response(content=jpeg, media_type="image/jpeg")
-
-
-# ==================================================================
-# 4. 参数
+# 3. 参数
 # ==================================================================
 
 

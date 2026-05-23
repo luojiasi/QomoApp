@@ -120,10 +120,6 @@ export const setCameraWhiteBalance = async (
     return getCameraStatus()
   })
 
-/** 获取相机帧图像 URL。 */
-export const getCameraFrameUrl = (timeoutMs = 1000, quality = 90): string =>
-  withApiQuery('camera/frame', { timeout_ms: timeoutMs, quality, t: Date.now() })
-
 /** 设置引导参数（连接时自动下发）。 */
 export const bootstrapCameraSettings = async (
   payload: CameraBootstrapSettingsPayload
