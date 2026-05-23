@@ -2,7 +2,7 @@
 
 与 zmc_adapter 结构对齐：
   - import DLL Python 封装（CGimagetechPython）
-  - 所有阻塞调用走 asyncio.to_thread
+  - 所有阻塞调用通过专用单线程执行器串行化，避免 DLL 多线程并发
   - 自身持 CameraError 异常 + CameraDiagnostics 数据类
 
 不再依赖 drivers/camera_driver.py。
@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import io
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
@@ -84,7 +85,11 @@ class 设备信息:
 
 
 class 相机适配器:
-    """直接操作 CGImageTechCamera SDK 的异步适配器。"""
+    """直接操作 CGImageTechCamera SDK 的异步适配器。
+
+    所有阻塞的 DLL 调用都通过专用的单线程执行器串行化，
+    避免多线程并发访问相机 DLL 导致的 access violation。
+    """
 
     def __init__(self) -> None:
         self._cam: Optional[CGImageTechCamera] = None
@@ -92,6 +97,12 @@ class 相机适配器:
         self._已推流: bool = False
         self._选中索引: Optional[int] = None
         self._最后错误: Optional[str] = None
+        self._执行器 = ThreadPoolExecutor(max_workers=1, thread_name_prefix="Camera-IO")
+
+    async def _在线程执行(self, func, *args):
+        """在专用单线程执行器中运行阻塞函数，保证所有 DLL 调用串行在同一线程。"""
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(self._执行器, func, *args)
 
     # ------------------------------------------------------------------
     # SDK 生命周期
@@ -100,7 +111,7 @@ class 相机适配器:
     async def 确保_sdk_初始化(self) -> bool:
         """初始化 SDK。"""
         cam = CGImageTechCamera()
-        status = await asyncio.to_thread(cam.initialize)
+        status = await self._在线程执行(cam.initialize)
         if status != 0:
             raise CameraError(f"SDK 初始化失败，错误码: {status}")
         self._cam = cam
@@ -117,9 +128,10 @@ class 相机适配器:
             pass
         cam = self._cam
         self._cam = None
-        await asyncio.to_thread(cam.uninitialize_sdk)
+        await self._在线程执行(cam.uninitialize_sdk)
         self._已连接 = False
         self._已推流 = False
+        self._执行器.shutdown(wait=False)
         日志.info("相机 SDK 已关闭")
 
     # ------------------------------------------------------------------
@@ -128,7 +140,7 @@ class 相机适配器:
 
     async def 枚举设备(self) -> List[设备信息]:
         self._断言sdk()
-        raw_list = await asyncio.to_thread(self._cam.enum_devices)
+        raw_list = await self._在线程执行(self._cam.enum_devices)
         return [设备信息.从原始(r) for r in raw_list]
 
     async def 连接(self, index: int = 0) -> None:
@@ -137,23 +149,23 @@ class 相机适配器:
         cam = self._cam
 
         # 1. 打开设备
-        h = await asyncio.to_thread(cam.open_camera, int(index))
+        h = await self._在线程执行(cam.open_camera, int(index))
         if h is None:
             raise CameraError(f"打开相机 index={index} 失败")
         日志.info(f"相机 index={index} 已打开")
 
         # 2. 初始化为 GetMode
-        status = await asyncio.to_thread(
+        status = await self._在线程执行(
             cam.init_camera_for_getmode, DATA_ISP_RGB24, True,
         )
         if status != 0:
-            await asyncio.to_thread(cam.close_camera)
+            await self._在线程执行(cam.close_camera)
             raise CameraError(f"相机 DeviceInit 失败，错误码: {status}")
 
         # 3. 启动视频流（取帧前必须调用）
-        status = await asyncio.to_thread(cam.start_stream)
+        status = await self._在线程执行(cam.start_stream)
         if status != 0:
-            await asyncio.to_thread(cam.close_camera)
+            await self._在线程执行(cam.close_camera)
             raise CameraError(f"相机启动推流失败，错误码: {status}")
 
         self._已连接 = True
@@ -172,13 +184,13 @@ class 相机适配器:
 
         if self._已推流:
             try:
-                await asyncio.to_thread(cam.stop_stream)
+                await self._在线程执行(cam.stop_stream)
             except Exception as exc:
                 日志.warning(f"停止推流异常: {exc}")
             self._已推流 = False
 
         try:
-            await asyncio.to_thread(cam.close_camera)
+            await self._在线程执行(cam.close_camera)
         except Exception as exc:
             日志.warning(f"关闭相机异常: {exc}")
         self._已连接 = False
@@ -195,7 +207,7 @@ class 相机适配器:
         cam = self._cam
 
         try:
-            img_bgr = await asyncio.to_thread(
+            img_bgr = await self._在线程执行(
                 cam.capture_frame, int(timeout_ms), True,
             )
         except Exception as exc:
@@ -222,35 +234,35 @@ class 相机适配器:
         errors: List[str] = []
 
         if "auto_exposure" in settings:
-            st = await asyncio.to_thread(cam.set_auto_exposure, bool(settings["auto_exposure"]))
+            st = await self._在线程执行(cam.set_auto_exposure, bool(settings["auto_exposure"]))
             if st != 0:
                 errors.append(f"auto_exposure={settings['auto_exposure']} 失败({st})")
         if "exposure_time" in settings:
-            st = await asyncio.to_thread(cam.set_exposure_time, int(settings["exposure_time"]))
+            st = await self._在线程执行(cam.set_exposure_time, int(settings["exposure_time"]))
             if st != 0:
                 errors.append(f"exposure_time={settings['exposure_time']} 失败({st})")
         if "speed_level" in settings:
-            st = await asyncio.to_thread(cam.set_frame_speed, int(settings["speed_level"]), bool(settings.get("auto_tune", True)))
+            st = await self._在线程执行(cam.set_frame_speed, int(settings["speed_level"]), bool(settings.get("auto_tune", True)))
             if st != 0:
                 errors.append(f"speed_level={settings['speed_level']} 失败({st})")
         if "tune" in settings:
-            st = await asyncio.to_thread(cam.set_frame_speed_tune, float(settings["tune"]))
+            st = await self._在线程执行(cam.set_frame_speed_tune, float(settings["tune"]))
             if st != 0:
                 errors.append(f"tune={settings['tune']} 失败({st})")
         if "mirror_horizontal" in settings:
-            st = await asyncio.to_thread(cam.set_horizontal_mirror, bool(settings["mirror_horizontal"]))
+            st = await self._在线程执行(cam.set_horizontal_mirror, bool(settings["mirror_horizontal"]))
             if st != 0:
                 errors.append(f"mirror_horizontal 失败({st})")
         if "mirror_vertical" in settings:
-            st = await asyncio.to_thread(cam.set_vertical_mirror, bool(settings["mirror_vertical"]))
+            st = await self._在线程执行(cam.set_vertical_mirror, bool(settings["mirror_vertical"]))
             if st != 0:
                 errors.append(f"mirror_vertical 失败({st})")
         if all(k in settings for k in ("r_gain", "g_gain", "b_gain")):
             # 设手动增益前先关闭自动白平衡，否则 SDK 会报错 -3
-            st = await asyncio.to_thread(cam.set_auto_white_balance, False)
+            st = await self._在线程执行(cam.set_auto_white_balance, False)
             if st != 0:
                 errors.append(f"关闭自动白平衡失败({st})")
-            st = await asyncio.to_thread(
+            st = await self._在线程执行(
                 cam.set_white_balance_gain,
                 int(settings["r_gain"]),
                 int(settings["g_gain"]),
@@ -259,11 +271,11 @@ class 相机适配器:
             if st != 0:
                 日志.warning(f"白平衡增益失败({st})，该相机可能不支持手动增益，跳过")
         elif "auto_white_balance" in settings:
-            st = await asyncio.to_thread(cam.set_auto_white_balance, bool(settings["auto_white_balance"]))
+            st = await self._在线程执行(cam.set_auto_white_balance, bool(settings["auto_white_balance"]))
             if st != 0:
                 errors.append(f"auto_white_balance 失败({st})")
         if settings.get("once"):
-            st = await asyncio.to_thread(cam.once_white_balance)
+            st = await self._在线程执行(cam.once_white_balance)
             if st != 0:
                 errors.append(f"once_white_balance 失败({st})")
 
@@ -279,11 +291,11 @@ class 相机适配器:
         self._断言已连接()
         cam = self._cam
         if auto_exposure is not None:
-            st = await asyncio.to_thread(cam.set_auto_exposure, bool(auto_exposure))
+            st = await self._在线程执行(cam.set_auto_exposure, bool(auto_exposure))
             if st != 0:
                 raise CameraError(f"设置自动曝光失败: {st}")
         if exposure_time is not None:
-            st = await asyncio.to_thread(cam.set_exposure_time, int(exposure_time))
+            st = await self._在线程执行(cam.set_exposure_time, int(exposure_time))
             if st != 0:
                 raise CameraError(f"设置曝光时间失败: {st}")
         日志.debug(f"曝光参数已设置 auto={auto_exposure} time={exposure_time}")
@@ -298,11 +310,11 @@ class 相机适配器:
         self._断言已连接()
         cam = self._cam
         if speed_level is not None:
-            st = await asyncio.to_thread(cam.set_frame_speed, int(speed_level), bool(auto_tune))
+            st = await self._在线程执行(cam.set_frame_speed, int(speed_level), bool(auto_tune))
             if st != 0:
                 raise CameraError(f"设置帧率档位失败: {st}")
         if tune is not None:
-            st = await asyncio.to_thread(cam.set_frame_speed_tune, float(tune))
+            st = await self._在线程执行(cam.set_frame_speed_tune, float(tune))
             if st != 0:
                 raise CameraError(f"设置帧率微调失败: {st}")
         日志.debug(f"帧率参数已设置 level={speed_level} tune={tune}")
@@ -316,11 +328,11 @@ class 相机适配器:
         self._断言已连接()
         cam = self._cam
         if horizontal is not None:
-            st = await asyncio.to_thread(cam.set_horizontal_mirror, bool(horizontal))
+            st = await self._在线程执行(cam.set_horizontal_mirror, bool(horizontal))
             if st != 0:
                 raise CameraError(f"设置水平镜像失败: {st}")
         if vertical is not None:
-            st = await asyncio.to_thread(cam.set_vertical_mirror, bool(vertical))
+            st = await self._在线程执行(cam.set_vertical_mirror, bool(vertical))
             if st != 0:
                 raise CameraError(f"设置垂直镜像失败: {st}")
         日志.debug(f"镜像参数已设置 horizontal={horizontal} vertical={vertical}")
@@ -337,15 +349,15 @@ class 相机适配器:
         self._断言已连接()
         cam = self._cam
         if auto_white_balance is not None:
-            st = await asyncio.to_thread(cam.set_auto_white_balance, bool(auto_white_balance))
+            st = await self._在线程执行(cam.set_auto_white_balance, bool(auto_white_balance))
             if st != 0:
                 raise CameraError(f"设置自动白平衡失败: {st}")
         if once:
-            st = await asyncio.to_thread(cam.once_white_balance)
+            st = await self._在线程执行(cam.once_white_balance)
             if st != 0:
                 raise CameraError(f"一次白平衡失败: {st}")
         if all(v is not None for v in (r_gain, g_gain, b_gain)):
-            st = await asyncio.to_thread(
+            st = await self._在线程执行(
                 cam.set_white_balance_gain,
                 int(r_gain), int(g_gain), int(b_gain),
             )
