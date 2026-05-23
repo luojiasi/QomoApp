@@ -2,7 +2,7 @@
 
 与 zmc_adapter 结构对齐：
   - import DLL Python 封装（CGimagetechPython）
-  - 所有阻塞调用通过专用单线程执行器串行化，避免 DLL 多线程并发
+  - 所有阻塞调用通过专用单线程执行器串行化
   - 自身持 CameraError 异常 + CameraDiagnostics 数据类
 
 不再依赖 drivers/camera_driver.py。
