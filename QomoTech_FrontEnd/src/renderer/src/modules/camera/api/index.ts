@@ -2,7 +2,7 @@
 // Camera 模块 API 端点
 // =============================================================================
 
-import { apiCall, type ApiCallResult, withApiQuery } from '@/shared/api/httpClient'
+import { apiCall, type ApiCallResult } from '@/shared/api/httpClient'
 import type {
   CameraBootstrapSettingsPayload,
   CameraConnectPayload,

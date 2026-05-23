@@ -54,7 +54,11 @@ function readLocalStorageJson<T>(key: string): T | null {
 /** 将值序列化为 JSON 写入 localStorage */
 function writeLocalStorageJson(key: string, value: unknown): void {
   if (!canUseLocalStorage()) return
-  window.localStorage.setItem(key, JSON.stringify(value))
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value))
+  } catch (err) {
+    console.error(`[recipe-store] localStorage.setItem("${key}") 失败:`, err)
+  }
 }
 
 /** 检测 localStorage 中是否存在分键存储的配方数据（区分新旧存储格式） */

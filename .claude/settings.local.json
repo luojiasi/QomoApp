@@ -15,7 +15,10 @@
       "Bash(Get-ChildItem -Path \"D:\\\\Qomo\\\\QomoTech\\\\QomoTech_BackEnd\" -Directory)",
       "Bash(Select-Object Name)",
       "Bash(Get-ChildItem -Path \"D:\\\\Qomo\\\\QomoTech\\\\QomoTech_BackEnd\\\\config\\\\recipe-state.json\" -ErrorAction SilentlyContinue)",
-      "Bash(Select-Object FullName, Length, LastWriteTime)"
+      "Bash(Select-Object FullName, Length, LastWriteTime)",
+      "Bash(python *)",
+      "Bash(git *)",
+      "Bash(Select-Object -First 80)"
     ]
   }
 }

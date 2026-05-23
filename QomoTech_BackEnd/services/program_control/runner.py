@@ -19,6 +19,7 @@ from services.SystemSettingService import 读取存储的4P旋转中心补偿值
 from core.calc_offset_ljs import OffsetEndpointCalculator
 from core.calc_rotation import 计算实体绕坐标轴旋转后的实体点
 from services.MotionService import MotionService
+from services.motion_control.safe_controller import SafetyViolation
 from services.Rs232Service import Rs232Service
 from services.program_control.geometry import (
     判断是否都是圆或者圆弧,
@@ -126,7 +127,10 @@ class ProgramRunner(ProgramContext):
             self._需恢复激光 = 激光之前开启
             if 激光之前开启:
                 await self._运动.设置输出(2, False)
-            await self._运动.暂停()
+            try:
+                await self._运动.暂停()
+            except SafetyViolation:
+                日志.debug("暂停时运动控制器非MOVING状态，跳过硬件暂停")
         self._广播状态变更(force=True)
         return {"success": True, "message": "已暂停"}
 
@@ -136,7 +140,10 @@ class ProgramRunner(ProgramContext):
                 return {"success": False, "message": "当前没有运行中的程序"}
             self._是否已暂停 = False
         if self._运动.适配器 and self._运动.适配器.已连接:
-            await self._运动.继续()
+            try:
+                await self._运动.继续()
+            except SafetyViolation:
+                日志.debug("恢复时运动控制器非PAUSED状态，跳过硬件恢复")
             if self._需恢复激光:
                 await self._运动.设置输出(2, True)
                 self._需恢复激光 = False
@@ -209,8 +216,6 @@ class ProgramRunner(ProgramContext):
         async with self._执行锁:
             await self._运动.复位()
             try:
-                self._运动.暂停状态采集()
-
                 所有任务列表 = OffsetEndpointCalculator.calc_xy_points(实体数据, 0)
                 if not 所有任务列表: return {"success": False, "message": "没有可执行的任务，请检查实体几何", "data": None}
 
@@ -254,7 +259,6 @@ class ProgramRunner(ProgramContext):
                 日志.exception(f"执行程序 失败: {e}")
                 return {"success": False, "message": "程序执行异常", "data": {"error": "运行报错"}}
             finally:
-                self._运动.恢复状态采集()
                 async with self._控制锁:
                     self._是否运行中 = False
                     self._是否已暂停 = False

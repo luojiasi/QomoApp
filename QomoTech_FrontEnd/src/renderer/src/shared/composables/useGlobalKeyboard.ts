@@ -11,6 +11,10 @@ export const subscribeGlobalKeyboard = (handler: GlobalKeyboardHandler): (() => 
 
 export const dispatchGlobalKeyboard = (event: KeyboardEvent): void => {
   for (const h of handlers) {
-    h(event)
+    try {
+      h(event)
+    } catch (err) {
+      console.error('[useGlobalKeyboard] handler 异常:', err)
+    }
   }
 }

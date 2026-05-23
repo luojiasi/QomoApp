@@ -16,6 +16,23 @@ startGlobalCameraReceiver()
 // 硬件状态监控（WS 驱动）
 startHardwareMonitor()
 
+// 全局错误捕获，防止渲染进程静默崩溃
+window.addEventListener('error', (event) => {
+  const detail = event.error
+    ? `\n  message: ${(event.error as Error).message}\n  stack: ${(event.error as Error).stack?.split('\n').slice(0, 6).join('\n')}`
+    : `\n  source: ${event.filename}:${event.lineno}:${event.colno}`
+  console.error(`[renderer] uncaught error:${detail}`)
+})
+
+window.addEventListener('unhandledrejection', (event) => {
+  const reason = event.reason
+  const detail =
+    reason instanceof Error
+      ? `\n  message: ${reason.message}\n  stack: ${reason.stack?.split('\n').slice(0, 6).join('\n')}`
+      : `\n  reason: ${String(reason)}`
+  console.error(`[renderer] unhandled rejection:${detail}`)
+})
+
 const app = createApp(App)
 
 app.config.globalProperties.$notify = notify

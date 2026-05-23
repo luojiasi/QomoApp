@@ -1,8 +1,6 @@
 import { readonly, ref } from 'vue'
-import { apiCall } from '@/shared/api/httpClient'
 import { getCameraStreamWsUrl } from '@/shared/api/wsClient'
 import { WsClient } from '@/shared/api/wsClient'
-import { initSdkEnumAndConnectIndex0 } from './useCameraControl'
 import {
   DEFAULT_QUALITY,
   DEFAULT_TIMEOUT_MS,
@@ -15,11 +13,8 @@ import {
 const frameUrl = ref('')
 const running = ref(false)
 const lastError = ref('')
-const connected = ref(false)
 
 let started = false
-let connecting = false
-let ensureTimer: ReturnType<typeof setInterval> | null = null
 let displayLoopActive = false
 let displayRafId: number | null = null
 
@@ -27,32 +22,6 @@ const loadedFrameQueue: string[] = []
 const staleFrameUrlCache: string[] = []
 let currentFrameObjectUrl = ''
 let lastDisplayTs = 0
-
-/** 确保相机已连接（幂等）。 */
-async function ensureCameraConnected(): Promise<void> {
-  if (connecting) return
-  connecting = true
-  try {
-    const statusRes = await apiCall<{ connected?: boolean }>('camera/status', 'GET')
-    if (statusRes.success && statusRes.data?.connected) {
-      connected.value = true
-      lastError.value = ''
-      return
-    }
-    connected.value = false
-
-    const connectRes = await initSdkEnumAndConnectIndex0()
-    if (!connectRes.success) {
-      lastError.value = connectRes.message ?? 'camera connect failed'
-      connected.value = false
-      return
-    }
-    connected.value = true
-    lastError.value = ''
-  } finally {
-    connecting = false
-  }
-}
 
 function clearLoadedFrameQueue(): void {
   while (loadedFrameQueue.length > 0) {
@@ -111,7 +80,7 @@ const streamWsClient = new WsClient({
   url: getCameraStreamWsUrl,
   reconnectMs: WS_RECONNECT_MS,
   binaryType: 'blob',
-  shouldReconnect: () => running.value && connected.value,
+  shouldReconnect: () => running.value,
   onOpen: (ws) => {
     lastError.value = ''
     ws.send(JSON.stringify({ cmd: 'set_quality', quality: DEFAULT_QUALITY }))
@@ -144,7 +113,7 @@ const streamWsClient = new WsClient({
 })
 
 function connectStreamWs(): void {
-  if (!running.value || !connected.value) return
+  if (!running.value) return
   if (streamWsClient.isOpen) return
   streamWsClient.connect()
 }
@@ -182,35 +151,13 @@ export function startGlobalCameraReceiver(): void {
   if (started) return
   started = true
   running.value = true
-  void ensureCameraConnected().then(() => {
-    if (connected.value) {
-      connectStreamWs()
-      startDisplayLoop()
-    }
-  })
-
-  if (ensureTimer !== null) clearInterval(ensureTimer)
-  ensureTimer = setInterval(() => {
-    void ensureCameraConnected().then(() => {
-      if (!running.value) return
-      if (connected.value) {
-        connectStreamWs()
-        startDisplayLoop()
-      } else {
-        stopStreamWs()
-        cleanupDisplayFrameState()
-      }
-    })
-  }, 3000)
+  connectStreamWs()
+  startDisplayLoop()
 }
 
 /** 停止全局相机接收器。 */
 export function stopGlobalCameraReceiver(): void {
   running.value = false
-  if (ensureTimer !== null) {
-    clearInterval(ensureTimer)
-    ensureTimer = null
-  }
   stopStreamWs()
   stopDisplayLoop()
   cleanupDisplayFrameState()
@@ -220,7 +167,7 @@ export function stopGlobalCameraReceiver(): void {
 /** 刷新相机流（重新连接 WS）。 */
 export function refreshGlobalCameraStream(): void {
   stopStreamWs()
-  if (running.value && connected.value) {
+  if (running.value) {
     connectStreamWs()
     startDisplayLoop()
   }
@@ -231,6 +178,6 @@ export function useGlobalCameraReceiverState() {
   return {
     frameUrl: readonly(frameUrl),
     lastError: readonly(lastError),
-    connected: readonly(connected)
+    connected: readonly(running)
   }
 }

@@ -345,6 +345,24 @@ function createWindow(): void {
     return { action: 'deny' }
   })
 
+  mainWindow.webContents.on('render-process-gone', (_, details) => {
+    const reason = details.reason
+    const exitCode = details.exitCode
+    console.error(`[main] render-process-gone: reason=${reason}, exitCode=${exitCode}`)
+    // 将崩溃原因写入文件，方便排查
+    const crashLog = join(app.getPath('userData'), 'crash.log')
+    const timestamp = new Date().toISOString()
+    const crashMsg = `[${timestamp}] render-process-gone: reason=${reason}, exitCode=${exitCode}\n`
+    void writeFile(crashLog, crashMsg, { flag: 'a' }).catch(() => {})
+  })
+
+  mainWindow.webContents.on('crashed', (_, killed) => {
+    console.error(`[main] webContents crashed, killed=${killed}`)
+    const crashLog = join(app.getPath('userData'), 'crash.log')
+    const timestamp = new Date().toISOString()
+    void writeFile(crashLog, `[${timestamp}] webContents crashed, killed=${killed}\n`, { flag: 'a' }).catch(() => {})
+  })
+
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
