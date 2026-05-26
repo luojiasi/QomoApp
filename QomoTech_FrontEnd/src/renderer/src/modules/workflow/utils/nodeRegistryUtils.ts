@@ -1,0 +1,33 @@
+// ─────────────────────────────────────────────────────────────
+// utils/nodeRegistryUtils.ts — 节点注册表查询（纯函数）
+// ─────────────────────────────────────────────────────────────
+
+import { NODE_REGISTRY } from '../nodes/definitions/index'
+import type { NodeCategory, NodeTypeDef } from '../types/nodeDefinition'
+
+/** 画布右键菜单中的分类顺序 */
+const CATEGORY_ORDER: NodeCategory[] = ['trigger', 'motion', 'io', 'flow', 'data']
+
+const CATEGORY_LABELS: Record<NodeCategory, string> = {
+  trigger: '触发',
+  motion: '运动',
+  io: 'IO',
+  flow: '流程',
+  data: '数据'
+}
+
+export interface NodePickerGroup {
+  category: NodeCategory
+  label: string
+  nodes: NodeTypeDef[]
+}
+
+/** 按分类分组，供节点添加菜单使用 */
+export function getNodePickerGroups(): NodePickerGroup[] {
+  const all = Object.values(NODE_REGISTRY)
+  return CATEGORY_ORDER.map((category) => ({
+    category,
+    label: CATEGORY_LABELS[category],
+    nodes: all.filter((def) => def.category === category)
+  })).filter((group) => group.nodes.length > 0)
+}
