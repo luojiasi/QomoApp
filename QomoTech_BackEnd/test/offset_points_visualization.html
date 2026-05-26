@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OffsetEndpointCalculator.calc_xy_points — 偏移点位可视化</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f172a; color: #e2e8f0; }
+.header { background: #1e293b; border-bottom: 1px solid #334155; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
+.header h1 { font-size: 18px; font-weight: 600; }
+.header .badge { font-size: 11px; background: #2563eb20; color: #60a5fa; border: 1px solid #2563eb40; padding: 4px 10px; border-radius: 6px; }
+.controls { padding: 12px 24px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; border-bottom: 1px solid #1e293b; background: #1a2332; }
+.controls label { font-size: 13px; color: #94a3b8; }
+.controls input[type=range] { width: 120px; accent-color: #3b82f6; }
+.controls .val { font-size: 12px; color: #60a5fa; min-width: 36px; text-align: right; }
+.main { display: flex; height: calc(100vh - 130px); }
+.svg-wrap { flex: 1; position: relative; background: #0c1222; overflow: hidden; }
+.svg-wrap svg { width: 100%; height: 100%; }
+.legend { width: 300px; background: #1a2332; border-left: 1px solid #334155; overflow-y: auto; padding: 16px; }
+.legend h3 { font-size: 13px; font-weight: 600; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8; }
+.entity-card { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; font-size: 12px; cursor: pointer; transition: border-color .15s; }
+.entity-card:hover { border-color: #3b82f6; }
+.entity-card.active { border-color: #3b82f6; background: #1e3a5f; }
+.entity-card .type { font-weight: 600; color: #e2e8f0; }
+.entity-card .detail { color: #94a3b8; font-size: 11px; margin-top: 2px; }
+.group-card { background: #0f172a; border: 1px solid #475569; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
+.group-card h4 { font-size: 12px; color: #fbbf24; margin-bottom: 4px; }
+.group-card .info { font-size: 11px; color: #94a3b8; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>OffsetEndpointCalculator.calc_xy_points() 偏移点位可视化</h1>
+  <span class="badge">DEFAULT_OPEN_SIZE = 0.5 mm</span>
+</div>
+
+<div class="controls">
+  <label>开口偏移量 (mm):</label>
+  <input type="range" id="offsetSlider" min="0" max="3" step="0.05" value="0.5">
+  <span class="val" id="offsetVal">0.50</span>
+  <label style="margin-left:16px">显示:</label>
+  <label style="display:flex;align-items:center;gap:4px;font-size:13px">
+    <input type="checkbox" id="showOriginal" checked> 原始图形
+  </label>
+  <label style="display:flex;align-items:center;gap:4px;font-size:13px">
+    <input type="checkbox" id="showOffset" checked> 偏移轮廓
+  </label>
+  <label style="display:flex;align-items:center;gap:4px;font-size:13px">
+    <input type="checkbox" id="showGroups"> 连通分组折线
+  </label>
+  <label style="display:flex;align-items:center;gap:4px;font-size:13px">
+    <input type="checkbox" id="showOffsetPoints" checked> 偏移实体点列
+  </label>
+  <span style="margin-left:auto;font-size:11px;color:#64748b">滚轮缩放 · 拖拽平移</span>
+</div>
+
+<div class="main">
+  <div class="svg-wrap" id="svgWrap">
+    <svg id="mainSvg"></svg>
+  </div>
+  <div class="legend" id="legend"></div>
+</div>
+
+<script>
+// ====================================================================
+// 1. 后端核心算法 JavaScript 复刻
+// ====================================================================
+const POINT_EPS = 1e-6;
+const LINE_PARALLEL_EPS = 1e-9;
+const OPEN_PATH_SAMPLE_SEGMENTS = 96;
+const DEFAULT_OPEN_SIZE = 0.5;
+const MITER_LIMIT = 8;
+
+function isSamePoint(a, b, eps = POINT_EPS) {
+  return Math.abs(a.x - b.x) <= eps && Math.abs(a.y - b.y) <= eps;
+}
+
+function safePoint(obj) {
+  if (!obj || typeof obj !== 'object') return null;
+  const x = obj.x, y = obj.y;
+  if (typeof x !== 'number' || typeof y !== 'number') return null;
+  if (!isFinite(x) || !isFinite(y)) return null;
+  const pt = { x: +x, y: +y };
+  if (obj.z !== undefined) {
+    const z = obj.z;
+    if (typeof z !== 'number' || !isFinite(z)) return null;
+    pt.z = +z;
+  }
+  return pt;
+}
+
+function normOpenDirection(v) {
+  if (typeof v === 'string' && (v.toUpperCase() === 'RIGHT' || v.toUpperCase() === 'LEFT'))
+    return v.toUpperCase();
+  return 'RIGHT';
+}
+
+// ---- 线段偏移 ----
+function offsetLine(start, end, openDirection, openSize) {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const len = Math.hypot(dx, dy);
+  if (len < 1e-9) return [{...start}, {...end}];
+  const rx = dy / len;
+  const ry = -dx / len;
+  const sign = (openDirection === 'RIGHT') ? -1 : 1;
+  const ox = rx * openSize * sign;
+  const oy = ry * openSize * sign;
+  return [{ x: start.x + ox, y: start.y + oy }, { x: end.x + ox, y: end.y + oy }];
+}
+
+// ---- 圆弧采样 ----
+function sampleArc(center, radius, startAngle, endAngle, segments = 48) {
+  let sweep = endAngle - startAngle;
+  while (sweep > 360) sweep -= 360;
+  while (sweep <= -360) sweep += 360;
+  if (Math.abs(sweep) < 1e-9) sweep = sweep >= 0 ? 360 : -360;
+  const step = sweep / Math.max(segments, 1);
+  const pts = [];
+  for (let i = 0; i <= segments; i++) {
+    const a = (startAngle + step * i) * Math.PI / 180;
+    pts.push({ x: center.x + radius * Math.cos(a), y: center.y + radius * Math.sin(a) });
+  }
+  return pts;
+}
+
+// ---- 贝塞尔 ----
+function bezierPoint(ctrl, t) {
+  let pts = ctrl.map(p => ({...p}));
+  while (pts.length > 1) {
+    const next = [];
+    for (let i = 0; i < pts.length - 1; i++)
+      next.push({ x: pts[i].x * (1 - t) + pts[i + 1].x * t, y: pts[i].y * (1 - t) + pts[i + 1].y * t });
+    pts = next;
+  }
+  return pts[0];
+}
+
+function sampleBezier(ctrl, segments = 64) {
+  if (!ctrl.length) return [];
+  if (ctrl.length === 1) return [{...ctrl[0]}];
+  const n = Math.max(2, segments);
+  const pts = [];
+  for (let i = 0; i <= n; i++) pts.push(bezierPoint(ctrl, i / n));
+  return pts;
+}
+
+function offsetOpenPolyline(points, openDirection, openSize) {
+  if (points.length < 2 || openSize < 1e-9) return points.map(p => ({...p}));
+  const sign = openDirection === 'RIGHT' ? -1 : 1;
+  const segNorms = [];
+  for (let i = 0; i < points.length - 1; i++) {
+    const dx = points[i + 1].x - points[i].x;
+    const dy = points[i + 1].y - points[i].y;
+    const len = Math.hypot(dx, dy);
+    if (len < 1e-9) { segNorms.push(null); continue; }
+    segNorms.push({ x: (dy / len) * sign, y: (-dx / len) * sign });
+  }
+  return points.map((p, i) => {
+    const cand = [];
+    if (i > 0 && segNorms[i - 1]) cand.push(segNorms[i - 1]);
+    if (i < segNorms.length && segNorms[i]) cand.push(segNorms[i]);
+    if (!cand.length) return {...p};
+    let nx = 0, ny = 0;
+    cand.forEach(n => { nx += n.x; ny += n.y; });
+    const nl = Math.hypot(nx, ny);
+    if (nl < 1e-9) return { x: p.x + cand[0].x * openSize, y: p.y + cand[0].y * openSize };
+    return { x: p.x + (nx / nl) * openSize, y: p.y + (ny / nl) * openSize };
+  });
+}
+
+// ---- 不规则图形 (与后端/前端一致) ----
+function localToWorld(center, rotDeg, lx, ly) {
+  const r = rotDeg * Math.PI / 180;
+  const cos = Math.cos(r), sin = Math.sin(r);
+  return { x: center.x + lx * cos - ly * sin, y: center.y + lx * sin + ly * cos };
+}
+
+function sampleOval(center, rx, ry, rotDeg, segs = 96) {
+  const pts = [];
+  for (let i = 0; i <= segs; i++) {
+    const t = (i / segs) * Math.PI * 2;
+    pts.push(localToWorld(center, rotDeg, rx * Math.cos(t), ry * Math.sin(t)));
+  }
+  return pts;
+}
+
+function sampleSquare(center, rx, ry, rotDeg) {
+  const hx = Math.max(rx, 1e-6), hy = Math.max(ry, 1e-6);
+  return [
+    localToWorld(center, rotDeg, -hx, -hy), localToWorld(center, rotDeg, hx, -hy),
+    localToWorld(center, rotDeg, hx, hy), localToWorld(center, rotDeg, -hx, hy)
+  ];
+}
+
+function sampleMarquise(center, rx, ry, rotDeg, segs = 96) {
+  rx = Math.max(rx, 1e-6); ry = Math.max(ry, 1e-6);
+  const half = Math.max(Math.floor(segs / 2), 16), exp = 0.72;
+  const pts = [];
+  const localY = s => { const c = Math.max(0, Math.min(1, s)); return ry * Math.pow(Math.max(0, Math.sin(Math.PI * c)), exp); };
+  for (let i = 0; i <= half; i++) { const s = i / half; pts.push(localToWorld(center, rotDeg, -rx + 2 * rx * s, localY(s))); }
+  for (let i = 1; i <= half; i++) { const s = 1 - i / half; pts.push(localToWorld(center, rotDeg, -rx + 2 * rx * s, -localY(s))); }
+  return pts;
+}
+
+function samplePear(center, rx, ry, rotDeg, segs = 96) {
+  rx = Math.max(rx, 1e-6); ry = Math.max(ry, 1e-6);
+  const half = Math.max(Math.floor(segs / 2), 16), alpha = 1.85, beta = 2.65, exp = 0.82;
+  const peakS = (alpha - 1) / (alpha + beta - 2);
+  const peakProf = Math.pow(peakS, alpha - 1) * Math.pow(1 - peakS, beta - 1);
+  const pts = [];
+  const localY = s => { const c = Math.max(0, Math.min(1, s)); const prof = Math.pow(c, alpha - 1) * Math.pow(1 - c, beta - 1); return ry * Math.pow(prof / peakProf, exp); };
+  for (let i = 0; i <= half; i++) { const s = i / half; pts.push(localToWorld(center, rotDeg, -rx + 2 * rx * s, localY(s))); }
+  for (let i = 1; i <= half; i++) { const s = 1 - i / half; pts.push(localToWorld(center, rotDeg, -rx + 2 * rx * s, -localY(s))); }
+  return pts;
+}
+
+function sampleHeart(center, rx, ry, rotDeg, segs = 96) {
+  rx = Math.max(rx, 1e-6); ry = Math.max(ry, 1e-6);
+  const total = Math.max(segs, 48);
+  const rawPts = [];
+  let minY = Infinity, maxY = -Infinity;
+  for (let i = 0; i <= total; i++) {
+    const t = (i / total) * Math.PI * 2;
+    const rawX = 16 * Math.pow(Math.sin(t), 3);
+    const rawY = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
+    minY = Math.min(minY, rawY); maxY = Math.max(maxY, rawY);
+    rawPts.push({ x: rawX / 16, y: rawY });
+  }
+  const yCenter = (minY + maxY) / 2;
+  const yRadius = Math.max((maxY - minY) / 2, 1e-6);
+  return rawPts.map(p => localToWorld(center, rotDeg, -((p.y - yCenter) / yRadius) * rx, p.x * ry * 0.98));
+}
+
+function sampleIrregular(shape, center, rx, ry, rotDeg, segs) {
+  if (shape === 'square') return sampleSquare(center, rx, ry, rotDeg);
+  if (shape === 'marquise') return sampleMarquise(center, rx, ry, rotDeg, segs);
+  if (shape === 'pear') return samplePear(center, rx, ry, rotDeg, segs);
+  if (shape === 'heart') return sampleHeart(center, rx, ry, rotDeg, segs);
+  return sampleOval(center, rx, ry, rotDeg, segs);
+}
+
+// ---- 创建偏移实体 (复刻后端 创建偏移实体) ----
+function createOffsetProfile(entity, openSize) {
+  const etype = String(entity.type || '').toUpperCase();
+  const dir = normOpenDirection(entity.openDirection);
+
+  if (etype === 'LINE') {
+    const s = safePoint(entity.start), e = safePoint(entity.end);
+    if (!s || !e) return null;
+    return { entity, original_start: s, original_end: e, offset_points: offsetLine(s, e, dir, openSize) };
+  }
+
+  if (etype === 'ARC') {
+    const c = safePoint(entity.center);
+    const r = entity.radius, sa = entity.startAngle, ea = entity.endAngle;
+    if (!c || typeof r !== 'number' || typeof sa !== 'number' || typeof ea !== 'number') return null;
+    // offset radius
+    let sweep = ea - sa;
+    if (Math.abs(sweep) < 1e-9) sweep = sweep >= 0 ? 360 : -360;
+    const dirSign = sweep >= 0 ? 1 : -1;
+    const offsetR = Math.max(1e-6, r - ((dir === 'RIGHT' ? dirSign : -dirSign) * openSize));
+    const orig = sampleArc(c, r, sa, ea, OPEN_PATH_SAMPLE_SEGMENTS);
+    if (orig.length < 2) return null;
+    const off = sampleArc(c, offsetR, sa, ea, OPEN_PATH_SAMPLE_SEGMENTS);
+    const origS = safePoint(entity.startPoint) || safePoint(entity.start) || orig[0];
+    const origE = safePoint(entity.endPoint) || safePoint(entity.end) || orig[orig.length - 1];
+    return { entity, original_start: origS, original_end: origE, offset_points: off };
+  }
+
+  if (etype === 'CIRCLE') {
+    const c = safePoint(entity.center);
+    const r = entity.radius;
+    if (!c || typeof r !== 'number') return null;
+    const offR = dir === 'RIGHT' ? r + openSize : Math.max(1e-6, r - openSize);
+    const orig = sampleArc(c, r, 0, 360, 360);
+    const off = sampleArc(c, offR, 0, 360, 360);
+    return { entity, original_start: orig[0], original_end: orig[orig.length - 1], offset_points: off };
+  }
+
+  const IRREG_TYPES = ['IRREGULAR', 'ELLIPSE', 'HEART', 'PEAR', 'MARQUISE', 'SQUARE'];
+  if (IRREG_TYPES.includes(etype)) {
+    const c = safePoint(entity.center);
+    const rx = entity.radiusX, ry = entity.radiusY;
+    const rot = typeof entity.rotationDeg === 'number' ? entity.rotationDeg : 0;
+    if (!c || typeof rx !== 'number' || typeof ry !== 'number') return null;
+    let shape;
+    if (etype === 'IRREGULAR') { shape = (entity.shape || 'oval').toLowerCase(); if (shape === 'ellipse') shape = 'oval'; }
+    else if (etype === 'ELLIPSE') shape = 'oval';
+    else if (etype === 'HEART') shape = 'heart';
+    else if (etype === 'PEAR') shape = 'pear';
+    else if (etype === 'SQUARE') shape = 'square';
+    else shape = 'marquise';
+    if (!['oval', 'marquise', 'pear', 'heart', 'square'].includes(shape)) return null;
+    const delta = dir === 'RIGHT' ? openSize : -openSize;
+    const orx = Math.max(1e-6, rx + delta), ory = Math.max(1e-6, ry + delta);
+    const orig = sampleIrregular(shape, c, rx, ry, rot, OPEN_PATH_SAMPLE_SEGMENTS);
+    const off = sampleIrregular(shape, c, orx, ory, rot, OPEN_PATH_SAMPLE_SEGMENTS);
+    if (orig.length < 2 || off.length < 2) return null;
+    return { entity, original_start: orig[0], original_end: orig[orig.length - 1], offset_points: off };
+  }
+
+  if (etype === 'BEZIER') {
+    const ptsRaw = entity.points;
+    if (!Array.isArray(ptsRaw)) return null;
+    const ctrl = ptsRaw.map(safePoint).filter(Boolean);
+    if (ctrl.length < 2) return null;
+    const orig = sampleBezier(ctrl, OPEN_PATH_SAMPLE_SEGMENTS);
+    const off = offsetOpenPolyline(orig, dir, openSize);
+    if (orig.length < 2 || off.length < 2) return null;
+    return { entity, original_start: orig[0], original_end: orig[orig.length - 1], offset_points: off };
+  }
+
+  return null;
+}
+
+// ---- 去重 ----
+function removeConsecutiveDupes(points) {
+  if (!points.length) return [];
+  const out = [points[0]];
+  for (let i = 1; i < points.length; i++) if (!isSamePoint(out[out.length - 1], points[i])) out.push(points[i]);
+  return out;
+}
+
+// ---- DSU ----
+class DSU { constructor(n) { this.p = Array.from({ length: n }, (_, i) => i); } find(x) { if (this.p[x] !== x) this.p[x] = this.find(this.p[x]); return this.p[x]; } union(a, b) { const ra = this.find(a), rb = this.find(b); if (ra !== rb) this.p[rb] = ra; } }
+
+function entityIdStr(entity) { const raw = entity.id; return raw != null ? String(raw) : ''; }
+
+function hasNodeStart(profile) { const n = profile.entity.node; return n && typeof n === 'object' && n.start !== undefined && n.start !== null; }
+function hasNodeEnd(profile) { const n = profile.entity.node; return n && typeof n === 'object' && n.end !== undefined && n.end !== null; }
+
+function twoProfilesShareEndpoint(a, b) {
+  const endsA = [a.original_start, a.original_end];
+  const endsB = [b.original_start, b.original_end];
+  for (const pa of endsA) for (const pb of endsB) if (isSamePoint(pa, pb)) return true;
+  return false;
+}
+
+function partitionComponents(origProfiles, idToIdx) {
+  const n = origProfiles.length;
+  if (!n) return [[], []];
+  const dsu = new DSU(n);
+  for (let i = 0; i < n; i++) {
+    const node = origProfiles[i].entity.node;
+    if (!node || typeof node !== 'object') continue;
+    for (const side of ['start', 'end']) {
+      const ref = node[side];
+      if (!ref || typeof ref !== 'object') continue;
+      const tid = ref.id;
+      if (tid == null) continue;
+      const j = idToIdx[String(tid)];
+      if (j != null && j !== i) dsu.union(i, j);
+    }
+  }
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) if (twoProfilesShareEndpoint(origProfiles[i], origProfiles[j])) dsu.union(i, j);
+
+  const buckets = {};
+  for (let i = 0; i < n; i++) { const r = dsu.find(i); if (!buckets[r]) buckets[r] = new Set(); buckets[r].add(i); }
+  const comps = Object.values(buckets).sort((a, b) => Math.min(...a) - Math.min(...b));
+
+  const isClosedList = comps.map(comp => {
+    for (const i of comp) {
+      const prof = origProfiles[i];
+      const node = prof.entity.node;
+      for (const side of ['start', 'end']) {
+        let connected = false;
+        if (node && typeof node === 'object') {
+          const ref = node[side];
+          if (ref && typeof ref === 'object' && ref.id != null) {
+            const j = idToIdx[String(ref.id)];
+            if (j != null && comp.has(j) && j !== i) connected = true;
+          }
+        }
+        if (!connected) {
+          const joint = side === 'start' ? prof.original_start : prof.original_end;
+          for (const j of comp) { if (j === i) continue; const o = origProfiles[j]; if (isSamePoint(o.original_start, joint) || isSamePoint(o.original_end, joint)) { connected = true; break; } }
+        }
+        if (!connected) return false;
+      }
+    }
+    return true;
+  });
+
+  return [comps, isClosedList];
+}
+
+function chainFirstForward(entity) {
+  const node = entity.node;
+  if (!node || typeof node !== 'object') return true;
+  const hasStart = node.start && typeof node.start === 'object';
+  const hasEnd = node.end && typeof node.end === 'object';
+  if (!hasEnd && hasStart) return false;
+  return true;
+}
+
+function walkNodeChain(firstIdx, profiles, idToIdx, allowed) {
+  const order = [firstIdx];
+  const forwards = [chainFirstForward(profiles[firstIdx].entity)];
+  const visited = new Set([firstIdx]);
+  let cur = firstIdx;
+  for (let iter = 0; iter < profiles.length + 2; iter++) {
+    const fwd = forwards[forwards.length - 1];
+    const node = profiles[cur].entity.node;
+    if (!node || typeof node !== 'object') break;
+    const ref = node[fwd ? 'end' : 'start'];
+    if (!ref || typeof ref !== 'object') break;
+    const nextId = ref.id, ep = ref.endpoint;
+    if (nextId == null || (ep !== 'start' && ep !== 'end')) break;
+    const ni = idToIdx[String(nextId)];
+    if (ni == null) break;
+    if (allowed && !allowed.has(ni)) break;
+    if (ni === firstIdx) break;
+    if (visited.has(ni)) break;
+    order.push(ni);
+    forwards.push(ep === 'start');
+    visited.add(ni);
+    cur = ni;
+  }
+  return [order, forwards];
+}
+
+function chooseChainSeed(unused, profiles, idToIdx) {
+  const incoming = new Set();
+  for (const i of unused) {
+    const node = profiles[i].entity.node;
+    if (!node || typeof node !== 'object') continue;
+    for (const side of ['start', 'end']) {
+      const ref = node[side];
+      if (!ref || typeof ref !== 'object') continue;
+      const tid = ref.id;
+      if (tid == null) continue;
+      const j = idToIdx[String(tid)];
+      if (j != null && unused.has(j) && j !== i) incoming.add(j);
+    }
+  }
+  const heads = [...unused].filter(i => !incoming.has(i));
+  const pool = heads.length ? heads : [...unused];
+  return pool.reduce((best, i) => {
+    const a = [!hasNodeEnd(profiles[i]), !hasNodeStart(profiles[i]), i];
+    const b = [!hasNodeEnd(profiles[best]), !hasNodeStart(profiles[best]), best];
+    for (let k = 0; k < 3; k++) { if (a[k] < b[k]) return i; if (a[k] > b[k]) return best; }
+    return best;
+  });
+}
+
+function stitchOffsetPolylines(origProfiles, profiles) {
+  if (!profiles.length) return [];
+  const idToIdx = {};
+  profiles.forEach((p, i) => { const eid = entityIdStr(p.entity); if (eid && !(eid in idToIdx)) idToIdx[eid] = i; });
+  const [comps] = partitionComponents(origProfiles, idToIdx);
+  const all = [];
+
+  for (const comp of comps) {
+    const used = new Set();
+    let figurePts = [];
+    while (used.size < comp.size) {
+      const unused = new Set([...comp].filter(i => !used.has(i)));
+      const seed = chooseChainSeed(unused, profiles, idToIdx);
+      const [order, forwards] = walkNodeChain(seed, profiles, idToIdx, comp);
+      order.forEach(i => used.add(i));
+
+      let chainPts = [];
+      for (let k = 0; k < order.length; k++) {
+        let seq = profiles[order[k]].offset_points;
+        if (!forwards[k]) seq = [...seq].reverse();
+        seq = seq.map(p => ({...p}));
+        if (!chainPts.length) { chainPts = seq; }
+        else if (seq.length && isSamePoint(chainPts[chainPts.length - 1], seq[0])) { chainPts.push(...seq.slice(1)); }
+        else { chainPts.push(...seq); }
+      }
+      const deduped = removeConsecutiveDupes(chainPts);
+      if (figurePts.length && deduped.length && !isSamePoint(figurePts[figurePts.length - 1], deduped[0])) { figurePts.push(...deduped); }
+      else if (figurePts.length && deduped.length) { figurePts.push(...deduped.slice(1)); }
+      else { figurePts = deduped; }
+    }
+    all.push(removeConsecutiveDupes(figurePts));
+  }
+  return all;
+}
+
+// ---- 主入口 (复刻 OffsetEndpointCalculator.calc_xy_points) ----
+function calc_xy_points(entities, offset) {
+  const entityList = entities.filter(e => e && typeof e === 'object');
+  const openSize = offset == null ? DEFAULT_OPEN_SIZE : Math.max(0, +offset);
+
+  const origProfiles = [], offsetProfiles = [];
+  for (const ent of entityList) {
+    const orig = createOffsetProfile(ent, 0);
+    const off = createOffsetProfile(ent, openSize);
+    if (orig && off) { origProfiles.push(orig); offsetProfiles.push(off); }
+  }
+  return stitchOffsetPolylines(origProfiles, offsetProfiles);
+}
+
+// ====================================================================
+// 2. 构造测试实体
+// ====================================================================
+function mkEntity(type, overrides) {
+  const base = { id: 'e_' + Math.random().toString(36).slice(2, 8), type, openDirection: 'RIGHT' };
+  return Object.assign(base, overrides);
+}
+
+const line1 = mkEntity('LINE', { id: 'line1', start: { x: 10, y: 10 }, end: { x: 30, y: 10 }, openDirection: 'RIGHT' });
+const line2 = mkEntity('LINE', { id: 'line2', start: { x: 30, y: 10 }, end: { x: 30, y: 30 }, openDirection: 'LEFT' });
+const line3 = mkEntity('LINE', { id: 'line3', start: { x: 30, y: 30 }, end: { x: 10, y: 30 }, openDirection: 'RIGHT' });
+const line4 = mkEntity('LINE', { id: 'line4', start: { x: 10, y: 30 }, end: { x: 10, y: 10 }, openDirection: 'LEFT' });
+
+// 用 node 将四条线段连接成矩形链（与后端 sortLinesAndAttachNodeForExport 一致）
+line1.node = { end: { id: 'line2', endpoint: 'start' } };
+line2.node = { start: { id: 'line1', endpoint: 'end' }, end: { id: 'line3', endpoint: 'start' } };
+line3.node = { start: { id: 'line2', endpoint: 'end' }, end: { id: 'line4', endpoint: 'start' } };
+line4.node = { start: { id: 'line3', endpoint: 'end' } };
+
+const testEntities = [
+  line1, line2, line3, line4,
+
+  // ---- 圆弧 (半圆) ----
+  mkEntity('ARC', { id: 'arc1', center: { x: 20, y: 50 }, radius: 10, startAngle: 0, endAngle: 180, openDirection: 'RIGHT' }),
+
+  // ---- 圆 ----
+  mkEntity('CIRCLE', { id: 'circle1', center: { x: 50, y: 15 }, radius: 8, openDirection: 'LEFT' }),
+
+  // ---- 贝塞尔 (S 曲线) ----
+  mkEntity('BEZIER', { id: 'bez1', points: [{ x: 10, y: 65 }, { x: 25, y: 55 }, { x: 15, y: 80 }, { x: 30, y: 70 }], openDirection: 'RIGHT' }),
+
+  // ---- 心形 ----
+  mkEntity('HEART', { id: 'heart1', center: { x: 50, y: 50 }, radiusX: 6, radiusY: 6, rotationDeg: 0, openDirection: 'RIGHT' }),
+
+  // ---- 梨形 ----
+  mkEntity('PEAR', { id: 'pear1', center: { x: 65, y: 50 }, radiusX: 5, radiusY: 5, rotationDeg: 30, openDirection: 'LEFT' }),
+
+  // ---- 马眼形 ----
+  mkEntity('MARQUISE', { id: 'marq1', center: { x: 50, y: 70 }, radiusX: 10, radiusY: 4, rotationDeg: 45, openDirection: 'RIGHT' }),
+
+  // ---- 方形 ----
+  mkEntity('SQUARE', { id: 'sq1', center: { x: 65, y: 15 }, radiusX: 7, radiusY: 7, rotationDeg: 15, openDirection: 'LEFT' }),
+
+  // ---- 椭圆 ----
+  mkEntity('ELLIPSE', { id: 'ell1', center: { x: 20, y: 85 }, radiusX: 10, radiusY: 5, rotationDeg: -20, openDirection: 'RIGHT' }),
+];
+
+
+// ====================================================================
+// 3. SVG 可视化
+// ====================================================================
+const svg = document.getElementById('mainSvg');
+const wrap = document.getElementById('svgWrap');
+const legend = document.getElementById('legend');
+
+let viewX = -10, viewY = -10, viewW = 100;
+let dragging = false, dragSX = 0, dragSY = 0, dragVX = 0, dragVY = 0;
+
+function redraw() {
+  const offsetVal = +document.getElementById('offsetSlider').value;
+  document.getElementById('offsetVal').textContent = offsetVal.toFixed(2);
+  const showOrig = document.getElementById('showOriginal').checked;
+  const showOff = document.getElementById('showOffset').checked;
+  const showGroups = document.getElementById('showGroups').checked;
+  const showOffPts = document.getElementById('showOffsetPoints').checked;
+
+  const width = wrap.clientWidth, height = wrap.clientHeight;
+  svg.setAttribute('viewBox', `${viewX} ${viewY} ${viewW} ${viewW * height / width}`);
+  const s = viewW / width;
+
+  // 计算
+  const offsetProfiles = [];
+  for (const e of testEntities) {
+    const p = createOffsetProfile(e, offsetVal);
+    if (p) offsetProfiles.push(p);
+  }
+  const groupPolylines = calc_xy_points(testEntities, offsetVal);
+
+  let html = '';
+  const scale = val => val * s;
+
+  // ---- 画连通分组折线 ----
+  if (showGroups) {
+    const groupColors = ['#f59e0b', '#10b981', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316', '#84cc16', '#6366f1'];
+    groupPolylines.forEach((poly, gi) => {
+      const color = groupColors[gi % groupColors.length];
+      html += `<polyline points="${poly.map(p => `${p.x},${p.y}`).join(' ')}" fill="none" stroke="${color}" stroke-width="${s * 0.5}" stroke-dasharray="${s * 1.5},${s * 1}" opacity="0.9"/>`;
+    });
+  }
+
+  // ---- 画偏移实体点列 ----
+  if (showOffPts) {
+    offsetProfiles.forEach(p => {
+      html += `<polyline points="${p.offset_points.map(pt => `${pt.x},${pt.y}`).join(' ')}" fill="none" stroke="#60a5fa" stroke-width="${s * 0.35}" opacity="0.6"/>`;
+      p.offset_points.forEach(pt => {
+        html += `<circle cx="${pt.x}" cy="${pt.y}" r="${s * 0.25}" fill="#93c5fd" opacity="0.7"/>`;
+      });
+    });
+  }
+
+  // ---- 画原始图形 ----
+  if (showOrig) {
+    testEntities.forEach(e => {
+      const et = String(e.type || '').toUpperCase();
+      if (et === 'LINE') {
+        html += `<line x1="${e.start.x}" y1="${e.start.y}" x2="${e.end.x}" y2="${e.end.y}" stroke="#f87171" stroke-width="${s * 0.4}" opacity="0.8"/>`;
+        html += `<circle cx="${e.start.x}" cy="${e.start.y}" r="${s * 0.3}" fill="#fca5a5"/><circle cx="${e.end.x}" cy="${e.end.y}" r="${s * 0.3}" fill="#fca5a5"/>`;
+      } else if (et === 'ARC') {
+        const r = e.radius, orig = sampleArc(e.center, r, e.startAngle, e.endAngle, 96);
+        html += `<polyline points="${orig.map(p => `${p.x},${p.y}`).join(' ')}" fill="none" stroke="#f87171" stroke-width="${s * 0.4}" opacity="0.8"/>`;
+      } else if (et === 'CIRCLE') {
+        html += `<circle cx="${e.center.x}" cy="${e.center.y}" r="${e.radius}" fill="none" stroke="#f87171" stroke-width="${s * 0.4}" opacity="0.8"/>`;
+        html += `<circle cx="${e.center.x}" cy="${e.center.y}" r="${s * 0.2}" fill="#f87171"/>`;
+      } else if (et === 'BEZIER') {
+        const ctrl = e.points.map(safePoint).filter(Boolean);
+        const orig = sampleBezier(ctrl, 96);
+        html += `<polyline points="${orig.map(p => `${p.x},${p.y}`).join(' ')}" fill="none" stroke="#f87171" stroke-width="${s * 0.4}" opacity="0.8"/>`;
+        ctrl.forEach(pt => html += `<circle cx="${pt.x}" cy="${pt.y}" r="${s * 0.35}" fill="#fca5a5" stroke="#f87171" stroke-width="${s * 0.15}"/>`);
+        for (let i = 0; i < ctrl.length - 1; i++) html += `<line x1="${ctrl[i].x}" y1="${ctrl[i].y}" x2="${ctrl[i+1].x}" y2="${ctrl[i+1].y}" stroke="#f87171" stroke-width="${s * 0.12}" stroke-dasharray="${s},${s}" opacity="0.4"/>`;
+      } else if (['IRREGULAR', 'ELLIPSE', 'HEART', 'PEAR', 'MARQUISE', 'SQUARE'].includes(et)) {
+        let shape; const rot = e.rotationDeg || 0;
+        if (et === 'IRREGULAR') shape = (e.shape || 'oval').toLowerCase();
+        else if (et === 'ELLIPSE') shape = 'oval';
+        else if (et === 'HEART') shape = 'heart';
+        else if (et === 'PEAR') shape = 'pear';
+        else if (et === 'SQUARE') shape = 'square';
+        else shape = 'marquise';
+        const pts = sampleIrregular(shape, e.center, e.radiusX, e.radiusY, rot, 96);
+        html += `<polygon points="${pts.map(p => `${p.x},${p.y}`).join(' ')}" fill="none" stroke="#f87171" stroke-width="${s * 0.4}" opacity="0.8"/>`;
+      }
+    });
+  }
+
+  // ---- 画原始实体的 original_start/original_end ----
+  testEntities.forEach(e => {
+    const prof = createOffsetProfile(e, offsetVal);
+    if (!prof) return;
+    html += `<circle cx="${prof.original_start.x}" cy="${prof.original_start.y}" r="${s * 0.38}" fill="#ef4444" stroke="#fff" stroke-width="${s * 0.08}"/>`;
+    html += `<circle cx="${prof.original_end.x}" cy="${prof.original_end.y}" r="${s * 0.38}" fill="#ef4444" stroke="#fff" stroke-width="${s * 0.08}"/>`;
+  });
+
+  svg.innerHTML = html;
+
+  // ---- 图例 ----
+  let leg = '';
+  leg += `<h3>实体列表 (${testEntities.length} 个)</h3>`;
+  testEntities.forEach((e, i) => {
+    const et = String(e.type || '').toUpperCase();
+    const nameMap = { LINE: '线段', ARC: '圆弧', CIRCLE: '圆', BEZIER: '贝塞尔', HEART: '心形', PEAR: '梨形', MARQUISE: '马眼形', SQUARE: '方形', ELLIPSE: '椭圆', IRREGULAR: '不规则' };
+    leg += `<div class="entity-card" data-idx="${i}"><div class="type">${nameMap[et] || et}</div><div class="detail">id: ${e.id} · openDir: ${e.openDirection || 'RIGHT'}</div></div>`;
+  });
+  leg += `<h3 style="margin-top:16px">连通分组 (${groupPolylines.length} 组)</h3>`;
+  const groupColors = ['#f59e0b', '#10b981', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316', '#84cc16', '#6366f1'];
+  groupPolylines.forEach((poly, gi) => {
+    const closed = poly.length > 2 && isSamePoint(poly[0], poly[poly.length - 1]);
+    leg += `<div class="group-card"><h4 style="color:${groupColors[gi % groupColors.length]}">分组 ${gi + 1}</h4><div class="info">${poly.length} 个点 · ${closed ? '闭合' : '开放'} · 偏移=${offsetVal.toFixed(2)}mm</div></div>`;
+  });
+  legend.innerHTML = leg;
+}
+
+// ---- 交互 ----
+wrap.addEventListener('wheel', e => {
+  e.preventDefault();
+  const zoom = e.deltaY > 0 ? 1.15 : 1 / 1.15;
+  const rect = wrap.getBoundingClientRect();
+  const mx = viewX + (e.clientX - rect.left) / rect.width * viewW;
+  const my = viewY + (e.clientY - rect.top) / rect.height * (viewW * wrap.clientHeight / wrap.clientWidth);
+  viewW *= zoom;
+  viewX = mx - (e.clientX - rect.left) / rect.width * viewW;
+  viewY = my - (e.clientY - rect.top) / rect.height * (viewW * wrap.clientHeight / wrap.clientWidth);
+  redraw();
+}, { passive: false });
+
+wrap.addEventListener('mousedown', e => {
+  dragging = true; dragSX = e.clientX; dragSY = e.clientY; dragVX = viewX; dragVY = viewY;
+});
+window.addEventListener('mousemove', e => {
+  if (!dragging) return;
+  const s = viewW / wrap.clientWidth;
+  viewX = dragVX - (e.clientX - dragSX) * s;
+  viewY = dragVY - (e.clientY - dragSY) * s;
+  redraw();
+});
+window.addEventListener('mouseup', () => { dragging = false; });
+
+document.getElementById('offsetSlider').addEventListener('input', redraw);
+['showOriginal', 'showOffset', 'showGroups', 'showOffsetPoints'].forEach(id => {
+  document.getElementById(id).addEventListener('change', redraw);
+});
+
+// legend 点击高亮
+legend.addEventListener('click', e => {
+  const card = e.target.closest('.entity-card');
+  if (!card) return;
+  card.classList.toggle('active');
+});
+
+redraw();
+</script>
+</body>
+</html>

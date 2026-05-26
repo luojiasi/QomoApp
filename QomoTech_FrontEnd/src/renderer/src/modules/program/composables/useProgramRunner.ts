@@ -36,7 +36,7 @@ export function useProgramRunner() {
     acquireTablePosition: show4PAcquireTable,
     goToNextDiamond: show4PNextDiamond,
     goToPrevDiamond: show4PPrevDiamond,
-    openDialog: show4POpenDialog,
+    // openDialog: show4POpenDialog,
     closeDialog: show4PCloseDialog,
     buildPayload: show4PBuildPayload,
     resolveXYOffsetFromHardware: show4PResolveXYOffset
@@ -192,18 +192,18 @@ export function useProgramRunner() {
       error('运行失败：当前没有可下发的配方，请先选择有效主配方。')
       return
     }
-    let 是否存在钻石 = false
-    if (programRunning.value) return
-    for(const entity of exportEntitiesWithCalculated()) {
-      if (entity.kind === 'DIAMOND') {
-        是否存在钻石 = true
-        break
-      }
-    }
-    if (是否存在钻石) {
-      show4POpenDialog(exportEntitiesWithCalculated());
-      return 
-    }
+    // let 是否存在钻石 = false
+    // if (programRunning.value) return
+    // for(const entity of exportEntitiesWithCalculated()) {
+    //   if (entity.kind === 'DIAMOND') {
+    //     是否存在钻石 = true
+    //     break
+    //   }
+    // }
+    // if (是否存在钻石) {
+    //   show4POpenDialog(exportEntitiesWithCalculated());
+    //   return 
+    // }
 
     try {
       const xyOffset = resolveXYMotionOffsetFromHardwareState()
@@ -231,7 +231,6 @@ export function useProgramRunner() {
       startProgramElapsedTimer()
       success(result?.message || '运行指令已发送。')
 
-      show4PCloseDialog()
     } catch {
       error('运行失败：无法连接后端。')
     }

@@ -356,13 +356,6 @@ function createWindow(): void {
     void writeFile(crashLog, crashMsg, { flag: 'a' }).catch(() => {})
   })
 
-  mainWindow.webContents.on('crashed', (_, killed) => {
-    console.error(`[main] webContents crashed, killed=${killed}`)
-    const crashLog = join(app.getPath('userData'), 'crash.log')
-    const timestamp = new Date().toISOString()
-    void writeFile(crashLog, `[${timestamp}] webContents crashed, killed=${killed}\n`, { flag: 'a' }).catch(() => {})
-  })
-
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
