@@ -200,7 +200,10 @@ export function useProgramRunner() {
         break
       }
     }
-    if (是否存在钻石) {show4POpenDialog(exportEntitiesWithCalculated());return }
+    if (是否存在钻石) {
+      show4POpenDialog(exportEntitiesWithCalculated());
+      return 
+    }
 
     try {
       const xyOffset = resolveXYMotionOffsetFromHardwareState()
