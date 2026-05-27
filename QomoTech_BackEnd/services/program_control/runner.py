@@ -245,7 +245,6 @@ class ProgramRunner(ProgramContext):
 
                     if 加工轴 == 'R' and 是否圆或圆弧:结果 = await self._R轴切圆(原始任务序号=当前任务索引,配方数据=配方数据,实体数据=实体数据,配方集=配方集)
                     elif 加工轴 == 'XY':结果 = await self._修面和切片(原始任务序号=当前任务索引,配方数据=配方数据,实体数据=实体数据,配方集=配方集)
-                    else:结果 = True  # 未知加工轴类型，跳过
 
                     if 结果 == "skip":continue
                     if 结果 == "abort":return {"success": False, "message": "程序已急停", "data": None}
@@ -547,10 +546,12 @@ class ProgramRunner(ProgramContext):
                 case ProgramStep.清理所有状态:
                     返回最原始的Z轴焦距位置 = 当前Z轴的位置 - float(焦距补偿)
                     try:
+                        # 等待 XY 轴完全停止后再移动 Z 轴，避免 ZMC 错误码 1004（轴忙）
+                        await self._运动原语.安全拉取xy轴是否空闲()
                         await self._运动.绝对运动并设速度("Z", 返回最原始的Z轴焦距位置, 切割速度)
                         当前步骤 = ProgramStep.等待Z轴回指定位置
                     except Exception:
-                        pass
+                        日志.exception("清理所有状态 Z轴回位失败")
 
                 case ProgramStep.等待Z轴回指定位置:
                     跳转计数 = 0
