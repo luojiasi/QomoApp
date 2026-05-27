@@ -23,7 +23,7 @@ const moveAbs: NodeTypeDef = {
   color: '#1d4ed8',
   description: '将指定轴移动到绝对坐标位置',
   version: 1,
-  inputs: [{ name: 'main', displayName: '执行' }],
+  inputs: [{ name: 'main', displayName: '输入' }],
   outputs: [
     { name: 'main', displayName: '完成' },
     { name: 'error', displayName: '错误' }
@@ -54,9 +54,9 @@ const moveAbs: NodeTypeDef = {
     },
     {
       name: 'speed',
-      displayName: '速度 (%)',
+      displayName: '速度 (mm/s)',
       type: 'number',
-      default: 50,
+      default: 20,
       description: '运动速度，1–100',
       placeholder: '50'
     }
@@ -64,7 +64,7 @@ const moveAbs: NodeTypeDef = {
   defaults: {
     axis: 'X',
     position: 0,
-    speed: 50
+    speed: 20
   },
   routing: {
     method: 'POST',

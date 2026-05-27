@@ -53,6 +53,8 @@ export interface CanvasSettings {
   /** step / smoothstep 折线转角圆角半径（px） */
   edgeBorderRadius: number
   edgeType: EdgeConnectionType
+  /** 节点执行状态边框粗细（px） */
+  nodeBorderWidth: number
 }
 
 /** workflow.json 中只保存与默认值不同的覆盖项 */
@@ -70,3 +72,4 @@ export type CanvasSettingsRangeField =
   | 'maxZoom'
   | 'edgeStrokeWidth'
   | 'edgeBorderRadius'
+  | 'nodeBorderWidth'

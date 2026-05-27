@@ -13,6 +13,7 @@ const {
   minZoom, maxZoom, defaultViewportZoom,
   edgeColor, edgeStrokeWidth, edgeArrowStyle, edgeBorderRadius, edgeType,
   edgeArrowStyleOptions,
+  nodeBorderWidth,
   ranges, resetToDefault
 } = useCanvasSettings()
 </script>
@@ -152,6 +153,25 @@ const {
               <AppSelect v-model="miniMapPosition" :options="miniMapPositionOptions" :required="true" class="flex-1" />
             </div>
           </template>
+        </div>
+      </section>
+
+      <!-- 节点状态边框 -->
+      <section class="mb-5">
+        <h4 class="mb-3 text-[13px] font-bold text-(--app-text-primary)">节点状态边框</h4>
+        <div class="space-y-3 rounded-lg border border-(--app-border) p-3">
+          <div class="flex items-center gap-2">
+            <span class="min-w-[70px] text-[11px] text-(--app-text-muted)">边框粗细</span>
+            <input
+              type="range"
+              v-model.number="nodeBorderWidth"
+              :min="ranges.nodeBorderWidth.min"
+              :max="ranges.nodeBorderWidth.max"
+              :step="ranges.nodeBorderWidth.step"
+              class="h-1 flex-1 cursor-pointer"
+            />
+            <span class="w-8 text-right text-[11px] tabular-nums text-(--app-text-primary)">{{ nodeBorderWidth }}px</span>
+          </div>
         </div>
       </section>
 

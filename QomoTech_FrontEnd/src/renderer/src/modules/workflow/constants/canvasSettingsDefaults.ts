@@ -23,5 +23,6 @@ export const CANVAS_SETTINGS_DEFAULTS: CanvasSettings = {
   edgeStrokeWidth: 1.5,
   edgeArrowStyle: 'arrowclosed',
   edgeBorderRadius: 8,
-  edgeType: 'step'
+  edgeType: 'step',
+  nodeBorderWidth: 2
 }

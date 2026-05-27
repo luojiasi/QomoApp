@@ -93,6 +93,7 @@ export function useCanvasSettings() {
     edgeStrokeWidth: createFieldComputed('edgeStrokeWidth'),
     edgeArrowStyle: createFieldComputed('edgeArrowStyle'),
     edgeBorderRadius: createFieldComputed('edgeBorderRadius'),
-    edgeType: createFieldComputed('edgeType')
+    edgeType: createFieldComputed('edgeType'),
+    nodeBorderWidth: createFieldComputed('nodeBorderWidth')
   }
 }

@@ -10,6 +10,26 @@
 
 import type { CanvasSettingsOverride } from './canvasSettings'
 
+// ─── 节点执行状态 ─────────────────────────────────────────────
+
+/**
+ * 节点在画布上的执行状态。
+ *
+ * editing → 编辑中（默认状态，无指示器）
+ * idle    → 未运行（等待执行）
+ * running → 执行中
+ * success → 执行成功
+ * failure → 执行失败
+ * warning → 执行完成但有警告
+ */
+export type NodeExecutionStatus =
+  | 'editing'
+  | 'idle'
+  | 'running'
+  | 'success'
+  | 'failure'
+  | 'warning'
+
 // ─── 流程边 ───────────────────────────────────────────────────
 
 /**
@@ -72,6 +92,12 @@ export interface WorkflowNode {
 
   /** 可选备注，显示在节点卡片底部 */
   description: string
+
+  /** 禁用后画布视觉变灰，执行时跳过 */
+  disabled?: boolean
+
+  /** 节点执行状态，由引擎在执行过程中更新 */
+  status?: NodeExecutionStatus
 }
 
 // ─── 流程定义 ─────────────────────────────────────────────────

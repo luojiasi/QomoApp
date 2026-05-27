@@ -14,5 +14,6 @@ export const CANVAS_SETTINGS_RANGES: Record<CanvasSettingsRangeField, CanvasSett
   minZoom: { min: 0.05, max: 1, step: 0.05 },
   maxZoom: { min: 1, max: 8, step: 0.5 },
   edgeStrokeWidth: { min: 1, max: 4, step: 0.5 },
-  edgeBorderRadius: { min: 0, max: 32, step: 1 }
+  edgeBorderRadius: { min: 0, max: 32, step: 1 },
+  nodeBorderWidth: { min: 1, max: 5, step: 0.5 }
 }

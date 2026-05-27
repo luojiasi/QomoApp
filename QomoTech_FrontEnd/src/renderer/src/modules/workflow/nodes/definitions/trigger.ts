@@ -9,7 +9,7 @@ import type { NodeTypeDef } from '../../types/nodeDefinition'
 
 /**
  * 手动触发节点
- * 用户点击"运行"按钮时启动流程，适合调试与临时执行。
+ * 用户点击"运行"按钮时启动流程会跳过该手动触发节点，，适合调试与临时执行。
  */
 const manualTrigger: NodeTypeDef = {
   type: 'trigger.manual',
@@ -25,4 +25,37 @@ const manualTrigger: NodeTypeDef = {
   defaults: {}
 }
 
-export const triggerDefs: NodeTypeDef[] = [manualTrigger]
+/**
+ * 单一入口触发（点击运行的时候只会从这一个入口进行触发，不会触发手动触发节点）
+ * 用户点击"运行"按钮时启动流程。
+ */
+const singleTrigger: NodeTypeDef = {
+  type: 'trigger.single',
+  category: 'trigger',
+  displayName: '单一入口触发节点',
+  icon: '▶',
+  color: '#7c3aed',
+  description: '用户点击"运行"按钮时启动流程只会从这一个入口进行触发，不会触发手动触发节点',
+  version: 1,
+  inputs: [],
+  outputs: [{ name: 'main', displayName: '执行' }],
+  params: [],
+  defaults: {}
+}
+/**
+ * 多入口触发（点击运行之后会从多个入口处触发，仅有多入口处触发，单一入口触发和多入口触发不能同时存在）
+ */
+const multiTrigger: NodeTypeDef = {
+  type: 'trigger.multi',
+  category: 'trigger',
+  displayName: '多入口触发节点',
+  icon: '▶',
+  color: '#7c3aed',
+  description: '用户点击"运行"按钮时启动流程会从多个入口进行触发，仅有多入口处触发',
+  version: 1,
+  inputs: [],
+  outputs: [{ name: 'main', displayName: '执行' }],
+  params: [],
+  defaults: {}
+}
+export const triggerDefs: NodeTypeDef[] = [manualTrigger,singleTrigger,multiTrigger]

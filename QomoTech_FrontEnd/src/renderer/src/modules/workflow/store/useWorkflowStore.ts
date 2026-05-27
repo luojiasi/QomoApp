@@ -15,7 +15,7 @@
 
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { Workflow, WorkflowNode, WorkflowEdge, WorkflowIndexEntry } from '../types/workflow'
+import type { Workflow, WorkflowNode, WorkflowEdge, WorkflowIndexEntry, NodeExecutionStatus } from '../types/workflow'
 import { getWorkflowApi } from '../infra/workflowApiBridge'
 import {
   generateId,
@@ -192,6 +192,31 @@ export const useWorkflowStore = defineStore('workflow', () => {
     if (node) node.position = { x, y }
   }
 
+  function disableNode(nodeId: string): void {
+    const node = currentWorkflow.value?.nodes.find(n => n.id === nodeId)
+    if (node) node.disabled = true
+  }
+
+  function enableNode(nodeId: string): void {
+    const node = currentWorkflow.value?.nodes.find(n => n.id === nodeId)
+    if (node) node.disabled = false
+  }
+
+  // ── 执行状态管理 ─────────────────────────────────────────────
+
+  function setNodeStatus(nodeId: string, status: NodeExecutionStatus): void {
+    const node = currentWorkflow.value?.nodes.find(n => n.id === nodeId)
+    if (node) node.status = status
+  }
+
+  function resetAllNodeStatuses(): void {
+    currentWorkflow.value?.nodes.forEach(n => { n.status = 'idle' })
+  }
+
+  function resetAllToEditing(): void {
+    currentWorkflow.value?.nodes.forEach(n => { n.status = 'editing' })
+  }
+
   // ── 边 CRUD ───────────────────────────────────────────────────
 
   function addEdge(
@@ -240,6 +265,12 @@ export const useWorkflowStore = defineStore('workflow', () => {
     removeNode,
     selectNode,
     moveNode,
+    disableNode,
+    enableNode,
+    // 执行状态
+    setNodeStatus,
+    resetAllNodeStatuses,
+    resetAllToEditing,
     // 边
     addEdge,
     removeEdge
