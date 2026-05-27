@@ -26,6 +26,36 @@ export function nowISO(): string {
   return new Date().toISOString()
 }
 
+// ─── JSON ────────────────────────────────────────────────────
+
+/**
+ * 宽容版 JSON 解析，自动修正常见的书写问题：
+ *  - 尾部逗号: {"x":1,} → 移除
+ *  - JS 单引号: {'x':1} → 转双引号（简单场景）
+ *  - 属性名无引号: {x:1} → 加双引号（简单场景）
+ *
+ * 修正后仍解析失败则抛出原始 SyntaxError。
+ */
+export function parseJSONish(raw: unknown): unknown {
+  let s = String(raw ?? '{}').trim()
+  if (s === '') return {}
+
+  // 1. 移除 // 和 /* */ 注释
+  s = s.replace(/\/\*[\s\S]*?\*\//g, '')
+  s = s.replace(/\/\/.*$/gm, '')
+
+  // 2. 移除尾部逗号（在 } 或 ] 前）
+  s = s.replace(/,(\s*[}\]])/g, '$1')
+
+  // 3. 单引号字符串 → 双引号
+  s = s.replace(/'([^'\\]*(\\.[^'\\]*)*)'/g, '"$1"')
+
+  // 4. 无引号属性名 {key: → {"key":
+  s = s.replace(/([{,]\s*)([a-zA-Z_$][\w$]*)\s*:/g, '$1"$2":')
+
+  return JSON.parse(s)
+}
+
 // ─── 数据工厂 ─────────────────────────────────────────────────
 
 /**
@@ -67,6 +97,16 @@ function makeDefaultLabel(def: NodeTypeDef): string {
     } catch {
       return '构造数据'
     }
+  }
+
+  if (def.type === 'data.transform') {
+    const opMap: Record<string, string> = {
+      add: '+', subtract: '-', multiply: '×', divide: '÷', modulo: '%',
+      concat_before: '前拼', concat_after: '后拼', to_upper: '大写', to_lower: '小写', replace: '替换'
+    }
+    const field = (d.field as string) || '?'
+    const op = opMap[(d.operation as string) ?? 'add'] ?? '?'
+    return `${field} ${op}`
   }
 
   return def.displayName

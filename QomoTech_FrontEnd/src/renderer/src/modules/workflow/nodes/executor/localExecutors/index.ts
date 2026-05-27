@@ -14,6 +14,7 @@ import { executeCountdown } from './countdownExecutor'
 import { executeSchedule } from './scheduleExecutor'
 import { executePassthrough } from './passthroughExecutor'
 import { executeCondition } from './conditionExecutor'
+import { executeTransform } from './transformExecutor'
 
 type LocalExecutor = (
   node: WorkflowNode,
@@ -26,7 +27,8 @@ const registry: Record<string, LocalExecutor> = {
   countdown: executeCountdown,
   schedule: executeSchedule,
   passthrough: executePassthrough,
-  condition: executeCondition
+  condition: executeCondition,
+  transform: executeTransform
 }
 
 /** 根据 executeAs 分派到对应本地执行器 */

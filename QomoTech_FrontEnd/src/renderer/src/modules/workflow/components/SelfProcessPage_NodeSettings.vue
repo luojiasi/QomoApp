@@ -12,6 +12,7 @@ import AppSelect from '../UI/AppSelect.vue'
 import AppInput from '../UI/AppInput.vue'
 import SelfProcessPage_ConditionEditor from './SelfProcessPage_ConditionEditor.vue'
 import type { IfCondition } from '../types/workflow'
+import { inferUpstreamFields } from '../utils/upstreamFieldUtils'
 
 const store = useWorkflowStore()
 
@@ -31,6 +32,14 @@ const availableInputNames = computed(() => {
   }
   return [...base, ...extra]
 })
+
+const upstreamFields = computed(() => {
+  const wf = store.currentWorkflow
+  return wf && node.value ? inferUpstreamFields(wf, node.value.id) : {}
+})
+
+// 当前节点 'main' 端口的上游字段列表（供 field 类参数使用）
+const mainPortFields = computed(() => upstreamFields.value['main'] ?? [])
 
 // 判断参数是否满足 showWhen 条件（应显示）
 function isParamVisible(showWhen?: { field: string; value: unknown }): boolean {
@@ -169,7 +178,10 @@ function setDescription(value: string): void {
                   v-else-if="param.type === 'conditionList'"
                   :conditions="node.params[param.name]"
                   :input-names="availableInputNames"
+                  :upstream-fields="upstreamFields"
+                  :mode="(node.params.conditionMode as string) ?? 'AND'"
                   @update:conditions="setParam(param.name, $event as IfCondition[])"
+                  @update:mode="setParam('conditionMode', $event)"
                 />
 
                 <!-- string / number / expression / json → 文本输入 -->
@@ -186,6 +198,21 @@ function setDescription(value: string): void {
                 <p v-if="param.description && param.type !== 'boolean'" class="mt-0.5 text-[10px] text-(--app-text-muted)">
                   {{ param.description }}
                 </p>
+
+                <!-- 字段提示：当参数名为 field 且有上游字段时，显示可选字段名 -->
+                <div
+                  v-if="param.name === 'field' && mainPortFields.length > 0"
+                  class="mt-1 flex items-center gap-1 flex-wrap"
+                >
+                  <span class="text-[10px] text-(--app-text-muted) shrink-0">可用字段:</span>
+                  <button
+                    v-for="f in mainPortFields"
+                    :key="f"
+                    class="cursor-pointer rounded border border-(--app-border) bg-(--app-card) px-1.5 py-px text-[10px] text-(--app-text-secondary) transition-colors hover:border-(--app-text-muted) hover:text-(--app-text-primary)"
+                    :title="`填入字段 '${f}'`"
+                    @click="setParam(param.name, f)"
+                  >{{ f }}</button>
+                </div>
               </div>
             </template>
           </div>

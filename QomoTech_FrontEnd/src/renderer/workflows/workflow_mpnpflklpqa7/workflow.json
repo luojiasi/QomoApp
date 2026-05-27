@@ -1,0 +1,100 @@
+{
+  "id": "mpnpflklpqa7",
+  "name": "循环示例",
+  "description": "",
+  "nodes": [
+    {
+      "id": "mpnpfqpr1v9i",
+      "type": "data.create",
+      "label": "数据 {}",
+      "position": {
+        "x": 300,
+        "y": 225
+      },
+      "params": {
+        "data": "{\"循环结构体\":0}"
+      },
+      "description": "",
+      "status": "success"
+    },
+    {
+      "id": "mpnpfu7yhuyd",
+      "type": "trigger.manual",
+      "label": "手动触发",
+      "position": {
+        "x": 100,
+        "y": 225
+      },
+      "params": {},
+      "description": "",
+      "status": "success"
+    },
+    {
+      "id": "mpnpmkhpffm8",
+      "type": "data.transform",
+      "label": "? +",
+      "position": {
+        "x": 500,
+        "y": 225
+      },
+      "params": {
+        "field": "循环结构体",
+        "operation": "add",
+        "operand": "",
+        "targetField": ""
+      },
+      "description": "",
+      "status": "success"
+    },
+    {
+      "id": "mpnpni1t0a53",
+      "type": "flow.condition",
+      "label": "IF 判断",
+      "position": {
+        "x": 700,
+        "y": 225
+      },
+      "params": {
+        "extraInputCount": 0,
+        "conditionMode": "AND",
+        "conditions": [
+          {
+            "inputName": "main",
+            "field": "循环结构体",
+            "operator": "lt",
+            "value": 10
+          }
+        ]
+      },
+      "description": "",
+      "status": "success",
+      "statusText": "true"
+    }
+  ],
+  "edges": [
+    {
+      "id": "mpnpfwi324ta",
+      "source": "mpnpfu7yhuyd",
+      "target": "mpnpfqpr1v9i",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mpnpmllkg0co",
+      "source": "mpnpfqpr1v9i",
+      "target": "mpnpmkhpffm8",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mpnpnjgysbb0",
+      "source": "mpnpmkhpffm8",
+      "target": "mpnpni1t0a53",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    }
+  ],
+  "createdAt": "2026-05-27T06:50:08.757Z",
+  "updatedAt": "2026-05-27T07:00:05.570Z",
+  "canvasSettings": {}
+}

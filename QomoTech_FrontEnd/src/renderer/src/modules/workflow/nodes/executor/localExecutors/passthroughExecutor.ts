@@ -7,6 +7,7 @@
 
 import type { WorkflowNode } from '../../../types/workflow'
 import type { NodeRunResult } from '../../../types/workflowExecution'
+import { parseJSONish } from '../../../utils/workflowUtils'
 
 export async function executePassthrough(
   node: WorkflowNode,
@@ -14,7 +15,7 @@ export async function executePassthrough(
 ): Promise<NodeRunResult> {
   const raw = (node.params.data as string) ?? '{}'
   try {
-    const data = JSON.parse(raw)
+    const data = parseJSONish(raw)
     return {
       nodeId: node.id,
       nodeType: node.type,

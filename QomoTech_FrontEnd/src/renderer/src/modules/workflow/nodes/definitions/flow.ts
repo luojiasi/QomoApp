@@ -156,6 +156,18 @@ const condition: NodeTypeDef = {
       placeholder: '0'
     },
     {
+      name: 'conditionMode',
+      displayName: '条件关系',
+      type: 'select',
+      default: 'AND',
+      required: false,
+      options: [
+        { label: 'AND（全部满足）', value: 'AND' },
+        { label: 'OR（任一满足）', value: 'OR' }
+      ],
+      description: '多个条件之间的逻辑关系'
+    },
+    {
       name: 'conditions',
       displayName: '条件列表',
       type: 'conditionList',
@@ -166,6 +178,7 @@ const condition: NodeTypeDef = {
   ],
   defaults: {
     extraInputCount: 0,
+    conditionMode: 'AND',
     conditions: []
   },
   executeAs: 'condition'

@@ -49,6 +49,10 @@ export function useWorkflowNode(props: NodeProps) {
   const hasMultipleInputs = computed(() => allInputs.value.length > 1)
   const inputLabel = computed(() => def.value?.inputs[0]?.displayName ?? '输入')
 
+  // 动态节点宽度：端口数越多卡片越宽
+  const maxPorts = computed(() => Math.max(allInputs.value.length, outputs.value.length))
+  const dynamicWidth = computed(() => 180 + Math.max(0, maxPorts.value - 2) * 68)
+
   // 从 store 读取当前节点的 disabled 状态
   const wfNode = computed(() =>
     store.currentWorkflow?.nodes.find((n) => n.id === props.id)
@@ -91,7 +95,8 @@ export function useWorkflowNode(props: NodeProps) {
       },
       onNodeCompleted(r) {
         store.setNodeStatus(r.nodeId, r.status)
-        store.setNodeStatusText(r.nodeId, null)
+        // 非主端口（如 IF 节点的 True/False）显示在卡片上
+        store.setNodeStatusText(r.nodeId, r.targetPort && r.targetPort !== 'main' ? r.targetPort : null)
         const rName = wf.nodes.find(n => n.id === r.nodeId)?.label ?? r.nodeId
         let msg: string
         const detail = (r.output?.message as string) ?? r.error ?? ''
@@ -118,6 +123,7 @@ export function useWorkflowNode(props: NodeProps) {
 
   return {
     NODE_WIDTH,
+    dynamicWidth,
     def,
     category,
     style,

@@ -17,6 +17,7 @@ const props = defineProps<NodeProps>()
 
 const {
   NODE_WIDTH,
+  dynamicWidth,
   style,
   label, description,
   displayName, icon,
@@ -68,7 +69,7 @@ const {
         statusAnimationClass
       ]"
       :style="{
-        width: NODE_WIDTH + 'px',
+        width: dynamicWidth + 'px',
         opacity: disabled ? 0.45 : 1,
         borderColor: statusBorderColor || (disabled ? undefined : 'var(--app-border)'),
         borderWidth: statusBorderColor ? nodeBorderWidth + 'px' : undefined,

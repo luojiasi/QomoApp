@@ -6,9 +6,9 @@ import type { CanvasSettings } from '../types/canvasSettings'
 
 export const CANVAS_SETTINGS_DEFAULTS: CanvasSettings = {
   snapToGrid: true,
-  snapGridSize: 20,
-  bgGap: 20,
-  bgSize: 6,
+  snapGridSize: 25,
+  bgGap: 45,
+  bgSize: 3,
   bgColor: '#575757',
   showMiniMap: true,
   miniMapWidth: 160,
@@ -24,5 +24,5 @@ export const CANVAS_SETTINGS_DEFAULTS: CanvasSettings = {
   edgeArrowStyle: 'arrowclosed',
   edgeBorderRadius: 8,
   edgeType: 'step',
-  nodeBorderWidth: 2
+  nodeBorderWidth: 3
 }

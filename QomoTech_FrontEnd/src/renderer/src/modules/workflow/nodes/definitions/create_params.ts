@@ -38,4 +38,78 @@ const createData: NodeTypeDef = {
   executeAs: 'passthrough'
 }
 
-export const createDefs: NodeTypeDef[] = [createData]
+/**
+ * 数据变换节点
+ * 对上游数据的某个字段进行数学或字符串运算，输出变换后的数据。
+ *
+ * 本地执行（executeAs: 'transform'），不调用后端。
+ */
+const transformData: NodeTypeDef = {
+  type: 'data.transform',
+  category: 'data',
+  displayName: '数据变换',
+  icon: '⇄',
+  color: '#7c3aed',
+  description: '对上游数据的字段进行加减乘除或字符串变换',
+  version: 1,
+  inputs: [{ name: 'main', displayName: '输入' }],
+  outputs: [{ name: 'main', displayName: '输出' }],
+  params: [
+    {
+      name: 'field',
+      displayName: '变换字段',
+      type: 'string',
+      default: '',
+      required: true,
+      description: '要变换的上游数据字段名，如 pos、name。留空则用整个数据',
+      placeholder: '如 pos'
+    },
+    {
+      name: 'operation',
+      displayName: '操作',
+      type: 'select',
+      default: 'add',
+      required: true,
+      options: [
+        { label: '加 (+)', value: 'add' },
+        { label: '减 (-)', value: 'subtract' },
+        { label: '乘 (×)', value: 'multiply' },
+        { label: '除 (÷)', value: 'divide' },
+        { label: '取余 (%)', value: 'modulo' },
+        { label: '前面拼接', value: 'concat_before' },
+        { label: '后面拼接', value: 'concat_after' },
+        { label: '转大写', value: 'to_upper' },
+        { label: '转小写', value: 'to_lower' },
+        { label: '替换 (→)', value: 'replace' }
+      ],
+      description: '数学运算或字符串操作'
+    },
+    {
+      name: 'operand',
+      displayName: '操作数',
+      type: 'string',
+      default: '',
+      required: false,
+      description: '运算的另一个值。加减乘除填数字；替换用 旧文本→新文本 格式',
+      placeholder: '如 10 或 前缀'
+    },
+    {
+      name: 'targetField',
+      displayName: '输出字段名',
+      type: 'string',
+      default: '',
+      required: false,
+      description: '结果存入的字段名，留空则覆盖原字段',
+      placeholder: '留空即覆盖原字段'
+    }
+  ],
+  defaults: {
+    field: '',
+    operation: 'add',
+    operand: '',
+    targetField: ''
+  },
+  executeAs: 'transform'
+}
+
+export const createDefs: NodeTypeDef[] = [createData, transformData]

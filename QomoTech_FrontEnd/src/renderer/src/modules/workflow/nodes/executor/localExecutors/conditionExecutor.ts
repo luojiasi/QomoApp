@@ -34,6 +34,7 @@ export async function executeCondition(
   upstreamData: Record<string, Record<string, unknown>>
 ): Promise<NodeRunResult> {
   const conditions = (node.params.conditions as IfCondition[]) ?? []
+  const mode: string = (node.params.conditionMode as string) ?? 'AND'
 
   if (conditions.length === 0) {
     return {
@@ -45,6 +46,34 @@ export async function executeCondition(
     }
   }
 
+  if (mode === 'OR') {
+    // OR：任一满足即走 True
+    for (const cond of conditions) {
+      const inputData = upstreamData[cond.inputName]
+      const value = cond.field
+        ? (inputData as Record<string, unknown>)?.[cond.field]
+        : inputData
+
+      if (compare(value, cond.value, cond.operator)) {
+        return {
+          nodeId: node.id,
+          nodeType: node.type,
+          status: 'success',
+          output: { result: true, matchedCondition: cond },
+          targetPort: 'true'
+        }
+      }
+    }
+    return {
+      nodeId: node.id,
+      nodeType: node.type,
+      status: 'success',
+      output: { result: false, reason: '所有条件均不满足' },
+      targetPort: 'false'
+    }
+  }
+
+  // AND（默认）：全部满足才走 True
   for (const cond of conditions) {
     const inputData = upstreamData[cond.inputName]
     const value = cond.field
