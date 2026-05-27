@@ -10,7 +10,7 @@ import type { Node } from '@vue-flow/core'
 import { useWorkflowStore } from '../store/useWorkflowStore'
 import { useCanvasSettings } from './useCanvasSettings'
 import { useWorkflowEdge } from './useWorkflowEdge'
-import { NODE_WIDTH, NODE_HEIGHT } from '../constants/workflowCanvas'
+import { NODE_WIDTH, NODE_HEIGHT, WORKFLOW_VUE_FLOW_ID } from '../constants/workflowCanvas'
 import { registerCanvasKeydown } from '../infra/canvasKeyboardBridge'
 import type { WorkflowNode } from '../types/workflow'
 import WorkflowCanvasNode from '../components/WorkflowCanvas_Node.vue'
@@ -29,7 +29,7 @@ export function useWorkflowCanvas() {
   const store    = useWorkflowStore()
   const settings = useCanvasSettings()
   const edge     = useWorkflowEdge()
-  const { onInit, screenToFlowCoordinate } = useVueFlow()
+  const { onInit, screenToFlowCoordinate } = useVueFlow({ id: WORKFLOW_VUE_FLOW_ID })
 
   const showMenu    = ref(false)
   const menuPos     = ref({ x: 0, y: 0 })
@@ -52,6 +52,8 @@ export function useWorkflowCanvas() {
       id: n.id,
       type: 'workflow-node',
       position: n.position,
+      width: NODE_WIDTH,
+      height: NODE_HEIGHT,
       data: {
         nodeType: n.type,
         label: n.label,
@@ -75,10 +77,6 @@ export function useWorkflowCanvas() {
 
   function onNodeDragStop({ node }: { node: Node }): void {
     store.moveNode(node.id, node.position.x, node.position.y)
-  }
-
-  function onNodeRemove(nodeId: string): void {
-    store.removeNode(nodeId)
   }
 
   // ── 右键菜单 ─────────────────────────────────────────────────
@@ -139,7 +137,6 @@ export function useWorkflowCanvas() {
     onNodeClick,
     onPaneClick,
     onNodeDragStop,
-    onNodeRemove,
     // 菜单
     onContextMenu,
     onMenuAdd,

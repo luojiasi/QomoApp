@@ -1,19 +1,9 @@
 <script setup lang="ts">
-// SelfProcessPage_CanvasSettings.vue — 右侧配置面板（画布设置 + 节点设置）
-import { ref } from 'vue'
+// SelfProcessPage_CanvasSettings.vue — 画布配置面板
 import { useCanvasSettings } from '../composables/useCanvasSettings'
-import AppTabs from '../UI/AppTabs.vue'
 import AppToggle from '../UI/AppToggle.vue'
 import AppSelect from '../UI/AppSelect.vue'
 import AppButton from '../UI/AppButton.vue'
-import SelfProcessPage_NodeSettings from './SelfProcessPage_NodeSettings.vue'
-
-const TABS: { key: string; label: string }[] = [
-  { key: 'canvas', label: '画布设置' },
-  { key: 'node',   label: '节点设置' }
-]
-
-const activeTab = ref<string>('canvas')
 
 const {
   snapToGrid, snapGridSize,
@@ -30,11 +20,8 @@ const {
 <template>
   <div class="flex h-full flex-col overflow-hidden">
 
-    <!-- Tab 切换栏 -->
-    <AppTabs v-model="activeTab" :tabs="TABS" />
-
-    <!-- ── Tab: 画布设置 ─────────────────────────────────────── -->
-    <div v-show="activeTab === 'canvas'" class="flex flex-1 flex-col overflow-y-auto p-4 text-sm">
+    <!-- 画布设置 -->
+    <div class="wf-scroll-y flex min-h-0 flex-1 flex-col p-4 text-sm">
 
       <!-- 网格对齐 -->
       <section class="mb-5">
@@ -172,11 +159,6 @@ const {
         <AppButton variant="ghost" class="w-full" @click="resetToDefault">恢复默认</AppButton>
       </div>
 
-    </div>
-
-    <!-- ── Tab: 节点设置 ─────────────────────────────────────── -->
-    <div v-show="activeTab === 'node'" class="flex-1 overflow-hidden">
-      <SelfProcessPage_NodeSettings />
     </div>
 
   </div>

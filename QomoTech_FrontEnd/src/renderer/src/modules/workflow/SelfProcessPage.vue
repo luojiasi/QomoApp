@@ -8,15 +8,26 @@
 //   左侧  WorkflowList    — 流程列表（新建 / 切换 / 删除）
 //   中间  WorkflowCanvas  — VueFlow 画布（拖拽节点、连线）
 //   右侧  CameraPic       — 相机画面
-//         CanvasSettings  — 画布视觉配置
+//         Tab 切换        — 节点配置 / 画布配置
+import { ref } from 'vue'
 import { useWorkflowPage } from './composables/useWorkflowPage'
 import WorkflowList   from './components/SelfProcessPage_WorkflowList.vue'
 import WorkflowCanvas from './components/SelfProcessPage_WorkflowCanvas.vue'
 import CanvasSettings from './components/SelfProcessPage_CanvasSettings.vue'
+import NodeSettings   from './components/SelfProcessPage_NodeSettings.vue'
 import CameraPic      from '@/modules/camera/CameraPic.vue'
 import AppButton      from './UI/AppButton.vue'
+import AppTabs        from './UI/AppTabs.vue'
+import './workflow.css'
 
 const { store } = useWorkflowPage()
+
+const settingsTab = ref<'node' | 'canvas'>('node')
+
+const settingsTabs = [
+  { key: 'node',   label: '节点配置' },
+  { key: 'canvas', label: '画布配置' }
+]
 </script>
 
 <template>
@@ -49,7 +60,7 @@ const { store } = useWorkflowPage()
   </div>
 
   <!-- 三栏主体 -->
-  <div class="absolute top-1/16 bottom-4 z-20 flex min-h-0 w-full gap-3 p-3 overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+  <div class="wf-scroll-y absolute top-1/16 bottom-4 z-20 flex min-h-0 w-full gap-3 p-3">
 
     <!-- 左侧：流程列表 -->
     <aside class="h-full w-1/8 overflow-hidden">
@@ -67,11 +78,10 @@ const { store } = useWorkflowPage()
         <CameraPic object-fit="cover" />
       </div>
       <div class="h-3/5 overflow-hidden rounded-xl border border-(--app-border) bg-(--app-card)">
-        <div class="flex items-center border-b border-(--app-border) px-4 py-2.5">
-          <span class="text-xs font-bold text-(--app-text-primary)">画布配置</span>
-        </div>
-        <div class="h-[calc(100%-40px)] overflow-hidden">
-          <CanvasSettings />
+        <AppTabs v-model="settingsTab" :tabs="settingsTabs" />
+        <div class="min-h-0 h-[calc(100%-40px)] overflow-hidden">
+          <NodeSettings   v-if="settingsTab === 'node'" />
+          <CanvasSettings v-else />
         </div>
       </div>
     </aside>

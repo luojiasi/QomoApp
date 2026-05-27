@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// WorkflowCanvas_Edge.vue — 自定义连线路径（修正底部端口水平连线时箭头朝向）
+// WorkflowCanvas_Edge.vue — 自定义连线路径（底部端口：先向下再拐弯）
 import { computed } from 'vue'
 import {
   BaseEdge,
@@ -17,12 +17,7 @@ const props = defineProps<
 >()
 
 const pathParams = computed(() => {
-  const { sourcePosition, targetPosition } = resolveEdgeHandlePositions(
-    props.sourceX,
-    props.sourceY,
-    props.targetX,
-    props.targetY
-  )
+  const { sourcePosition, targetPosition } = resolveEdgeHandlePositions()
 
   const common = {
     sourceX: props.sourceX,
@@ -40,7 +35,7 @@ const pathParams = computed(() => {
   return getSmoothStepPath({
     ...common,
     borderRadius: props.borderRadius ?? 0,
-    offset: props.offset ?? 20
+    offset: props.offset
   })
 })
 </script>

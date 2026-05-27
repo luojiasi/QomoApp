@@ -6,7 +6,7 @@
 //   action   → 蓝/绿头部（motion/io），1输入 1输出
 //   flow     → 橙色头部，1输入 多输出（条件/分支）
 //
-// 连接点布局：输入点在底部左侧，输出点在底部右侧（均在底部）
+// 连接点布局：底部左右各半区，输入/输出文字与连接点各自居中对齐
 //
 // 所有样式数据来自 constants/nodeStyles.ts，卡片只负责渲染。
 import { Handle, Position } from '@vue-flow/core'
@@ -14,7 +14,6 @@ import type { NodeProps } from '@vue-flow/core'
 import { useWorkflowNode } from '../composables/useWorkflowNode'
 
 const props = defineProps<NodeProps>()
-const emit  = defineEmits<{ remove: [id: string] }>()
 
 const {
   NODE_WIDTH,
@@ -26,9 +25,8 @@ const {
   isTrigger,
   outputs,
   hasMultipleOutputs,
-  handleOffset,
   onRemove
-} = useWorkflowNode(props, (event, id) => emit(event, id))
+} = useWorkflowNode(props)
 </script>
 
 <template>
@@ -41,9 +39,6 @@ const {
         : '0 2px 12px rgba(0,0,0,0.18)'
     }"
   >
-
-    <!-- 输入点占位：底部左侧，保持卡片底部有足够空间 -->
-    <!-- 实际 Handle 在底部区域渲染，见下方 -->
 
     <!-- ── 头部：彩色背景 + 图标 + 节点类型名 ─────────────────── -->
     <div
@@ -80,73 +75,84 @@ const {
       </div>
     </div>
 
-    <!-- ── 底部端口区（输入在左，输出在右，均在底部） ───────────── -->
-    <div class="relative flex items-center border-t border-(--app-border) px-3 py-1.5">
+    <!-- ── 底部端口区：左半输入 / 右半输出，连接点与文字居中对齐 ── -->
+    <div class="grid grid-cols-2 border-t border-(--app-border)">
 
-      <!-- 输入端口标签（trigger 无输入） -->
-      <span v-if="!isTrigger" class="text-[10px] text-(--app-text-muted)">输入</span>
-      <span v-else class="text-[10px] text-(--app-text-muted) opacity-0">-</span>
-
-      <!-- 多输出端口名称（居中） -->
-      <div v-if="hasMultipleOutputs" class="flex flex-1 justify-around">
+      <!-- 左半：输入 -->
+      <div
+        class="relative flex min-h-9 flex-col items-center justify-center border-r border-(--app-border) px-1 py-1.5 pb-3"
+      >
         <span
-          v-for="port in outputs"
-          :key="port.name"
-          class="text-[10px] font-medium text-(--app-text-muted)"
-        >
-          {{ port.displayName }}
-        </span>
+          v-if="!isTrigger"
+          class="text-[10px] text-(--app-text-muted)"
+        >输入</span>
+        <Handle
+          v-if="!isTrigger"
+          id="main"
+          type="target"
+          :position="Position.Bottom"
+          class="port-handle"
+          :style="{
+            borderColor: style.headerBg,
+            background: 'var(--app-card)'
+          }"
+        />
       </div>
-      <div v-else class="flex-1" />
 
-      <!-- 输出端口标签 -->
-      <span class="text-[10px] text-(--app-text-muted)">
-        {{ hasMultipleOutputs ? '' : '输出' }}
-      </span>
+      <!-- 右半：输出（单端口或多端口；每列自带 pb-3，连接点贴底边） -->
+      <div
+        class="flex min-h-9"
+        :class="hasMultipleOutputs ? '' : 'relative flex-col items-center justify-center px-1 py-1.5 pb-3'"
+      >
+        <template v-if="hasMultipleOutputs">
+          <div
+            v-for="port in outputs"
+            :key="port.name"
+            class="relative flex flex-1 flex-col items-center justify-center px-1 py-1.5 pb-3"
+          >
+            <span class="text-[10px] font-medium text-(--app-text-muted)">
+              {{ port.displayName }}
+            </span>
+            <Handle
+              :id="port.name"
+              type="source"
+              :position="Position.Bottom"
+              class="port-handle"
+              :style="{
+                borderColor: style.headerBg,
+                background: 'var(--app-card)'
+              }"
+            />
+          </div>
+        </template>
+        <template v-else>
+          <span class="text-[10px] text-(--app-text-muted)">输出</span>
+          <Handle
+            id="main"
+            type="source"
+            :position="Position.Bottom"
+            class="port-handle"
+            :style="{
+              borderColor: style.headerBg,
+              background: 'var(--app-card)'
+            }"
+          />
+        </template>
+      </div>
     </div>
-
-    <!-- ── 输入连接点（底部左侧，trigger 无） ────────────────────── -->
-    <Handle
-      v-if="!isTrigger"
-      id="main"
-      type="target"
-      :position="Position.Bottom"
-      class="h-3! w-3! border-2! -bottom-1.5!"
-      :style="{
-        left: '25%',
-        borderColor: style.headerBg,
-        background: 'var(--app-card)'
-      }"
-    />
-
-    <!-- ── 输出连接点（底部右侧：单输出；多输出：均匀分布右半区） ── -->
-    <Handle
-      v-if="!hasMultipleOutputs"
-      id="main"
-      type="source"
-      :position="Position.Bottom"
-      class="h-3! w-3! border-2! -bottom-1.5!"
-      :style="{
-        left: isTrigger ? '50%' : '75%',
-        borderColor: style.headerBg,
-        background: 'var(--app-card)'
-      }"
-    />
-    <template v-else>
-      <Handle
-        v-for="(port, idx) in outputs"
-        :key="port.name"
-        :id="port.name"
-        type="source"
-        :position="Position.Bottom"
-        class="h-3! w-3! border-2! -bottom-1.5!"
-        :style="{
-          left: `calc(50% + ${handleOffset(outputs.length, idx)})`,
-          borderColor: style.headerBg,
-          background: 'var(--app-card)'
-        }"
-      />
-    </template>
 
   </div>
 </template>
+
+<style scoped>
+/* 连接点：相对各自半区水平居中，略伸出卡片底边 */
+.port-handle {
+  position: absolute !important;
+  bottom: 0 !important;
+  left: 50% !important;
+  height: 12px !important;
+  width: 12px !important;
+  border-width: 2px !important;
+  transform: translate(-50%, 50%) !important;
+}
+</style>

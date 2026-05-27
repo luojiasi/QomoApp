@@ -1,0 +1,31 @@
+/* workflow 模块：可滚动但不显示滚动条（在 SelfProcessPage.vue 引入） */
+
+.wf-scroll-y {
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.wf-scroll-y::-webkit-scrollbar {
+  display: none;
+}
+
+.wf-scroll-x {
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.wf-scroll-x::-webkit-scrollbar {
+  display: none;
+}
+
+.wf-scroll {
+  overflow: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.wf-scroll::-webkit-scrollbar {
+  display: none;
+}

@@ -1,0 +1,45 @@
+{
+  "id": "mpmd8tyqjs1m",
+  "name": "测试",
+  "description": "",
+  "nodes": [
+    {
+      "id": "mpmdc5cacqiq",
+      "type": "trigger.manual",
+      "label": "手动触发",
+      "position": {
+        "x": 340,
+        "y": 120
+      },
+      "params": {},
+      "description": ""
+    },
+    {
+      "id": "mpmdl3271vot",
+      "type": "flow.delay",
+      "label": "延时",
+      "position": {
+        "x": 540,
+        "y": 440
+      },
+      "params": {
+        "duration": 5000
+      },
+      "description": ""
+    }
+  ],
+  "edges": [
+    {
+      "id": "mpndu78d69al",
+      "source": "mpmdc5cacqiq",
+      "target": "mpmdl3271vot",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    }
+  ],
+  "createdAt": "2026-05-26T08:21:11.474Z",
+  "updatedAt": "2026-05-27T01:25:44.545Z",
+  "canvasSettings": {
+    "edgeBorderRadius": 32
+  }
+}

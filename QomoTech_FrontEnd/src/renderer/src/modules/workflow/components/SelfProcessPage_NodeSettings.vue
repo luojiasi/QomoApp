@@ -45,7 +45,7 @@ function setDescription(value: string): void {
 </script>
 
 <template>
-  <div class="flex h-full flex-col text-sm">
+  <div class="flex h-full min-h-0 flex-col text-sm">
 
     <!-- 未选中节点 -->
     <div
@@ -78,13 +78,13 @@ function setDescription(value: string): void {
       </div>
 
       <!-- 参数表单 -->
-      <div class="flex-1 overflow-y-auto p-4">
+      <div class="wf-scroll-y min-h-0 flex-1 p-4">
 
         <!-- 基础信息 -->
         <section class="mb-4">
           <h4 class="mb-2 text-[11px] font-bold uppercase tracking-wider text-(--app-text-muted)">基础信息</h4>
-          <div class="space-y-2">
-            <div>
+          <div class="flex gap-2">
+            <div class="min-w-0 flex-1">
               <label class="mb-1 block text-[11px] text-(--app-text-muted)">名称</label>
               <AppInput
                 :model-value="node.label"
@@ -92,7 +92,7 @@ function setDescription(value: string): void {
                 @update:model-value="setLabel($event as string)"
               />
             </div>
-            <div>
+            <div class="min-w-0 flex-1">
               <label class="mb-1 block text-[11px] text-(--app-text-muted)">备注</label>
               <AppInput
                 :model-value="node.description"

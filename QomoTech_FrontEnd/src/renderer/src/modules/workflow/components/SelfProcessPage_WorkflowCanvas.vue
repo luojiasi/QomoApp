@@ -6,6 +6,16 @@ import { Controls }   from '@vue-flow/controls'
 import { MiniMap }    from '@vue-flow/minimap'
 import { useWorkflowCanvas } from '../composables/useWorkflowCanvas'
 import WorkflowCanvas_Menu from './WorkflowCanvas_Menu.vue'
+import { resolveMiniMapNodeColor } from '../utils/minimapNodeColor'
+import {
+  MINIMAP_MASK_COLOR,
+  MINIMAP_MASK_STROKE_COLOR,
+  MINIMAP_NODE_BORDER_RADIUS,
+  MINIMAP_NODE_STROKE_COLOR,
+  MINIMAP_NODE_STROKE_WIDTH
+} from '../constants/minimapStyles'
+import { WORKFLOW_VUE_FLOW_ID } from '../constants/workflowCanvas'
+import { toConnectionLineType } from '../utils/edgePathUtils'
 
 import '@vue-flow/core/dist/style.css'
 import '@vue-flow/core/dist/theme-default.css'
@@ -20,7 +30,7 @@ const {
   defaultViewport,
   showMenu, menuPos,
   onConnect, onNodeClick, onPaneClick, onEdgeClick,
-  onNodeDragStop, onNodeRemove,
+  onNodeDragStop,
   onContextMenu, onMenuAdd, closeMenu
 } = useWorkflowCanvas()
 </script>
@@ -29,8 +39,9 @@ const {
   <div class="relative h-full w-full overflow-hidden rounded-2xl border border-(--app-border) bg-(--app-card)">
 
     <VueFlow
-      v-model:nodes="vfNodes"
-      v-model:edges="vfEdges"
+      :id="WORKFLOW_VUE_FLOW_ID"
+      :nodes="vfNodes"
+      :edges="vfEdges"
       :node-types="nodeTypes"
       :edge-types="edgeTypes"
       :default-viewport="defaultViewport"
@@ -38,6 +49,7 @@ const {
       :max-zoom="settings.effective.value.maxZoom"
       :snap-to-grid="settings.snapToGrid.value"
       :snap-grid="[settings.snapGridSize.value, settings.snapGridSize.value]"
+      :connection-line-type="toConnectionLineType(settings.effective.value.edgeType)"
       @connect="onConnect"
       @node-click="onNodeClick"
       @edge-click="onEdgeClick"
@@ -52,15 +64,20 @@ const {
       />
       <Controls position="bottom-right" />
       <MiniMap
-        v-if="settings.showMiniMap.value"
+        v-show="settings.showMiniMap.value"
+        pannable
+        zoomable
         :position="settings.miniMapPosition.value"
         :width="settings.miniMapWidth.value"
         :height="settings.miniMapHeight.value"
+        :node-color="resolveMiniMapNodeColor"
+        :node-stroke-color="MINIMAP_NODE_STROKE_COLOR"
+        :node-stroke-width="MINIMAP_NODE_STROKE_WIDTH"
+        :node-border-radius="MINIMAP_NODE_BORDER_RADIUS"
+        :mask-color="MINIMAP_MASK_COLOR"
+        :mask-stroke-color="MINIMAP_MASK_STROKE_COLOR"
+        :mask-stroke-width="2"
       />
-
-      <template #node-workflow-node="nodeProps">
-        <component :is="nodeTypes['workflow-node']" v-bind="nodeProps" @remove="onNodeRemove" />
-      </template>
     </VueFlow>
 
     <div
@@ -86,3 +103,13 @@ const {
 
   </div>
 </template>
+
+<style scoped>
+/* 小地图容器：深色底，与主画布节点缩略图对比清晰 */
+:deep(.vue-flow__minimap) {
+  background-color: var(--app-card-soft) !important;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+</style>

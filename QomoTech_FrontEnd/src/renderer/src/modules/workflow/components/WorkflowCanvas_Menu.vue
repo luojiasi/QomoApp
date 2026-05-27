@@ -12,7 +12,7 @@ const groups = getNodePickerGroups()
 <template>
   <div
     v-if="show"
-    class="fixed z-50 min-w-[180px] max-h-[320px] overflow-y-auto rounded-xl border border-(--app-border) bg-(--app-card) py-1 shadow-[0_8px_24px_rgba(0,0,0,0.18)]"
+    class="wf-scroll-y fixed z-50 max-h-[320px] min-w-[180px] rounded-xl border border-(--app-border) bg-(--app-card) py-1 shadow-[0_8px_24px_rgba(0,0,0,0.18)]"
     :style="{ left: x + 'px', top: y + 'px' }"
   >
     <template v-for="group in groups" :key="group.category">

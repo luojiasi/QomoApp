@@ -2,43 +2,45 @@
 // utils/edgePathUtils.ts — 连线路径选项构建（纯函数）
 // ─────────────────────────────────────────────────────────────
 
-import { Position } from '@vue-flow/core'
+import { ConnectionLineType, Position } from '@vue-flow/core'
 import type { EdgeConnectionType } from '../types/canvasSettings'
+import { EDGE_PATH_OFFSET } from '../constants/workflowEdge'
 
-/** step / smoothstep 连线支持 pathOptions.borderRadius */
+/** step / smoothstep 连线路径选项（含向下拐弯的 offset） */
 export function buildEdgePathOptions(
   edgeType: EdgeConnectionType,
   borderRadius: number
-): { borderRadius: number } | undefined {
+): { borderRadius: number; offset: number } | undefined {
   if (edgeType === 'step' || edgeType === 'smoothstep') {
-    return { borderRadius }
+    return { borderRadius, offset: EDGE_PATH_OFFSET }
   }
   return undefined
 }
 
 /**
- * 根据起止点相对位置推断路径进出方向。
- * 底部端口在水平布局时若仍用 Bottom→Bottom，末端会出现竖段导致箭头朝上；
- * 水平为主时改为 Right→Left，使末端沿水平方向进入目标端口。
+ * 工作流节点输入/输出均在底部 Handle。
+ * 固定 Bottom → Bottom：从源端口先向下拉出竖线，再水平/竖向拐弯接入目标。
  */
-export function resolveEdgeHandlePositions(
-  sourceX: number,
-  sourceY: number,
-  targetX: number,
-  targetY: number
-): { sourcePosition: Position; targetPosition: Position } {
-  const dx = targetX - sourceX
-  const dy = targetY - sourceY
-
-  if (Math.abs(dx) >= Math.abs(dy)) {
-    return {
-      sourcePosition: dx > 0 ? Position.Right : Position.Left,
-      targetPosition: dx > 0 ? Position.Left : Position.Right
-    }
+/** 拖拽预览连线类型（与画布 edgeType 对齐） */
+export function toConnectionLineType(edgeType: EdgeConnectionType): ConnectionLineType {
+  switch (edgeType) {
+    case 'step':
+      return ConnectionLineType.Step
+    case 'straight':
+      return ConnectionLineType.Straight
+    case 'default':
+    case 'smoothstep':
+    default:
+      return ConnectionLineType.SmoothStep
   }
+}
 
+export function resolveEdgeHandlePositions(): {
+  sourcePosition: Position
+  targetPosition: Position
+} {
   return {
-    sourcePosition: dy > 0 ? Position.Bottom : Position.Top,
-    targetPosition: dy > 0 ? Position.Top : Position.Bottom
+    sourcePosition: Position.Bottom,
+    targetPosition: Position.Bottom
   }
 }

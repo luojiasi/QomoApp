@@ -7,12 +7,11 @@ import type { NodeProps } from '@vue-flow/core'
 import { NODE_WIDTH } from '../constants/workflowCanvas'
 import { NODE_CATEGORY_STYLES } from '../constants/nodeStyles'
 import { NODE_REGISTRY } from '../nodes/definitions/index'
+import { useWorkflowStore } from '../store/useWorkflowStore'
 import type { NodePort } from '../types/nodeDefinition'
 
-export function useWorkflowNode(
-  props: NodeProps,
-  emit: (event: 'remove', id: string) => void
-) {
+export function useWorkflowNode(props: NodeProps) {
+  const store = useWorkflowStore()
   // 业务节点类型存在 data.nodeType（VueFlow 的 type 固定为 workflow-node）
   const nodeType = computed(() => (props.data?.nodeType as string) ?? props.type)
 
@@ -47,16 +46,8 @@ export function useWorkflowNode(
   // 是否有多个输出端口
   const hasMultipleOutputs = computed(() => outputs.value.length > 1)
 
-  // 计算多输出端口的水平偏移，使各端口均匀分布
-  function handleOffset(total: number, idx: number): string {
-    if (total <= 1) return ''
-    const span = Math.min(80, total * 28)
-    const step = span / (total - 1)
-    return `${-span / 2 + idx * step}px`
-  }
-
   function onRemove(): void {
-    emit('remove', props.id)
+    store.removeNode(props.id)
   }
 
   return {
@@ -71,7 +62,6 @@ export function useWorkflowNode(
     isTrigger,
     outputs,
     hasMultipleOutputs,
-    handleOffset,
     onRemove
   }
 }

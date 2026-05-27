@@ -35,7 +35,7 @@ const {
     </div>
 
     <!-- 流程列表 -->
-    <div class="flex flex-1 flex-col gap-1.5 overflow-y-auto p-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <div class="wf-scroll-y flex min-h-0 flex-1 flex-col gap-1.5 p-2.5">
 
       <!-- 空状态 -->
       <div
