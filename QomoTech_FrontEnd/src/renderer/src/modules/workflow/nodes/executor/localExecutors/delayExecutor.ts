@@ -11,7 +11,10 @@ function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
-export async function executeDelay(node: WorkflowNode): Promise<NodeRunResult> {
+export async function executeDelay(
+  node: WorkflowNode,
+  _upstreamData: Record<string, Record<string, unknown>>
+): Promise<NodeRunResult> {
   const duration = (node.params.duration as number) ?? 1000
   await sleep(Math.max(10, duration))
   return {

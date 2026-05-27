@@ -135,3 +135,17 @@ export interface WorkflowIndexEntry {
   name: string
   updatedAt: string
 }
+
+// ─── IF 判断条件 ─────────────────────────────────────────────
+
+/** IF 判断节点中的单条条件 */
+export interface IfCondition {
+  /** 数据来源的输入端口名，如 'main' / 'input_1' */
+  inputName: string
+  /** 要比较的字段路径，为空时比较整个上游数据 */
+  field: string
+  /** 比较运算符 */
+  operator: 'eq' | 'neq' | 'gt' | 'lt' | 'gte' | 'lte'
+  /** 比较的目标值 */
+  value: string | number
+}

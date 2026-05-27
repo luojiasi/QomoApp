@@ -32,6 +32,21 @@ export function useWorkflowNode(props: NodeProps) {
     def.value?.outputs ?? [{ name: 'main', displayName: '完成' }]
   )
   const hasMultipleOutputs = computed(() => outputs.value.length > 1)
+
+  // 输入端口 = 蓝图静态 inputs + 按 extraInputCount 动态生成的额外端口
+  const extraInputCount = computed(() => {
+    const n = Number(wfNode.value?.params?.extraInputCount)
+    return Number.isFinite(n) && n > 0 ? Math.min(n, 10) : 0
+  })
+  const allInputs = computed<NodePort[]>(() => {
+    const base = def.value?.inputs ?? [{ name: 'main', displayName: '输入' }]
+    const extras: NodePort[] = []
+    for (let i = 1; i <= extraInputCount.value; i++) {
+      extras.push({ name: `input_${i}`, displayName: `输入${i}` })
+    }
+    return [...base, ...extras]
+  })
+  const hasMultipleInputs = computed(() => allInputs.value.length > 1)
   const inputLabel = computed(() => def.value?.inputs[0]?.displayName ?? '输入')
 
   // 从 store 读取当前节点的 disabled 状态
@@ -113,6 +128,8 @@ export function useWorkflowNode(props: NodeProps) {
     isTrigger,
     outputs,
     hasMultipleOutputs,
+    allInputs,
+    hasMultipleInputs,
     inputLabel,
     disabled,
     status,

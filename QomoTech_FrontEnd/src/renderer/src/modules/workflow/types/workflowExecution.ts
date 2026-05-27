@@ -12,6 +12,8 @@ export interface NodeRunResult {
   status: NodeExecutionStatus
   output: Record<string, unknown>
   error?: string
+  /** 指定 BFS 走哪个输出端口继续遍历，不设则默认 'main' */
+  targetPort?: string
 }
 
 /** 一次完整的 Workflow 运行结果 */

@@ -29,6 +29,8 @@ const {
   statusAnimationClass,
   nodeBorderWidth,
   statusText,
+  allInputs,
+  hasMultipleInputs,
   onRemove,
   onToggleDisable,
   onRun
@@ -114,16 +116,43 @@ const {
 
       <!-- 底部端口区 -->
       <div class="grid grid-cols-2 border-t" :class="disabled ? 'border-gray-500/30' : 'border-(--app-border)'">
-        <div class="relative flex min-h-9 flex-col items-center justify-center border-r px-1 py-1.5 pb-3" :class="disabled ? 'border-gray-500/30' : 'border-(--app-border)'">
-          <span v-if="!isTrigger" class="text-[10px] text-(--app-text-muted)">{{ inputLabel }}</span>
-          <Handle
-            v-if="!isTrigger"
-            id="main"
-            type="target"
-            :position="Position.Bottom"
-            class="port-handle"
-            :style="{ borderColor: disabled ? '#4b5563' : style.headerBg, background: 'var(--app-card)' }"
-          />
+        <!-- 输入端口：单输入 / 多输入分栏 -->
+        <div
+          class="flex min-h-9 border-r"
+          :class="disabled ? 'border-gray-500/30' : 'border-(--app-border)'"
+        >
+          <template v-if="!isTrigger">
+            <div
+              v-if="!hasMultipleInputs"
+              class="relative flex flex-1 flex-col items-center justify-center px-1 py-1.5 pb-3"
+            >
+              <span class="text-[10px] text-(--app-text-muted)">{{ inputLabel }}</span>
+              <Handle
+                id="main"
+                type="target"
+                :position="Position.Bottom"
+                class="port-handle"
+                :style="{ borderColor: disabled ? '#4b5563' : style.headerBg, background: 'var(--app-card)' }"
+              />
+            </div>
+            <div
+              v-for="(port, idx) in allInputs"
+              v-else
+              :key="port.name"
+              class="relative flex flex-1 flex-col items-center justify-center px-1 py-1.5 pb-3"
+              :class="{ 'border-r': idx < allInputs.length - 1 }"
+              :style="{ borderColor: disabled ? '#4b5563' : 'var(--app-border)' }"
+            >
+              <span class="text-[10px] font-medium text-(--app-text-muted)">{{ port.displayName }}</span>
+              <Handle
+                :id="port.name"
+                type="target"
+                :position="Position.Bottom"
+                class="port-handle"
+                :style="{ borderColor: disabled ? '#4b5563' : style.headerBg, background: 'var(--app-card)' }"
+              />
+            </div>
+          </template>
         </div>
         <div
           class="flex min-h-9"

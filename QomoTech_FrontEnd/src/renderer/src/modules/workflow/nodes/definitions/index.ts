@@ -15,12 +15,14 @@ import { triggerDefs } from './trigger'
 import { motionDefs } from './motion'
 import { ioDefs } from './io'
 import { flowDefs } from './flow'
+import { createDefs } from './create_params'
 
 const allDefs: NodeTypeDef[] = [
   ...triggerDefs,
   ...motionDefs,
   ...ioDefs,
-  ...flowDefs
+  ...flowDefs,
+  ...createDefs
 ]
 
 /**

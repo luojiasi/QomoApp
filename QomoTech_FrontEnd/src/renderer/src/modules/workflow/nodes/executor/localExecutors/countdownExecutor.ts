@@ -22,6 +22,7 @@ function sleep(ms: number): Promise<void> {
 
 export async function executeCountdown(
   node: WorkflowNode,
+  _upstreamData: Record<string, Record<string, unknown>>,
   callbacks?: ExecutionCallbacks
 ): Promise<NodeRunResult> {
   const minutes = (node.params.minutes as number) ?? 0

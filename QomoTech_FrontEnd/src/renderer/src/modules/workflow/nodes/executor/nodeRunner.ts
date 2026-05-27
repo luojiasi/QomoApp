@@ -14,17 +14,19 @@ import { executeLocal } from './localExecutors/index'
 
 /**
  * 执行单个节点，根据蓝图自动分派执行路径。
+ * upstreamData 是上游节点的输出数据（按输入端口名索引），
  * callbacks 透传给本地执行器（如倒计时节点需要 onProgress）。
  */
 export async function executeSingleNode(
   node: WorkflowNode,
+  upstreamData: Record<string, Record<string, unknown>>,
   callbacks?: ExecutionCallbacks
 ): Promise<NodeRunResult> {
   const def = NODE_REGISTRY[node.type]
 
   // ── 本地执行器（executeAs）──────────────────────────────────
   if (def?.executeAs) {
-    return executeLocal(node, def.executeAs, callbacks)
+    return executeLocal(node, def.executeAs, upstreamData, callbacks)
   }
 
   // ── HTTP routing（TODO）─────────────────────────────────────

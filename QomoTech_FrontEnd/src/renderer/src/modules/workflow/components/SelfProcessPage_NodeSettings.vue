@@ -10,12 +10,27 @@ import { NODE_CATEGORY_STYLES } from '../constants/nodeStyles'
 import AppToggle from '../UI/AppToggle.vue'
 import AppSelect from '../UI/AppSelect.vue'
 import AppInput from '../UI/AppInput.vue'
+import SelfProcessPage_ConditionEditor from './SelfProcessPage_ConditionEditor.vue'
+import type { IfCondition } from '../types/workflow'
 
 const store = useWorkflowStore()
 
 const node = computed(() => store.selectedNode)
 const def  = computed(() => node.value ? (NODE_REGISTRY[node.value.type] ?? null) : null)
 const style = computed(() => def.value ? NODE_CATEGORY_STYLES[def.value.category] : null)
+
+// 计算所有可用输入端口名（静态 + extraInputCount 动态生成）
+const availableInputNames = computed(() => {
+  const base = def.value?.inputs ?? []
+  const count = Number(node.value?.params?.extraInputCount)
+  const extra: { name: string; displayName: string }[] = []
+  if (Number.isFinite(count) && count > 0) {
+    for (let i = 1; i <= Math.min(count, 10); i++) {
+      extra.push({ name: `input_${i}`, displayName: `输入${i}` })
+    }
+  }
+  return [...base, ...extra]
+})
 
 // 判断参数是否满足 showWhen 条件（应显示）
 function isParamVisible(showWhen?: { field: string; value: unknown }): boolean {
@@ -147,6 +162,14 @@ function setDescription(value: string): void {
                   :placeholder="param.placeholder"
                   type="time"
                   @update:model-value="setParam(param.name, $event)"
+                />
+
+                <!-- conditionList → 条件编辑器 -->
+                <SelfProcessPage_ConditionEditor
+                  v-else-if="param.type === 'conditionList'"
+                  :conditions="node.params[param.name]"
+                  :input-names="availableInputNames"
+                  @update:conditions="setParam(param.name, $event as IfCondition[])"
                 />
 
                 <!-- string / number / expression / json → 文本输入 -->

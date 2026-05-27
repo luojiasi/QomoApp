@@ -55,6 +55,20 @@ function makeDefaultLabel(def: NodeTypeDef): string {
     return date ? `定时 ${date} ${time}` : '定时 (未设置)'
   }
 
+  if (def.type === 'flow.condition') {
+    return 'IF 判断'
+  }
+
+  if (def.type === 'data.create') {
+    const raw = (d.data as string) ?? '{}'
+    try {
+      const obj = JSON.parse(raw)
+      return `数据 ${JSON.stringify(obj)}`
+    } catch {
+      return '构造数据'
+    }
+  }
+
   return def.displayName
 }
 

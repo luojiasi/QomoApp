@@ -32,6 +32,7 @@ export type NodeParamType =
   | 'time'
   | 'json'
   | 'expression'
+  | 'conditionList'
 
 /** select 类型的下拉选项 */
 export interface NodeParamOption {

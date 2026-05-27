@@ -46,7 +46,7 @@ function statusLabel(s: NodeExecutionStatus): string {
       <AppButton
         variant="ghost"
         :disabled="!hasLogs"
-        class="!px-2 !py-1 text-[11px]"
+        class="px-2! py-1! text-[11px]"
         @click="clear"
       >清空</AppButton>
     </div>
@@ -64,7 +64,7 @@ function statusLabel(s: NodeExecutionStatus): string {
         >
           <!-- 状态图标 -->
           <span
-            class="mt-0.5 flex-shrink-0 text-[11px] font-bold leading-none"
+            class="mt-0.5 shrink-0 text-[11px] font-bold leading-none"
             :style="{ color: NODE_STATUS_STYLES[log.status].borderColor }"
           >{{ NODE_STATUS_STYLES[log.status].icon || '·' }}</span>
 
@@ -75,11 +75,11 @@ function statusLabel(s: NodeExecutionStatus): string {
                 v-if="log.nodeName"
                 class="truncate text-[11px] font-medium text-(--app-text-primary)"
               >{{ log.nodeName }}</span>
-              <span class="flex-shrink-0 text-[10px] text-(--app-text-muted)">
+              <span class="shrink-0 text-[10px] text-(--app-text-muted)">
                 {{ new Date(log.timestamp).toLocaleTimeString() }}
               </span>
               <span
-                class="flex-shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-medium"
+                class="shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-medium"
                 :style="{
                   color: NODE_STATUS_STYLES[log.status].borderColor,
                   background: NODE_STATUS_STYLES[log.status].borderColor + '18'

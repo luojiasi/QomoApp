@@ -25,6 +25,7 @@ function sleep(ms: number): Promise<void> {
 
 export async function executeSchedule(
   node: WorkflowNode,
+  _upstreamData: Record<string, Record<string, unknown>>,
   callbacks?: ExecutionCallbacks
 ): Promise<NodeRunResult> {
   const date = (node.params.date as string) ?? ''

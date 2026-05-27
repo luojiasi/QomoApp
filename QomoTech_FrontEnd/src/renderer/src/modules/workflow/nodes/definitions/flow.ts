@@ -125,4 +125,50 @@ const schedule: NodeTypeDef = {
   executeAs: 'schedule'
 }
 
-export const flowDefs: NodeTypeDef[] = [delay, countdown, schedule]
+/**
+ * IF 判断节点
+ * 根据条件列表评估上游数据，所有条件为 AND 关系。
+ * 全部满足走 True 分支，任一不满足走 False 分支。
+ *
+ * 本地执行（executeAs: 'condition'），不调用后端。
+ */
+const condition: NodeTypeDef = {
+  type: 'flow.condition',
+  category: 'flow',
+  displayName: 'IF 判断',
+  icon: '◇',
+  color: '#c2410c',
+  description: '根据上游数据判断条件，分流 True/False 分支',
+  version: 1,
+  inputs: [{ name: 'main', displayName: '输入' }],
+  outputs: [
+    { name: 'true', displayName: 'True' },
+    { name: 'false', displayName: 'False' }
+  ],
+  params: [
+    {
+      name: 'extraInputCount',
+      displayName: '额外输入端口数',
+      type: 'number',
+      default: 0,
+      required: false,
+      description: '额外输入端口的数量（自动命名为 输入1、输入2...）',
+      placeholder: '0'
+    },
+    {
+      name: 'conditions',
+      displayName: '条件列表',
+      type: 'conditionList',
+      default: [],
+      required: true,
+      description: '所有条件为 AND 关系，全部满足走 True，否则走 False'
+    }
+  ],
+  defaults: {
+    extraInputCount: 0,
+    conditions: []
+  },
+  executeAs: 'condition'
+}
+
+export const flowDefs: NodeTypeDef[] = [delay, countdown, schedule, condition]

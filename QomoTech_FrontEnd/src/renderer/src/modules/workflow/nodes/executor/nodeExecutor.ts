@@ -45,16 +45,28 @@ async function traverseAndExecute(
     const node = nodes.find(n => n.id === nodeId)
     if (!node || node.disabled) continue
 
+    // 收集上游数据：从已执行节点的输出中，按 edges 的目标端口组合
+    const upstreamData: Record<string, Record<string, unknown>> = {}
+    for (const edge of edges) {
+      if (edge.target === nodeId) {
+        const sourceResult = results.find(r => r.nodeId === edge.source)
+        if (sourceResult) {
+          upstreamData[edge.targetHandle ?? 'main'] = sourceResult.output
+        }
+      }
+    }
+
     callbacks?.onNodeStarted?.(nodeId)
 
-    const result = await executeSingleNode(node, callbacks)
+    const result = await executeSingleNode(node, upstreamData, callbacks)
     results.push(result)
 
     callbacks?.onNodeCompleted?.(result)
 
-    // 失败停止，成功和警告继续走下游
+    // 失败停止；成功和警告按 targetPort（默认 'main'）走下游
     if (result.status !== 'failure') {
-      const downstream = findDownstreamNodeIds(nodeId, 'main', edges)
+      const port = result.targetPort ?? 'main'
+      const downstream = findDownstreamNodeIds(nodeId, port, edges)
       queue.push(...downstream)
     }
   }
