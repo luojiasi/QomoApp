@@ -184,4 +184,92 @@ const condition: NodeTypeDef = {
   executeAs: 'condition'
 }
 
-export const flowDefs: NodeTypeDef[] = [delay, countdown, schedule, condition]
+/**
+ * WHILE 循环节点
+ *
+ * 4 端口架构：
+ *   main 输入 → 接收上游初始数据
+ *   compute 输出 → 把循环数据发给计算链（变换+1 等），结果通过 compute_result 回传
+ *   body 输出 → 触发副作用链（HTTP/日志/延迟），末尾由 loop_end 节点发信号回传
+ *   done 输出 → 条件不满足/超限时退出
+ *
+ * 本地执行（executeAs: 'loop'），不调用后端。
+ */
+const loop: NodeTypeDef = {
+  type: 'flow.loop',
+  category: 'flow',
+  displayName: 'WHILE 循环',
+  icon: '⟳',
+  color: '#c2410c',
+  description: '条件满足时执行计算体→循环体，不满足时退出',
+  version: 1,
+  inputs: [
+    { name: 'main', displayName: '输入' },
+    { name: 'compute_result', displayName: '计算结果' },
+    { name: 'loop_end', displayName: '循环结果' }
+  ],
+  outputs: [
+    { name: 'compute', displayName: '计算体' },
+    { name: 'body', displayName: '循环体' },
+    { name: 'done', displayName: '完成' }
+  ],
+  params: [
+    {
+      name: 'maxIterations',
+      displayName: '最大循环次数',
+      type: 'number',
+      default: 100,
+      required: false,
+      description: '防止无限循环的安全上限',
+      placeholder: '100'
+    },
+    {
+      name: 'conditionMode',
+      displayName: '条件关系',
+      type: 'select',
+      default: 'AND',
+      required: false,
+      options: [
+        { label: 'AND（全部满足）', value: 'AND' },
+        { label: 'OR（任一满足）', value: 'OR' }
+      ],
+      description: '多个条件之间的逻辑关系'
+    },
+    {
+      name: 'conditions',
+      displayName: '条件列表',
+      type: 'conditionList',
+      default: [],
+      required: true,
+      description: '条件满足时继续循环，否则退出'
+    }
+  ],
+  defaults: {
+    maxIterations: 100,
+    conditionMode: 'AND',
+    conditions: []
+  },
+  executeAs: 'loop'
+}
+
+/**
+ * WHILE 循环结束节点
+ *
+ * 放在循环体（body）链路末尾，发信号通知 WHILE 本轮结束。
+ * 仅做控制信号，不携带数据。
+ */
+const loopEnd: NodeTypeDef = {
+  type: 'flow.loop_end',
+  category: 'flow',
+  displayName: '循环结束',
+  icon: '↩',
+  color: '#c2410c',
+  description: '标记循环体结束，通知 WHILE 进入下一轮判断',
+  version: 1,
+  inputs: [{ name: 'main', displayName: '输入' }],
+  outputs: [{ name: 'main', displayName: '完成' }],
+  params: [],
+  defaults: {}
+}
+
+export const flowDefs: NodeTypeDef[] = [delay, countdown, schedule, condition, loop, loopEnd]

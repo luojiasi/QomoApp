@@ -14,6 +14,8 @@ export interface NodeRunResult {
   error?: string
   /** 指定 BFS 走哪个输出端口继续遍历，不设则默认 'main' */
   targetPort?: string
+  /** 循环穿行序号（0=首次），loop 节点每迭代一次 +1 */
+  iteration?: number
 }
 
 /** 一次完整的 Workflow 运行结果 */

@@ -99,6 +99,18 @@ function makeDefaultLabel(def: NodeTypeDef): string {
     }
   }
 
+  if (def.type === 'flow.loop') {
+    return 'WHILE 循环'
+  }
+
+  if (def.type === 'flow.loop_end') {
+    return '循环结束'
+  }
+
+  if (def.type === 'data.log') {
+    return '日志打印'
+  }
+
   if (def.type === 'data.transform') {
     const opMap: Record<string, string> = {
       add: '+', subtract: '-', multiply: '×', divide: '÷', modulo: '%',

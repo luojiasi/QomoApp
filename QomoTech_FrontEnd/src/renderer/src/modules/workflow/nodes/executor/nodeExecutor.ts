@@ -17,15 +17,24 @@ import type { WorkflowRunResult, NodeRunResult, ExecutionCallbacks } from '../..
 import { findTriggerNodes, resolveGlobalEntryTriggers } from './triggerService'
 import { findDownstreamNodeIds, buildTriggerEntries } from './graphTraversal'
 import { executeSingleNode } from './nodeRunner'
+import { resetLoopState } from './localExecutors/index'
 
 // ═══════════════════════════════════════════════════════════════
 // BFS 遍历执行
 // ═══════════════════════════════════════════════════════════════
 
+const MAX_EXECUTIONS_PER_NODE = 500
+
+interface QueueEntry {
+  nodeId: string
+  /** 循环穿行序号，回边时 +1 */
+  loopPass: number
+}
+
 /**
  * 从 startNodeId 出发，BFS 遍历所有下游节点并逐个执行。
- * 被禁用的节点跳过。成功的节点继续遍历其下游，failure/warning 则停止。
- * 每节点开始/完成时通过 callbacks 通知外部，实现增量状态更新。
+ * 支持 WHILE 循环：loop 端口回边让节点重新入队，loopPass 递增。
+ * 每节点执行上限 MAX_EXECUTIONS_PER_NODE 防止死循环。
  */
 async function traverseAndExecute(
   startNodeId: string,
@@ -34,24 +43,33 @@ async function traverseAndExecute(
   callbacks?: ExecutionCallbacks
 ): Promise<NodeRunResult[]> {
   const results: NodeRunResult[] = []
-  const visited = new Set<string>()
-  const queue: string[] = [startNodeId]
+  const executionCount = new Map<string, number>()
+  const queue: QueueEntry[] = [{ nodeId: startNodeId, loopPass: 0 }]
+
+  resetLoopState()
 
   while (queue.length > 0) {
-    const nodeId = queue.shift()!
-    if (visited.has(nodeId)) continue
-    visited.add(nodeId)
+    const { nodeId, loopPass } = queue.shift()!
+    const timesExecuted = executionCount.get(nodeId) ?? 0
+    if (timesExecuted >= MAX_EXECUTIONS_PER_NODE) continue
+    executionCount.set(nodeId, timesExecuted + 1)
 
     const node = nodes.find(n => n.id === nodeId)
     if (!node || node.disabled) continue
 
     // 收集上游数据：从已执行节点的输出中，按 edges 的目标端口组合
+    // 同一端口有多个来源时合并（浅层），不覆盖
+    // 反向查找取最新结果（循环场景下同名节点可能执行多次）
     const upstreamData: Record<string, Record<string, unknown>> = {}
     for (const edge of edges) {
       if (edge.target === nodeId) {
-        const sourceResult = results.find(r => r.nodeId === edge.source)
+        let sourceResult: NodeRunResult | undefined
+        for (let i = results.length - 1; i >= 0; i--) {
+          if (results[i].nodeId === edge.source) { sourceResult = results[i]; break }
+        }
         if (sourceResult) {
-          upstreamData[edge.targetHandle ?? 'main'] = sourceResult.output
+          const key = edge.targetHandle ?? 'main'
+          upstreamData[key] = { ...upstreamData[key], ...sourceResult.output }
         }
       }
     }
@@ -59,6 +77,7 @@ async function traverseAndExecute(
     callbacks?.onNodeStarted?.(nodeId)
 
     const result = await executeSingleNode(node, upstreamData, callbacks)
+    result.iteration = loopPass
     results.push(result)
 
     callbacks?.onNodeCompleted?.(result)
@@ -67,7 +86,14 @@ async function traverseAndExecute(
     if (result.status !== 'failure') {
       const port = result.targetPort ?? 'main'
       const downstream = findDownstreamNodeIds(nodeId, port, edges)
-      queue.push(...downstream)
+      for (const downId of downstream) {
+        // 回边（targetHandle === 'loop'）→ loopPass +1，允许循环节点重新执行
+        const backEdge = edges.find(
+          e => e.source === nodeId && e.target === downId && (e.sourceHandle ?? 'main') === port
+        )
+        const isLoopBack = backEdge?.targetHandle === 'loop'
+        queue.push({ nodeId: downId, loopPass: isLoopBack ? loopPass + 1 : loopPass })
+      }
     }
   }
 

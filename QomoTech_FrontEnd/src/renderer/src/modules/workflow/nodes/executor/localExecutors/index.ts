@@ -15,6 +15,8 @@ import { executeSchedule } from './scheduleExecutor'
 import { executePassthrough } from './passthroughExecutor'
 import { executeCondition } from './conditionExecutor'
 import { executeTransform } from './transformExecutor'
+import { executeLoop, resetLoopState } from './loopExecutor'
+import { executeLog } from './logExecutor'
 
 type LocalExecutor = (
   node: WorkflowNode,
@@ -28,8 +30,12 @@ const registry: Record<string, LocalExecutor> = {
   schedule: executeSchedule,
   passthrough: executePassthrough,
   condition: executeCondition,
-  transform: executeTransform
+  transform: executeTransform,
+  loop: executeLoop,
+  log: executeLog
 }
+
+export { resetLoopState }
 
 /** 根据 executeAs 分派到对应本地执行器 */
 export async function executeLocal(

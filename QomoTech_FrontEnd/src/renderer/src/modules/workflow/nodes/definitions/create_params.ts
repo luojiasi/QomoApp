@@ -112,4 +112,25 @@ const transformData: NodeTypeDef = {
   executeAs: 'transform'
 }
 
-export const createDefs: NodeTypeDef[] = [createData, transformData]
+/**
+ * 日志打印节点
+ * 将上游数据打印到执行日志，数据原样透传给下游。
+ *
+ * 本地执行（executeAs: 'log'），不调用后端。
+ */
+const logData: NodeTypeDef = {
+  type: 'data.log',
+  category: 'data',
+  displayName: '日志打印',
+  icon: '📋',
+  color: '#7c3aed',
+  description: '将上游数据打印到日志面板，原样透传给下游',
+  version: 1,
+  inputs: [{ name: 'main', displayName: '输入' }],
+  outputs: [{ name: 'main', displayName: '输出' }],
+  params: [],
+  defaults: {},
+  executeAs: 'log'
+}
+
+export const createDefs: NodeTypeDef[] = [createData, transformData, logData]

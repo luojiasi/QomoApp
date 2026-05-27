@@ -111,6 +111,8 @@ export function useWorkflowNode(props: NodeProps) {
       },
       onProgress(nodeId: string, text: string) {
         store.setNodeStatusText(nodeId, text)
+        const name = wf.nodes.find(n => n.id === nodeId)?.label ?? nodeId
+        store.addLog({ nodeId, nodeName: name, status: 'running', message: text })
       }
     })
 

@@ -71,7 +71,7 @@ export async function executeTransform(
   }
 
   if (Number.isNaN(Number(result)) && ['add','subtract','multiply','divide','modulo'].includes(operation)) {
-    return fail('非数值类型无法进行数学运算')
+    return fail(`非数值类型无法进行数学运算（字段="${field}", 值=${JSON.stringify(rawValue)}, 操作数="${operand}", 上游数据=${JSON.stringify(inputData)}）`)
   }
 
   if (targetField) {

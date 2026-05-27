@@ -8,8 +8,8 @@
       "type": "data.create",
       "label": "数据 {}",
       "position": {
-        "x": 300,
-        "y": 225
+        "x": 200,
+        "y": 175
       },
       "params": {
         "data": "{\"循环结构体\":0}"
@@ -22,40 +22,23 @@
       "type": "trigger.manual",
       "label": "手动触发",
       "position": {
-        "x": 100,
-        "y": 225
+        "x": 0,
+        "y": 175
       },
       "params": {},
       "description": "",
       "status": "success"
     },
     {
-      "id": "mpnpmkhpffm8",
-      "type": "data.transform",
-      "label": "? +",
+      "id": "mpnr9ab5qml5",
+      "type": "flow.loop",
+      "label": "WHILE 循环",
       "position": {
-        "x": 500,
-        "y": 225
+        "x": 425,
+        "y": 175
       },
       "params": {
-        "field": "循环结构体",
-        "operation": "add",
-        "operand": "",
-        "targetField": ""
-      },
-      "description": "",
-      "status": "success"
-    },
-    {
-      "id": "mpnpni1t0a53",
-      "type": "flow.condition",
-      "label": "IF 判断",
-      "position": {
-        "x": 700,
-        "y": 225
-      },
-      "params": {
-        "extraInputCount": 0,
+        "maxIterations": 10,
         "conditionMode": "AND",
         "conditions": [
           {
@@ -68,7 +51,75 @@
       },
       "description": "",
       "status": "success",
-      "statusText": "true"
+      "statusText": "done"
+    },
+    {
+      "id": "mpnrgng9rsya",
+      "type": "data.log",
+      "label": "日志打印",
+      "position": {
+        "x": 875,
+        "y": 175
+      },
+      "params": {},
+      "description": "",
+      "status": "success"
+    },
+    {
+      "id": "mpntk9wdn6bz",
+      "type": "data.transform",
+      "label": "? +",
+      "position": {
+        "x": 175,
+        "y": 350
+      },
+      "params": {
+        "field": "循环结构体",
+        "operation": "add",
+        "operand": "1",
+        "targetField": "循环结构体"
+      },
+      "description": "",
+      "status": "success"
+    },
+    {
+      "id": "mpntkp48wgd8",
+      "type": "flow.delay",
+      "label": "等待 1s",
+      "position": {
+        "x": 675,
+        "y": 350
+      },
+      "params": {
+        "duration": 1000
+      },
+      "description": "",
+      "status": "success"
+    },
+    {
+      "id": "mpntku5ffwqz",
+      "type": "flow.delay",
+      "label": "等待 1s",
+      "position": {
+        "x": 875,
+        "y": 350
+      },
+      "params": {
+        "duration": 1000
+      },
+      "description": "",
+      "status": "idle"
+    },
+    {
+      "id": "mpnloopend001",
+      "type": "flow.loop_end",
+      "label": "循环结束",
+      "position": {
+        "x": 550,
+        "y": 1025
+      },
+      "params": {},
+      "description": ""
     }
   ],
   "edges": [
@@ -80,21 +131,63 @@
       "targetHandle": "main"
     },
     {
-      "id": "mpnpmllkg0co",
+      "id": "mpnr9ejj51hq",
       "source": "mpnpfqpr1v9i",
-      "target": "mpnpmkhpffm8",
+      "target": "mpnr9ab5qml5",
       "sourceHandle": "main",
       "targetHandle": "main"
     },
     {
-      "id": "mpnpnjgysbb0",
-      "source": "mpnpmkhpffm8",
-      "target": "mpnpni1t0a53",
+      "id": "mpnrgoxl8132",
+      "source": "mpnr9ab5qml5",
+      "target": "mpnrgng9rsya",
+      "sourceHandle": "done",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mpntkbzjx0e7",
+      "source": "mpnr9ab5qml5",
+      "target": "mpntk9wdn6bz",
+      "sourceHandle": "compute",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mpntkfrkbwgk",
+      "source": "mpntk9wdn6bz",
+      "target": "mpnr9ab5qml5",
+      "sourceHandle": "main",
+      "targetHandle": "compute_result"
+    },
+    {
+      "id": "mpntkr2j1fpb",
+      "source": "mpnr9ab5qml5",
+      "target": "mpntkp48wgd8",
+      "sourceHandle": "body",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mpntkvyl94iu",
+      "source": "mpntkp48wgd8",
+      "target": "mpntku5ffwqz",
       "sourceHandle": "main",
       "targetHandle": "main"
+    },
+    {
+      "id": "mpntloopend01",
+      "source": "mpntku5ffwqz",
+      "target": "mpnloopend001",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mpntloopend02",
+      "source": "mpnloopend001",
+      "target": "mpnr9ab5qml5",
+      "sourceHandle": "main",
+      "targetHandle": "loop_end"
     }
   ],
   "createdAt": "2026-05-27T06:50:08.757Z",
-  "updatedAt": "2026-05-27T07:00:05.570Z",
+  "updatedAt": "2026-05-27T08:59:21.566Z",
   "canvasSettings": {}
 }
