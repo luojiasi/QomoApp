@@ -1,113 +1,78 @@
 // ─────────────────────────────────────────────────────────────
-// nodes/executor/nodeExecutor.ts — 流程执行引擎
+// nodes/executor/nodeExecutor.ts — 流程执行引擎（主入口）
 //
-// 当前完成：Trigger 节点的解析与验证。
-// 后续：沿 edges 逐节点执行（HTTP routing / 本地 executeAs 分派）。
+// 架构：
+//   triggerService.ts  → Trigger 解析（findTriggerNodes / resolveGlobalEntryTriggers）
+//   graphTraversal.ts  → 图谱工具（findDownstreamNodeIds / buildTriggerEntries）
+//   nodeRunner.ts      → 单节点分派（executeSingleNode → localExecutors / httpExecutor）
+//   localExecutors/    → 本地执行器注册表（delay / condition / loop ...）
+//
+// 本文件只负责：
+//   - BFS 遍历调度（traverseAndExecute）
+//   - 对外 API（executeWorkflow / executeFromNode / validateWorkflow）
 // ─────────────────────────────────────────────────────────────
 
 import type { Workflow, WorkflowNode, WorkflowEdge } from '../../types/workflow'
-import type { TriggerEntry, WorkflowRunResult } from '../../types/workflowExecution'
-import { NODE_REGISTRY } from '../definitions/index'
+import type { WorkflowRunResult, NodeRunResult, ExecutionCallbacks } from '../../types/workflowExecution'
+import { findTriggerNodes, resolveGlobalEntryTriggers } from './triggerService'
+import { findDownstreamNodeIds, buildTriggerEntries } from './graphTraversal'
+import { executeSingleNode } from './nodeRunner'
 
 // ═══════════════════════════════════════════════════════════════
-// 1. Trigger 分类与解析
-// ═══════════════════════════════════════════════════════════════
-
-const TRIGGER_SINGLE = 'trigger.single'
-const TRIGGER_MULTI  = 'trigger.multi'
-// trigger.manual 不参与全局入口解析，仅由节点自身按钮触发
-
-/**
- * 从流程中提取所有 trigger 节点。
- * 未注册蓝图的节点直接跳过（不当作 trigger）。
- */
-function findTriggerNodes(nodes: WorkflowNode[]): WorkflowNode[] {
-  return nodes.filter((n) => {
-    const def = NODE_REGISTRY[n.type]
-    return def && def.category === 'trigger'
-  })
-}
-
-/**
- * 全局"运行"按钮：决定应该激活哪些 trigger 作为入口。
- *
- * 规则（按优先级）：
- *   single 存在 → 只用 single（manual 不受影响，可从节点单独触发）
- *   multi 存在  → 用所有 multi（同上）
- *   single+multi → 报错，互斥
- *   只有 manual  → 报错，manual 只能从节点自己的按钮触发
- */
-function resolveGlobalEntryTriggers(
-  triggers: WorkflowNode[]
-): { active: WorkflowNode[]; error?: string } {
-  const singles = triggers.filter((t) => t.type === TRIGGER_SINGLE)
-  const multis  = triggers.filter((t) => t.type === TRIGGER_MULTI)
-
-  if (singles.length > 0 && multis.length > 0) {
-    return { active: [], error: '单一入口触发和多入口触发不能同时存在，请只保留一种' }
-  }
-
-  if (singles.length > 0) return { active: singles }
-  if (multis.length > 0)  return { active: multis }
-
-  // 只剩下 manual：全局运行按钮没有可用入口
-  return {
-    active: [],
-    error: '流程中没有单一入口或多入口触发节点，无法从全局按钮运行。\n请添加 "单一入口触发节点" 或 "多入口触发节点"。'
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════
-// 2. 图谱遍历（从 trigger 找下游）
+// BFS 遍历执行
 // ═══════════════════════════════════════════════════════════════
 
 /**
- * 从指定节点的 output 端口出发，找到所有直接下游节点。
- *
- * 本引擎目前只关心 main 端口（trigger 只有 main 输出），
- * 所以固定从 sourceHandle = 'main' 查找。
+ * 从 startNodeId 出发，BFS 遍历所有下游节点并逐个执行。
+ * 被禁用的节点跳过。成功的节点继续遍历其下游，failure/warning 则停止。
+ * 每节点开始/完成时通过 callbacks 通知外部，实现增量状态更新。
  */
-function findDownstreamNodeIds(
-  sourceNodeId: string,
-  sourceHandle: string,
-  edges: WorkflowEdge[]
-): string[] {
-  return edges
-    .filter((e) => e.source === sourceNodeId && (e.sourceHandle ?? 'main') === sourceHandle)
-    .map((e) => e.target)
-}
+async function traverseAndExecute(
+  startNodeId: string,
+  nodes: WorkflowNode[],
+  edges: WorkflowEdge[],
+  callbacks?: ExecutionCallbacks
+): Promise<NodeRunResult[]> {
+  const results: NodeRunResult[] = []
+  const visited = new Set<string>()
+  const queue: string[] = [startNodeId]
 
-/**
- * 给每个 trigger 条目填充 firstNodeId。
- * 如果 trigger 的 main 端口没有连线，firstNodeId 为 null（流程不完整）。
- */
-function buildTriggerEntries(
-  triggers: WorkflowNode[],
-  edges: WorkflowEdge[]
-): TriggerEntry[] {
-  return triggers.map((t) => {
-    const downstream = findDownstreamNodeIds(t.id, 'main', edges)
-    return {
-      triggerNodeId: t.id,
-      triggerType: t.type,
-      firstNodeId: downstream[0] ?? null
+  while (queue.length > 0) {
+    const nodeId = queue.shift()!
+    if (visited.has(nodeId)) continue
+    visited.add(nodeId)
+
+    const node = nodes.find(n => n.id === nodeId)
+    if (!node || node.disabled) continue
+
+    callbacks?.onNodeStarted?.(nodeId)
+
+    const result = await executeSingleNode(node)
+    results.push(result)
+
+    callbacks?.onNodeCompleted?.(result)
+
+    // 成功 → 把 main 端口的下游加入队列
+    if (result.status === 'success') {
+      const downstream = findDownstreamNodeIds(nodeId, 'main', edges)
+      queue.push(...downstream)
     }
-  })
+  }
+
+  return results
 }
 
 // ═══════════════════════════════════════════════════════════════
-// 3. 主入口
+// 对外 API
 // ═══════════════════════════════════════════════════════════════
 
 /**
- * 全局"运行"按钮点击时调用。
- *
- * 当前阶段只做 trigger 解析 + 下游查找，不执行实际节点。
- * 返回的 result.success 表示流程是否具备可执行条件。
- *
- * 后续会在 resolve 之后追加逐节点执行逻辑。
+ * 全局"运行"按钮：激活 single 或 multi trigger，遍历整条链路执行。
  */
-export function executeWorkflow(workflow: Workflow): WorkflowRunResult {
+export async function executeWorkflow(
+  workflow: Workflow,
+  callbacks?: ExecutionCallbacks
+): Promise<WorkflowRunResult> {
   const triggers = findTriggerNodes(workflow.nodes)
   if (triggers.length === 0) {
     return {
@@ -117,13 +82,11 @@ export function executeWorkflow(workflow: Workflow): WorkflowRunResult {
     }
   }
 
-  // ── 全局入口解析（single / multi）─────────────────────────
   const resolved = resolveGlobalEntryTriggers(triggers)
   if (resolved.error) {
     return { success: false, results: [], error: resolved.error }
   }
 
-  // ── 找到每个入口的下游 ────────────────────────────────────
   const entries = buildTriggerEntries(resolved.active, workflow.edges)
 
   const disconnected = entries.filter((e) => e.firstNodeId === null)
@@ -136,60 +99,58 @@ export function executeWorkflow(workflow: Workflow): WorkflowRunResult {
     }
   }
 
-  // TODO: 从这里开始逐节点执行
-  // for each entry → BFS/DFS 沿着 edges 执行每个节点
-
-  return {
-    success: true,
-    results: entries.map((e) => ({
-      nodeId: e.triggerNodeId,
-      nodeType: e.triggerType,
-      status: 'success',
-      output: {}
-    }))
+  const allResults: NodeRunResult[] = []
+  for (const entry of entries) {
+    const chainResults = await traverseAndExecute(
+      entry.triggerNodeId, workflow.nodes, workflow.edges, callbacks
+    )
+    allResults.push(...chainResults)
   }
+
+  return { success: true, results: allResults }
 }
 
 /**
- * 从指定节点独立运行。
- *
- * 不管流程里有没有 single/multi，不管节点类型是 trigger 还是普通节点，
- * 只从该节点出发执行其下游链路。
- *
- * 用于：manual 节点的独立按钮、任一节点的"从这里运行"。
+ * 从指定节点独立运行，执行该节点及其所有下游链路。
  */
-export function executeFromNode(
+export async function executeFromNode(
   workflow: Workflow,
-  nodeId: string
-): WorkflowRunResult {
+  nodeId: string,
+  callbacks?: ExecutionCallbacks
+): Promise<WorkflowRunResult> {
   const node = workflow.nodes.find((n) => n.id === nodeId)
   if (!node) {
     return { success: false, results: [], error: '节点不存在' }
   }
 
-  const entries = buildTriggerEntries([node], workflow.edges)
-  if (entries[0]?.firstNodeId === null) {
-    return { success: false, results: [], error: '该节点未连接下游' }
+  const results = await traverseAndExecute(
+    nodeId, workflow.nodes, workflow.edges, callbacks
+  )
+
+  if (results.length === 0) {
+    return {
+      success: true,
+      results: [{
+        nodeId: node.id,
+        nodeType: node.type,
+        status: 'warning',
+        output: {}
+      }],
+      error: '该节点未连接下游，仅执行当前节点'
+    }
   }
 
-  // TODO: 从该节点开始逐节点执行
-
-  return {
-    success: true,
-    results: entries.map((e) => ({
-      nodeId: e.triggerNodeId,
-      nodeType: e.triggerType,
-      status: 'success',
-      output: {}
-    }))
-  }
+  return { success: true, results }
 }
 
 /**
- * 只做验证，不执行节点。
- * 比 executeWorkflow 轻量，适合按钮点击前的预检查。
+ * 只验证流程结构，不执行节点。
  */
 export function validateWorkflow(workflow: Workflow): { valid: boolean; error?: string } {
-  const result = executeWorkflow(workflow)
-  return { valid: result.success, error: result.error }
+  const triggers = findTriggerNodes(workflow.nodes)
+  if (triggers.length === 0) {
+    return { valid: false, error: '流程中没有 trigger 节点' }
+  }
+  const resolved = resolveGlobalEntryTriggers(triggers)
+  return { valid: !resolved.error, error: resolved.error }
 }

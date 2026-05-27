@@ -15,6 +15,7 @@ import WorkflowList   from './components/SelfProcessPage_WorkflowList.vue'
 import WorkflowCanvas from './components/SelfProcessPage_WorkflowCanvas.vue'
 import CanvasSettings from './components/SelfProcessPage_CanvasSettings.vue'
 import NodeSettings   from './components/SelfProcessPage_NodeSettings.vue'
+import LogPanel       from './components/SelfProcessPage_LogPanel.vue'
 import CameraPic      from '@/modules/camera/CameraPic.vue'
 import AppButton      from './UI/AppButton.vue'
 import AppTabs        from './UI/AppTabs.vue'
@@ -22,11 +23,12 @@ import './workflow.css'
 
 const { store } = useWorkflowPage()
 
-const settingsTab = ref<'node' | 'canvas'>('node')
+const settingsTab = ref<'node' | 'canvas' | 'log'>('node')
 
 const settingsTabs = [
   { key: 'node',   label: '节点配置' },
-  { key: 'canvas', label: '画布配置' }
+  { key: 'canvas', label: '画布配置' },
+  { key: 'log',    label: '日志' }
 ]
 </script>
 
@@ -81,7 +83,8 @@ const settingsTabs = [
         <AppTabs v-model="settingsTab" :tabs="settingsTabs" />
         <div class="min-h-0 h-[calc(100%-40px)] overflow-hidden">
           <NodeSettings   v-if="settingsTab === 'node'" />
-          <CanvasSettings v-else />
+          <CanvasSettings v-else-if="settingsTab === 'canvas'" />
+          <LogPanel       v-else />
         </div>
       </div>
     </aside>

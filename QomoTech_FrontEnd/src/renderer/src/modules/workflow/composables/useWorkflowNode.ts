@@ -60,27 +60,38 @@ export function useWorkflowNode(props: NodeProps) {
     }
   }
 
-  function onRun(): void {
+  async function onRun(): Promise<void> {
     const wf = store.currentWorkflow
     if (!wf) return
 
     // 1. 重置所有节点为"未运行"
     store.resetAllNodeStatuses()
+    store.addLog({ nodeId: props.id, nodeName: displayName.value, status: 'idle', message: '开始执行链路，所有节点状态已重置' })
 
-    // 2. 标记当前节点为"运行中"
-    store.setNodeStatus(props.id, 'running')
-
-    // 3. 执行
-    const result = executeFromNode(wf, props.id)
-
-    // 4. 根据结果更新节点状态
-    if (result.success) {
-      for (const r of result.results) {
+    // 2. 执行（通过回调逐节点增量更新状态和日志）
+    const result = await executeFromNode(wf, props.id, {
+      onNodeStarted(nodeId: string) {
+        store.setNodeStatus(nodeId, 'running')
+      },
+      onNodeCompleted(r) {
         store.setNodeStatus(r.nodeId, r.status)
+        const rName = wf.nodes.find(n => n.id === r.nodeId)?.label ?? r.nodeId
+        let msg: string
+        if (r.status === 'success') {
+          msg = `节点 "${rName}" 执行成功`
+        } else if (r.status === 'warning') {
+          msg = `节点 "${rName}" 执行完成（${result.error ?? '无下游节点'}）`
+        } else {
+          msg = `节点 "${rName}" 执行完成`
+        }
+        store.addLog({ nodeId: r.nodeId, nodeName: rName, status: r.status, message: msg })
       }
-    } else {
+    })
+
+    // 3. 全局失败（如节点不存在）
+    if (!result.success) {
       store.setNodeStatus(props.id, 'failure')
-      console.warn('[WorkflowNode] 运行失败:', result.error)
+      store.addLog({ nodeId: props.id, nodeName: displayName.value, status: 'failure', message: result.error ?? '执行失败' })
     }
   }
 

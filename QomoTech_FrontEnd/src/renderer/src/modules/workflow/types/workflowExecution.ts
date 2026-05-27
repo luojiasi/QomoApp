@@ -22,6 +22,12 @@ export interface WorkflowRunResult {
   error?: string
 }
 
+/** 引擎执行回调：每节点开始/完成时触发，供外部更新 UI */
+export interface ExecutionCallbacks {
+  onNodeStarted?: (nodeId: string) => void
+  onNodeCompleted?: (result: NodeRunResult) => void
+}
+
 /** 从 trigger 出发的最近下游节点信息 */
 export interface TriggerEntry {
   /** 触发节点本身 */

@@ -197,7 +197,14 @@ modules/workflow/
 │   └── WorkflowCanvas_Edge.vue      # 自定义边，修正水平箭头朝向
 ├── nodes/
 │   ├── definitions/                 # trigger / motion / io / flow
-│   └── executor/nodeExecutor.ts     # TODO 占位
+│   └── executor/
+│       ├── nodeExecutor.ts          # 主入口 + BFS 遍历（对外 API）
+│       ├── triggerService.ts        # Trigger 解析（findTriggerNodes / resolveGlobalEntryTriggers）
+│       ├── graphTraversal.ts        # 图谱工具（findDownstreamNodeIds / buildTriggerEntries）
+│       ├── nodeRunner.ts            # 单节点分派（executeSingleNode）
+│       └── localExecutors/
+│           ├── index.ts             # 本地执行器注册表 + executeLocal 分派
+│           └── delayExecutor.ts     # flow.delay 延时执行器
 ├── workflow.css                     # 模块滚动工具类（无可见滚动条）
 └── UI/                              # AppButton、AppTabs、AppInput 等
 ```
@@ -258,6 +265,41 @@ modules/workflow/
 │          │  右键 → 按分类添加节点        │  参数 + 连线设置 │
 └──────────┴────────────────────────────┴───────────────┘
 ```
+
+### 4.6 执行引擎架构
+
+**执行管线：** Trigger 解析 → BFS 图谱遍历 → 逐节点执行分派
+
+```
+nodes/executor/
+├── nodeExecutor.ts          # 主入口 + BFS 遍历 + 对外 API
+│   ├── executeWorkflow()       全局"运行"按钮（只激活 single/multi trigger）
+│   ├── executeFromNode()      从指定节点运行（含下游链路）
+│   ├── validateWorkflow()     只验证不执行
+│   └── traverseAndExecute()   BFS 遍历调度，通过 ExecutionCallbacks 增量通知
+├── triggerService.ts        # Trigger 解析
+│   ├── findTriggerNodes()     从流程中提取所有 trigger 节点
+│   └── resolveGlobalEntryTriggers()  解析 single/multi/manual 入口规则
+├── graphTraversal.ts        # 图谱工具（纯函数）
+│   ├── findDownstreamNodeIds()  找 main 端口的下游节点 ID
+│   └── buildTriggerEntries()   为每个 trigger 构建入口条目
+├── nodeRunner.ts            # 单节点分派
+│   └── executeSingleNode()  读蓝图 → executeAs → localExecutors / routing → httpExecutor
+└── localExecutors/
+    ├── index.ts             # executeLocal 注册表（executeAs → 执行函数映射）
+    └── delayExecutor.ts     # flow.delay：await sleep(duration)
+```
+
+**如何新增本地执行器：**
+1. 在 `localExecutors/` 新建文件（如 `conditionExecutor.ts`），导出 `executeXxx(node)` 函数
+2. 在 `localExecutors/index.ts` 的 `registry` 中添加映射
+3. 蓝图 `executeAs` 字段与 registry key 匹配即可，无需改其他文件
+
+**回调机制：** `ExecutionCallbacks`（定义在 `types/workflowExecution.ts`）：
+- `onNodeStarted(nodeId)` — 每节点开始前触发，外部设 running 状态
+- `onNodeCompleted(result)` — 每节点完成后触发，外部设 success/failure/warning 状态
+
+引擎不直接操作 store，所有状态更新通过回调由 composable 层完成。
 
 ---
 

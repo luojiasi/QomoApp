@@ -16,6 +16,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Workflow, WorkflowNode, WorkflowEdge, WorkflowIndexEntry, NodeExecutionStatus } from '../types/workflow'
+import type { LogEntry } from '../types/workflowLog'
 import { getWorkflowApi } from '../infra/workflowApiBridge'
 import {
   generateId,
@@ -37,6 +38,7 @@ export const useWorkflowStore = defineStore('workflow', () => {
   const selectedNodeId   = ref<string | null>(null)
   const isSaving         = ref(false)
   const basePath         = ref('')   // 由 Electron 提供的流程目录
+  const logs             = ref<LogEntry[]>([])
 
   // ── 派生状态 ─────────────────────────────────────────────────
   const currentWorkflow = computed(() =>
@@ -217,6 +219,20 @@ export const useWorkflowStore = defineStore('workflow', () => {
     currentWorkflow.value?.nodes.forEach(n => { n.status = 'editing' })
   }
 
+  // ── 日志管理 ─────────────────────────────────────────────────
+
+  function addLog(entry: Omit<LogEntry, 'id' | 'timestamp'>): void {
+    logs.value.push({
+      ...entry,
+      id: generateId(),
+      timestamp: nowISO()
+    })
+  }
+
+  function clearLogs(): void {
+    logs.value = []
+  }
+
   // ── 边 CRUD ───────────────────────────────────────────────────
 
   function addEdge(
@@ -251,6 +267,7 @@ export const useWorkflowStore = defineStore('workflow', () => {
     selectedNodeId,
     selectedNode,
     isSaving,
+    logs,
     indexEntries,
     // 初始化
     init,
@@ -271,6 +288,9 @@ export const useWorkflowStore = defineStore('workflow', () => {
     setNodeStatus,
     resetAllNodeStatuses,
     resetAllToEditing,
+    // 日志
+    addLog,
+    clearLogs,
     // 边
     addEdge,
     removeEdge
