@@ -8,19 +8,23 @@
 // ─────────────────────────────────────────────────────────────
 
 import type { WorkflowNode } from '../../types/workflow'
-import type { NodeRunResult } from '../../types/workflowExecution'
+import type { NodeRunResult, ExecutionCallbacks } from '../../types/workflowExecution'
 import { NODE_REGISTRY } from '../definitions/index'
 import { executeLocal } from './localExecutors/index'
 
 /**
  * 执行单个节点，根据蓝图自动分派执行路径。
+ * callbacks 透传给本地执行器（如倒计时节点需要 onProgress）。
  */
-export async function executeSingleNode(node: WorkflowNode): Promise<NodeRunResult> {
+export async function executeSingleNode(
+  node: WorkflowNode,
+  callbacks?: ExecutionCallbacks
+): Promise<NodeRunResult> {
   const def = NODE_REGISTRY[node.type]
 
   // ── 本地执行器（executeAs）──────────────────────────────────
   if (def?.executeAs) {
-    return executeLocal(node, def.executeAs)
+    return executeLocal(node, def.executeAs, callbacks)
   }
 
   // ── HTTP routing（TODO）─────────────────────────────────────

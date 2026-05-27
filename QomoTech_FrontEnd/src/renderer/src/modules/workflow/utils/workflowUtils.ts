@@ -5,6 +5,7 @@
 // ─────────────────────────────────────────────────────────────
 
 import type { WorkflowNode, Workflow } from '../types/workflow'
+import type { NodeTypeDef } from '../types/nodeDefinition'
 import { DEFAULT_NODE_POSITION } from '../constants/workflowCanvas'
 import { NODE_REGISTRY } from '../nodes/definitions/index'
 
@@ -28,6 +29,36 @@ export function nowISO(): string {
 // ─── 数据工厂 ─────────────────────────────────────────────────
 
 /**
+ * 根据节点蓝图和默认参数生成描述性默认标签，
+ * 避免 label 直接等于 displayName 导致重复。
+ */
+function makeDefaultLabel(def: NodeTypeDef): string {
+  const d = def.defaults
+
+  if (def.type === 'flow.delay') {
+    const ms = (d.duration as number) ?? 1000
+    if (ms >= 60000) return `等待 ${(ms / 60000).toFixed(1)}分`
+    if (ms >= 1000) return `等待 ${ms / 1000}s`
+    return `等待 ${ms}ms`
+  }
+
+  if (def.type === 'flow.countdown') {
+    const min = (d.minutes as number) ?? 0
+    const sec = (d.seconds as number) ?? 5
+    if (min > 0) return `倒计时 ${min}分${sec}秒`
+    return `倒计时 ${sec}秒`
+  }
+
+  if (def.type === 'flow.schedule') {
+    const date = (d.date as string) ?? ''
+    const time = (d.time as string) ?? '00:00'
+    return date ? `定时 ${date} ${time}` : '定时 (未设置)'
+  }
+
+  return def.displayName
+}
+
+/**
  * 创建一个带默认值的节点实例。
  * store.addNode() 内部调用此函数，外部一般不需要直接调用。
  */
@@ -36,7 +67,7 @@ export function createNode(type: string, label?: string): WorkflowNode {
   return {
     id: generateId(),
     type,
-    label: label ?? def?.displayName ?? type,
+    label: label ?? (def ? makeDefaultLabel(def) : type),
     position: { ...DEFAULT_NODE_POSITION },
     params: { ...(def?.defaults ?? {}) },
     description: ''

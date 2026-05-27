@@ -28,6 +28,7 @@ const {
   statusBorderColor,
   statusAnimationClass,
   nodeBorderWidth,
+  statusText,
   onRemove,
   onToggleDisable,
   onRun
@@ -89,8 +90,13 @@ const {
           :style="{ color: disabled ? '#9ca3af' : style.headerText }"
         >{{ displayName }}</span>
         <span
-          v-if="statusIcon"
-          class="status-indicator flex-shrink-0 text-xs font-bold"
+          v-if="statusText"
+          class="status-indicator shrink-0 text-xs font-bold"
+          :style="{ color: statusBorderColor }"
+        >{{ statusText }}</span>
+        <span
+          v-else-if="statusIcon"
+          class="status-indicator shrink-0 text-xs font-bold"
           :style="{ color: statusBorderColor }"
         >{{ statusIcon }}</span>
       </div>

@@ -47,6 +47,7 @@ export function useWorkflowNode(props: NodeProps) {
   const statusBorderColor = computed(() => statusStyle.value.borderColor)
   const statusAnimationClass = computed(() => statusStyle.value.animationClass)
   const isRunning = computed(() => status.value === 'running')
+  const statusText = computed(() => wfNode.value?.statusText ?? null)
 
   function onRemove(): void {
     store.removeNode(props.id)
@@ -75,16 +76,21 @@ export function useWorkflowNode(props: NodeProps) {
       },
       onNodeCompleted(r) {
         store.setNodeStatus(r.nodeId, r.status)
+        store.setNodeStatusText(r.nodeId, null)
         const rName = wf.nodes.find(n => n.id === r.nodeId)?.label ?? r.nodeId
         let msg: string
+        const detail = (r.output?.message as string) ?? r.error ?? ''
         if (r.status === 'success') {
           msg = `节点 "${rName}" 执行成功`
-        } else if (r.status === 'warning') {
-          msg = `节点 "${rName}" 执行完成（${result.error ?? '无下游节点'}）`
+        } else if (r.status === 'failure') {
+          msg = `节点 "${rName}" 执行失败${detail ? `：${detail}` : ''}`
         } else {
-          msg = `节点 "${rName}" 执行完成`
+          msg = `节点 "${rName}" 执行完成${detail ? `（${detail}）` : ''}`
         }
         store.addLog({ nodeId: r.nodeId, nodeName: rName, status: r.status, message: msg })
+      },
+      onProgress(nodeId: string, text: string) {
+        store.setNodeStatusText(nodeId, text)
       }
     })
 
@@ -115,6 +121,7 @@ export function useWorkflowNode(props: NodeProps) {
     statusBorderColor,
     statusAnimationClass,
     isRunning,
+    statusText,
     nodeBorderWidth: canvasSettings.nodeBorderWidth,
     onRemove,
     onToggleDisable,

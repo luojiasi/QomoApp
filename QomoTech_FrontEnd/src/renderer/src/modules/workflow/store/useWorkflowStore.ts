@@ -212,11 +212,16 @@ export const useWorkflowStore = defineStore('workflow', () => {
   }
 
   function resetAllNodeStatuses(): void {
-    currentWorkflow.value?.nodes.forEach(n => { n.status = 'idle' })
+    currentWorkflow.value?.nodes.forEach(n => { n.status = 'idle'; n.statusText = undefined })
+  }
+
+  function setNodeStatusText(nodeId: string, text: string | null): void {
+    const node = currentWorkflow.value?.nodes.find(n => n.id === nodeId)
+    if (node) node.statusText = text ?? undefined
   }
 
   function resetAllToEditing(): void {
-    currentWorkflow.value?.nodes.forEach(n => { n.status = 'editing' })
+    currentWorkflow.value?.nodes.forEach(n => { n.status = 'editing'; n.statusText = undefined })
   }
 
   // ── 日志管理 ─────────────────────────────────────────────────
@@ -286,6 +291,7 @@ export const useWorkflowStore = defineStore('workflow', () => {
     enableNode,
     // 执行状态
     setNodeStatus,
+    setNodeStatusText,
     resetAllNodeStatuses,
     resetAllToEditing,
     // 日志

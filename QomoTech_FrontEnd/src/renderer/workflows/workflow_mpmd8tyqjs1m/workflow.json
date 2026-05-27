@@ -8,37 +8,105 @@
       "type": "trigger.manual",
       "label": "手动触发",
       "position": {
-        "x": 340,
-        "y": 120
+        "x": 200,
+        "y": 300
       },
       "params": {},
-      "description": ""
+      "description": "",
+      "status": "success"
     },
     {
-      "id": "mpmdl3271vot",
-      "type": "flow.delay",
-      "label": "延时",
+      "id": "mpnlnvwht3dr",
+      "type": "flow.countdown",
+      "label": "倒计时 5秒",
       "position": {
-        "x": 540,
-        "y": 120
+        "x": 460,
+        "y": 140
       },
       "params": {
-        "duration": 5000
+        "minutes": 0,
+        "seconds": 5
       },
-      "description": ""
+      "description": "",
+      "status": "success"
+    },
+    {
+      "id": "mpnlo3henjq6",
+      "type": "flow.delay",
+      "label": "等待 1s",
+      "position": {
+        "x": 260,
+        "y": 140
+      },
+      "params": {
+        "duration": 1000
+      },
+      "description": "",
+      "status": "success"
+    },
+    {
+      "id": "mpnlobdouw0p",
+      "type": "flow.schedule",
+      "label": "定时 (未设置)",
+      "position": {
+        "x": 660,
+        "y": 140
+      },
+      "params": {
+        "datetime": "",
+        "date": "2026-05-27",
+        "time": "13:13"
+      },
+      "description": "",
+      "status": "warning"
+    },
+    {
+      "id": "mpnlwlvud4u7",
+      "type": "flow.delay",
+      "label": "等待 1s",
+      "position": {
+        "x": 880,
+        "y": 140
+      },
+      "params": {
+        "duration": 1000
+      },
+      "description": "",
+      "status": "success"
     }
   ],
   "edges": [
     {
-      "id": "mpndu78d69al",
+      "id": "mpnlo7uppz3n",
       "source": "mpmdc5cacqiq",
-      "target": "mpmdl3271vot",
+      "target": "mpnlo3henjq6",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mpnlo8xj3olz",
+      "source": "mpnlo3henjq6",
+      "target": "mpnlnvwht3dr",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mpnlog8vmcxp",
+      "source": "mpnlnvwht3dr",
+      "target": "mpnlobdouw0p",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mpnlwnvf3ld1",
+      "source": "mpnlobdouw0p",
+      "target": "mpnlwlvud4u7",
       "sourceHandle": "main",
       "targetHandle": "main"
     }
   ],
   "createdAt": "2026-05-26T08:21:11.474Z",
-  "updatedAt": "2026-05-27T04:14:09.132Z",
+  "updatedAt": "2026-05-27T05:18:23.807Z",
   "canvasSettings": {
     "edgeBorderRadius": 32
   }

@@ -8,19 +8,27 @@
 // ─────────────────────────────────────────────────────────────
 
 import type { WorkflowNode } from '../../../types/workflow'
-import type { NodeRunResult } from '../../../types/workflowExecution'
+import type { NodeRunResult, ExecutionCallbacks } from '../../../types/workflowExecution'
 import { executeDelay } from './delayExecutor'
+import { executeCountdown } from './countdownExecutor'
+import { executeSchedule } from './scheduleExecutor'
 
-type LocalExecutor = (node: WorkflowNode) => Promise<NodeRunResult>
+type LocalExecutor = (node: WorkflowNode, callbacks?: ExecutionCallbacks) => Promise<NodeRunResult>
 
 const registry: Record<string, LocalExecutor> = {
-  delay: executeDelay
+  delay: executeDelay,
+  countdown: executeCountdown,
+  schedule: executeSchedule
 }
 
 /** 根据 executeAs 分派到对应本地执行器 */
-export async function executeLocal(node: WorkflowNode, executeAs: string): Promise<NodeRunResult> {
+export async function executeLocal(
+  node: WorkflowNode,
+  executeAs: string,
+  callbacks?: ExecutionCallbacks
+): Promise<NodeRunResult> {
   const executor = registry[executeAs]
-  if (executor) return executor(node)
+  if (executor) return executor(node, callbacks)
 
   // 未注册的 executeAs → 直接通过
   return { nodeId: node.id, nodeType: node.type, status: 'success', output: {} }

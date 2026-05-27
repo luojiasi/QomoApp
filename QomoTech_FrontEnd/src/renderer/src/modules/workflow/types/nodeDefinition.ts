@@ -28,6 +28,8 @@ export type NodeParamType =
   | 'number'
   | 'boolean'
   | 'select'
+  | 'date'
+  | 'time'
   | 'json'
   | 'expression'
 

@@ -98,6 +98,9 @@ export interface WorkflowNode {
 
   /** 节点执行状态，由引擎在执行过程中更新 */
   status?: NodeExecutionStatus
+
+  /** 状态文字覆盖（如倒计时剩余秒数 "5s"），存在时替代 statusIcon */
+  statusText?: string
 }
 
 // ─── 流程定义 ─────────────────────────────────────────────────

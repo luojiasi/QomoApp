@@ -131,6 +131,24 @@ function setDescription(value: string): void {
                   @update:model-value="setParam(param.name, $event)"
                 />
 
+                <!-- date → 日期选择 -->
+                <AppInput
+                  v-else-if="param.type === 'date'"
+                  :model-value="(node.params[param.name] ?? param.default) as string"
+                  :placeholder="param.placeholder"
+                  type="date"
+                  @update:model-value="setParam(param.name, $event)"
+                />
+
+                <!-- time → 时间输入 -->
+                <AppInput
+                  v-else-if="param.type === 'time'"
+                  :model-value="(node.params[param.name] ?? param.default) as string"
+                  :placeholder="param.placeholder"
+                  type="time"
+                  @update:model-value="setParam(param.name, $event)"
+                />
+
                 <!-- string / number / expression / json → 文本输入 -->
                 <AppInput
                   v-else

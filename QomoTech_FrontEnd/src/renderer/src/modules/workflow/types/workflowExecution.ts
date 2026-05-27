@@ -22,10 +22,12 @@ export interface WorkflowRunResult {
   error?: string
 }
 
-/** 引擎执行回调：每节点开始/完成时触发，供外部更新 UI */
+/** 引擎执行回调：每节点开始/完成/进度更新时触发，供外部更新 UI */
 export interface ExecutionCallbacks {
   onNodeStarted?: (nodeId: string) => void
   onNodeCompleted?: (result: NodeRunResult) => void
+  /** 进度更新（如倒计时每秒刷新），text 为显示内容如 "5s" */
+  onProgress?: (nodeId: string, text: string) => void
 }
 
 /** 从 trigger 出发的最近下游节点信息 */

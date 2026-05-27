@@ -47,13 +47,13 @@ async function traverseAndExecute(
 
     callbacks?.onNodeStarted?.(nodeId)
 
-    const result = await executeSingleNode(node)
+    const result = await executeSingleNode(node, callbacks)
     results.push(result)
 
     callbacks?.onNodeCompleted?.(result)
 
-    // 成功 → 把 main 端口的下游加入队列
-    if (result.status === 'success') {
+    // 失败停止，成功和警告继续走下游
+    if (result.status !== 'failure') {
       const downstream = findDownstreamNodeIds(nodeId, 'main', edges)
       queue.push(...downstream)
     }
