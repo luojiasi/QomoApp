@@ -11,6 +11,7 @@ import logging
 import os
 import signal
 import threading
+from time import sleep
 
 from fastapi import APIRouter
 from pydantic import BaseModel
@@ -31,6 +32,7 @@ class 激光参数下发请求模型(BaseModel):
 
 @路由.get("/health", response_model=ApiResponse)
 def 健康检查() -> ApiResponse:
+    sleep(2)
     return ApiResponse(success=True, message="健康检查成功")
 
 

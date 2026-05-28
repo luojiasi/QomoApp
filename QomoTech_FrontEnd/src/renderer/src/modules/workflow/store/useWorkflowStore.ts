@@ -279,6 +279,7 @@ export const useWorkflowStore = defineStore('workflow', () => {
     selectedNode,
     isSaving,
     logs,
+    basePath,
     indexEntries,
     // 初始化
     init,

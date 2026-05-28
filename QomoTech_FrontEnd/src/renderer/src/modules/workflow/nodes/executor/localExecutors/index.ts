@@ -17,6 +17,8 @@ import { executeCondition } from './conditionExecutor'
 import { executeTransform } from './transformExecutor'
 import { executeLoop, resetLoopState } from './loopExecutor'
 import { executeLog } from './logExecutor'
+import { executeLogExport } from './logExportExecutor'
+import { executeNotify } from './notifyExecutor'
 
 type LocalExecutor = (
   node: WorkflowNode,
@@ -32,7 +34,9 @@ const registry: Record<string, LocalExecutor> = {
   condition: executeCondition,
   transform: executeTransform,
   loop: executeLoop,
-  log: executeLog
+  log: executeLog,
+  'log-export': executeLogExport,
+  notify: executeNotify
 }
 
 export { resetLoopState }

@@ -57,11 +57,13 @@ const httpPing: NodeTypeDef = {
       placeholder: '15000'
     }
   ],
+  //  初始值，创建节点时复制到 node.params 
   defaults: {
     method: 'GET',
     endpoint: '/api/health',
     timeout: 15000
   },
+  //  HTTP 执行器的默认路由，当 node.params 里缺少某个值时的兜底
   routing: {
     method: 'GET',
     endpoint: '/api/health',

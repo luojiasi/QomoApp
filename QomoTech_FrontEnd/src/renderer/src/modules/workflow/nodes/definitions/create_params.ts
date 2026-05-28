@@ -133,4 +133,28 @@ const logData: NodeTypeDef = {
   executeAs: 'log'
 }
 
-export const createDefs: NodeTypeDef[] = [createData, transformData, logData]
+/**
+ * 日志存储节点
+ * 将当前流程执行日志导出为 Markdown 文件。
+ *
+ * 本地执行（executeAs: 'log-export'），不调用后端。
+ */
+const logExport: NodeTypeDef = {
+  type: 'data.log-export',
+  category: 'data',
+  displayName: '日志存储',
+  icon: '📥',
+  color: '#7c3aed',
+  description: '将本次执行的日志保存为 logs.md，存放在当前流程文件夹下',
+  version: 1,
+  inputs: [{ name: 'main', displayName: '执行' }],
+  outputs: [
+    { name: 'main', displayName: '完成' },
+    { name: 'error', displayName: '错误' }
+  ],
+  params: [],
+  defaults: {},
+  executeAs: 'log-export'
+}
+
+export const createDefs: NodeTypeDef[] = [createData, transformData, logData, logExport]

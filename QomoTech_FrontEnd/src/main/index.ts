@@ -454,6 +454,33 @@ const registerSaveJsonFileIpc = (): void => {
 
 type OpenDocumentResult = { ok: true } | { ok: false; error: string }
 
+type ExportFileResult = { ok: true; filePath: string } | { ok: false; canceled: true } | { ok: false; error: string }
+
+const registerExportFileIpc = (): void => {
+  ipcMain.handle(
+    'app:export-file',
+    async (
+      _,
+      opts: { defaultFilename: string; content: string; filters: Array<{ name: string; extensions: string[] }> }
+    ): Promise<ExportFileResult> => {
+      try {
+        const { canceled, filePath } = await dialog.showSaveDialog({
+          title: '导出文件',
+          defaultPath: opts.defaultFilename,
+          filters: opts.filters
+        })
+        if (canceled || !filePath) {
+          return { ok: false, canceled: true }
+        }
+        await writeFile(filePath, opts.content, 'utf-8')
+        return { ok: true, filePath }
+      } catch (e) {
+        return { ok: false, error: e instanceof Error ? e.message : String(e) }
+      }
+    }
+  )
+}
+
 const registerOpenDocumentIpc = (): void => {
   ipcMain.handle('app:open-document', async (_, relativePath: string): Promise<OpenDocumentResult> => {
     try {
@@ -581,6 +608,7 @@ app.whenReady().then(() => {
   registerLicenseIpc()
   registerBackendRuntimeStatusIpc()
   registerSaveJsonFileIpc()
+  registerExportFileIpc()
   registerOpenDocumentIpc()
   registerWorkflowFileIpc()
   void tryStartPackagedBackend()

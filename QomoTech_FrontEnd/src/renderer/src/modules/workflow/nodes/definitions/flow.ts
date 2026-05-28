@@ -272,4 +272,72 @@ const loopEnd: NodeTypeDef = {
   defaults: {}
 }
 
-export const flowDefs: NodeTypeDef[] = [delay, countdown, schedule, condition, loop, loopEnd]
+/**
+ * 弹窗通知节点
+ * 执行时在页面右上角弹出通知弹窗。
+ *
+ * 本地执行（executeAs: 'notify'），不调用后端。
+ */
+const notify: NodeTypeDef = {
+  type: 'flow.notify',
+  category: 'flow',
+  displayName: '弹窗通知',
+  icon: '🔔',
+  color: '#c2410c',
+  description: '在页面右上角弹出通知，支持成功/错误/警告/信息四种类型',
+  version: 1,
+  inputs: [{ name: 'main', displayName: '执行' }],
+  outputs: [{ name: 'main', displayName: '完成' }],
+  params: [
+    {
+      name: 'type',
+      displayName: '通知类型',
+      type: 'select',
+      default: 'info',
+      required: true,
+      options: [
+        { label: '成功', value: 'success' },
+        { label: '错误', value: 'error' },
+        { label: '警告', value: 'warning' },
+        { label: '信息', value: 'info' }
+      ],
+      description: '弹窗的样式和图标风格'
+    },
+    {
+      name: 'message',
+      displayName: '通知标题',
+      type: 'string',
+      default: '',
+      required: true,
+      description: '弹窗显示的标题文本',
+      placeholder: '操作完成'
+    },
+    {
+      name: 'description',
+      displayName: '通知描述',
+      type: 'json',
+      default: '',
+      required: false,
+      description: '弹窗显示的描述文本，支持从上游数据引用',
+      placeholder: '留空则无描述'
+    },
+    {
+      name: 'duration',
+      displayName: '显示时长 (ms)',
+      type: 'number',
+      default: 4500,
+      required: false,
+      description: '通知弹窗显示的毫秒数，默认 4.5 秒',
+      placeholder: '4500'
+    }
+  ],
+  defaults: {
+    type: 'info',
+    message: '',
+    description: '',
+    duration: 4500
+  },
+  executeAs: 'notify'
+}
+
+export const flowDefs: NodeTypeDef[] = [delay, countdown, schedule, condition, loop, loopEnd, notify]

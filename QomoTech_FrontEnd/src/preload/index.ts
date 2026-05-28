@@ -37,6 +37,12 @@ type RendererApi = {
   saveJsonToFile: (preset: SaveJsonPreset, content: string) => Promise<SaveJsonResult>
   /** 打开应用内文档（相对项目根目录） */
   openDocument: (relativePath: string) => Promise<OpenDocumentResult>
+  /** 导出文件到本地（打开保存对话框） */
+  exportFile: (opts: {
+    defaultFilename: string
+    content: string
+    filters: Array<{ name: string; extensions: string[] }>
+  }) => Promise<SaveJsonResult>
   /** Workflow 文件操作 */
   getWorkflowsPath: () => Promise<string>
   readDirectory: (dirPath: string) => Promise<WorkflowFileResult>
@@ -56,6 +62,7 @@ const api: RendererApi = {
   saveJsonToFile: (preset: SaveJsonPreset, content: string) =>
     ipcRenderer.invoke('app:save-json-file', preset, content),
   openDocument: (relativePath: string) => ipcRenderer.invoke('app:open-document', relativePath),
+  exportFile: (opts) => ipcRenderer.invoke('app:export-file', opts),
 
   // Workflow 文件操作
   getWorkflowsPath: () => ipcRenderer.invoke('app:get-workflows-path'),

@@ -84,8 +84,9 @@ export function useWorkflowNode(props: NodeProps) {
     const wf = store.currentWorkflow
     if (!wf) return
 
-    // 1. 重置所有节点为"未运行"
+    // 1. 重置所有节点状态并清空上次日志
     store.resetAllNodeStatuses()
+    store.clearLogs()
     store.addLog({ nodeId: props.id, nodeName: displayName.value, status: 'idle', message: '开始执行链路，所有节点状态已重置' })
 
     // 2. 执行（通过回调逐节点增量更新状态和日志）

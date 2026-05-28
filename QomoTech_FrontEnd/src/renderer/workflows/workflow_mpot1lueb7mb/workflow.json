@@ -8,8 +8,8 @@
       "type": "trigger.manual",
       "label": "手动触发",
       "position": {
-        "x": 100,
-        "y": 200
+        "x": 675,
+        "y": -300
       },
       "params": {},
       "description": "",
@@ -20,15 +20,15 @@
       "type": "test.http-ping",
       "label": "后端通讯测试",
       "position": {
-        "x": 525,
-        "y": 200
+        "x": 675,
+        "y": 50
       },
       "params": {
         "endpoint": "/api/health",
         "timeout": 15000
       },
       "description": "",
-      "status": "failure",
+      "status": "success",
       "__routing": {
         "method": "GET",
         "endpoint": "/api/health",
@@ -40,8 +40,8 @@
       "type": "flow.delay",
       "label": "等待 1s",
       "position": {
-        "x": 325,
-        "y": 200
+        "x": 675,
+        "y": -125
       },
       "params": {
         "duration": 1000
@@ -54,8 +54,22 @@
       "type": "flow.delay",
       "label": "等待 1s",
       "position": {
-        "x": 750,
-        "y": 75
+        "x": 675,
+        "y": 250
+      },
+      "params": {
+        "duration": 1000
+      },
+      "description": "",
+      "status": "success"
+    },
+    {
+      "id": "mpot344gvczb",
+      "type": "flow.delay",
+      "label": "等待 1s",
+      "position": {
+        "x": 900,
+        "y": 50
       },
       "params": {
         "duration": 1000
@@ -64,15 +78,47 @@
       "status": "idle"
     },
     {
-      "id": "mpot344gvczb",
-      "type": "flow.delay",
-      "label": "等待 1s",
+      "id": "mpoxsradbezk",
+      "type": "data.log-export",
+      "label": "日志存储",
       "position": {
-        "x": 950,
-        "y": 75
+        "x": 675,
+        "y": 425
+      },
+      "params": {},
+      "description": "",
+      "status": "success"
+    },
+    {
+      "id": "mpoxsvlxe0jx",
+      "type": "flow.notify",
+      "label": "弹窗通知",
+      "position": {
+        "x": 675,
+        "y": 575
       },
       "params": {
-        "duration": 1000
+        "type": "success",
+        "message": "完成日志存储",
+        "description": "",
+        "duration": 2000
+      },
+      "description": "",
+      "status": "success"
+    },
+    {
+      "id": "mpoxtiq6bbny",
+      "type": "flow.notify",
+      "label": "弹窗通知",
+      "position": {
+        "x": 900,
+        "y": 425
+      },
+      "params": {
+        "type": "error",
+        "message": "日志存储失败",
+        "description": "",
+        "duration": 3000
       },
       "description": "",
       "status": "idle"
@@ -106,9 +152,30 @@
       "target": "mpot344gvczb",
       "sourceHandle": "error",
       "targetHandle": "main"
+    },
+    {
+      "id": "mpoxsx9ylc9j",
+      "source": "mpoxsradbezk",
+      "target": "mpoxsvlxe0jx",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mpoxtjxcg9d0",
+      "source": "mpoxsradbezk",
+      "target": "mpoxtiq6bbny",
+      "sourceHandle": "error",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mpoxucf86bt2",
+      "source": "mpot2w9oltf3",
+      "target": "mpoxsradbezk",
+      "sourceHandle": "main",
+      "targetHandle": "main"
     }
   ],
   "createdAt": "2026-05-28T01:19:00.566Z",
-  "updatedAt": "2026-05-28T01:27:49.390Z",
+  "updatedAt": "2026-05-28T03:34:17.977Z",
   "canvasSettings": {}
 }

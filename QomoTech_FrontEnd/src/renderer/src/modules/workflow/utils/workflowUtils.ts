@@ -107,8 +107,16 @@ function makeDefaultLabel(def: NodeTypeDef): string {
     return '循环结束'
   }
 
+  if (def.type === 'flow.notify') {
+    return '弹窗通知'
+  }
+
   if (def.type === 'data.log') {
     return '日志打印'
+  }
+
+  if (def.type === 'data.log-export') {
+    return '日志存储'
   }
 
   if (def.type === 'test.http-ping') {
@@ -139,7 +147,7 @@ export function createNode(type: string, label?: string): WorkflowNode {
     type,
     label: label ?? (def ? makeDefaultLabel(def) : type),
     position: { ...DEFAULT_NODE_POSITION },
-    params: { ...(def?.defaults ?? {}) },
+    params: { ...(def?.defaults ?? {}) }, // ← 从 defaults 复制
     description: ''
   }
 }
