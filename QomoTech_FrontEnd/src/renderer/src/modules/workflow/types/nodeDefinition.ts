@@ -102,18 +102,31 @@ export interface NodeRouting {
    * - 'query' → GET 请求查询参数
    */
   paramLocation?: 'body' | 'query'
+  /**
+   * 嵌套 body 分组（可选）。
+   * key 为嵌套对象名，value 为归入该对象的 param key 列表。
+   * 未归入任何组的 param 放在 root 层。
+   *
+   * @example
+   * // node.params = { portName: 'COM3', baudRate: 9600, mode: 'ascii' }
+   * // bodyGroup = { port: ['portName', 'baudRate'], receive: ['mode'] }
+   * // → body: { port: { portName: 'COM3', baudRate: 9600 }, receive: { mode: 'ascii' } }
+   */
+  bodyGroup?: Record<string, string[]>
 }
 
 // ─── 节点分类 ─────────────────────────────────────────────────
 
 /**
  * - trigger → 流程触发/入口节点
- * - motion  → 运动控制（调后端 HTTP）
- * - io      → IO 数字输入/输出
+ * - motion  → 运动 / IO 控制（调后端 HTTP）
+ * - camera  → 相机控制（连接/断开/参数）
+ * - rs232   → 串口通讯（连接/收发/激光）
  * - flow    → 流程控制（条件/循环/延时，本地执行）
  * - data    → 数据处理（变量读写、格式转换）
+ * - test    → 测试调试
  */
-export type NodeCategory = 'trigger' | 'motion' | 'io' | 'flow' | 'data' | 'test'
+export type NodeCategory = 'trigger' | 'motion' | 'camera' | 'rs232' | 'flow' | 'data' | 'test'
 
 // ─── 节点蓝图 ─────────────────────────────────────────────────
 
@@ -141,7 +154,7 @@ export interface NodeTypeDef {
   /** 参数默认值，key 与 params[].name 对应 */
   defaults: Record<string, unknown>
   /**
-   * 声明式 HTTP 路由（motion.* / io.* 节点填写）。
+   * 声明式 HTTP 路由（motion.* / camera.* / rs232.* 节点填写）。
    * 有此字段时引擎自动发 HTTP，无需 executeAs。
    */
   routing?: NodeRouting

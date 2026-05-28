@@ -125,10 +125,10 @@ async def 保存激光设置(req: Request):
 
 
 # ==================================================================
-# 梅曼激光器开关
+# mm激光器开关
 # ==================================================================
 
-@路由.post("/laser/mm-control", summary="梅曼激光器开关（laser_on / laser_off）")
+@路由.post("/laser/mm-control", summary="mm激光器开关（laser_on / laser_off）")
 async def mm激光器控制(req: Request):
     body = await req.json()
     打开 = bool(body.get("on", False))

@@ -1,0 +1,47 @@
+{
+  "id": "mpp8i889cj54",
+  "name": "串口测试",
+  "description": "",
+  "nodes": [
+    {
+      "id": "mpp8i9x5jm5l",
+      "type": "trigger.manual",
+      "label": "手动触发",
+      "position": {
+        "x": 500,
+        "y": 275
+      },
+      "params": {},
+      "description": ""
+    },
+    {
+      "id": "mpp8o3j6xy9w",
+      "type": "rs232.connect",
+      "label": "串口连接",
+      "position": {
+        "x": 725,
+        "y": 275
+      },
+      "params": {
+        "portName": "COM3",
+        "baudRate": 9600,
+        "dataBits": 8,
+        "parity": "none",
+        "stopBits": 1
+      },
+      "description": ""
+    }
+  ],
+  "edges": [
+    {
+      "id": "mpp8o5cgtny1",
+      "source": "mpp8i9x5jm5l",
+      "target": "mpp8o3j6xy9w",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    }
+  ],
+  "createdAt": "2026-05-28T08:31:50.313Z",
+  "updatedAt": "2026-05-28T08:36:28.772Z",
+  "canvasSettings": {}
+}

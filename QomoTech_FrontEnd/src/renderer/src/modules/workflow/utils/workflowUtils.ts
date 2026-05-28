@@ -89,6 +89,26 @@ function makeDefaultLabel(def: NodeTypeDef): string {
     return 'IF 判断'
   }
 
+  if (def.type === 'camera.connect') {
+    return '相机连接'
+  }
+
+  if (def.type === 'camera.disconnect') {
+    return '相机断开'
+  }
+
+  if (def.type === 'rs232.connect') {
+    return '串口连接'
+  }
+
+  if (def.type === 'rs232.detect') {
+    return '串口检测'
+  }
+
+  if (def.type === 'rs232.disconnect') {
+    return '串口关闭'
+  }
+
   if (def.type === 'data.create') {
     const raw = (d.data as string) ?? '{}'
     try {

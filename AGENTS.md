@@ -196,7 +196,7 @@ modules/workflow/
 │   ├── WorkflowCanvas_Menu.vue
 │   └── WorkflowCanvas_Edge.vue      # 自定义边，修正水平箭头朝向
 ├── nodes/
-│   ├── definitions/                 # trigger / motion / io / flow
+│   ├── definitions/                 # trigger / motion / camera / rs232 / flow / data / test
 │   └── executor/
 │       ├── nodeExecutor.ts          # 主入口 + BFS 遍历（对外 API）
 │       ├── triggerService.ts        # Trigger 解析（findTriggerNodes / resolveGlobalEntryTriggers）
@@ -216,37 +216,78 @@ modules/workflow/
 - Flex 布局中可滚动子项须加 **`min-h-0`**（横向则 `min-w-0`），避免子项撑开父级导致无法滚动。
 - 在 **`SelfProcessPage.vue`** 引入 `./workflow.css`；新增面板勿再手写 `[&::-webkit-scrollbar]` 等片段。
 
-### 4.3 节点蓝图
+### 4.3 上游数据获取（强制）
+
+**所有节点执行器的第一件事必须是获取上游数据，无一例外。**
+
+```typescript
+// ✅ 正确：启动即从 upstreamData 读
+export async function executeXxx(node, upstreamData, callbacks) {
+  const mainData = upstreamData['main'] as Record<string, unknown> | undefined
+  // ... 用 mainData
+}
+
+// ❌ 错误：忽略 upstreamData，只读 node.params
+export async function executeXxx(node, upstreamData, callbacks) {
+  const portName = node.params.portName   // 永远是静态默认值
+  // 上游数据完全浪费
+}
+```
+
+节点参数需要引用上游数据时，执行器应支持 `$` 前缀表达式——从 `upstreamData` 按路径取值替代静态默认值。
+
+```
+node.params.portName = ''          → 用默认值
+node.params.portName = 'COM3'      → 用静态值 'COM3'
+node.params.portName = '$main.data.ports[0].name'  → 从 upstreamData 动态取
+```
+
+**Why:** 节点连线的本质就是数据传递。忽略上游数据等于切断链路，每个节点变成孤岛。
+**How to apply:** 新增/修改执行器时，先写 `const mainData = upstreamData['main']`，再决定是否用它。routing 节点（httpExecutor）由引擎统一处理参数解析，无需逐节点实现。
+
+### 4.4 节点蓝图
 
 - 定义位置：`nodes/definitions/<category>.ts`
-- 注册：`nodes/definitions/index.ts` → `registerNodeDefinitions()`
-- 查询：`utils/nodeRegistryUtils.ts` → `getNodeDefinition(type)`
-- 节点 `type` 格式：`category.action`（如 `motion.move-abs`、`trigger.singleStart`）
-- 分类：`trigger` | `motion` | `io` | `flow`
+- 注册：`nodes/definitions/index.ts` → `allDefs` 数组
+- 查询：`utils/nodeRegistryUtils.ts` → `getNodePickerGroups()`
+- 节点 `type` 格式：`category.action`（如 `motion.move-abs`、`camera.connect`）
+- 分类：`trigger` | `motion` | `camera` | `rs232` | `flow` | `data` | `test`
 
 **新增节点步骤：**
 
-1. 在对应 `nodes/definitions/*.ts` 增加 `NodeDefinition` 对象
-2. 导出数组已包含在 `index.ts` 的 `registerNodeDefinitions` 列表中
-3. 无需改卡片/菜单/参数面板（自动从注册表读取）
+1. 在对应 `nodes/definitions/*.ts` 增加 `NodeTypeDef` 对象
+2. 加入该文件的导出数组，`index.ts` 已自动汇总
+3. 在 `utils/workflowUtils.ts` 的 `makeDefaultLabel()` 添加默认标签
+4. 无需改卡片/菜单/参数面板（自动从注册表读取）
 
-**NodeDefinition 关键字段：**
+**NodeTypeDef 关键字段：**
 
 ```typescript
 {
   type: 'motion.move-abs',
   category: 'motion',
-  label: '显示名',
+  displayName: '绝对移动',
   icon: '↗',
-  color: '#2563eb',
-  properties: [ /* 右侧参数表单 */ ],
+  color: '#1d4ed8',
+  params: [ /* 配置表单字段 */ ],
   inputs: [{ name: 'main', displayName: '执行' }],
-  outputs: [{ name: 'main', displayName: '完成' }, { name: 'error', displayName: '失败' }],
-  defaults: { /* 与 properties[].name 对应 */ }
+  outputs: [{ name: 'main', displayName: '完成' }, { name: 'error', displayName: '错误' }],
+  defaults: { /* 与 params[].name 对应 */ },
+  routing: { method: 'POST', endpoint: '/api/motion/move/abs', paramLocation: 'body' }
 }
 ```
 
-### 4.4 VueFlow 约定
+**输出端口命名规范：**
+
+| HTTP 方法 | main 端口名 | 原因 |
+|-----------|------------|------|
+| GET | `输出` | 意图是"拿数据"，响应体是节点的产物 |
+| POST / PUT / DELETE | `完成` | 意图是"发指令"，响应主要表达是否成功 |
+| executeAs（本地执行） | 产生新数据 → `输出`，触发动作 → `完成` | 同上语义 |
+
+error 端口统一叫 `错误`。
+
+### 4.5 VueFlow 约定
 
 - 画布节点 VueFlow `type` 固定为 `workflow-node`（`WORKFLOW_NODE_VF_TYPE`）
 - 业务节点类型放在 **`data.nodeType`**，`useWorkflowNode` 必须读 `data.nodeType`，不要读 `props.type`
@@ -255,7 +296,7 @@ modules/workflow/
 - 画布 `id` 与 `useVueFlow({ id: WORKFLOW_VUE_FLOW_ID })` 必须一致（见 `constants/workflowCanvas.ts`）
 - 箭头尺寸：`utils/edgeMarkerUtils.ts`（约 8–14px，勿用 `strokeWidth * 10`）
 
-### 4.5 页面布局
+### 4.6 页面布局
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -266,7 +307,7 @@ modules/workflow/
 └──────────┴────────────────────────────┴───────────────┘
 ```
 
-### 4.6 执行引擎架构
+### 4.7 执行引擎架构
 
 **执行管线：** Trigger 解析 → BFS 图谱遍历 → 逐节点执行分派
 

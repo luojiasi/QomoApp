@@ -6,12 +6,13 @@ import { NODE_REGISTRY } from '../nodes/definitions/index'
 import type { NodeCategory, NodeTypeDef } from '../types/nodeDefinition'
 
 /** 画布右键菜单中的分类顺序 */
-const CATEGORY_ORDER: NodeCategory[] = ['trigger', 'motion', 'io', 'flow', 'data', 'test']
+const CATEGORY_ORDER: NodeCategory[] = ['trigger', 'motion', 'camera', 'rs232', 'flow', 'data', 'test']
 
 const CATEGORY_LABELS: Record<NodeCategory, string> = {
   trigger: '触发',
   motion: '运动',
-  io: 'IO',
+  camera: '相机',
+  rs232: '串口',
   flow: '流程',
   data: '数据',
   test: '测试'

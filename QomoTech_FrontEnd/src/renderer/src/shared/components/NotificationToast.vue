@@ -7,10 +7,9 @@
           :key="n.id"
           class="
             toast-card pointer-events-auto w-90 overflow-hidden rounded-xl border
-            shadow-[0_4px_16px_rgba(0,0,0,0.10)]
-            dark:shadow-[0_4px_20px_rgba(0,0,0,0.35)]
           "
         >
+          <div class="relative z-1">
           <!-- ── 头部：图标 + 标题 + 关闭 ── -->
           <div class="flex items-start justify-between gap-2 px-4 pt-3.5 pb-2">
             <div class="flex items-center gap-2.5 min-w-0">
@@ -62,11 +61,13 @@
             :class="progressTrackClass(n.type)"
           >
             <div
-              class="h-full transition-all ease-linear"
+              class="h-full transition-all duration-120 ease-linear"
               :class="progressBarClass(n.type)"
               :style="{ width: `${n.progress}%` }"
             />
           </div>
+
+          </div><!-- /content-wrap -->
         </div>
       </TransitionGroup>
     </div>
@@ -194,12 +195,31 @@ defineExpose({ addNotification, removeNotification, clearAll })
 </script>
 
 <style scoped>
-/* ═══ 毛玻璃基底 ═══ */
+/* ═══ 磨砂玻璃基底 ═══ */
+
 .toast-card {
-  background-color: color-mix(in srgb, var(--app-card) 88%, transparent);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  border-color: color-mix(in srgb, var(--app-border) 60%, transparent);
+  position: relative;
+  --glass-opacity: 40%;
+  background-color: color-mix(in srgb, var(--app-card) var(--glass-opacity), transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-color: color-mix(in srgb, var(--app-border) 30%, transparent);
+  /* 顶部高光 + 底部投影 */
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 24%, transparent),
+    0 4px 20px color-mix(in srgb, #000 8%, transparent);
+  /* GPU 合成层：避免动画期间 blur 重算 */
+  will-change: transform;
+  transform: translateZ(0);
+  /* 限制重绘边界，不让后代溢出触发父级重绘 */
+  contain: layout style paint;
+}
+.dark .toast-card,
+:root[data-theme='dark'] .toast-card {
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 8%, transparent),
+    0 4px 28px color-mix(in srgb, #000 50%, transparent),
+    0 0 0 1px color-mix(in srgb, #fff 4%, transparent);
 }
 
 /* ═══ 入场 / 离场动画 ═══ */

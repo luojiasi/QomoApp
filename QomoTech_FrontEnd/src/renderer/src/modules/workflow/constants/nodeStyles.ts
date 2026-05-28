@@ -34,11 +34,17 @@ export const NODE_CATEGORY_STYLES: Record<NodeCategory, NodeCategoryStyle> = {
     ringColor: 'rgba(29,78,216,0.35)',
     fallbackIcon: '↗'
   },
-  io: {
-    headerBg: '#15803d',     // green-700
-    headerText: '#dcfce7',   // green-100
-    ringColor: 'rgba(21,128,61,0.35)',
-    fallbackIcon: '⇄'
+  rs232: {
+    headerBg: '#a16207',     // yellow-700
+    headerText: '#fef9c3',   // yellow-100
+    ringColor: 'rgba(161,98,7,0.35)',
+    fallbackIcon: '⚡'
+  },
+  camera: {
+    headerBg: '#0f766e',     // teal-700
+    headerText: '#ccfbf1',   // teal-100
+    ringColor: 'rgba(15,118,110,0.35)',
+    fallbackIcon: '📷'
   },
   flow: {
     headerBg: '#c2410c',     // orange-700

@@ -13,7 +13,8 @@
 import type { NodeRegistry, NodeTypeDef } from '../../types/nodeDefinition'
 import { triggerDefs } from './trigger'
 import { motionDefs } from './motion'
-import { ioDefs } from './io'
+import { cameraDefs } from './camera'
+import { rs232Defs } from './rs232'
 import { flowDefs } from './flow'
 import { createDefs } from './create_params'
 import { testDefs } from './test'
@@ -21,7 +22,8 @@ import { testDefs } from './test'
 const allDefs: NodeTypeDef[] = [
   ...triggerDefs,
   ...motionDefs,
-  ...ioDefs,
+  ...cameraDefs,
+  ...rs232Defs,
   ...flowDefs,
   ...createDefs,
   ...testDefs

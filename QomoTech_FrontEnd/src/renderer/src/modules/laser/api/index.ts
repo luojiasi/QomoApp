@@ -23,7 +23,7 @@ export const saveLaserSettings = async (
 ): Promise<ApiCallResult<Record<string, unknown>>> =>
   apiCall('rs232/laser/settings', 'POST', payload as unknown as Record<string, unknown>)
 
-/** 梅曼激光器开关（后端直接操作 RS232）。 */
+/** mm激光器开关（后端直接操作 RS232）。 */
 export const controlMMLaser = async (
   on: boolean
 ): Promise<ApiCallResult<unknown>> =>
