@@ -84,9 +84,10 @@ export function useWorkflowNode(props: NodeProps) {
     const wf = store.currentWorkflow
     if (!wf) return
 
-    // 1. 重置所有节点状态并清空上次日志
+    // 1. 重置所有节点状态并清空上次日志和输出
     store.resetAllNodeStatuses()
     store.clearLogs()
+    store.clearNodeOutputs()
     store.addLog({ nodeId: props.id, nodeName: displayName.value, status: 'idle', message: '开始执行链路，所有节点状态已重置' })
 
     // 2. 执行（通过回调逐节点增量更新状态和日志）
@@ -95,6 +96,7 @@ export function useWorkflowNode(props: NodeProps) {
         store.setNodeStatus(nodeId, 'running')
       },
       onNodeCompleted(r) {
+        store.setNodeOutput(r.nodeId, r.output as Record<string, unknown>)
         store.setNodeStatus(r.nodeId, r.status)
         // 非主端口（如 IF 节点的 True/False）显示在卡片上
         store.setNodeStatusText(r.nodeId, r.targetPort && r.targetPort !== 'main' ? r.targetPort : null)

@@ -7,6 +7,7 @@
 
 import type { WorkflowNode } from '../../../types/workflow'
 import type { NodeRunResult, ExecutionCallbacks } from '../../../types/workflowExecution'
+import { resolveParams } from '../../../utils/resolveUpstreamExpr'
 import { notifyByType } from '@/shared/composables/useNotification'
 
 export async function executeNotify(
@@ -14,10 +15,13 @@ export async function executeNotify(
   upstreamData: Record<string, Record<string, unknown>>,
   callbacks?: ExecutionCallbacks
 ): Promise<NodeRunResult> {
-  const type = (node.params.type as string) || 'info'
-  const message = (node.params.message as string) || '通知'
-  const description = (node.params.description as string) || ''
-  const duration = (node.params.duration as number) || 4500
+  const mainData = (upstreamData['main'] ?? {}) as Record<string, unknown>
+  const params = resolveParams(node.params, upstreamData)
+
+  const type = (params.type as string) || 'info'
+  const message = (params.message as string) || '通知'
+  const description = (params.description as string) || ''
+  const duration = (params.duration as number) || 4500
 
   // 安全校验 type
   const validTypes = new Set(['success', 'error', 'warning', 'info'])
@@ -27,7 +31,6 @@ export async function executeNotify(
 
   callbacks?.onProgress?.(node.id, `弹窗通知: ${message}`)
 
-  const mainData = (upstreamData['main'] ?? {}) as Record<string, unknown>
   return {
     nodeId: node.id,
     nodeType: node.type,

@@ -6,6 +6,7 @@
 // ─────────────────────────────────────────────────────────────
 
 import type { Workflow } from '../types/workflow'
+import { NODE_REGISTRY } from '../nodes/definitions/index'
 import { parseJSONish } from './workflowUtils'
 
 /**
@@ -88,8 +89,40 @@ function inferNodeOutputKeys(
       return keys
     }
 
+    // routing 节点：HTTP 请求返回通用 API 响应结构 { success, message, data }
+    // 从蓝图 routing 字段判断是否为 routing 节点
+    if (isRoutingNode(node)) {
+      // routing 节点透传上游数据 + 后端响应合并
+      const keys = getBaseRoutingKeys()
+      // 也追溯上游
+      for (const edge of wf.edges) {
+        if (edge.target === node.id) {
+          const src = wf.nodes.find(n => n.id === edge.source)
+          if (src) {
+            for (const k of inferNodeOutputKeys(src, wf)) {
+              if (!keys.includes(k)) keys.push(k)
+            }
+          }
+        }
+      }
+      return keys
+    }
+
     return []
   } finally {
     _seen.delete(node.id)
   }
+}
+
+/**
+ * routing 节点输出的基础字段（API 通用响应结构）。
+ * httpExecutor 合并了上游数据 + 后端响应 data 字段，所以有些字段是动态的。
+ */
+function getBaseRoutingKeys(): string[] {
+  return ['success', 'message', 'data', 'httpStatus']
+}
+
+function isRoutingNode(node: Workflow['nodes'][number]): boolean {
+  const def = NODE_REGISTRY[node.type]
+  return !!def?.routing
 }

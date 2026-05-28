@@ -15,11 +15,22 @@
       "description": ""
     },
     {
-      "id": "mpp8o3j6xy9w",
+      "id": "mpp9vh3nnys9",
+      "type": "rs232.detect",
+      "label": "串口检测",
+      "position": {
+        "x": 700,
+        "y": 275
+      },
+      "params": {},
+      "description": ""
+    },
+    {
+      "id": "mppaq6g3acim",
       "type": "rs232.connect",
       "label": "串口连接",
       "position": {
-        "x": 725,
+        "x": 900,
         "y": 275
       },
       "params": {
@@ -27,21 +38,35 @@
         "baudRate": 9600,
         "dataBits": 8,
         "parity": "none",
-        "stopBits": 1
+        "stopBits": 1,
+        "flowControl": "none",
+        "timeoutMs": 1000,
+        "encoding": "utf-8",
+        "receiveMode": "ascii",
+        "maxBufferLines": 500,
+        "showTimestamp": false,
+        "autoScroll": true
       },
       "description": ""
     }
   ],
   "edges": [
     {
-      "id": "mpp8o5cgtny1",
+      "id": "mpp9vjykj4t8",
       "source": "mpp8i9x5jm5l",
-      "target": "mpp8o3j6xy9w",
+      "target": "mpp9vh3nnys9",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mppaq7ghsd11",
+      "source": "mpp9vh3nnys9",
+      "target": "mppaq6g3acim",
       "sourceHandle": "main",
       "targetHandle": "main"
     }
   ],
   "createdAt": "2026-05-28T08:31:50.313Z",
-  "updatedAt": "2026-05-28T08:36:28.772Z",
+  "updatedAt": "2026-05-28T09:34:02.889Z",
   "canvasSettings": {}
 }

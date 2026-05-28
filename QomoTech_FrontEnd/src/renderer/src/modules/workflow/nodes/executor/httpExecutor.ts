@@ -8,51 +8,10 @@
 
 import type { WorkflowNode } from '../../types/workflow'
 import type { NodeRunResult, ExecutionCallbacks } from '../../types/workflowExecution'
+import { resolveParams } from '../../utils/resolveUpstreamExpr'
 
 const BASE_URL = 'http://127.0.0.1:5000'
 const REQUEST_TIMEOUT_MS = 15000
-
-/**
- * 解析 params 中以 $ 开头的表达式，从 upstreamData 中取值。
- * 语法：$端口名.字段.子字段 或 $端口名.arr[0].key
- */
-function resolveParams(
-  params: Record<string, unknown>,
-  upstreamData: Record<string, Record<string, unknown>>
-): Record<string, unknown> {
-  const resolved: Record<string, unknown> = {}
-  for (const [key, value] of Object.entries(params)) {
-    if (typeof value === 'string' && value.startsWith('$')) {
-      resolved[key] = resolveExpr(value, upstreamData) ?? value
-    } else {
-      resolved[key] = value
-    }
-  }
-  return resolved
-}
-
-function resolveExpr(
-  expr: string,
-  upstreamData: Record<string, Record<string, unknown>>
-): unknown {
-  // 去掉 $, 按 . 分割路径: $main.data.ports[0].name → ['main','data','ports[0]','name']
-  const path = expr.slice(1) // remove $
-  const segments = path.split('.')
-  let current: unknown = upstreamData
-  for (const seg of segments) {
-    if (current === null || current === undefined) return null
-    // 处理数组索引: ports[0]
-    const m = seg.match(/^(.+?)\[(\d+)\]$/)
-    if (m) {
-      const arr = (current as Record<string, unknown>)[m[1]]
-      if (!Array.isArray(arr)) return null
-      current = arr[Number(m[2])]
-    } else {
-      current = (current as Record<string, unknown>)[seg]
-    }
-  }
-  return current
-}
 
 /**
  * 将扁平 params 按 bodyGroup 重组为嵌套对象。

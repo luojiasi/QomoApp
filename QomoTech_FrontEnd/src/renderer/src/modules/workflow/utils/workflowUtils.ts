@@ -132,7 +132,7 @@ function makeDefaultLabel(def: NodeTypeDef): string {
   }
 
   if (def.type === 'data.log') {
-    return '日志打印'
+    return '日志输出上游数据'
   }
 
   if (def.type === 'data.log-export') {

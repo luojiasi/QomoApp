@@ -39,6 +39,8 @@ export const useWorkflowStore = defineStore('workflow', () => {
   const isSaving         = ref(false)
   const basePath         = ref('')   // 由 Electron 提供的流程目录
   const logs             = ref<LogEntry[]>([])
+  /** 最近一次执行中每个节点的 output，供配置面板引用上游数据时展示 */
+  const nodeOutputs      = ref<Record<string, Record<string, unknown>>>({})
 
   // ── 派生状态 ─────────────────────────────────────────────────
   const currentWorkflow = computed(() =>
@@ -244,6 +246,14 @@ export const useWorkflowStore = defineStore('workflow', () => {
     logs.value = []
   }
 
+  function setNodeOutput(nodeId: string, output: Record<string, unknown>): void {
+    nodeOutputs.value = { ...nodeOutputs.value, [nodeId]: output }
+  }
+
+  function clearNodeOutputs(): void {
+    nodeOutputs.value = {}
+  }
+
   // ── 边 CRUD ───────────────────────────────────────────────────
 
   function addEdge(
@@ -279,6 +289,7 @@ export const useWorkflowStore = defineStore('workflow', () => {
     selectedNode,
     isSaving,
     logs,
+    nodeOutputs,
     basePath,
     indexEntries,
     // 初始化
@@ -304,6 +315,8 @@ export const useWorkflowStore = defineStore('workflow', () => {
     // 日志
     addLog,
     clearLogs,
+    setNodeOutput,
+    clearNodeOutputs,
     // 边
     addEdge,
     removeEdge

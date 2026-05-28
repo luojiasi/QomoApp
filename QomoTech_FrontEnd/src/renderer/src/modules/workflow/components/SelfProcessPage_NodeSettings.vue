@@ -3,7 +3,7 @@
 //
 // 显示当前选中节点的可编辑参数。
 // 节点蓝图（NodeTypeDef）中定义了哪些参数，这里动态渲染对应表单控件。
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useWorkflowStore } from '../store/useWorkflowStore'
 import { NODE_REGISTRY } from '../nodes/definitions/index'
 import { NODE_CATEGORY_STYLES } from '../constants/nodeStyles'
@@ -40,6 +40,51 @@ const upstreamFields = computed(() => {
 
 // 当前节点 'main' 端口的上游字段列表（供 field 类参数使用）
 const mainPortFields = computed(() => upstreamFields.value['main'] ?? [])
+
+// 是否有上游连线
+const hasUpstreamEdges = computed(() => {
+  const wf = store.currentWorkflow
+  if (!wf || !node.value) return false
+  return wf.edges.some(e => e.target === node.value!.id)
+})
+
+// 上游节点的实际输出数据
+const upstreamOutputData = computed(() => {
+  const wf = store.currentWorkflow
+  if (!wf || !node.value) return {} as Record<string, Record<string, unknown>>
+  const result: Record<string, Record<string, unknown>> = {}
+  for (const edge of wf.edges) {
+    if (edge.target !== node.value.id) continue
+    const portName = edge.targetHandle ?? 'main'
+    const srcOutput = store.nodeOutputs[edge.source]
+    if (srcOutput) {
+      result[portName] = { ...result[portName], ...srcOutput }
+    }
+  }
+  return result
+})
+
+// 数据查看器弹出状态
+const popoverParam = ref<string | null>(null)
+
+function togglePopover(paramName: string): void {
+  popoverParam.value = popoverParam.value === paramName ? null : paramName
+}
+
+function onSelectUpstreamPath(path: string): void {
+  if (!popoverParam.value || !node.value) return
+  store.updateNode(node.value.id, {
+    params: { ...node.value.params, [popoverParam.value]: '$' + path }
+  })
+  popoverParam.value = null
+}
+
+// 是否有上游数据
+const upstreamHasData = computed(() => mainPortFields.value.length > 0)
+
+function showUpstreamHints(param: { name: string; type: string }): boolean {
+  return param.type === 'string' || param.type === 'number' || param.type === 'expression'
+}
 
 // 判断参数是否满足 showWhen 条件（应显示）
 function isParamVisible(showWhen?: { field: string; value: unknown }): boolean {
@@ -185,23 +230,31 @@ function setDescription(value: string): void {
                 />
 
                 <!-- string / number / expression / json → 文本输入 -->
-                <AppInput
-                  v-else
-                  :model-value="String(node.params[param.name] ?? param.default ?? '')"
-                  :placeholder="param.placeholder ?? param.displayName"
-                  :type="param.type === 'number' ? 'number' : 'text'"
-                  @update:model-value="
-                    setParam(param.name, param.type === 'number' ? Number($event) : $event)
-                  "
-                />
+                <div v-else class="flex gap-1">
+                  <AppInput
+                    class="flex-1"
+                    :model-value="String(node.params[param.name] ?? param.default ?? '')"
+                    :placeholder="param.placeholder ?? param.displayName"
+                    :type="param.type === 'number' ? 'number' : 'text'"
+                    @update:model-value="
+                      setParam(param.name, param.type === 'number' ? Number($event) : $event)
+                    "
+                  />
+                  <button
+                    v-if="showUpstreamHints(param) && hasUpstreamEdges"
+                    class="shrink-0 flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border border-(--app-border) text-[13px] text-(--app-text-muted) transition-colors hover:bg-(--app-card-soft) hover:text-(--app-text-primary)"
+                    title="查看上游数据"
+                    @click="togglePopover(param.name)"
+                  >⊞</button>
+                </div>
 
                 <p v-if="param.description && param.type !== 'boolean'" class="mt-0.5 text-[10px] text-(--app-text-muted)">
                   {{ param.description }}
                 </p>
 
-                <!-- 字段提示：当参数名为 field 且有上游字段时，显示可选字段名 -->
+                <!-- 字段提示：string/number/expression 参数有上游字段时，显示可选字段名 -->
                 <div
-                  v-if="param.name === 'field' && mainPortFields.length > 0"
+                  v-if="showUpstreamHints(param) && mainPortFields.length > 0"
                   class="mt-1 flex items-center gap-1 flex-wrap"
                 >
                   <span class="text-[10px] text-(--app-text-muted) shrink-0">可用字段:</span>
@@ -212,6 +265,12 @@ function setDescription(value: string): void {
                     :title="`填入字段 '${f}'`"
                     @click="setParam(param.name, f)"
                   >{{ f }}</button>
+                  <button
+                    v-if="upstreamHasData && node.params[param.name] !== '$main'"
+                    class="cursor-pointer rounded border border-green-500/40 bg-green-600/10 px-1.5 py-px text-[10px] text-green-500 transition-colors hover:bg-green-600/20"
+                    :title="`引用上游完整数据`"
+                    @click="setParam(param.name, '$main')"
+                  >引用上游</button>
                 </div>
               </div>
             </template>
@@ -223,7 +282,140 @@ function setDescription(value: string): void {
           <p class="text-[11px] text-(--app-text-muted)">节点类型 <code class="font-mono">{{ node.type }}</code> 尚未注册蓝图</p>
         </div>
 
+
       </div>
+
+      <!-- 上游数据查看器（固定到底部） -->
+      <section
+        v-if="popoverParam"
+        class="shrink-0 border-t border-(--app-border) px-4 py-3"
+      >
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-[11px] font-semibold text-(--app-text-primary)">
+            上游数据 → {{ popoverParam }}
+          </span>
+          <button
+            class="cursor-pointer border-0 bg-transparent text-[11px] text-(--app-text-muted) hover:text-(--app-text-primary)"
+            @click="popoverParam = null"
+          >✕</button>
+        </div>
+        <div class="max-h-[200px] wf-scroll-y">
+          <div
+            v-if="Object.keys(upstreamOutputData).length > 0"
+            class="rounded-lg border border-(--app-border) bg-(--app-card) py-1"
+          >
+            <template v-for="(val, key) in upstreamOutputData" :key="key">
+              <TreeItem
+                :name="key"
+                :value="val"
+                :path="key"
+                :depth="0"
+                @select="onSelectUpstreamPath"
+              />
+            </template>
+          </div>
+          <div
+            v-else
+            class="rounded-lg border border-dashed border-(--app-border) p-3 text-center"
+          >
+            <p class="text-[11px] text-(--app-text-muted)">
+              请先运行一次上游节点，执行后可查看数据树
+            </p>
+            <p class="mt-1 text-[10px] text-(--app-text-muted)">
+              可用字段：<span class="text-(--app-text-primary)">{{ mainPortFields.join(', ') }}</span>
+            </p>
+          </div>
+        </div>
+      </section>
+
     </template>
   </div>
 </template>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- TreeItem — 递归数据树节点 -->
+<script lang="ts">
+import { defineComponent, h, ref, computed } from 'vue'
+
+export const TreeItem = defineComponent({
+  name: 'TreeItem',
+  props: {
+    name: { type: String, required: true },
+    value: null,
+    path: { type: String, required: true },
+    depth: { type: Number, required: true },
+  },
+  emits: ['select'],
+  setup(props, { emit }) {
+    const _open = ref(false)
+
+    const expandable = computed(() => {
+      const v = props.value
+      if (v === null || v === undefined) return false
+      if (Array.isArray(v)) return (v as unknown[]).length > 0
+      return typeof v === 'object' && Object.keys(v as object).length > 0
+    })
+
+    function toggleLocal(): void {
+      if (expandable.value) {
+        _open.value = !_open.value
+      } else {
+        emit('select', props.path)
+      }
+    }
+
+    function getChildren(): Array<{ key: string; val: unknown }> {
+      const v = props.value
+      if (Array.isArray(v)) return (v as unknown[]).map((item, i) => ({ key: `[${i}]`, val: item }))
+      if (typeof v === 'object' && v !== null) {
+        return Object.entries(v as Record<string, unknown>).map(([k, val]) => ({ key: k, val }))
+      }
+      return []
+    }
+
+    function leafLabel(): string {
+      const v = props.value
+      if (typeof v === 'string') return `"${v}"`
+      if (typeof v === 'boolean') return v ? 'true' : 'false'
+      if (typeof v === 'number') return String(v)
+      if (v === null) return 'null'
+      return String(v ?? '')
+    }
+
+    const indent = computed(() => (props.depth ?? 0) * 14)
+
+    return () => {
+      const children = expandable.value && _open.value ? getChildren() : []
+      return h('div', {}, [
+        h(
+          'div',
+          {
+            class: 'flex items-center gap-1 cursor-pointer px-2 py-[2px] text-[11px] hover:bg-black/5 select-none',
+            style: { paddingLeft: `${8 + indent.value}px` },
+            onClick: toggleLocal,
+          },
+          [
+            expandable.value
+              ? h('span', { class: 'text-[10px] w-3 shrink-0 text-(--app-text-muted)' }, _open.value ? '▾' : '▸')
+              : h('span', { class: 'text-[10px] w-3 shrink-0 text-(--app-text-muted)' }, '·'),
+            h('span', { class: !expandable.value ? 'text-(--app-text-secondary)' : 'text-(--app-text-primary) font-medium' }, props.name),
+            !expandable.value
+              ? h('span', { class: 'text-(--app-text-muted) truncate ml-1' }, leafLabel())
+              : null,
+          ],
+        ),
+        ...children.map((child) =>
+          h(TreeItem, {
+            key: props.path + '.' + child.key,
+            name: child.key,
+            value: child.val,
+            path: props.path + '.' + child.key.replace(/^\[(\d+)\]$/, '[$1]'),
+            depth: props.depth + 1,
+            onSelect: (p: string) => emit('select', p),
+          }),
+        ),
+      ])
+    }
+  },
+})
+</script>
