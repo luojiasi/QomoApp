@@ -10,6 +10,8 @@ export interface NotificationItem {
   description: string
   duration: number
   progress: number
+  /** 创建时间戳（ms），用于显示"几秒前"等 */
+  timestamp: number
   timer?: ReturnType<typeof setInterval>
 }
 
