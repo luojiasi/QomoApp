@@ -82,8 +82,13 @@ async function traverseAndExecute(
 
     callbacks?.onNodeCompleted?.(result)
 
-    // 失败停止；成功和警告按 targetPort（默认 'main'）走下游
-    if (result.status !== 'failure') {
+    // 失败走 error 端口（已连线则继续，未连线则停）；成功/警告按 targetPort 走下游
+    if (result.status === 'failure') {
+      const errorDownstream = findDownstreamNodeIds(nodeId, 'error', edges)
+      for (const downId of errorDownstream) {
+        queue.push({ nodeId: downId, loopPass })
+      }
+    } else {
       const port = result.targetPort ?? 'main'
       const downstream = findDownstreamNodeIds(nodeId, port, edges)
       for (const downId of downstream) {

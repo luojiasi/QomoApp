@@ -6,14 +6,15 @@ import { NODE_REGISTRY } from '../nodes/definitions/index'
 import type { NodeCategory, NodeTypeDef } from '../types/nodeDefinition'
 
 /** 画布右键菜单中的分类顺序 */
-const CATEGORY_ORDER: NodeCategory[] = ['trigger', 'motion', 'io', 'flow', 'data']
+const CATEGORY_ORDER: NodeCategory[] = ['trigger', 'motion', 'io', 'flow', 'data', 'test']
 
 const CATEGORY_LABELS: Record<NodeCategory, string> = {
   trigger: '触发',
   motion: '运动',
   io: 'IO',
   flow: '流程',
-  data: '数据'
+  data: '数据',
+  test: '测试'
 }
 
 export interface NodePickerGroup {

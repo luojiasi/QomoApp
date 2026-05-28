@@ -16,7 +16,6 @@ import { useWorkflowNode } from '../composables/useWorkflowNode'
 const props = defineProps<NodeProps>()
 
 const {
-  NODE_WIDTH,
   dynamicWidth,
   style,
   label, description,

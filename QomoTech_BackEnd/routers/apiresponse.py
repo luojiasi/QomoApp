@@ -18,7 +18,7 @@ class ApiResponse(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "examples": [
-                {"success": True, "message": "OK", "data": {"ports": []}},
+                {"success": True, "message": "OK", "data": {"information": []}},
                 {"success": False, "message": "错误原因", "data": None},
             ],
         },

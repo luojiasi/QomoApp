@@ -29,6 +29,10 @@ class 激光参数下发请求模型(BaseModel):
     laserFrequency: float | None = None
     laserCurrent: float | None = None
 
+@路由.get("/health", response_model=ApiResponse)
+def 健康检查() -> ApiResponse:
+    return ApiResponse(success=True, message="健康检查成功")
+
 
 @路由.post("/laser/apply", response_model=ApiResponse)
 def 激光参数下发(payload: 激光参数下发请求模型) -> ApiResponse:

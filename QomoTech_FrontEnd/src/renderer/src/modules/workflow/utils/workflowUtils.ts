@@ -111,6 +111,10 @@ function makeDefaultLabel(def: NodeTypeDef): string {
     return '日志打印'
   }
 
+  if (def.type === 'test.http-ping') {
+    return '后端通讯测试'
+  }
+
   if (def.type === 'data.transform') {
     const opMap: Record<string, string> = {
       add: '+', subtract: '-', multiply: '×', divide: '÷', modulo: '%',

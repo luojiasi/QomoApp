@@ -8,21 +8,22 @@
       "type": "data.create",
       "label": "数据 {}",
       "position": {
-        "x": 200,
+        "x": 1000,
         "y": 175
       },
       "params": {
         "data": "{\"循环结构体\":0}"
       },
       "description": "",
-      "status": "success"
+      "status": "success",
+      "disabled": false
     },
     {
       "id": "mpnpfu7yhuyd",
       "type": "trigger.manual",
       "label": "手动触发",
       "position": {
-        "x": 0,
+        "x": 800,
         "y": 175
       },
       "params": {},
@@ -34,7 +35,7 @@
       "type": "flow.loop",
       "label": "WHILE 循环",
       "position": {
-        "x": 425,
+        "x": 1200,
         "y": 175
       },
       "params": {
@@ -58,7 +59,7 @@
       "type": "data.log",
       "label": "日志打印",
       "position": {
-        "x": 875,
+        "x": 1475,
         "y": 175
       },
       "params": {},
@@ -70,7 +71,7 @@
       "type": "data.transform",
       "label": "? +",
       "position": {
-        "x": 175,
+        "x": 800,
         "y": 350
       },
       "params": {
@@ -87,8 +88,8 @@
       "type": "flow.delay",
       "label": "等待 1s",
       "position": {
-        "x": 675,
-        "y": 350
+        "x": 1425,
+        "y": 525
       },
       "params": {
         "duration": 1000
@@ -101,25 +102,55 @@
       "type": "flow.delay",
       "label": "等待 1s",
       "position": {
-        "x": 875,
-        "y": 350
+        "x": 1550,
+        "y": 400
       },
       "params": {
         "duration": 1000
       },
       "description": "",
-      "status": "idle"
+      "status": "success"
     },
     {
       "id": "mpnloopend001",
       "type": "flow.loop_end",
       "label": "循环结束",
       "position": {
-        "x": 550,
-        "y": 1025
+        "x": 875,
+        "y": 875
       },
       "params": {},
-      "description": ""
+      "description": "",
+      "status": "success"
+    },
+    {
+      "id": "mpottirj0d7n",
+      "type": "flow.schedule",
+      "label": "定时",
+      "position": {
+        "x": 1725,
+        "y": 175
+      },
+      "params": {
+        "date": "2026-05-28",
+        "time": "09:42"
+      },
+      "description": "",
+      "status": "warning"
+    },
+    {
+      "id": "mpotu9gi220e",
+      "type": "flow.delay",
+      "label": "等待 1s",
+      "position": {
+        "x": 1925,
+        "y": 300
+      },
+      "params": {
+        "duration": 1000
+      },
+      "description": "",
+      "status": "success"
     }
   ],
   "edges": [
@@ -185,9 +216,23 @@
       "target": "mpnr9ab5qml5",
       "sourceHandle": "main",
       "targetHandle": "loop_end"
+    },
+    {
+      "id": "mpotu6s2j2ee",
+      "source": "mpnrgng9rsya",
+      "target": "mpottirj0d7n",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mpotuasru438",
+      "source": "mpottirj0d7n",
+      "target": "mpotu9gi220e",
+      "sourceHandle": "main",
+      "targetHandle": "main"
     }
   ],
   "createdAt": "2026-05-27T06:50:08.757Z",
-  "updatedAt": "2026-05-27T08:59:21.566Z",
+  "updatedAt": "2026-05-28T01:42:55.664Z",
   "canvasSettings": {}
 }

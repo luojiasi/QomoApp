@@ -11,6 +11,7 @@ import type { WorkflowNode } from '../../types/workflow'
 import type { NodeRunResult, ExecutionCallbacks } from '../../types/workflowExecution'
 import { NODE_REGISTRY } from '../definitions/index'
 import { executeLocal } from './localExecutors/index'
+import { executeHttp } from './httpExecutor'
 
 /**
  * 执行单个节点，根据蓝图自动分派执行路径。
@@ -29,8 +30,12 @@ export async function executeSingleNode(
     return executeLocal(node, def.executeAs, upstreamData, callbacks)
   }
 
-  // ── HTTP routing（TODO）─────────────────────────────────────
-  // if (def?.routing) return executeHttp(node, def.routing)
+  // ── HTTP routing ──────────────────────────────────────────
+  if (def?.routing) {
+    // 将 routing 注入到 node 上供 httpExecutor 读取
+    ;(node as any).__routing = def.routing
+    return executeHttp(node, upstreamData, callbacks)
+  }
 
   // 无特殊执行逻辑 → 直接通过
   return { nodeId: node.id, nodeType: node.type, status: 'success', output: {} }

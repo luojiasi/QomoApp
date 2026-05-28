@@ -1,0 +1,114 @@
+{
+  "id": "mpot1lueb7mb",
+  "name": "后端通讯测试",
+  "description": "",
+  "nodes": [
+    {
+      "id": "mpot1qes102n",
+      "type": "trigger.manual",
+      "label": "手动触发",
+      "position": {
+        "x": 100,
+        "y": 200
+      },
+      "params": {},
+      "description": "",
+      "status": "success"
+    },
+    {
+      "id": "mpot1rqa7cth",
+      "type": "test.http-ping",
+      "label": "后端通讯测试",
+      "position": {
+        "x": 525,
+        "y": 200
+      },
+      "params": {
+        "endpoint": "/api/health",
+        "timeout": 15000
+      },
+      "description": "",
+      "status": "failure",
+      "__routing": {
+        "method": "GET",
+        "endpoint": "/api/health",
+        "paramLocation": "query"
+      }
+    },
+    {
+      "id": "mpot2mz55esz",
+      "type": "flow.delay",
+      "label": "等待 1s",
+      "position": {
+        "x": 325,
+        "y": 200
+      },
+      "params": {
+        "duration": 1000
+      },
+      "description": "",
+      "status": "success"
+    },
+    {
+      "id": "mpot2w9oltf3",
+      "type": "flow.delay",
+      "label": "等待 1s",
+      "position": {
+        "x": 750,
+        "y": 75
+      },
+      "params": {
+        "duration": 1000
+      },
+      "description": "",
+      "status": "idle"
+    },
+    {
+      "id": "mpot344gvczb",
+      "type": "flow.delay",
+      "label": "等待 1s",
+      "position": {
+        "x": 950,
+        "y": 75
+      },
+      "params": {
+        "duration": 1000
+      },
+      "description": "",
+      "status": "idle"
+    }
+  ],
+  "edges": [
+    {
+      "id": "mpot2ntkzhwb",
+      "source": "mpot1qes102n",
+      "target": "mpot2mz55esz",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mpot2q6d9x9k",
+      "source": "mpot2mz55esz",
+      "target": "mpot1rqa7cth",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mpot30j7vv8k",
+      "source": "mpot1rqa7cth",
+      "target": "mpot2w9oltf3",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mpot36pgy3ji",
+      "source": "mpot1rqa7cth",
+      "target": "mpot344gvczb",
+      "sourceHandle": "error",
+      "targetHandle": "main"
+    }
+  ],
+  "createdAt": "2026-05-28T01:19:00.566Z",
+  "updatedAt": "2026-05-28T01:27:49.390Z",
+  "canvasSettings": {}
+}

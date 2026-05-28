@@ -51,5 +51,11 @@ export const NODE_CATEGORY_STYLES: Record<NodeCategory, NodeCategoryStyle> = {
     headerText: '#cffafe',   // cyan-100
     ringColor: 'rgba(14,116,144,0.35)',
     fallbackIcon: '◈'
+  },
+  test: {
+    headerBg: '#a21caf',     // fuchsia-700
+    headerText: '#fae8ff',   // fuchsia-100
+    ringColor: 'rgba(162,28,175,0.35)',
+    fallbackIcon: '⚙'
   }
 }

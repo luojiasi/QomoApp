@@ -113,11 +113,17 @@ export const useWorkflowStore = defineStore('workflow', () => {
 
     isSaving.value = true
     try {
-      wf.updatedAt = nowISO()
-      const r1 = await api.writeFile(workflowFilePath(basePath.value, wf.id), JSON.stringify(wf, null, 2))
+      // 先序列化再更新时间戳，避免中途 reactive 突变触发画布重渲染
+      const updatedAt = nowISO()
+      const data = { ...wf, updatedAt }
+      const r1 = await api.writeFile(workflowFilePath(basePath.value, wf.id), JSON.stringify(data, null, 2))
       if (!r1.ok) return false
-      const r2 = await api.writeFile(indexFilePath(basePath.value), JSON.stringify(indexEntries.value, null, 2))
-      return r2.ok
+      const idxData = indexEntries.value.map(e => e.id === wf.id ? { ...e, updatedAt } : e)
+      const r2 = await api.writeFile(indexFilePath(basePath.value), JSON.stringify(idxData, null, 2))
+      if (!r2.ok) return false
+      // 写盘成功后才更新 reactive 状态（此时触发的重渲染无副作用）
+      wf.updatedAt = updatedAt
+      return true
     } catch {
       return false
     } finally {

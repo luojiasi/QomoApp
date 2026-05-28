@@ -28,8 +28,6 @@ const inputOptions = computed(() =>
   props.inputNames.map(n => ({ label: n.displayName, value: n.name }))
 )
 
-const modeText = computed(() => props.mode === 'OR' ? 'OR' : 'AND')
-
 function firstInputName(): string {
   return props.inputNames[0]?.name ?? 'main'
 }

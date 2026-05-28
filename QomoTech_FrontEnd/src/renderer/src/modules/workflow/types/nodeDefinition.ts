@@ -113,7 +113,7 @@ export interface NodeRouting {
  * - flow    → 流程控制（条件/循环/延时，本地执行）
  * - data    → 数据处理（变量读写、格式转换）
  */
-export type NodeCategory = 'trigger' | 'motion' | 'io' | 'flow' | 'data'
+export type NodeCategory = 'trigger' | 'motion' | 'io' | 'flow' | 'data' | 'test'
 
 // ─── 节点蓝图 ─────────────────────────────────────────────────
 
