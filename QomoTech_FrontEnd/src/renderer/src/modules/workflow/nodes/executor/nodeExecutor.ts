@@ -110,8 +110,12 @@ async function traverseAndExecute(
     }
   }
 
-  await runChain(startNodeId, 0)
-  return results
+  try {
+    await runChain(startNodeId, 0)
+    return results
+  } finally {
+    resetLoopState()
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════

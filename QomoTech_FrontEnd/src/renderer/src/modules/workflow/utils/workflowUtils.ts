@@ -97,6 +97,30 @@ function makeDefaultLabel(def: NodeTypeDef): string {
     return '相机断开'
   }
 
+  if (def.type === 'camera.getParams') {
+    return '获取相机参数'
+  }
+
+  if (def.type === 'camera.setExposure') {
+    return '设置曝光'
+  }
+
+  if (def.type === 'camera.setFrameSpeed') {
+    return '设置帧率'
+  }
+
+  if (def.type === 'camera.setMirror') {
+    return '设置镜像'
+  }
+
+  if (def.type === 'camera.setWhiteBalance') {
+    return '设置白平衡'
+  }
+
+  if (def.type === 'recipe.getState') {
+    return '获取配方'
+  }
+
   if (def.type === 'rs232.connect') {
     return '串口连接'
   }

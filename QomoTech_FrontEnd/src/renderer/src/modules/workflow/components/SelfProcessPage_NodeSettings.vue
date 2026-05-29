@@ -13,8 +13,10 @@ import AppInput from '../UI/AppInput.vue'
 import SelfProcessPage_ConditionEditor from './SelfProcessPage_ConditionEditor.vue'
 import type { IfCondition } from '../types/workflow'
 import { inferUpstreamFields } from '../utils/upstreamFieldUtils'
+import { useRecipeSettingsStore } from '@/modules/recipe/useRecipeStore'
 
 const store = useWorkflowStore()
+const recipeStore = useRecipeSettingsStore()
 
 const node = computed(() => store.selectedNode)
 const def  = computed(() => node.value ? (NODE_REGISTRY[node.value.type] ?? null) : null)
@@ -111,6 +113,24 @@ function setDescription(value: string): void {
   if (!node.value) return
   store.updateNode(node.value.id, { description: value })
 }
+
+// ── 配方节点：主配方下拉选项 ──
+const recipeOptions = computed(() =>
+  recipeStore.recipeState.mainRecipes.map((r) => ({
+    label: `${r.name} (${r.code})`,
+    value: r.id
+  }))
+)
+
+const selectedRecipeId = computed({
+  get: () => node.value?.params.mainRecipeId || recipeStore.recipeState.selectedMainRecipeId,
+  set: (id: string) => {
+    if (!node.value) return
+    store.updateNode(node.value.id, {
+      params: { ...node.value.params, mainRecipeId: id }
+    })
+  }
+})
 </script>
 
 <template>
@@ -172,6 +192,26 @@ function setDescription(value: string): void {
           </div>
         </section>
 
+        <!-- 配方节点：主配方选择器 -->
+        <section v-if="def?.type === 'recipe.getState'" class="mb-4">
+          <h4 class="mb-2 text-[11px] font-bold uppercase tracking-wider text-(--app-text-muted)">选择主配方</h4>
+          <select
+            :value="selectedRecipeId"
+            class="w-full rounded-md border border-(--app-border) bg-(--app-input-bg) px-2.5 py-1.5 text-[13px] text-(--app-text-primary) outline-none focus:border-violet-500"
+            @change="selectedRecipeId = ($event.target as HTMLSelectElement).value"
+          >
+            <option value="" disabled>-- 选择主配方 --</option>
+            <option
+              v-for="opt in recipeOptions"
+              :key="opt.value"
+              :value="opt.value"
+            >{{ opt.label }}</option>
+          </select>
+          <p class="mt-1 text-[10px] text-(--app-text-muted)">
+            留空则使用主页配方面板中当前选中的配方
+          </p>
+        </section>
+
         <!-- 节点参数（来自蓝图 NodeTypeDef.params） -->
         <section v-if="def && def.params.length > 0">
           <h4 class="mb-2 text-[11px] font-bold uppercase tracking-wider text-(--app-text-muted)">参数</h4>
@@ -197,7 +237,11 @@ function setDescription(value: string): void {
                   :model-value="(node.params[param.name] ?? param.default) as string"
                   :options="(param.options ?? []) as { label: string; value: string | number }[]"
                   :placeholder="param.placeholder"
-                  @update:model-value="setParam(param.name, $event)"
+                  @update:model-value="
+                    setParam(param.name,
+                      param.options?.find(o => String(o.value) === $event)?.value ?? $event
+                    )
+                  "
                 />
 
                 <!-- date → 日期选择 -->

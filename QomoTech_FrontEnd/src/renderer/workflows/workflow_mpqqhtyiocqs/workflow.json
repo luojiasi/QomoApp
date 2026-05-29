@@ -1,0 +1,68 @@
+{
+  "id": "mpqqhtyiocqs",
+  "name": "测试配方",
+  "description": "",
+  "nodes": [
+    {
+      "id": "mpqrbhuykpqq",
+      "type": "recipe.getState",
+      "label": "获取配方",
+      "position": {
+        "x": 310,
+        "y": 300
+      },
+      "params": {
+        "mainRecipeId": "main-1"
+      },
+      "description": "",
+      "status": "success"
+    },
+    {
+      "id": "mpqrbu8y3jfp",
+      "type": "data.log",
+      "label": "日志输出上游数据",
+      "position": {
+        "x": 550,
+        "y": 300
+      },
+      "params": {},
+      "description": "",
+      "status": "success"
+    },
+    {
+      "id": "mpqrcw6p3jus",
+      "type": "data.transform",
+      "label": "? +",
+      "position": {
+        "x": 550,
+        "y": 450
+      },
+      "params": {
+        "field": "$main.MachiningRecipeChild[0]",
+        "operation": "add",
+        "operand": "",
+        "targetField": ""
+      },
+      "description": ""
+    }
+  ],
+  "edges": [
+    {
+      "id": "mpqrbwbwas3o",
+      "source": "mpqrbhuykpqq",
+      "target": "mpqrbu8y3jfp",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mpqrcxtyah97",
+      "source": "mpqrbhuykpqq",
+      "target": "mpqrcw6p3jus",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    }
+  ],
+  "createdAt": "2026-05-29T09:43:11.082Z",
+  "updatedAt": "2026-05-29T10:08:34.322Z",
+  "canvasSettings": {}
+}

@@ -142,7 +142,7 @@
       "type": "rs232.disconnect",
       "label": "串口关闭",
       "position": {
-        "x": 700,
+        "x": 425,
         "y": 575
       },
       "params": {},
@@ -355,6 +355,17 @@
       "params": {},
       "description": "",
       "status": "success"
+    },
+    {
+      "id": "mpqqazyqgrum",
+      "type": "trigger.manual",
+      "label": "手动触发",
+      "position": {
+        "x": 200,
+        "y": 575
+      },
+      "params": {},
+      "description": ""
     }
   ],
   "edges": [
@@ -469,9 +480,16 @@
       "target": "mpqnsx8z72cx",
       "sourceHandle": "error",
       "targetHandle": "main"
+    },
+    {
+      "id": "mpqqb1bu4nh6",
+      "source": "mpqqazyqgrum",
+      "target": "mpqkg4akrj0e",
+      "sourceHandle": "main",
+      "targetHandle": "main"
     }
   ],
   "createdAt": "2026-05-28T08:31:50.313Z",
-  "updatedAt": "2026-05-29T08:30:18.817Z",
+  "updatedAt": "2026-05-29T09:37:56.639Z",
   "canvasSettings": {}
 }

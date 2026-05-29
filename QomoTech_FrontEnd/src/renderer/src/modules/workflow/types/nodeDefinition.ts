@@ -134,7 +134,7 @@ export interface NodeRouting {
  * - data    → 数据处理（变量读写、格式转换）
  * - test    → 测试调试
  */
-export type NodeCategory = 'trigger' | 'motion' | 'camera' | 'rs232' | 'flow' | 'data' | 'test'
+export type NodeCategory = 'trigger' | 'motion' | 'camera' | 'rs232' | 'flow' | 'data' | 'test' | 'recipe'
 
 // ─── 节点蓝图 ─────────────────────────────────────────────────
 

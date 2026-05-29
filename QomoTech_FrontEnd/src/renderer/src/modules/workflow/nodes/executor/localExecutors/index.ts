@@ -20,6 +20,7 @@ import { executeLog } from './logExecutor'
 import { executeLogExport } from './logExportExecutor'
 import { executeNotify } from './notifyExecutor'
 import { executeWaitAll } from './waitAllExecutor'
+import { executeGetRecipe } from './recipeExecutor'
 
 
 type LocalExecutor = (
@@ -39,7 +40,8 @@ const registry: Record<string, LocalExecutor> = {
   log: executeLog,
   'log-export': executeLogExport,
   notify: executeNotify,
-  wait_all: executeWaitAll
+  wait_all: executeWaitAll,
+  getRecipe: executeGetRecipe
 }
 
 export { resetLoopState }

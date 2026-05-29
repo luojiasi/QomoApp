@@ -18,6 +18,7 @@ import { rs232Defs } from './rs232'
 import { flowDefs } from './flow'
 import { createDefs } from './create_params'
 import { testDefs } from './test'
+import { recipeDefs } from './recipe'
 
 const allDefs: NodeTypeDef[] = [
   ...triggerDefs,
@@ -26,7 +27,8 @@ const allDefs: NodeTypeDef[] = [
   ...rs232Defs,
   ...flowDefs,
   ...createDefs,
-  ...testDefs
+  ...testDefs,
+  ...recipeDefs
 ]
 
 /**

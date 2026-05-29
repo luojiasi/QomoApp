@@ -103,17 +103,16 @@ export async function executeHttp(
   }
   callbacks?.onProgress?.(node.id, actionText[method] ?? method)
 
-  try {
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), timeout)
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeout)
 
+  try {
     const res = await fetch(url.toString(), {
       method,
       headers,
       body,
       signal: controller.signal
     })
-    clearTimeout(timer)
 
     const validated = await validateApiResponse(res, node.type)
 
@@ -151,5 +150,7 @@ export async function executeHttp(
       output: { ...(mainData as Record<string, unknown>), error: errMsg },
       error: errMsg
     }
+  } finally {
+    clearTimeout(timer)
   }
 }

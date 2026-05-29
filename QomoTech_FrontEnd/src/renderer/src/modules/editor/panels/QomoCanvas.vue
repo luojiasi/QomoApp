@@ -2653,6 +2653,8 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  resizeObserver.value?.disconnect()
+  resizeObserver.value = null
   window.removeEventListener('pointermove', handlePointerMove)
   window.removeEventListener('pointerup', handlePointerUp)
   window.removeEventListener('keydown', handleKeyToggleArcDirection)

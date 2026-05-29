@@ -63,5 +63,11 @@ export const NODE_CATEGORY_STYLES: Record<NodeCategory, NodeCategoryStyle> = {
     headerText: '#fae8ff',   // fuchsia-100
     ringColor: 'rgba(162,28,175,0.35)',
     fallbackIcon: '⚙'
+  },
+  recipe: {
+    headerBg: '#7c3aed',     // violet-700
+    headerText: '#ede9fe',   // violet-100
+    ringColor: 'rgba(124,58,237,0.35)',
+    fallbackIcon: '📋'
   }
 }

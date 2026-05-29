@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { ref, onUnmounted } from 'vue'
 import { subscribeGlobalKeyboard } from '@/shared/composables/useGlobalKeyboard'
 import { useNotification } from '@/shared/composables/useNotification'
 import { useControllerSettingsStore } from '../stores/useControllerSettingsStore'
@@ -101,6 +101,7 @@ export function useMotionKeyboard() {
   }
 
   const unsubscribe = subscribeGlobalKeyboard(handler)
+  onUnmounted(() => unsubscribe())
 
   return { unsubscribe }
 }

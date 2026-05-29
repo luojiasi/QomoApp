@@ -13,7 +13,7 @@
       },
       "params": {},
       "description": "",
-      "status": "success"
+      "status": "idle"
     },
     {
       "id": "mpp7qc0snre0",
@@ -27,7 +27,7 @@
         "index": 0
       },
       "description": "",
-      "status": "failure",
+      "status": "idle",
       "__routing": {
         "method": "POST",
         "endpoint": "/api/camera/connect",
@@ -44,7 +44,7 @@
       },
       "params": {},
       "description": "",
-      "status": "success",
+      "status": "idle",
       "__routing": {
         "method": "POST",
         "endpoint": "/api/camera/disconnect",
@@ -66,7 +66,7 @@
         "duration": 5000
       },
       "description": "",
-      "status": "success"
+      "status": "idle"
     },
     {
       "id": "mpp80pxr8bea",
@@ -80,7 +80,7 @@
         "index": 0
       },
       "description": "",
-      "status": "success",
+      "status": "idle",
       "__routing": {
         "method": "POST",
         "endpoint": "/api/camera/connect",
@@ -102,7 +102,104 @@
         "duration": 2000
       },
       "description": "",
+      "status": "idle"
+    },
+    {
+      "id": "mpqq26lt9dcs",
+      "type": "trigger.manual",
+      "label": "手动触发",
+      "position": {
+        "x": 475,
+        "y": 425
+      },
+      "params": {},
+      "description": "",
+      "status": "idle"
+    },
+    {
+      "id": "mpqq3429fvfn",
+      "type": "trigger.manual",
+      "label": "手动触发",
+      "position": {
+        "x": 475,
+        "y": 575
+      },
+      "params": {},
+      "description": "",
+      "status": "idle"
+    },
+    {
+      "id": "mpqq379fnj45",
+      "type": "camera.setMirror",
+      "label": "设置镜像",
+      "position": {
+        "x": 675,
+        "y": 425
+      },
+      "params": {
+        "horizontal": false,
+        "vertical": false
+      },
+      "description": "",
+      "status": "idle",
+      "__routing": {
+        "method": "POST",
+        "endpoint": "/api/camera/params/mirror",
+        "paramLocation": "body"
+      }
+    },
+    {
+      "id": "mpqq5467klge",
+      "type": "camera.setExposure",
+      "label": "设置曝光",
+      "position": {
+        "x": 675,
+        "y": 575
+      },
+      "params": {
+        "auto_exposure": true,
+        "exposure_time": 1000
+      },
+      "description": "",
+      "status": "idle",
+      "__routing": {
+        "method": "POST",
+        "endpoint": "/api/camera/params/exposure",
+        "paramLocation": "body"
+      }
+    },
+    {
+      "id": "mpqq79d6uq7q",
+      "type": "trigger.manual",
+      "label": "手动触发",
+      "position": {
+        "x": 475,
+        "y": 725
+      },
+      "params": {},
+      "description": "",
       "status": "success"
+    },
+    {
+      "id": "mpqq7eclyzb2",
+      "type": "camera.setFrameSpeed",
+      "label": "设置帧率",
+      "position": {
+        "x": 675,
+        "y": 725
+      },
+      "params": {
+        "speed_level": 1,
+        "auto_tune": true,
+        "tune": 0
+      },
+      "description": "",
+      "status": "success",
+      "__routing": {
+        "method": "POST",
+        "endpoint": "/api/camera/params/frame-speed",
+        "paramLocation": "body"
+      }
     }
   ],
   "edges": [
@@ -154,9 +251,30 @@
       "target": "mpp810jxhqvg",
       "sourceHandle": "main",
       "targetHandle": "main"
+    },
+    {
+      "id": "mpqq38eiarj3",
+      "source": "mpqq26lt9dcs",
+      "target": "mpqq379fnj45",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mpqq58usg3wt",
+      "source": "mpqq3429fvfn",
+      "target": "mpqq5467klge",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mpqq7hsnlf5j",
+      "source": "mpqq79d6uq7q",
+      "target": "mpqq7eclyzb2",
+      "sourceHandle": "main",
+      "targetHandle": "main"
     }
   ],
   "createdAt": "2026-05-28T08:08:41.487Z",
-  "updatedAt": "2026-05-28T08:25:28.076Z",
+  "updatedAt": "2026-05-29T09:37:38.797Z",
   "canvasSettings": {}
 }

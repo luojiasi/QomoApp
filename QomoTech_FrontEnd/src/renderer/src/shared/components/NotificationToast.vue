@@ -98,6 +98,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   if (nowTimer) clearInterval(nowTimer)
+  clearAll()
 })
 
 // ── 图标映射 ────────────────────────────────────────

@@ -886,6 +886,14 @@ export function useCanvas2D() {
     }
   }
 
+  function handleContextMenu(e: Event) {
+    e.preventDefault()
+    if (store.activeTool === 'DRAW' && drawInteraction.isActive.value) {
+      drawInteraction.commit()
+      scheduleRender()
+    }
+  }
+
   // ── 生命周期 ─────────────────────────────────────────────────────────
 
   function setup() {
@@ -898,13 +906,7 @@ export function useCanvas2D() {
     canvas.addEventListener('wheel', handleWheel, { passive: false })
 
     // 阻止 canvas 上的右键菜单，右键提交 multiPoint 工具
-    canvas.addEventListener('contextmenu', e => {
-      e.preventDefault()
-      if (store.activeTool === 'DRAW' && drawInteraction.isActive.value) {
-        drawInteraction.commit()
-        scheduleRender()
-      }
-    })
+    canvas.addEventListener('contextmenu', handleContextMenu)
     window.addEventListener('keydown', handleKeyDown)
 
     // ResizeObserver
@@ -924,7 +926,7 @@ export function useCanvas2D() {
       window.removeEventListener('mousemove', handleMouseMove)
       window.removeEventListener('mouseup', handleMouseUp)
       canvas.removeEventListener('wheel', handleWheel)
-      canvas.removeEventListener('contextmenu', e => e.preventDefault())
+      canvas.removeEventListener('contextmenu', handleContextMenu)
     }
     window.removeEventListener('keydown', handleKeyDown)
     if (resizeObserver) {
