@@ -8,33 +8,41 @@
       "type": "trigger.manual",
       "label": "手动触发",
       "position": {
-        "x": 500,
+        "x": 425,
         "y": 275
       },
       "params": {},
-      "description": ""
+      "description": "",
+      "status": "idle"
     },
     {
       "id": "mpp9vh3nnys9",
       "type": "rs232.detect",
       "label": "串口检测",
       "position": {
-        "x": 700,
+        "x": 625,
         "y": 275
       },
       "params": {},
-      "description": ""
+      "description": "",
+      "status": "idle",
+      "__routing": {
+        "method": "GET",
+        "endpoint": "/api/rs232/ports",
+        "paramLocation": "query"
+      },
+      "disabled": false
     },
     {
       "id": "mppaq6g3acim",
       "type": "rs232.connect",
       "label": "串口连接",
       "position": {
-        "x": 900,
-        "y": 275
+        "x": 800,
+        "y": 150
       },
       "params": {
-        "portName": "COM3",
+        "portName": "$main.data.ports[0].device",
         "baudRate": 9600,
         "dataBits": 8,
         "parity": "none",
@@ -47,7 +55,306 @@
         "showTimestamp": false,
         "autoScroll": true
       },
-      "description": ""
+      "description": "",
+      "status": "idle",
+      "__routing": {
+        "method": "POST",
+        "endpoint": "/api/rs232/open",
+        "paramLocation": "body",
+        "bodyGroup": {
+          "port": [
+            "portName",
+            "baudRate",
+            "dataBits",
+            "parity",
+            "stopBits",
+            "flowControl",
+            "timeoutMs",
+            "encoding"
+          ],
+          "receive": [
+            [
+              "receiveMode",
+              "mode"
+            ],
+            "maxBufferLines",
+            "showTimestamp",
+            "autoScroll"
+          ]
+        }
+      },
+      "disabled": false
+    },
+    {
+      "id": "mpqka2fq7yc9",
+      "type": "rs232.send",
+      "label": "串口数据发送",
+      "position": {
+        "x": 1550,
+        "y": 75
+      },
+      "params": {
+        "portName": "$port.data.ports[0].device",
+        "baudRate": 9600,
+        "dataBits": 8,
+        "parity": "none",
+        "stopBits": 1,
+        "flowControl": "none",
+        "timeoutMs": 1000,
+        "encoding": "utf-8",
+        "payload": "$data.y",
+        "mode": "ascii",
+        "appendCr": true,
+        "appendLf": true,
+        "autoSend": false,
+        "autoSendIntervalMs": 1000
+      },
+      "description": "",
+      "status": "idle",
+      "__routing": {
+        "method": "POST",
+        "endpoint": "/api/rs232/send",
+        "paramLocation": "body",
+        "bodyGroup": {
+          "port": [
+            "portName",
+            "baudRate",
+            "dataBits",
+            "parity",
+            "stopBits",
+            "flowControl",
+            "timeoutMs",
+            "encoding"
+          ],
+          "send": [
+            "mode",
+            "payload",
+            "appendCr",
+            "appendLf",
+            "autoSend",
+            "autoSendIntervalMs"
+          ]
+        }
+      }
+    },
+    {
+      "id": "mpqkg4akrj0e",
+      "type": "rs232.disconnect",
+      "label": "串口关闭",
+      "position": {
+        "x": 700,
+        "y": 575
+      },
+      "params": {},
+      "description": "",
+      "status": "idle",
+      "__routing": {
+        "method": "POST",
+        "endpoint": "/api/rs232/close",
+        "paramLocation": "body"
+      }
+    },
+    {
+      "id": "mpql7wuqh53n",
+      "type": "data.create",
+      "label": "数据 {}",
+      "position": {
+        "x": 1150,
+        "y": 275
+      },
+      "params": {
+        "data": "{\"x\":\"well\",\"y\":0}"
+      },
+      "description": "",
+      "status": "idle"
+    },
+    {
+      "id": "mpqld965856y",
+      "type": "data.transform",
+      "label": "? +",
+      "position": {
+        "x": 1350,
+        "y": 275
+      },
+      "params": {
+        "field": "y",
+        "operation": "add",
+        "operand": "100000000000",
+        "targetField": "y"
+      },
+      "description": "",
+      "status": "idle"
+    },
+    {
+      "id": "mpqnjl61phoo",
+      "type": "flow.countdown",
+      "label": "倒计时 5秒",
+      "position": {
+        "x": 1025,
+        "y": 100
+      },
+      "params": {
+        "minutes": 0,
+        "seconds": 5
+      },
+      "description": "",
+      "status": "idle"
+    },
+    {
+      "id": "mpqnl6j2gglt",
+      "type": "trigger.manual",
+      "label": "手动触发",
+      "position": {
+        "x": 425,
+        "y": 900
+      },
+      "params": {},
+      "description": "",
+      "status": "success"
+    },
+    {
+      "id": "mpqnllmj3wcq",
+      "type": "data.create",
+      "label": "数据 {}",
+      "position": {
+        "x": 725,
+        "y": 1025
+      },
+      "params": {
+        "data": "{\"x\":\"well\",\"y\":0}"
+      },
+      "description": "",
+      "status": "success"
+    },
+    {
+      "id": "mpqnlodkmttm",
+      "type": "data.transform",
+      "label": "? +",
+      "position": {
+        "x": 975,
+        "y": 1025
+      },
+      "params": {
+        "field": "x",
+        "operation": "concat_after",
+        "operand": "well2",
+        "targetField": ""
+      },
+      "description": "",
+      "status": "success"
+    },
+    {
+      "id": "mpqnmd4dhttl",
+      "type": "flow.notify",
+      "label": "弹窗通知",
+      "position": {
+        "x": 975,
+        "y": 675
+      },
+      "params": {
+        "type": "info",
+        "message": "$main.x",
+        "description": "",
+        "duration": 4500
+      },
+      "description": "",
+      "status": "success"
+    },
+    {
+      "id": "mpqnodq5u5tk",
+      "type": "rs232.send",
+      "label": "没有配置COM端口",
+      "position": {
+        "x": 1225,
+        "y": 825
+      },
+      "params": {
+        "portName": "COM4",
+        "baudRate": 9600,
+        "dataBits": 8,
+        "parity": "none",
+        "stopBits": 1,
+        "flowControl": "none",
+        "timeoutMs": 1000,
+        "encoding": "utf-8",
+        "payload": "$data.x",
+        "mode": "ascii",
+        "appendCr": true,
+        "appendLf": true,
+        "autoSend": false,
+        "autoSendIntervalMs": 1000
+      },
+      "description": "",
+      "status": "failure",
+      "__routing": {
+        "method": "POST",
+        "endpoint": "/api/rs232/send",
+        "paramLocation": "body",
+        "bodyGroup": {
+          "port": [
+            "portName",
+            "baudRate",
+            "dataBits",
+            "parity",
+            "stopBits",
+            "flowControl",
+            "timeoutMs",
+            "encoding"
+          ],
+          "send": [
+            "mode",
+            "payload",
+            "appendCr",
+            "appendLf",
+            "autoSend",
+            "autoSendIntervalMs"
+          ]
+        }
+      }
+    },
+    {
+      "id": "mpqnp7ycj0ex",
+      "type": "flow.countdown",
+      "label": "倒计时 5秒",
+      "position": {
+        "x": 750,
+        "y": 825
+      },
+      "params": {
+        "minutes": 0,
+        "seconds": 1
+      },
+      "description": "",
+      "status": "success"
+    },
+    {
+      "id": "mpqnrft6zto9",
+      "type": "flow.notify",
+      "label": "弹窗通知",
+      "position": {
+        "x": 1500,
+        "y": 650
+      },
+      "params": {
+        "type": "info",
+        "message": "$main.error",
+        "description": "",
+        "duration": 4500
+      },
+      "description": "",
+      "status": "success"
+    },
+    {
+      "id": "mpqnsx8z72cx",
+      "type": "data.log",
+      "label": "日志输出上游数据",
+      "position": {
+        "x": 1525,
+        "y": 1025
+      },
+      "params": {},
+      "description": "",
+      "status": "success"
     }
   ],
   "edges": [
@@ -64,9 +371,107 @@
       "target": "mppaq6g3acim",
       "sourceHandle": "main",
       "targetHandle": "main"
+    },
+    {
+      "id": "mpqldawi7fe9",
+      "source": "mpql7wuqh53n",
+      "target": "mpqld965856y",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mpqlm0256vjs",
+      "source": "mpqld965856y",
+      "target": "mpqka2fq7yc9",
+      "sourceHandle": "main",
+      "targetHandle": "data"
+    },
+    {
+      "id": "mpqlnwxbm5gf",
+      "source": "mpp9vh3nnys9",
+      "target": "mpqka2fq7yc9",
+      "sourceHandle": "main",
+      "targetHandle": "port"
+    },
+    {
+      "id": "mpqloaf0bbfg",
+      "source": "mppaq6g3acim",
+      "target": "mpql7wuqh53n",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mpqnjo7xfojc",
+      "source": "mppaq6g3acim",
+      "target": "mpqnjl61phoo",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mpqnjqqjx49n",
+      "source": "mpqnjl61phoo",
+      "target": "mpqka2fq7yc9",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mpqnlyjza17i",
+      "source": "mpqnllmj3wcq",
+      "target": "mpqnlodkmttm",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mpqnmedlmh9x",
+      "source": "mpqnlodkmttm",
+      "target": "mpqnmd4dhttl",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mpqnovk5kms6",
+      "source": "mpqnlodkmttm",
+      "target": "mpqnodq5u5tk",
+      "sourceHandle": "main",
+      "targetHandle": "data"
+    },
+    {
+      "id": "mpqnp1mtijte",
+      "source": "mpqnl6j2gglt",
+      "target": "mpqnllmj3wcq",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mpqnp9ogsury",
+      "source": "mpqnl6j2gglt",
+      "target": "mpqnp7ycj0ex",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mpqnpcaiak11",
+      "source": "mpqnp7ycj0ex",
+      "target": "mpqnodq5u5tk",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mpqnrhcnf82e",
+      "source": "mpqnodq5u5tk",
+      "target": "mpqnrft6zto9",
+      "sourceHandle": "error",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mpqnsym5yjhw",
+      "source": "mpqnodq5u5tk",
+      "target": "mpqnsx8z72cx",
+      "sourceHandle": "error",
+      "targetHandle": "main"
     }
   ],
   "createdAt": "2026-05-28T08:31:50.313Z",
-  "updatedAt": "2026-05-28T09:34:02.889Z",
+  "updatedAt": "2026-05-29T08:30:18.817Z",
   "canvasSettings": {}
 }

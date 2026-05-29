@@ -76,6 +76,12 @@ export interface NodePort {
   name: string
   displayName: string
   description?: string
+  /**
+   * 该端口收到数据时是否触发节点执行。默认 true。
+   * 设为 false 表示纯数据端口（如 rs232.send 的 data/port），
+   * 数据会传入 upstreamData 但不触发执行，需等待 main 端口信号。
+   */
+  triggers?: boolean
 }
 
 // ─── HTTP 路由 ────────────────────────────────────────────────
@@ -105,14 +111,16 @@ export interface NodeRouting {
   /**
    * 嵌套 body 分组（可选）。
    * key 为嵌套对象名，value 为归入该对象的 param key 列表。
+   * 字符串元素 → param 名与后端字段名相同；
+   * 二元组 [paramKey, backendField] → param 名映射为不同的后端字段名。
    * 未归入任何组的 param 放在 root 层。
    *
    * @example
-   * // node.params = { portName: 'COM3', baudRate: 9600, mode: 'ascii' }
-   * // bodyGroup = { port: ['portName', 'baudRate'], receive: ['mode'] }
+   * // node.params = { portName: 'COM3', baudRate: 9600, receiveMode: 'ascii' }
+   * // bodyGroup = { port: ['portName', 'baudRate'], receive: [['receiveMode', 'mode']] }
    * // → body: { port: { portName: 'COM3', baudRate: 9600 }, receive: { mode: 'ascii' } }
    */
-  bodyGroup?: Record<string, string[]>
+  bodyGroup?: Record<string, (string | [string, string])[]>
 }
 
 // ─── 节点分类 ─────────────────────────────────────────────────

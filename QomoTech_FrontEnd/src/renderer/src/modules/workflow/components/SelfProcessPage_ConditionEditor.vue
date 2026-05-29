@@ -2,19 +2,22 @@
 // SelfProcessPage_ConditionEditor.vue — IF 节点条件列表编辑器
 //
 // 每行：输入端口选择 → 字段名 → 运算符 → 比较值 → 删除
+// 字段和值支持 $ 表达式引用上游数据，可通过数据树点击插入
 // 底部 + 添加条件按钮
 
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import AppSelect from '../UI/AppSelect.vue'
 import AppInput from '../UI/AppInput.vue'
 import AppButton from '../UI/AppButton.vue'
 import { CONDITION_OPERATORS } from '../constants/conditionOperators'
+import { TreeItem } from './SelfProcessPage_NodeSettings.vue'
 import type { IfCondition } from '../types/workflow'
 
 const props = defineProps<{
   conditions: IfCondition[] | unknown
   inputNames: { name: string; displayName: string }[]
   upstreamFields?: Record<string, string[]>
+  upstreamOutputData?: Record<string, Record<string, unknown>>
   mode?: string
 }>()
 
@@ -27,6 +30,29 @@ const list = computed(() =>
 const inputOptions = computed(() =>
   props.inputNames.map(n => ({ label: n.displayName, value: n.name }))
 )
+
+// 数据树弹出状态: { rowIndex, target: 'field' | 'value' } | null
+const treeTarget = ref<{ row: number; target: 'field' | 'value' } | null>(null)
+
+function openTree(row: number, target: 'field' | 'value'): void {
+  treeTarget.value = treeTarget.value?.row === row && treeTarget.value?.target === target ? null : { row, target }
+}
+
+function onSelectPath(path: string): void {
+  if (!treeTarget.value) return
+  const expr = '$' + path
+  if (treeTarget.value.target === 'field') {
+    patch(treeTarget.value.row, { field: expr })
+  } else {
+    patch(treeTarget.value.row, { value: expr })
+  }
+  treeTarget.value = null
+}
+
+const hasUpstreamData = computed(() => {
+  const d = props.upstreamOutputData
+  return d && Object.keys(d).length > 0
+})
 
 function firstInputName(): string {
   return props.inputNames[0]?.name ?? 'main'
@@ -54,8 +80,9 @@ function patch(index: number, p: Partial<IfCondition>): void {
   emit('update:conditions', next)
 }
 
-/** 数字类型的比较值用数字，否则用字符串 */
+/** 支持 $ 表达式：以 $ 开头则保留字符串，否则数字类型转 number */
 function castValue(raw: string): string | number {
+  if (raw.startsWith('$')) return raw
   const n = Number(raw)
   return raw !== '' && !isNaN(n) ? n : raw
 }
@@ -63,6 +90,11 @@ function castValue(raw: string): string | number {
 /** 获取指定输入端口的可用字段名列表 */
 function fieldsFor(portName: string): string[] {
   return props.upstreamFields?.[portName] ?? []
+}
+
+/** 当前行展示的数据端口（与该行条件引用的端口一致） */
+function dataForPort(portName: string): Record<string, unknown> | undefined {
+  return props.upstreamOutputData?.[portName]
 }
 </script>
 
@@ -106,9 +138,14 @@ function fieldsFor(portName: string): string[] {
         <AppInput
           :model-value="cond.field"
           placeholder="字段"
-          class="w-[56px] shrink-0"
+          class="w-[72px] shrink-0"
           @update:model-value="patch(idx, { field: $event as string })"
         />
+        <button
+          class="cursor-pointer shrink-0 rounded px-1 py-1 text-[10px] text-(--app-text-muted) hover:text-(--app-text-primary) hover:bg-black/5 transition-colors"
+          title="从上游数据树选择字段"
+          @click="openTree(idx, 'field')"
+        >🌲</button>
 
         <!-- 运算符 -->
         <AppSelect
@@ -125,6 +162,11 @@ function fieldsFor(portName: string): string[] {
           class="min-w-0 flex-1"
           @update:model-value="patch(idx, { value: castValue($event as string) })"
         />
+        <button
+          class="cursor-pointer shrink-0 rounded px-1 py-1 text-[10px] text-(--app-text-muted) hover:text-(--app-text-primary) hover:bg-black/5 transition-colors"
+          title="从上游数据树选择值"
+          @click="openTree(idx, 'value')"
+        >🌲</button>
 
         <!-- 删除 -->
         <AppButton
@@ -135,6 +177,38 @@ function fieldsFor(portName: string): string[] {
         >
           &times;
         </AppButton>
+      </div>
+
+      <!-- 数据树弹出 -->
+      <div
+        v-if="treeTarget && treeTarget.row === idx"
+        class="mt-1.5 rounded-lg border border-(--app-border) bg-(--app-card) py-1"
+      >
+        <div class="flex items-center justify-between px-2 pb-1">
+          <span class="text-[10px] text-(--app-text-muted)">
+            选择上游数据 → 填入{{ treeTarget.target === 'field' ? '字段' : '值' }}
+          </span>
+          <button
+            class="cursor-pointer text-[11px] text-(--app-text-muted) hover:text-(--app-text-primary)"
+            @click="treeTarget = null"
+          >✕</button>
+        </div>
+        <div v-if="hasUpstreamData" class="max-h-[160px] wf-scroll-y">
+          <template v-for="(val, key) in upstreamOutputData" :key="key">
+            <TreeItem
+              :name="key"
+              :value="val"
+              :path="key"
+              :depth="0"
+              @select="onSelectPath"
+            />
+          </template>
+        </div>
+        <div v-else class="px-2 pb-2">
+          <p class="text-[10px] text-(--app-text-muted)">
+            请先运行一次上游节点，执行后可查看数据树
+          </p>
+        </div>
       </div>
 
       <!-- 上游字段提示 -->

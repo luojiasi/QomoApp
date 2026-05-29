@@ -109,6 +109,11 @@ function makeDefaultLabel(def: NodeTypeDef): string {
     return '串口关闭'
   }
 
+  if (def.type === 'rs232.send') {
+    const payload = (d.payload as string) ?? ''
+    return payload ? `发送 ${payload.substring(0, 12)}` : '串口数据发送'
+  }
+
   if (def.type === 'data.create') {
     const raw = (d.data as string) ?? '{}'
     try {
@@ -129,6 +134,12 @@ function makeDefaultLabel(def: NodeTypeDef): string {
 
   if (def.type === 'flow.notify') {
     return '弹窗通知'
+  }
+
+  if (def.type === 'flow.wait_all') {
+    const extra = (d.extraInputCount as number) ?? 0
+    const total = 2 + extra
+    return `等待 ${total} 端口`
   }
 
   if (def.type === 'data.log') {

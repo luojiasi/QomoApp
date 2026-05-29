@@ -7,15 +7,17 @@
 
 import type { WorkflowNode } from '../../../types/workflow'
 import type { NodeRunResult } from '../../../types/workflowExecution'
+import { resolveParams } from '../../../utils/resolveUpstreamExpr'
 
 export async function executeTransform(
   node: WorkflowNode,
   upstreamData: Record<string, Record<string, unknown>>
 ): Promise<NodeRunResult> {
-  const field     = (node.params.field as string) ?? ''
-  const operation = (node.params.operation as string) ?? 'add'
-  const operand   = (node.params.operand as string) ?? ''
-  const targetField = (node.params.targetField as string) || field
+  const params = resolveParams(node.params, upstreamData)
+  const field     = (params.field as string) ?? ''
+  const operation = (params.operation as string) ?? 'add'
+  const operand   = (params.operand as string) ?? ''
+  const targetField = (params.targetField as string) || field
   const inputData = upstreamData['main']
 
   if (!inputData) {

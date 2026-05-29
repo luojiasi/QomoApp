@@ -8,7 +8,7 @@
 //   localExecutors/    → 本地执行器注册表（delay / condition / loop ...）
 //
 // 本文件只负责：
-//   - BFS 遍历调度（traverseAndExecute）
+//   - 递归并发遍历调度（traverseAndExecute）
 //   - 对外 API（executeWorkflow / executeFromNode / validateWorkflow）
 // ─────────────────────────────────────────────────────────────
 
@@ -18,22 +18,18 @@ import { findTriggerNodes, resolveGlobalEntryTriggers } from './triggerService'
 import { findDownstreamNodeIds, buildTriggerEntries } from './graphTraversal'
 import { executeSingleNode } from './nodeRunner'
 import { resetLoopState } from './localExecutors/index'
+import { NODE_REGISTRY } from '../definitions/index'
 
 // ═══════════════════════════════════════════════════════════════
-// BFS 遍历执行
+// 递归并发遍历执行
 // ═══════════════════════════════════════════════════════════════
 
 const MAX_EXECUTIONS_PER_NODE = 500
 
-interface QueueEntry {
-  nodeId: string
-  /** 循环穿行序号，回边时 +1 */
-  loopPass: number
-}
-
 /**
- * 从 startNodeId 出发，BFS 遍历所有下游节点并逐个执行。
- * 支持 WHILE 循环：loop 端口回边让节点重新入队，loopPass 递增。
+ * 从 startNodeId 出发，递归遍历下游节点并执行。
+ * 节点有多个下游时用 Promise.all 并发分叉，每条分支内顺序执行。
+ * 支持 WHILE 循环：loop 端口回边递归调用 runChain，loopPass 递增。
  * 每节点执行上限 MAX_EXECUTIONS_PER_NODE 防止死循环。
  */
 async function traverseAndExecute(
@@ -44,22 +40,18 @@ async function traverseAndExecute(
 ): Promise<NodeRunResult[]> {
   const results: NodeRunResult[] = []
   const executionCount = new Map<string, number>()
-  const queue: QueueEntry[] = [{ nodeId: startNodeId, loopPass: 0 }]
 
   resetLoopState()
 
-  while (queue.length > 0) {
-    const { nodeId, loopPass } = queue.shift()!
+  async function runChain(nodeId: string, loopPass: number): Promise<void> {
     const timesExecuted = executionCount.get(nodeId) ?? 0
-    if (timesExecuted >= MAX_EXECUTIONS_PER_NODE) continue
+    if (timesExecuted >= MAX_EXECUTIONS_PER_NODE) return
     executionCount.set(nodeId, timesExecuted + 1)
 
     const node = nodes.find(n => n.id === nodeId)
-    if (!node || node.disabled) continue
+    if (!node || node.disabled) return
 
-    // 收集上游数据：从已执行节点的输出中，按 edges 的目标端口组合
-    // 同一端口有多个来源时合并（浅层），不覆盖
-    // 反向查找取最新结果（循环场景下同名节点可能执行多次）
+    // 收集上游数据
     const upstreamData: Record<string, Record<string, unknown>> = {}
     for (const edge of edges) {
       if (edge.target === nodeId) {
@@ -74,6 +66,17 @@ async function traverseAndExecute(
       }
     }
 
+    // 检查是否有触发端口收到数据，没有则跳过（纯数据端口不触发执行）
+    const hasAnyData = Object.keys(upstreamData).length > 0
+    if (hasAnyData) {
+      const def = NODE_REGISTRY[node.type]
+      const triggerPorts = new Set(
+        (def?.inputs ?? []).filter(p => p.triggers !== false).map(p => p.name)
+      )
+      const hasTrigger = Object.keys(upstreamData).some(k => triggerPorts.has(k))
+      if (!hasTrigger) return
+    }
+
     callbacks?.onNodeStarted?.(nodeId)
 
     const result = await executeSingleNode(node, upstreamData, callbacks)
@@ -82,26 +85,32 @@ async function traverseAndExecute(
 
     callbacks?.onNodeCompleted?.(result)
 
-    // 失败走 error 端口（已连线则继续，未连线则停）；成功/警告按 targetPort 走下游
+    // 获取下游节点，多个时并发分叉
+    // targetPort 为空字符串 '' 表示跳过，不触发任何下游
+    if (result.targetPort === '') return
+
     if (result.status === 'failure') {
       const errorDownstream = findDownstreamNodeIds(nodeId, 'error', edges)
-      for (const downId of errorDownstream) {
-        queue.push({ nodeId: downId, loopPass })
+      if (errorDownstream.length > 0) {
+        await Promise.all(errorDownstream.map(downId => runChain(downId, loopPass)))
       }
     } else {
-      const port = result.targetPort ?? 'main'
+      const port = result.targetPort || 'main'
       const downstream = findDownstreamNodeIds(nodeId, port, edges)
-      for (const downId of downstream) {
-        // 回边（targetHandle === 'loop'）→ loopPass +1，允许循环节点重新执行
-        const backEdge = edges.find(
-          e => e.source === nodeId && e.target === downId && (e.sourceHandle ?? 'main') === port
-        )
-        const isLoopBack = backEdge?.targetHandle === 'loop'
-        queue.push({ nodeId: downId, loopPass: isLoopBack ? loopPass + 1 : loopPass })
+      if (downstream.length > 0) {
+        const tasks = downstream.map(downId => {
+          const backEdge = edges.find(
+            e => e.source === nodeId && e.target === downId && (e.sourceHandle ?? 'main') === port
+          )
+          const isLoopBack = backEdge?.targetHandle === 'loop'
+          return runChain(downId, isLoopBack ? loopPass + 1 : loopPass)
+        })
+        await Promise.all(tasks)
       }
     }
   }
 
+  await runChain(startNodeId, 0)
   return results
 }
 

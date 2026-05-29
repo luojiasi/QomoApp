@@ -75,7 +75,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import SvgIcon from '@/shared/components/SvgIcon.vue'
 import type { AddNotificationInput, NotificationItem } from '@/shared/types'
 
@@ -84,6 +84,21 @@ import type { AddNotificationInput, NotificationItem } from '@/shared/types'
 const notifications = ref<NotificationItem[]>([])
 
 const DEFAULT_DURATION = 4500
+
+// ── 全局秒级时钟（驱动时间戳实时更新） ────────────
+
+const now = ref(Date.now())
+let nowTimer: ReturnType<typeof setInterval> | null = null
+
+onMounted(() => {
+  nowTimer = setInterval(() => {
+    now.value = Date.now()
+  }, 1000)
+})
+
+onUnmounted(() => {
+  if (nowTimer) clearInterval(nowTimer)
+})
 
 // ── 图标映射 ────────────────────────────────────────
 
@@ -132,12 +147,16 @@ function progressBarClass(type: string): string {
 // ── 相对时间 ────────────────────────────────────────
 
 function formatRelativeTime(ts: number): string {
-  const diff = Date.now() - ts
-  if (diff < 60_000) return '刚刚'
+  const diff = now.value - ts
+  if (diff < 1_000) return '刚刚'
+  if (diff < 60_000) return `${Math.floor(diff / 1000)}秒前`
   const mins = Math.floor(diff / 60_000)
-  if (mins < 60) return `${mins} 分钟前`
+  if (mins < 60) return `${mins}分钟前`
   const date = new Date(ts)
-  return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`
+  const h = date.getHours().toString().padStart(2, '0')
+  const m = date.getMinutes().toString().padStart(2, '0')
+  const s = date.getSeconds().toString().padStart(2, '0')
+  return `${h}:${m}:${s}`
 }
 
 // ── 计时器 ──────────────────────────────────────────

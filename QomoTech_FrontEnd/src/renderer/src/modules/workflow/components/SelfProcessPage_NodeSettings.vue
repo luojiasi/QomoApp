@@ -224,6 +224,7 @@ function setDescription(value: string): void {
                   :conditions="node.params[param.name]"
                   :input-names="availableInputNames"
                   :upstream-fields="upstreamFields"
+                  :upstream-output-data="upstreamOutputData"
                   :mode="(node.params.conditionMode as string) ?? 'AND'"
                   @update:conditions="setParam(param.name, $event as IfCondition[])"
                   @update:mode="setParam('conditionMode', $event)"
@@ -404,16 +405,17 @@ export const TreeItem = defineComponent({
               : null,
           ],
         ),
-        ...children.map((child) =>
-          h(TreeItem, {
-            key: props.path + '.' + child.key,
+        ...children.map((child) => {
+          const sep = /^\[/.test(child.key) ? '' : '.'
+          return h(TreeItem, {
+            key: props.path + sep + child.key,
             name: child.key,
             value: child.val,
-            path: props.path + '.' + child.key.replace(/^\[(\d+)\]$/, '[$1]'),
+            path: props.path + sep + child.key,
             depth: props.depth + 1,
             onSelect: (p: string) => emit('select', p),
-          }),
-        ),
+          })
+        }),
       ])
     }
   },

@@ -5,6 +5,7 @@
 // ─────────────────────────────────────────────────────────────
 
 import type { IfCondition } from '../../../types/workflow'
+import { resolveExpr } from '../../../utils/resolveUpstreamExpr'
 
 /** 两个值按运算符比较，自动识别数字/字符串类型 */
 export function compare(a: unknown, b: unknown, op: string): boolean {
@@ -26,10 +27,22 @@ export function compare(a: unknown, b: unknown, op: string): boolean {
   }
 }
 
+/** 解析值中的 $ 表达式 */
+function resolveMaybeExpr(
+  raw: string | number,
+  upstreamData: Record<string, Record<string, unknown>>
+): unknown {
+  if (typeof raw === 'string' && raw.startsWith('$')) {
+    return resolveExpr(raw, upstreamData) ?? raw
+  }
+  return raw
+}
+
 /**
  * 按条件列表 + 模式评估上游数据。
  * 每条条件按 inputName 从 upstreamData 取对应端口数据，
  * 再按 field 钻取字段，与 value 比较。
+ * field 和 value 支持 $ 表达式引用上游数据。
  *
  * @returns AND 模式全满足 / OR 模式任一满足 → true
  */
@@ -41,10 +54,13 @@ export function evaluateConditions(
   if (mode === 'OR') {
     for (const cond of conditions) {
       const inputData = upstreamData[cond.inputName]
-      const value = cond.field
-        ? (inputData as Record<string, unknown>)?.[cond.field]
+      const resolvedField = resolveMaybeExpr(cond.field, upstreamData) as string
+      const fieldName = String(resolvedField ?? cond.field)
+      const actualValue = cond.field
+        ? (inputData as Record<string, unknown>)?.[fieldName]
         : inputData
-      if (compare(value, cond.value, cond.operator)) return true
+      const expectedValue = resolveMaybeExpr(cond.value, upstreamData)
+      if (compare(actualValue, expectedValue, cond.operator)) return true
     }
     return false
   }
@@ -52,10 +68,13 @@ export function evaluateConditions(
   // AND（默认）
   for (const cond of conditions) {
     const inputData = upstreamData[cond.inputName]
-    const value = cond.field
-      ? (inputData as Record<string, unknown>)?.[cond.field]
+    const resolvedField = resolveMaybeExpr(cond.field, upstreamData) as string
+    const fieldName = String(resolvedField ?? cond.field)
+    const actualValue = cond.field
+      ? (inputData as Record<string, unknown>)?.[fieldName]
       : inputData
-    if (!compare(value, cond.value, cond.operator)) return false
+    const expectedValue = resolveMaybeExpr(cond.value, upstreamData)
+    if (!compare(actualValue, expectedValue, cond.operator)) return false
   }
   return true
 }

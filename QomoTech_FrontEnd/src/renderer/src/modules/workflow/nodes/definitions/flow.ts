@@ -273,6 +273,42 @@ const loopEnd: NodeTypeDef = {
 }
 
 /**
+ * 等待节点完成（并行汇聚）
+ * 等待所有输入端口都收到数据后，合并输出继续下游。
+ *
+ * 本地执行（executeAs: 'wait_all'），不调用后端。
+ */
+const waitAll: NodeTypeDef = {
+  type: 'flow.wait_all',
+  category: 'flow',
+  displayName: '等待节点完成',
+  icon: '⏳',
+  color: '#c2410c',
+  description: '等待所有输入端口全部收到数据后，合并数据继续执行下游',
+  version: 1,
+  inputs: [
+    { name: 'in_1', displayName: '输入1' },
+    { name: 'in_2', displayName: '输入2' }
+  ],
+  outputs: [{ name: 'main', displayName: '完成' }],
+  params: [
+    {
+      name: 'extraInputCount',
+      displayName: '额外输入端口数',
+      type: 'number',
+      default: 0,
+      required: false,
+      description: '需等待的分支总数-2（如3个分支填1），未连接的端口悬空即可',
+      placeholder: '0'
+    }
+  ],
+  defaults: {
+    extraInputCount: 0
+  },
+  executeAs: 'wait_all'
+}
+
+/**
  * 弹窗通知节点
  * 执行时在页面右上角弹出通知弹窗。
  *
@@ -340,4 +376,4 @@ const notify: NodeTypeDef = {
   executeAs: 'notify'
 }
 
-export const flowDefs: NodeTypeDef[] = [delay, countdown, schedule, condition, loop, loopEnd, notify]
+export const flowDefs: NodeTypeDef[] = [delay, countdown, schedule, condition, loop, loopEnd, waitAll, notify]

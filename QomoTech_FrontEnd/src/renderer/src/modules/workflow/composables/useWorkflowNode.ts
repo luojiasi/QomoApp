@@ -102,12 +102,14 @@ export function useWorkflowNode(props: NodeProps) {
         store.setNodeStatusText(r.nodeId, r.targetPort && r.targetPort !== 'main' ? r.targetPort : null)
         const rName = wf.nodes.find(n => n.id === r.nodeId)?.label ?? r.nodeId
         let msg: string
-        const detail = (r.output?.message as string) ?? r.error ?? ''
         if (r.status === 'success') {
-          msg = `节点 "${rName}" 执行成功`
+          const detail = (r.output?.message as string) ?? r.error ?? ''
+          msg = `节点 "${rName}" 执行成功${detail ? `：${detail}` : ''}`
         } else if (r.status === 'failure') {
+          const detail = r.error ?? (r.output?.message as string) ?? ''
           msg = `节点 "${rName}" 执行失败${detail ? `：${detail}` : ''}`
         } else {
+          const detail = (r.output?.message as string) ?? r.error ?? ''
           msg = `节点 "${rName}" 执行完成${detail ? `（${detail}）` : ''}`
         }
         store.addLog({ nodeId: r.nodeId, nodeName: rName, status: r.status, message: msg })

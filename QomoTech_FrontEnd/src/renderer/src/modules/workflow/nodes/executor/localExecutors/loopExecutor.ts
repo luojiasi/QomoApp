@@ -65,7 +65,7 @@ function fail(node: WorkflowNode, msg: string): NodeRunResult {
 
 /** 忽略本次调用（BFS 残留数据触发的冗余调用），不输出任何端口 */
 function skip(node: WorkflowNode): NodeRunResult {
-  return { nodeId: node.id, nodeType: node.type, status: 'success', output: {}, targetPort: undefined }
+  return { nodeId: node.id, nodeType: node.type, status: 'success', output: {}, targetPort: '' }
 }
 
 function hasData(d: Record<string, unknown> | undefined): d is Record<string, unknown> {

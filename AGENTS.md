@@ -258,7 +258,8 @@ node.params.portName = '$main.data.ports[0].name'  → 从 upstreamData 动态�
 1. 在对应 `nodes/definitions/*.ts` 增加 `NodeTypeDef` 对象
 2. 加入该文件的导出数组，`index.ts` 已自动汇总
 3. 在 `utils/workflowUtils.ts` 的 `makeDefaultLabel()` 添加默认标签
-4. 无需改卡片/菜单/参数面板（自动从注册表读取）
+4. **若节点有 `routing` 字段：必须主动询问用户是否需要第三层自定义响应校验（见 §4.8）**
+5. 无需改卡片/菜单/参数面板（自动从注册表读取）
 
 **NodeTypeDef 关键字段：**
 
@@ -341,6 +342,45 @@ nodes/executor/
 - `onNodeCompleted(result)` — 每节点完成后触发，外部设 success/failure/warning 状态
 
 引擎不直接操作 store，所有状态更新通过回调由 composable 层完成。
+
+### 4.8 响应校验三层架构
+
+所有走 `routing` 的 HTTP 节点（如 `rs232.connect`、`camera.connect`），响应校验分三层，**全部通过才算成功**：
+
+| 层级 | 检查点 | 文件 | 失败时 |
+|------|--------|------|--------|
+| 第1层 | `res.ok`（HTTP 状态码） | `responseValidator.ts` | `HTTP {status}: {message}` |
+| 第2层 | 响应体 `success === true` | `responseValidator.ts` | 响应体 `message` 字段 |
+| 第3层 | 节点级自定义规则 | `nodeResponseRules.ts` | 规则返回的 `error` |
+
+**第三层校验规则注册表** → `nodes/executor/nodeResponseRules.ts`
+
+校验函数签名：
+
+```typescript
+type NodeResponseRule = (body: unknown) => { ok: boolean; error?: string }
+```
+
+`body` 为后端返回的完整 ApiResponse 对象 `{ success, message, data, httpStatus }`。
+
+**新增规则**只需在 `rules` 对象中注册：
+
+```typescript
+// nodeResponseRules.ts
+const rules: Record<string, NodeResponseRule> = {
+  'rs232.connect': (body) => {
+    const data = (body as any).data
+    if (data?.connected !== true) {
+      return { ok: false, error: '串口未成功连接' }
+    }
+    return { ok: true }
+  },
+}
+```
+
+**强制规则 — 新增有 `routing` 的节点时：**
+
+> 每新增一个带 `routing` 的节点定义，**必须主动询问用户**："该节点是否需要第三层自定义响应校验？" 用户确认不需要后才能跳过。
 
 ---
 

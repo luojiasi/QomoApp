@@ -9,29 +9,34 @@
 import type { WorkflowNode } from '../../types/workflow'
 import type { NodeRunResult, ExecutionCallbacks } from '../../types/workflowExecution'
 import { resolveParams } from '../../utils/resolveUpstreamExpr'
+import { validateApiResponse } from './responseValidator'
 
 const BASE_URL = 'http://127.0.0.1:5000'
 const REQUEST_TIMEOUT_MS = 15000
 
 /**
  * 将扁平 params 按 bodyGroup 重组为嵌套对象。
+ * bodyGroup 元素支持两种格式：
+ *   字符串 → param 名与后端字段名相同
+ *   二元组 [paramKey, backendField] → 重命名映射
  * 未归入任何组的 key 放在顶层。
  */
 function buildBody(
   params: Record<string, unknown>,
-  bodyGroup?: Record<string, string[]>
+  bodyGroup?: Record<string, (string | [string, string])[]>
 ): Record<string, unknown> {
   if (!bodyGroup) return params
 
   const grouped: Record<string, unknown> = {}
   const used = new Set<string>()
 
-  for (const [groupKey, keys] of Object.entries(bodyGroup)) {
+  for (const [groupKey, entries] of Object.entries(bodyGroup)) {
     grouped[groupKey] = {}
-    for (const k of keys) {
-      if (k in params) {
-        ;(grouped[groupKey] as Record<string, unknown>)[k] = params[k]
-        used.add(k)
+    for (const entry of entries) {
+      const [paramKey, backendKey] = Array.isArray(entry) ? entry : [entry, entry]
+      if (paramKey in params) {
+        ;(grouped[groupKey] as Record<string, unknown>)[backendKey] = params[paramKey]
+        used.add(paramKey)
       }
     }
   }
@@ -52,7 +57,7 @@ export async function executeHttp(
   callbacks?: ExecutionCallbacks
 ): Promise<NodeRunResult> {
   const routing = (node as any).__routing as {
-    method: string; endpoint: string; paramLocation?: string; bodyGroup?: Record<string, string[]>
+    method: string; endpoint: string; paramLocation?: string; bodyGroup?: Record<string, (string | [string, string])[]>
   }
   if (!routing) {
     return {
@@ -110,23 +115,22 @@ export async function executeHttp(
     })
     clearTimeout(timer)
 
-    let data: unknown
-    const text = await res.text()
-    try { data = JSON.parse(text) } catch { data = text || null }
+    const validated = await validateApiResponse(res, node.type)
 
-    if (!res.ok) {
+    if (!validated.ok) {
+      const errMsg = validated.error ?? `HTTP ${validated.httpStatus}`
       return {
         nodeId: node.id, nodeType: node.type, status: 'failure',
-        output: { ...(mainData as Record<string, unknown>), httpStatus: res.status },
-        error: `HTTP ${res.status}: ${JSON.stringify(data)}`
+        output: { ...(mainData as Record<string, unknown>), httpStatus: validated.httpStatus, error: errMsg },
+        error: errMsg
       }
     }
 
     const output: Record<string, unknown> = { ...(mainData as Record<string, unknown>) }
-    if (data && typeof data === 'object') {
-      Object.assign(output, data as Record<string, unknown>)
+    if (validated.data && typeof validated.data === 'object') {
+      Object.assign(output, validated.data as Record<string, unknown>)
     }
-    output.httpStatus = res.status
+    output.httpStatus = validated.httpStatus
     return {
       nodeId: node.id, nodeType: node.type, status: 'success',
       output
@@ -134,16 +138,18 @@ export async function executeHttp(
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
     if (msg.includes('abort')) {
+      const errMsg = `请求超时 (${timeout / 1000}s): ${method} ${endpoint}`
       return {
         nodeId: node.id, nodeType: node.type, status: 'failure',
-        output: { ...(mainData as Record<string, unknown>) },
-        error: `请求超时 (${timeout / 1000}s): ${method} ${endpoint}`
+        output: { ...(mainData as Record<string, unknown>), error: errMsg },
+        error: errMsg
       }
     }
+    const errMsg = `请求失败: ${msg}`
     return {
       nodeId: node.id, nodeType: node.type, status: 'failure',
-      output: { ...(mainData as Record<string, unknown>) },
-      error: `请求失败: ${msg}`
+      output: { ...(mainData as Record<string, unknown>), error: errMsg },
+      error: errMsg
     }
   }
 }

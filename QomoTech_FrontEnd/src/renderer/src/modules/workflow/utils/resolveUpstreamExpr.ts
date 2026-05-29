@@ -47,7 +47,14 @@ export function resolveParams(
   const resolved: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(params)) {
     if (typeof value === 'string' && (value as string).startsWith('$')) {
-      resolved[key] = resolveExpr(value as string, upstreamData) ?? value
+      const result = resolveExpr(value as string, upstreamData)
+      if (result === null || result === undefined) {
+        resolved[key] = value
+      } else if (typeof result === 'object') {
+        resolved[key] = result
+      } else {
+        resolved[key] = String(result)
+      }
     } else {
       resolved[key] = value
     }

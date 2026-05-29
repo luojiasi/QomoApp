@@ -11,6 +11,11 @@ import type { NodeRunResult } from '../../../types/workflowExecution'
 import type { IfCondition } from '../../../types/workflow'
 import { evaluateConditions } from './conditionUtils'
 
+/** 返回 skip 信号，不触发下游 */
+function skip(node: WorkflowNode): NodeRunResult {
+  return { nodeId: node.id, nodeType: node.type, status: 'success', output: {}, targetPort: '' }
+}
+
 export async function executeCondition(
   node: WorkflowNode,
   upstreamData: Record<string, Record<string, unknown>>
@@ -26,6 +31,13 @@ export async function executeCondition(
       output: { result: true, reason: '无条件' },
       targetPort: 'true'
     }
+  }
+
+  // 等待所有条件引用的输入端口都收到数据后再判断
+  const referencedPorts = new Set(conditions.map(c => c.inputName))
+  const missingPorts = [...referencedPorts].filter(p => !(p in upstreamData))
+  if (missingPorts.length > 0) {
+    return skip(node)
   }
 
   const passed = evaluateConditions(conditions, mode, upstreamData)

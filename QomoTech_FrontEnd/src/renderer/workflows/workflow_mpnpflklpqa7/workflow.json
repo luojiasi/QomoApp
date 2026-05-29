@@ -71,8 +71,8 @@
       "type": "data.transform",
       "label": "? +",
       "position": {
-        "x": 800,
-        "y": 350
+        "x": 900,
+        "y": 375
       },
       "params": {
         "field": "循环结构体",
@@ -89,7 +89,7 @@
       "label": "等待 1s",
       "position": {
         "x": 1425,
-        "y": 525
+        "y": 375
       },
       "params": {
         "duration": 1000
@@ -102,8 +102,8 @@
       "type": "flow.delay",
       "label": "等待 1s",
       "position": {
-        "x": 1550,
-        "y": 400
+        "x": 1625,
+        "y": 375
       },
       "params": {
         "duration": 1000
@@ -116,8 +116,8 @@
       "type": "flow.loop_end",
       "label": "循环结束",
       "position": {
-        "x": 875,
-        "y": 875
+        "x": 1625,
+        "y": 650
       },
       "params": {},
       "description": "",
@@ -144,10 +144,44 @@
       "label": "等待 1s",
       "position": {
         "x": 1925,
-        "y": 300
+        "y": 350
       },
       "params": {
         "duration": 1000
+      },
+      "description": "",
+      "status": "success"
+    },
+    {
+      "id": "mpqo0fk23qnz",
+      "type": "flow.notify",
+      "label": "弹窗通知",
+      "position": {
+        "x": 1925,
+        "y": 175
+      },
+      "params": {
+        "type": "info",
+        "message": "$main.message",
+        "description": "",
+        "duration": 4500
+      },
+      "description": "",
+      "status": "success"
+    },
+    {
+      "id": "mpqo0woxh63e",
+      "type": "flow.notify",
+      "label": "弹窗通知",
+      "position": {
+        "x": 700,
+        "y": 375
+      },
+      "params": {
+        "type": "info",
+        "message": "$main.循环结构体",
+        "description": "",
+        "duration": 4500
       },
       "description": "",
       "status": "success"
@@ -181,13 +215,6 @@
       "target": "mpntk9wdn6bz",
       "sourceHandle": "compute",
       "targetHandle": "main"
-    },
-    {
-      "id": "mpntkfrkbwgk",
-      "source": "mpntk9wdn6bz",
-      "target": "mpnr9ab5qml5",
-      "sourceHandle": "main",
-      "targetHandle": "compute_result"
     },
     {
       "id": "mpntkr2j1fpb",
@@ -230,9 +257,30 @@
       "target": "mpotu9gi220e",
       "sourceHandle": "main",
       "targetHandle": "main"
+    },
+    {
+      "id": "mpqo0guiyux2",
+      "source": "mpottirj0d7n",
+      "target": "mpqo0fk23qnz",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mpqo11ucsdq9",
+      "source": "mpntk9wdn6bz",
+      "target": "mpqo0woxh63e",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mpqo143yycft",
+      "source": "mpntk9wdn6bz",
+      "target": "mpnr9ab5qml5",
+      "sourceHandle": "main",
+      "targetHandle": "compute_result"
     }
   ],
   "createdAt": "2026-05-27T06:50:08.757Z",
-  "updatedAt": "2026-05-28T03:10:37.087Z",
+  "updatedAt": "2026-05-29T08:37:12.354Z",
   "canvasSettings": {}
 }

@@ -18,9 +18,15 @@ export async function executeNotify(
   const mainData = (upstreamData['main'] ?? {}) as Record<string, unknown>
   const params = resolveParams(node.params, upstreamData)
 
+  const rawMessage = params.message
+  const message = (rawMessage != null && rawMessage !== '')
+    ? (typeof rawMessage === 'object' ? JSON.stringify(rawMessage) : String(rawMessage))
+    : '通知'
+  const rawDescription = params.description
+  const description = (rawDescription != null && rawDescription !== '')
+    ? (typeof rawDescription === 'object' ? JSON.stringify(rawDescription) : String(rawDescription))
+    : ''
   const type = (params.type as string) || 'info'
-  const message = (params.message as string) || '通知'
-  const description = (params.description as string) || ''
   const duration = (params.duration as number) || 4500
 
   // 安全校验 type

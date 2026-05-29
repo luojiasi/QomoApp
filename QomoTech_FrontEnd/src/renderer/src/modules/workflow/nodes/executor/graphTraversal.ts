@@ -23,6 +23,24 @@ export function findDownstreamNodeIds(
     .map((e) => e.target)
 }
 
+/**
+ * 与 findDownstreamNodeIds 类似，但额外要求目标端口为 'main'。
+ * 非 main 端口（如 data、port）只传递数据，不触发下游节点执行。
+ */
+export function findExecutableDownstreamNodeIds(
+  sourceNodeId: string,
+  sourceHandle: string,
+  edges: WorkflowEdge[]
+): string[] {
+  return edges
+    .filter((e) =>
+      e.source === sourceNodeId &&
+      (e.sourceHandle ?? 'main') === sourceHandle &&
+      (e.targetHandle ?? 'main') === 'main'
+    )
+    .map((e) => e.target)
+}
+
 /** 给每个 trigger 节点填充 firstNodeId（main 端口的下游） */
 export function buildTriggerEntries(
   triggers: WorkflowNode[],

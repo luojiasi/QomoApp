@@ -8,8 +8,8 @@
       "type": "trigger.manual",
       "label": "手动触发",
       "position": {
-        "x": 675,
-        "y": -300
+        "x": 250,
+        "y": 25
       },
       "params": {},
       "description": "",
@@ -20,8 +20,8 @@
       "type": "test.http-ping",
       "label": "后端通讯测试",
       "position": {
-        "x": 675,
-        "y": 50
+        "x": 725,
+        "y": 25
       },
       "params": {
         "endpoint": "/api/health",
@@ -40,8 +40,8 @@
       "type": "flow.delay",
       "label": "等待 1s",
       "position": {
-        "x": 675,
-        "y": -125
+        "x": 500,
+        "y": 25
       },
       "params": {
         "duration": 1000
@@ -55,7 +55,7 @@
       "label": "等待 1s",
       "position": {
         "x": 675,
-        "y": 250
+        "y": 225
       },
       "params": {
         "duration": 1000
@@ -68,7 +68,7 @@
       "type": "flow.delay",
       "label": "等待 1s",
       "position": {
-        "x": 900,
+        "x": 1000,
         "y": 50
       },
       "params": {
@@ -83,7 +83,7 @@
       "label": "日志存储",
       "position": {
         "x": 675,
-        "y": 425
+        "y": 350
       },
       "params": {},
       "description": "",
@@ -94,8 +94,8 @@
       "type": "flow.notify",
       "label": "弹窗通知",
       "position": {
-        "x": 675,
-        "y": 575
+        "x": 950,
+        "y": 500
       },
       "params": {
         "type": "success",
@@ -111,8 +111,8 @@
       "type": "flow.notify",
       "label": "弹窗通知",
       "position": {
-        "x": 900,
-        "y": 425
+        "x": 950,
+        "y": 350
       },
       "params": {
         "type": "error",
@@ -176,6 +176,6 @@
     }
   ],
   "createdAt": "2026-05-28T01:19:00.566Z",
-  "updatedAt": "2026-05-28T06:57:15.843Z",
+  "updatedAt": "2026-05-29T08:32:57.697Z",
   "canvasSettings": {}
 }

@@ -1,0 +1,229 @@
+{
+  "id": "mpqn2yb0tjl8",
+  "name": "流程归一",
+  "description": "",
+  "nodes": [
+    {
+      "id": "mpqn303bvo68",
+      "type": "trigger.manual",
+      "label": "手动触发",
+      "position": {
+        "x": 425,
+        "y": 575
+      },
+      "params": {},
+      "description": "",
+      "status": "success"
+    },
+    {
+      "id": "mpqn53drmt0p",
+      "type": "flow.delay",
+      "label": "等待 1s",
+      "position": {
+        "x": 800,
+        "y": 250
+      },
+      "params": {
+        "duration": 1000
+      },
+      "description": "",
+      "status": "success"
+    },
+    {
+      "id": "mpqn54z6kmql",
+      "type": "data.create",
+      "label": "数据 {}",
+      "position": {
+        "x": 1000,
+        "y": 225
+      },
+      "params": {
+        "data": " {\"x1\":100,\"y1\":200}"
+      },
+      "description": "",
+      "status": "success"
+    },
+    {
+      "id": "mpqn5bdb9akq",
+      "type": "data.create",
+      "label": "数据 {}",
+      "position": {
+        "x": 900,
+        "y": 700
+      },
+      "params": {
+        "data": " {\"x2\":100,\"y2\":200}"
+      },
+      "description": "",
+      "status": "success"
+    },
+    {
+      "id": "mpqnbq0xqysk",
+      "type": "flow.delay",
+      "label": "等待 1s",
+      "position": {
+        "x": 1200,
+        "y": 225
+      },
+      "params": {
+        "duration": 2000
+      },
+      "description": "",
+      "status": "success"
+    },
+    {
+      "id": "mpqncr16yxli",
+      "type": "flow.delay",
+      "label": "等待归一之后才应该运行",
+      "position": {
+        "x": 1825,
+        "y": 500
+      },
+      "params": {
+        "duration": 1000
+      },
+      "description": "",
+      "status": "success"
+    },
+    {
+      "id": "mpqngwkazv9v",
+      "type": "flow.wait_all",
+      "label": "等待 2 端口",
+      "position": {
+        "x": 1575,
+        "y": 500
+      },
+      "params": {
+        "extraInputCount": 0
+      },
+      "description": "",
+      "status": "success"
+    },
+    {
+      "id": "mpqnwlmd87vm",
+      "type": "flow.notify",
+      "label": "弹窗通知",
+      "position": {
+        "x": 1150,
+        "y": 700
+      },
+      "params": {
+        "type": "info",
+        "message": "分支2已完成",
+        "description": "",
+        "duration": 4500
+      },
+      "description": "",
+      "status": "success"
+    },
+    {
+      "id": "mpqnx9ieqf6c",
+      "type": "flow.notify",
+      "label": "弹窗通知",
+      "position": {
+        "x": 1100,
+        "y": 425
+      },
+      "params": {
+        "type": "info",
+        "message": "分支1已完成",
+        "description": "",
+        "duration": 4500
+      },
+      "description": "",
+      "status": "success"
+    },
+    {
+      "id": "mpqnxx8u8guj",
+      "type": "flow.notify",
+      "label": "弹窗通知",
+      "position": {
+        "x": 2050,
+        "y": 500
+      },
+      "params": {
+        "type": "info",
+        "message": "操作完成",
+        "description": "",
+        "duration": 4500
+      },
+      "description": "",
+      "status": "success"
+    }
+  ],
+  "edges": [
+    {
+      "id": "mpqn57v58php",
+      "source": "mpqn303bvo68",
+      "target": "mpqn53drmt0p",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mpqn58hg52o5",
+      "source": "mpqn53drmt0p",
+      "target": "mpqn54z6kmql",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mpqn5o8y2mx5",
+      "source": "mpqn303bvo68",
+      "target": "mpqn5bdb9akq",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mpqnbrfm4ska",
+      "source": "mpqn54z6kmql",
+      "target": "mpqnbq0xqysk",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mpqnh31dnb6n",
+      "source": "mpqngwkazv9v",
+      "target": "mpqncr16yxli",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mpqnwngd2pww",
+      "source": "mpqn5bdb9akq",
+      "target": "mpqnwlmd87vm",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mpqnwrv2rqyp",
+      "source": "mpqnwlmd87vm",
+      "target": "mpqngwkazv9v",
+      "sourceHandle": "main",
+      "targetHandle": "in_1"
+    },
+    {
+      "id": "mpqnxfcpetgh",
+      "source": "mpqnbq0xqysk",
+      "target": "mpqnx9ieqf6c",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mpqnxhvnrpan",
+      "source": "mpqnx9ieqf6c",
+      "target": "mpqngwkazv9v",
+      "sourceHandle": "main",
+      "targetHandle": "in_2"
+    },
+    {
+      "id": "mpqnxyqnw262",
+      "source": "mpqncr16yxli",
+      "target": "mpqnxx8u8guj",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    }
+  ],
+  "createdAt": "2026-05-29T08:07:38.028Z",
+  "updatedAt": "2026-05-29T08:32:00.344Z",
+  "canvasSettings": {}
+}

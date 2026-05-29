@@ -124,8 +124,35 @@ const rs232Connect: NodeTypeDef = {
     paramLocation: 'body',
     bodyGroup: {
       port: ['portName', 'baudRate', 'dataBits', 'parity', 'stopBits', 'flowControl', 'timeoutMs', 'encoding'],
-      receive: ['receiveMode', 'maxBufferLines', 'showTimestamp', 'autoScroll']
+      receive: [['receiveMode', 'mode'], 'maxBufferLines', 'showTimestamp', 'autoScroll']
     }
+  }
+}
+/**
+ * 串口关闭节点
+ * 关闭当前打开的串口连接。
+ *
+ * 对应后端：POST /api/rs232/close
+ */
+const rs232Disconnect: NodeTypeDef = {
+  type: 'rs232.disconnect',
+  category: 'rs232',
+  displayName: '串口关闭',
+  icon: '⚡',
+  color: '#a16207',
+  description: '关闭当前串口连接',
+  version: 1,
+  inputs: [{ name: 'main', displayName: '执行' }],
+  outputs: [
+    { name: 'main', displayName: '完成' },
+    { name: 'error', displayName: '错误' }
+  ],
+  params: [],
+  defaults: {},
+  routing: {
+    method: 'POST',
+    endpoint: '/api/rs232/close',
+    paramLocation: 'body'
   }
 }
 
@@ -157,32 +184,106 @@ const rs232Detect: NodeTypeDef = {
   }
 }
 
+
+
 /**
- * 串口关闭节点
- * 关闭当前打开的串口连接。
+ * 串口数据发送节点
+ * 通过上游数据构建发送内容，调用已打开的串口发送数据。
  *
- * 对应后端：POST /api/rs232/close
+ * 对应后端：POST /api/rs232/send
+ * bodyGroup → { port: {...}, send: {...} }
+ *
+ * payload 支持 $ 表达式引用上游数据，如 $main.data.text。
+ * 端口参数（baudRate 等）为隐藏默认值，仅 portName 暴露给用户。
  */
-const rs232Disconnect: NodeTypeDef = {
-  type: 'rs232.disconnect',
+const rs232Send: NodeTypeDef = {
+  type: 'rs232.send',
   category: 'rs232',
-  displayName: '串口关闭',
+  displayName: '串口数据发送',
   icon: '⚡',
   color: '#a16207',
-  description: '关闭当前串口连接',
+  description: '通过上游数据构建发送内容，通过已打开的串口发送数据',
   version: 1,
-  inputs: [{ name: 'main', displayName: '执行' }],
+  inputs: [
+    { name: 'port', displayName: '端口', triggers: false },
+    { name: 'main', displayName: '执行' },
+    { name: 'data', displayName: '数据', triggers: false }
+  ],
   outputs: [
     { name: 'main', displayName: '完成' },
     { name: 'error', displayName: '错误' }
   ],
-  params: [],
-  defaults: {},
+  params: [
+    {
+      name: 'portName',
+      displayName: '端口名',
+      type: 'string',
+      default: 'COM3',
+      required: true,
+      description: '目标串口端口名，需与已打开的端口一致。连接 port 输入后可设为 $port.data.portName',
+      placeholder: 'COM3'
+    },
+    {
+      name: 'payload',
+      displayName: '发送数据',
+      type: 'expression',
+      default: '$data',
+      required: true,
+      description: '发送的字符串数据，默认从 data 端口获取，也可用 $data.xxx 引用具体字段',
+      placeholder: '$data'
+    },
+    {
+      name: 'mode',
+      displayName: '发送模式',
+      type: 'select',
+      default: 'ascii',
+      required: false,
+      description: '数据发送编码模式',
+      options: [
+        { label: 'ASCII', value: 'ascii' },
+        { label: 'HEX', value: 'hex' }
+      ]
+    },
+    {
+      name: 'appendCr',
+      displayName: '附加 CR',
+      type: 'boolean',
+      default: true,
+      description: '在发送数据末尾附加回车符 \\r'
+    },
+    {
+      name: 'appendLf',
+      displayName: '附加 LF',
+      type: 'boolean',
+      default: true,
+      description: '在发送数据末尾附加换行符 \\n'
+    }
+  ],
+  defaults: {
+    portName: 'COM3',
+    baudRate: 9600,
+    dataBits: 8,
+    parity: 'none',
+    stopBits: 1,
+    flowControl: 'none',
+    timeoutMs: 1000,
+    encoding: 'utf-8',
+    payload: '$data',
+    mode: 'ascii',
+    appendCr: true,
+    appendLf: true,
+    autoSend: false,
+    autoSendIntervalMs: 1000
+  },
   routing: {
     method: 'POST',
-    endpoint: '/api/rs232/close',
-    paramLocation: 'body'
+    endpoint: '/api/rs232/send',
+    paramLocation: 'body',
+    bodyGroup: {
+      port: ['portName', 'baudRate', 'dataBits', 'parity', 'stopBits', 'flowControl', 'timeoutMs', 'encoding'],
+      send: ['mode', 'payload', 'appendCr', 'appendLf', 'autoSend', 'autoSendIntervalMs']
+    }
   }
 }
 
-export const rs232Defs: NodeTypeDef[] = [rs232Connect, rs232Detect, rs232Disconnect]
+export const rs232Defs: NodeTypeDef[] = [rs232Connect, rs232Disconnect, rs232Detect, rs232Send]
