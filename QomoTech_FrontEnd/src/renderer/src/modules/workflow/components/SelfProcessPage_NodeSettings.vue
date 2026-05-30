@@ -3,10 +3,12 @@
 //
 // 显示当前选中节点的可编辑参数。
 // 节点蓝图（NodeTypeDef）中定义了哪些参数，这里动态渲染对应表单控件。
-import { computed, ref } from 'vue'
+import { computed, ref, watch, onUnmounted } from 'vue'
 import { useWorkflowStore } from '../store/useWorkflowStore'
 import { NODE_REGISTRY } from '../nodes/definitions/index'
 import { NODE_CATEGORY_STYLES } from '../constants/nodeStyles'
+import { executeDownstream } from '../nodes/executor/nodeExecutor'
+import { fetchRs232Buffer } from '@/modules/laser/api'
 import AppToggle from '../UI/AppToggle.vue'
 import AppSelect from '../UI/AppSelect.vue'
 import AppInput from '../UI/AppInput.vue'
@@ -131,6 +133,94 @@ const selectedRecipeId = computed({
     })
   }
 })
+
+// ── rs232.receive 监听开关 ────────────────────────────
+
+const isReceiveNode = computed(() => def.value?.type === 'rs232.receive')
+
+const monitoring = computed(() => !!(node.value?.params?.monitoring as boolean))
+
+const POLL_INTERVAL_MS = 250
+let pollTimer: ReturnType<typeof setInterval> | null = null
+let lastPollNodeId: string | null = null
+
+function stopPolling(): void {
+  if (pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
+  lastPollNodeId = null
+}
+
+function startPolling(nodeId: string, runMode: 'fullChain' | 'oneLayer'): void {
+  stopPolling()
+  lastPollNodeId = nodeId
+
+  pollTimer = setInterval(async () => {
+    if (lastPollNodeId !== nodeId) return
+
+    try {
+      const res = await fetchRs232Buffer(true)
+      const text = (res.data as { text?: string })?.text
+      if (!text || text.trim() === '') return
+
+      const wf = store.currentWorkflow
+      if (!wf) return
+
+      const output = { 串口数据: text }
+      store.setNodeOutput(nodeId, output)
+
+      await executeDownstream(wf, nodeId, output, runMode, {
+        onNodeStarted(id: string) {
+          store.setNodeStatus(id, 'running')
+        },
+        onNodeCompleted(r) {
+          store.setNodeOutput(r.nodeId, r.output as Record<string, unknown>)
+          store.setNodeStatus(r.nodeId, r.status)
+          store.setNodeStatusText(r.nodeId, r.targetPort && r.targetPort !== 'main' ? r.targetPort : null)
+          const rName = wf.nodes.find(n => n.id === r.nodeId)?.label ?? r.nodeId
+          let msg: string
+          if (r.status === 'success') {
+            const detail = (r.output?.message as string) ?? r.error ?? ''
+            msg = `节点 "${rName}" 执行成功${detail ? `：${detail}` : ''}`
+          } else if (r.status === 'failure') {
+            const detail = r.error ?? (r.output?.message as string) ?? ''
+            msg = `节点 "${rName}" 执行失败${detail ? `：${detail}` : ''}`
+          } else {
+            const detail = (r.output?.message as string) ?? r.error ?? ''
+            msg = `节点 "${rName}" 执行完成${detail ? `（${detail}）` : ''}`
+          }
+          store.addLog({ nodeId: r.nodeId, nodeName: rName, status: r.status, message: msg })
+        }
+      })
+    } catch {
+      // 轮询失败静默跳过
+    }
+  }, POLL_INTERVAL_MS)
+}
+
+function toggleMonitoring(on: boolean): void {
+  if (!node.value) return
+  const runMode = (node.value.params?.runMode as string) ?? 'fullChain'
+  store.updateNode(node.value.id, {
+    params: { ...node.value.params, monitoring: on }
+  })
+  if (on) {
+    store.setNodeStatus(node.value.id, 'running')
+    store.setNodeStatusText(node.value.id, 'ING')
+    startPolling(node.value.id, runMode as 'fullChain' | 'oneLayer')
+  } else {
+    store.setNodeStatus(node.value.id, 'idle')
+    store.setNodeStatusText(node.value.id, 'CLS')
+    stopPolling()
+  }
+}
+
+watch(() => node.value?.id, (newId, oldId) => {
+  if (oldId && oldId !== newId) stopPolling()
+})
+
+onUnmounted(() => stopPolling())
 </script>
 
 <template>
@@ -210,6 +300,19 @@ const selectedRecipeId = computed({
           <p class="mt-1 text-[10px] text-(--app-text-muted)">
             留空则使用主页配方面板中当前选中的配方
           </p>
+        </section>
+
+        <!-- rs232.receive 监听开关 -->
+        <section v-if="isReceiveNode" class="mb-4">
+          <h4 class="mb-2 text-[11px] font-bold uppercase tracking-wider text-(--app-text-muted)">监听控制</h4>
+          <div class="rounded-lg border border-(--app-border) bg-(--app-card-soft) p-3">
+            <AppToggle
+              :model-value="monitoring"
+              label="监听状态"
+              :description="monitoring ? '正在监听串口数据 (ING)' : '监听已关闭 (CLS)'"
+              @update:model-value="toggleMonitoring($event as boolean)"
+            />
+          </div>
         </section>
 
         <!-- 节点参数（来自蓝图 NodeTypeDef.params） -->

@@ -444,6 +444,7 @@ npm run lint
 | `types/` 与 `constants/` 混写 | 分层未 enforced | 类型/常量严格分文件 |
 | store 内 `window as unknown` | 未隔离 infra | 仅 `infra/` 可访问 `window.api` |
 | 旧流程节点无参数 | JSON 使用 `config` 字段 | 加载时合并为 `params` |
+| `npm run dev` 通知仍是像素风（「信息 (Info)」），`npm start` 却是毛玻璃；易误判 origin 被改回旧版 | dev 走 `localhost:5173`（Vite + HMR + 缓存），`npm start` 每次全量 build 读 `out/renderer/`。大改组件后 HMR 常无法完整替换；`node_modules/.vite` 与 `%APPDATA%\QOMOTech\Cache` 可能继续跑**比磁盘更旧**的 JS。origin 自 `b795c5c` 起已无像素风 | 大改 Vue template 后：**完全退出 dev**，清 `node_modules/.vite` + Electron Cache，再启动；勿只依赖 HMR。自检：info 标题应为 **「提示」**（非「信息 (Info)」= 旧缓存）。dev/start 不一致时**先清缓存**，勿先 `git reset` |
 
 ---
 

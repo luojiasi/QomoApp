@@ -286,4 +286,54 @@ const rs232Send: NodeTypeDef = {
   }
 }
 
-export const rs232Defs: NodeTypeDef[] = [rs232Connect, rs232Disconnect, rs232Detect, rs232Send]
+/**
+ * 串口数据接收节点
+ * 持续监听指定串口端口，每次收到数据即输出 {"串口数据": 接收内容}（不累加）。
+ * 右侧参数面板提供打开/关闭开关，打开后持续运行（ING 状态），关闭即停止。
+ * 端口配置优先使用上游 port 输入，无上游数据时使用自身 portName 参数。
+ */
+const rs232Receive: NodeTypeDef = {
+  type: 'rs232.receive',
+  category: 'rs232',
+  displayName: '串口数据接收',
+  icon: '📨',
+  color: '#a16207',
+  description: '持续监听串口数据，每次收到数据即输出 {"串口数据": 接收内容}',
+  version: 1,
+  inputs: [
+    { name: 'port', displayName: '端口', triggers: false, description: '来自上游的端口信息，优先级高于自身 portName 参数' }
+  ],
+  outputs: [
+    { name: 'main', displayName: '输出' }
+  ],
+  params: [
+    {
+      name: 'portName',
+      displayName: '端口名',
+      type: 'string',
+      default: 'COM3',
+      required: true,
+      description: '串口端口名，port 输入有数据时自动使用上游端口',
+      placeholder: 'COM3'
+    },
+    {
+      name: 'runMode',
+      displayName: '执行范围',
+      type: 'select',
+      default: 'fullChain',
+      required: false,
+      description: '数据到达时触发下游的执行范围',
+      options: [
+        { label: '整条链路', value: 'fullChain' },
+        { label: '仅下一层', value: 'oneLayer' }
+      ]
+    }
+  ],
+  defaults: {
+    portName: 'COM3',
+    monitoring: false,
+    runMode: 'oneLayer'
+  }
+}
+
+export const rs232Defs: NodeTypeDef[] = [rs232Connect, rs232Disconnect, rs232Detect, rs232Send, rs232Receive]

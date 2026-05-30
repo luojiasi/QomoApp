@@ -36,14 +36,15 @@ async function traverseAndExecute(
   startNodeId: string,
   nodes: WorkflowNode[],
   edges: WorkflowEdge[],
-  callbacks?: ExecutionCallbacks
+  callbacks?: ExecutionCallbacks,
+  initialUpstreamData?: Record<string, Record<string, unknown>>
 ): Promise<NodeRunResult[]> {
   const results: NodeRunResult[] = []
   const executionCount = new Map<string, number>()
 
   resetLoopState()
 
-  async function runChain(nodeId: string, loopPass: number): Promise<void> {
+  async function runChain(nodeId: string, loopPass: number, inheritedData?: Record<string, Record<string, unknown>>): Promise<void> {
     const timesExecuted = executionCount.get(nodeId) ?? 0
     if (timesExecuted >= MAX_EXECUTIONS_PER_NODE) return
     executionCount.set(nodeId, timesExecuted + 1)
@@ -52,7 +53,7 @@ async function traverseAndExecute(
     if (!node || node.disabled) return
 
     // 收集上游数据
-    const upstreamData: Record<string, Record<string, unknown>> = {}
+    const upstreamData: Record<string, Record<string, unknown>> = { ...inheritedData }
     for (const edge of edges) {
       if (edge.target === nodeId) {
         let sourceResult: NodeRunResult | undefined
@@ -111,7 +112,7 @@ async function traverseAndExecute(
   }
 
   try {
-    await runChain(startNodeId, 0)
+    await runChain(startNodeId, 0, initialUpstreamData)
     return results
   } finally {
     resetLoopState()
@@ -197,6 +198,48 @@ export async function executeFromNode(
   }
 
   return { success: true, results }
+}
+
+/**
+ * 从数据源节点（如 rs232.receive）触发下游执行。
+ * 不执行 sourceNode 自身，只执行其 main 端口的下游节点。
+ *
+ * @param sourceOutput — 数据源节点产生的输出，作为下游节点的上游数据（main 端口）
+ * @param runMode — 'fullChain' 递归执行整条链路 | 'oneLayer' 仅执行直接下游节点
+ */
+export async function executeDownstream(
+  workflow: Workflow,
+  sourceNodeId: string,
+  sourceOutput: Record<string, unknown>,
+  runMode: 'fullChain' | 'oneLayer',
+  callbacks?: ExecutionCallbacks
+): Promise<WorkflowRunResult> {
+  const downstream = findDownstreamNodeIds(sourceNodeId, 'main', workflow.edges)
+  if (downstream.length === 0) {
+    return { success: true, results: [] }
+  }
+
+  const initialUpstream = { main: sourceOutput }
+  const allResults: NodeRunResult[] = []
+
+  for (const downId of downstream) {
+    const node = workflow.nodes.find(n => n.id === downId)
+    if (!node || node.disabled) continue
+
+    if (runMode === 'fullChain') {
+      const chainResults = await traverseAndExecute(
+        downId, workflow.nodes, workflow.edges, callbacks, initialUpstream
+      )
+      allResults.push(...chainResults)
+    } else {
+      callbacks?.onNodeStarted?.(downId)
+      const result = await executeSingleNode(node, initialUpstream, callbacks)
+      allResults.push(result)
+      callbacks?.onNodeCompleted?.(result)
+    }
+  }
+
+  return { success: true, results: allResults }
 }
 
 /**

@@ -138,6 +138,10 @@ function makeDefaultLabel(def: NodeTypeDef): string {
     return payload ? `发送 ${payload.substring(0, 12)}` : '串口数据发送'
   }
 
+  if (def.type === 'rs232.receive') {
+    return '串口数据接收'
+  }
+
   if (def.type === 'data.create') {
     const raw = (d.data as string) ?? '{}'
     try {

@@ -22,7 +22,7 @@
       "type": "data.log",
       "label": "日志输出上游数据",
       "position": {
-        "x": 550,
+        "x": 500,
         "y": 300
       },
       "params": {},
@@ -34,7 +34,7 @@
       "type": "data.transform",
       "label": "? +",
       "position": {
-        "x": 550,
+        "x": 500,
         "y": 450
       },
       "params": {
@@ -63,6 +63,6 @@
     }
   ],
   "createdAt": "2026-05-29T09:43:11.082Z",
-  "updatedAt": "2026-05-29T10:08:34.322Z",
+  "updatedAt": "2026-05-30T01:53:50.557Z",
   "canvasSettings": {}
 }
