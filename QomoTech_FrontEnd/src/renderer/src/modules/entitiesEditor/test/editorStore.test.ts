@@ -15,11 +15,19 @@ if (typeof globalThis.localStorage === 'undefined') {
   const storeMap = new Map<string, string>()
   ;(globalThis as any).localStorage = {
     getItem: (key: string) => storeMap.get(key) ?? null,
-    setItem: (key: string, value: string) => { storeMap.set(key, value) },
-    removeItem: (key: string) => { storeMap.delete(key) },
-    clear: () => { storeMap.clear() },
-    get length() { return storeMap.size },
-    key: (index: number) => [...storeMap.keys()][index] ?? null,
+    setItem: (key: string, value: string) => {
+      storeMap.set(key, value)
+    },
+    removeItem: (key: string) => {
+      storeMap.delete(key)
+    },
+    clear: () => {
+      storeMap.clear()
+    },
+    get length() {
+      return storeMap.size
+    },
+    key: (index: number) => [...storeMap.keys()][index] ?? null
   }
 }
 
@@ -126,7 +134,7 @@ test('addEntity LINE → entities 长度 +1', () => {
   const input: Omit<LineEntity, 'id' | 'layerId' | 'openSide'> = {
     kind: 'LINE',
     start: { X: 0, Y: 0 },
-    end: { X: 100, Y: 100 },
+    end: { X: 100, Y: 100 }
   }
   store.addEntity(input as any)
   assert.strictEqual(store.entities.length, 1)
@@ -187,7 +195,7 @@ test('addEntity ARC', () => {
     center: { X: 0, Y: 0 },
     radius: 50,
     startAngle: 0,
-    endAngle: 180,
+    endAngle: 180
   } as any)
   assert.strictEqual(store.entities.length, 1)
   assert.strictEqual(store.entities[0].kind, 'ARC')
@@ -201,7 +209,11 @@ test('addEntity CIRCLE', () => {
 
 test('addEntity BEZIER', () => {
   const store = createStore()
-  const cp: Point2D[] = [{ X: 0, Y: 0 }, { X: 10, Y: 20 }, { X: 30, Y: 10 }]
+  const cp: Point2D[] = [
+    { X: 0, Y: 0 },
+    { X: 10, Y: 20 },
+    { X: 30, Y: 10 }
+  ]
   store.addEntity({ kind: 'BEZIER', controlPoints: cp } as any)
   assert.strictEqual(store.entities[0].kind, 'BEZIER')
 })
@@ -211,7 +223,10 @@ test('addEntity POLYLINE', () => {
   store.addEntity({
     kind: 'POLYLINE',
     closed: false,
-    vertices: [{ point: { X: 0, Y: 0 }, bulge: 0 }, { point: { X: 10, Y: 10 }, bulge: 0 }],
+    vertices: [
+      { point: { X: 0, Y: 0 }, bulge: 0 },
+      { point: { X: 10, Y: 10 }, bulge: 0 }
+    ]
   } as any)
   assert.strictEqual(store.entities[0].kind, 'POLYLINE')
 })
@@ -224,7 +239,7 @@ test('addEntity ELLIPSE', () => {
     majorAxisEnd: { X: 10, Y: 0 },
     minorAxisRatio: 0.5,
     startParamDeg: 0,
-    endParamDeg: 360,
+    endParamDeg: 360
   } as any)
   assert.strictEqual(store.entities[0].kind, 'ELLIPSE')
 })
@@ -232,7 +247,11 @@ test('addEntity ELLIPSE', () => {
 test('addEntity 多次调用 → entities 递增', () => {
   const store = createStore()
   for (let i = 0; i < 5; i++) {
-    store.addEntity({ kind: 'LINE', start: { X: i * 10, Y: 0 }, end: { X: i * 10 + 5, Y: 5 } } as any)
+    store.addEntity({
+      kind: 'LINE',
+      start: { X: i * 10, Y: 0 },
+      end: { X: i * 10 + 5, Y: 5 }
+    } as any)
   }
   assert.strictEqual(store.entities.length, 5)
 })
@@ -329,7 +348,7 @@ test('deleteSelected 批量删除', () => {
   for (let i = 0; i < 5; i++) {
     store.addEntity({ kind: 'LINE', start: { X: 0, Y: 0 }, end: { X: 10, Y: 10 } } as any)
   }
-  const ids = store.entities.slice(0, 3).map(e => e.id)
+  const ids = store.entities.slice(0, 3).map((e) => e.id)
   store.setSelection(ids)
   store.deleteSelected()
   assert.strictEqual(store.entities.length, 2)
@@ -351,7 +370,7 @@ test('deleteSelected → dirtyEntityIds 清理已删除实体', () => {
   store.setSelection([store.entities[0].id])
   store.deleteSelected()
   // dirtyEntityIds should no longer contain the deleted entity
-  const remaining = store.entities.map(e => e.id)
+  const remaining = store.entities.map((e) => e.id)
   for (const id of store.dirtyEntityIds) {
     assert.ok(remaining.includes(id), `dirty id ${id} should belong to a remaining entity`)
   }
@@ -641,10 +660,16 @@ console.log('\n=== 10. replaceAllEntities ===')
 
 function makeSurfaceLine(id: string, x1: number, y1: number, x2: number, y2: number): any {
   return {
-    id, kind: 'LINE', layerId: 'L99',
+    id,
+    kind: 'LINE',
+    layerId: 'L99',
     openSide: 'LEFT' as const,
-    start: { X: x1, Y: y1 }, end: { X: x2, Y: y2 },
-    height: 10, openSize: 1, tiltAngleDeg: 0,
+    start: { X: x1, Y: y1 },
+    end: { X: x2, Y: y2 },
+    height: 10,
+    zBase: 0,
+    openSize: 1,
+    tiltAngleDeg: 0
   }
 }
 
@@ -659,7 +684,10 @@ test('replaceAllEntities 全量替换实体', () => {
 
 test('replaceAllEntities 可替换图层', () => {
   const store = createStore()
-  store.replaceAllEntities([], [{ id: 'Lx', name: '导入图层', visible: true, locked: false, entityCount: 0 }])
+  store.replaceAllEntities(
+    [],
+    [{ id: 'Lx', name: '导入图层', visible: true, locked: false, entityCount: 0 }]
+  )
   assert.strictEqual(store.layers.length, 1)
   assert.strictEqual(store.layers[0].id, 'Lx')
 })
@@ -723,7 +751,7 @@ test('大量实体 CRUD 不抛错', () => {
   }
   assert.strictEqual(store.entities.length, 200)
   // 删除一半
-  const ids = store.entities.slice(0, 100).map(e => e.id)
+  const ids = store.entities.slice(0, 100).map((e) => e.id)
   store.setSelection(ids)
   store.deleteSelected()
   assert.strictEqual(store.entities.length, 100)

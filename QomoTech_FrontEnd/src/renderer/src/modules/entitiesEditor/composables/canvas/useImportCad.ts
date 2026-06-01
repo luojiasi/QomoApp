@@ -6,7 +6,13 @@
 // =============================================================================
 
 import DxfParser from 'dxf-parser'
-import type { Point2D, EditorLayer, EditorEntity, SurfaceEntity, PolylineVertex } from '../../commons/types'
+import type {
+  Point2D,
+  EditorLayer,
+  EditorEntity,
+  SurfaceEntity,
+  PolylineVertex
+} from '../../commons/types'
 import { generateId } from '../../utils/idgen'
 import { loadGeneralConfig } from '../../stores/generalSettingsStore'
 
@@ -56,7 +62,13 @@ function buildLayerMap(entities: DxfLikeEntity[]): Map<string, EditorLayer> {
     const name = layerName(e)
     if (name === '默认') continue
     if (!map.has(name)) {
-      map.set(name, { id: generateId('dxf-layer'), name, visible: true, locked: false, entityCount: 0 })
+      map.set(name, {
+        id: generateId('dxf-layer'),
+        name,
+        visible: true,
+        locked: false,
+        entityCount: 0
+      })
     }
   }
   return map
@@ -67,18 +79,23 @@ function buildLayerMap(entities: DxfLikeEntity[]): Map<string, EditorLayer> {
 const config = loadGeneralConfig()
 const extrudeDefaults = {
   height: config.defaultExtrudeHeight,
+  zBase: 0,
   openSize: config.defaultOpenSize,
-  tiltAngleDeg: config.defaultTiltAngle,
+  tiltAngleDeg: config.defaultTiltAngle
 }
 
-function makeEntity<T extends EditorEntity>(kind: T['kind'], layerId: string, extra: Omit<T, 'id' | 'kind' | 'layerId' | 'openSide'>): SurfaceEntity<T> {
+function makeEntity<T extends EditorEntity>(
+  kind: T['kind'],
+  layerId: string,
+  extra: Omit<T, 'id' | 'kind' | 'layerId' | 'openSide'>
+): SurfaceEntity<T> {
   return {
     id: generateId('dxf'),
     kind,
     layerId,
     openSide: 'LEFT' as const,
     ...extrudeDefaults,
-    ...extra,
+    ...extra
   } as unknown as SurfaceEntity<T>
 }
 
@@ -107,17 +124,18 @@ function convertArc(e: DxfLikeEntity, layerId: string): SurfaceEntity<EditorEnti
 
   const startAngle = (startAngleRad * 180) / Math.PI
   const endAngleRaw = (endAngleRad * 180) / Math.PI
-  const sweep = ((endAngleRaw - startAngle) % 360 + 360) % 360
+  const sweep = (((endAngleRaw - startAngle) % 360) + 360) % 360
   const endAngle = startAngle + (sweep <= 1e-9 ? 360 : sweep)
 
-  const sr = startAngleRad, er = endAngleRad
+  const sr = startAngleRad,
+    er = endAngleRad
   return makeEntity('ARC', layerId, {
     center,
     radius,
     startAngle,
     endAngle,
     startPoint: { X: center.X + radius * Math.cos(sr), Y: center.Y + radius * Math.sin(sr) },
-    endPoint: { X: center.X + radius * Math.cos(er), Y: center.Y + radius * Math.sin(er) },
+    endPoint: { X: center.X + radius * Math.cos(er), Y: center.Y + radius * Math.sin(er) }
   })
 }
 
@@ -132,7 +150,7 @@ function convertEllipse(e: DxfLikeEntity, layerId: string): SurfaceEntity<Editor
     majorAxisEnd: majorEnd,
     minorAxisRatio: Math.min(ratio, 1),
     startParamDeg: 0,
-    endParamDeg: 360,
+    endParamDeg: 360
   })
 }
 
@@ -150,7 +168,7 @@ function convertPolyline(e: DxfLikeEntity, layerId: string): SurfaceEntity<Edito
 
   return makeEntity('POLYLINE', layerId, {
     closed: isClosed(e),
-    vertices,
+    vertices
   })
 }
 
@@ -181,17 +199,19 @@ export function importDxf(text: string): DxfImportResult {
 
   for (const e of source) {
     const lid = layerMap.get(layerName(e))?.id ?? '0'
-    const type = String(e.type ?? '').toUpperCase().trim()
+    const type = String(e.type ?? '')
+      .toUpperCase()
+      .trim()
     typeCounts[type] = (typeCounts[type] ?? 0) + 1
 
     let converted: SurfaceEntity<EditorEntity> | null = null
 
-    if (type === 'LINE')                  converted = convertLine(e, lid)
-    else if (type === 'CIRCLE')           converted = convertCircle(e, lid)
-    else if (type === 'ARC')              converted = convertArc(e, lid)
-    else if (type === 'ELLIPSE')          converted = convertEllipse(e, lid)
+    if (type === 'LINE') converted = convertLine(e, lid)
+    else if (type === 'CIRCLE') converted = convertCircle(e, lid)
+    else if (type === 'ARC') converted = convertArc(e, lid)
+    else if (type === 'ELLIPSE') converted = convertEllipse(e, lid)
     else if (type === 'LWPOLYLINE' || type === 'POLYLINE') converted = convertPolyline(e, lid)
-    else if (type === 'SPLINE')           converted = convertSpline(e, lid)
+    else if (type === 'SPLINE') converted = convertSpline(e, lid)
 
     if (converted) entities.push(converted)
     else unsupported++

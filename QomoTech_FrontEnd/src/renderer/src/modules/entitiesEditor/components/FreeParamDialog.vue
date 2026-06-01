@@ -77,58 +77,60 @@ function onDraw(): void {
     }
   }
 
-  // 构建新实体列表
+  // 预计算每层的 zBase（自顶向下）
+  // taskRows[0]=最上层，从总高度开始向下
+  const totalHeight = taskRows.reduce((sum, r) => sum + r.height, 0)
+  const rowZBase: number[] = new Array(taskRows.length)
+  let zTop = totalHeight
+  for (let i = 0; i < taskRows.length; i++) {
+    rowZBase[i] = zTop
+    zTop -= taskRows[i].height
+  }
+
   const newEntities: SurfaceEntity<EditorEntity>[] = []
   drawnEntityIds.clear()
 
-  for (const row of taskRows) {
+  // 从上到下遍历：taskRows[0] = 序号1 = 最上层
+  for (let i = 0; i < taskRows.length; i++) {
+    const row = taskRows[i]
+    const isLast = i === taskRows.length - 1
+    const n = row.divisions === 0 ? 360 : row.divisions
     const radius = row.diameter / 2
-    const height = row.height
-    const n = row.divisions
 
-    if (n === 0) {
-      // 画圆
+    // 倾斜角：基于下一层（下方层）的直径差
+    let tiltAngleDeg = 0
+    if (!isLast) {
+      const belowRadius = taskRows[i + 1].diameter / 2
+      const radiusDiff = belowRadius - radius
+      tiltAngleDeg = Math.atan2(radiusDiff, row.height) * (180 / Math.PI)
+    }
+
+    // 计算圆周上的 n 个顶点
+    const points: Array<{ X: number; Y: number }> = []
+    for (let j = 0; j < n; j++) {
+      const angle = (2 * Math.PI * j) / n
+      points.push({
+        X: radius * Math.cos(angle),
+        Y: radius * Math.sin(angle)
+      })
+    }
+
+    // 生成 LINE 实体
+    for (let j = 0; j < n; j++) {
       const id = generateId()
       newEntities.push({
         id,
-        kind: 'CIRCLE',
+        kind: 'LINE',
         layerId: editorStore.activeLayerId,
         openSide: 'LEFT',
-        center: { X: 0, Y: 0 },
-        radius,
-        height,
+        start: points[j],
+        end: points[(j + 1) % n],
+        height: row.height,
+        zBase: rowZBase[i],
         openSize: 1,
-        tiltAngleDeg: 0
+        tiltAngleDeg
       } as SurfaceEntity<EditorEntity>)
       drawnEntityIds.add(id)
-    } else {
-      // 计算圆周上的 n 个点
-      const points: Array<{ X: number; Y: number }> = []
-      for (let i = 0; i < n; i++) {
-        const angle = (2 * Math.PI * i) / n
-        points.push({
-          X: radius * Math.cos(angle),
-          Y: radius * Math.sin(angle)
-        })
-      }
-      // 按顺序连接成直线
-      for (let i = 0; i < n; i++) {
-        const start = points[i]
-        const end = points[(i + 1) % n]
-        const id = generateId()
-        newEntities.push({
-          id,
-          kind: 'LINE',
-          layerId: editorStore.activeLayerId,
-          openSide: 'LEFT',
-          start,
-          end,
-          height,
-          openSize: 1,
-          tiltAngleDeg: 0
-        } as SurfaceEntity<EditorEntity>)
-        drawnEntityIds.add(id)
-      }
     }
   }
 
@@ -442,10 +444,13 @@ function isRecipeInvalid(recipe: string): boolean {
 }
 .fp-input.numeric {
   text-align: left;
+  appearance: textfield;
   -moz-appearance: textfield;
+  -webkit-appearance: textfield;
 }
 .fp-input.numeric::-webkit-outer-spin-button,
 .fp-input.numeric::-webkit-inner-spin-button {
+  appearance: none;
   -webkit-appearance: none;
   margin: 0;
 }

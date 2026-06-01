@@ -24,7 +24,7 @@ import type {
   BezierEntity,
   DiamondParams,
   Point2D,
-  OpenSide,
+  OpenSide
 } from '../../commons/types'
 import {
   sampleArcPoints,
@@ -32,7 +32,7 @@ import {
   samplePolylineVertices,
   sampleEllipsePoints,
   offsetPolyline,
-  offsetSegment,
+  offsetSegment
 } from '../../utils/geometry'
 import type { Scene3DConfig } from '../../shares/types'
 import { getShapeDef } from './diamount'
@@ -54,7 +54,7 @@ function createSharedMaterials() {
       transparent: true,
       opacity: c.materialReferenceOpacity,
       depthTest: true,
-      depthWrite: true,
+      depthWrite: true
     }),
     selectedLine: new THREE.LineBasicMaterial({
       color: c.materialSelectedColor,
@@ -62,7 +62,7 @@ function createSharedMaterials() {
       transparent: true,
       opacity: c.materialReferenceOpacity,
       depthTest: true,
-      depthWrite: true,
+      depthWrite: true
     }),
     wallFace: new THREE.MeshStandardMaterial({
       vertexColors: true,
@@ -71,7 +71,7 @@ function createSharedMaterials() {
       opacity: c.materialWallOpacity,
       roughness: 0.6,
       metalness: 0.1,
-      depthWrite: false,
+      depthWrite: false
     }),
     selectedWallFace: new THREE.MeshStandardMaterial({
       vertexColors: true,
@@ -80,7 +80,7 @@ function createSharedMaterials() {
       opacity: c.materialSelectedWallOpacity,
       roughness: 0.5,
       metalness: 0.1,
-      depthWrite: false,
+      depthWrite: false
     }),
     capFace: new THREE.MeshStandardMaterial({
       color: c.materialCapColor,
@@ -89,7 +89,7 @@ function createSharedMaterials() {
       opacity: c.materialCapOpacity,
       roughness: 0.7,
       metalness: 0.05,
-      depthWrite: false,
+      depthWrite: false
     }),
     selectedCapFace: new THREE.MeshStandardMaterial({
       color: c.materialSelectedCapColor,
@@ -98,8 +98,8 @@ function createSharedMaterials() {
       opacity: c.materialSelectedCapOpacity,
       roughness: 0.7,
       metalness: 0.05,
-      depthWrite: false,
-    }),
+      depthWrite: false
+    })
   }
 }
 
@@ -126,30 +126,85 @@ function openSideSign(side: OpenSide): number {
   return side === 'LEFT' ? 1 : -1
 }
 
-/** 将 Point2D[] 转为带顶点色（沿 Z 渐变）的 BufferGeometry */
-function buildWallGeometry(outer: Point2D[], inner: Point2D[], height: number): THREE.BufferGeometry | null {
+/** 将 Point2D[] 转为带顶点色（沿 Z 渐变）的 BufferGeometry。
+ * @param zBase - 顶面 Z 坐标（默认 0）
+ * @param tiltAngleDeg - 倾斜角（度），非 0 时底部顶点沿径向位移
+ * @param downward - true 时墙体向下挤出（zBase → zBase-height），自由参数使用
+ */
+function buildWallGeometry(
+  outer: Point2D[],
+  inner: Point2D[],
+  height: number,
+  zBase: number = 0,
+  tiltAngleDeg: number = 0,
+  downward: boolean = false
+): THREE.BufferGeometry | null {
   const N = Math.min(outer.length, inner.length)
   if (N < 2) return null
 
   const c = _cfg!
-  // 每采样点 4 个顶点：outer_top, outer_bot, inner_top, inner_bot
   const positions = new Float32Array(N * 12)
   const colors = new Float32Array(N * 12)
   const topColor = new THREE.Color(c.materialWallTopColor)
   const botColor = new THREE.Color(c.materialWallBottomColor)
 
+  const tiltRad = tiltAngleDeg * (Math.PI / 180)
+  const shift = height * Math.tan(tiltRad)
+
+  const topZ = downward ? zBase : zBase + height
+  const botZ = downward ? zBase - height : zBase
+
   for (let i = 0; i < N; i++) {
     const b = i * 12
-    positions[b + 0] = outer[i].X; positions[b + 1] = outer[i].Y; positions[b + 2] = height
-    positions[b + 3] = outer[i].X; positions[b + 4] = outer[i].Y; positions[b + 5] = 0
-    positions[b + 6] = inner[i].X; positions[b + 7] = inner[i].Y; positions[b + 8] = height
-    positions[b + 9] = inner[i].X; positions[b + 10] = inner[i].Y; positions[b + 11] = 0
 
-    // 顶点色：top → 亮色, bottom → 暗色
-    colors[b + 0] = topColor.r; colors[b + 1] = topColor.g; colors[b + 2] = topColor.b
-    colors[b + 3] = botColor.r; colors[b + 4] = botColor.g; colors[b + 5] = botColor.b
-    colors[b + 6] = topColor.r; colors[b + 7] = topColor.g; colors[b + 8] = topColor.b
-    colors[b + 9] = botColor.r; colors[b + 10] = botColor.g; colors[b + 11] = botColor.b
+    const outerDist = Math.hypot(outer[i].X, outer[i].Y)
+    const innerDist = Math.hypot(inner[i].X, inner[i].Y)
+
+    const outerNX = outerDist > 1e-9 ? outer[i].X / outerDist : 0
+    const outerNY = outerDist > 1e-9 ? outer[i].Y / outerDist : 0
+    const innerNX = innerDist > 1e-9 ? inner[i].X / innerDist : 0
+    const innerNY = innerDist > 1e-9 ? inner[i].Y / innerDist : 0
+
+    // downward 时底部顶点位移（连接下层）；默认时顶部顶点位移
+    const outerShiftX = downward ? 0 : outerNX * shift
+    const outerShiftY = downward ? 0 : outerNY * shift
+    const innerShiftX = downward ? 0 : innerNX * shift
+    const innerShiftY = downward ? 0 : innerNY * shift
+
+    const outerBotShiftX = downward ? outerNX * shift : 0
+    const outerBotShiftY = downward ? outerNY * shift : 0
+    const innerBotShiftX = downward ? innerNX * shift : 0
+    const innerBotShiftY = downward ? innerNY * shift : 0
+
+    // outer_top
+    positions[b + 0] = outer[i].X + outerShiftX
+    positions[b + 1] = outer[i].Y + outerShiftY
+    positions[b + 2] = topZ
+    // outer_bot
+    positions[b + 3] = outer[i].X + outerBotShiftX
+    positions[b + 4] = outer[i].Y + outerBotShiftY
+    positions[b + 5] = botZ
+    // inner_top
+    positions[b + 6] = inner[i].X + innerShiftX
+    positions[b + 7] = inner[i].Y + innerShiftY
+    positions[b + 8] = topZ
+    // inner_bot
+    positions[b + 9] = inner[i].X + innerBotShiftX
+    positions[b + 10] = inner[i].Y + innerBotShiftY
+    positions[b + 11] = botZ
+
+    colors[b + 0] = topColor.r
+    colors[b + 1] = topColor.g
+    colors[b + 2] = topColor.b
+    colors[b + 3] = botColor.r
+    colors[b + 4] = botColor.g
+    colors[b + 5] = botColor.b
+    colors[b + 6] = topColor.r
+    colors[b + 7] = topColor.g
+    colors[b + 8] = topColor.b
+    colors[b + 9] = botColor.r
+    colors[b + 10] = botColor.g
+    colors[b + 11] = botColor.b
   }
 
   const segs = N - 1
@@ -160,17 +215,33 @@ function buildWallGeometry(outer: Point2D[], inner: Point2D[], height: number): 
     const t = i * 24
 
     // 外侧墙
-    indices[t + 0] = v0 + 0; indices[t + 1] = v1 + 0; indices[t + 2] = v0 + 1
-    indices[t + 3] = v1 + 0; indices[t + 4] = v1 + 1; indices[t + 5] = v0 + 1
+    indices[t + 0] = v0 + 0
+    indices[t + 1] = v1 + 0
+    indices[t + 2] = v0 + 1
+    indices[t + 3] = v1 + 0
+    indices[t + 4] = v1 + 1
+    indices[t + 5] = v0 + 1
     // 内侧墙
-    indices[t + 6] = v0 + 2; indices[t + 7] = v0 + 3; indices[t + 8] = v1 + 2
-    indices[t + 9] = v1 + 2; indices[t + 10] = v0 + 3; indices[t + 11] = v1 + 3
+    indices[t + 6] = v0 + 2
+    indices[t + 7] = v0 + 3
+    indices[t + 8] = v1 + 2
+    indices[t + 9] = v1 + 2
+    indices[t + 10] = v0 + 3
+    indices[t + 11] = v1 + 3
     // 顶面
-    indices[t + 12] = v0 + 0; indices[t + 13] = v1 + 0; indices[t + 14] = v1 + 2
-    indices[t + 15] = v0 + 0; indices[t + 16] = v1 + 2; indices[t + 17] = v0 + 2
+    indices[t + 12] = v0 + 0
+    indices[t + 13] = v1 + 0
+    indices[t + 14] = v1 + 2
+    indices[t + 15] = v0 + 0
+    indices[t + 16] = v1 + 2
+    indices[t + 17] = v0 + 2
     // 底面
-    indices[t + 18] = v0 + 1; indices[t + 19] = v0 + 3; indices[t + 20] = v1 + 1
-    indices[t + 21] = v1 + 1; indices[t + 22] = v0 + 3; indices[t + 23] = v1 + 3
+    indices[t + 18] = v0 + 1
+    indices[t + 19] = v0 + 3
+    indices[t + 20] = v1 + 1
+    indices[t + 21] = v1 + 1
+    indices[t + 22] = v0 + 3
+    indices[t + 23] = v1 + 3
   }
 
   const geo = new THREE.BufferGeometry()
@@ -181,11 +252,11 @@ function buildWallGeometry(outer: Point2D[], inner: Point2D[], height: number): 
   return geo
 }
 
-/** 将 Point2D[] 转为底部参考线几何体 */
-function buildRefLineGeometry(points: Point2D[]): THREE.BufferGeometry {
+/** 将 Point2D[] 转为参考线几何体（在 z = zBase 平面） */
+function buildRefLineGeometry(points: Point2D[], zBase: number = 0): THREE.BufferGeometry {
   const pts: number[] = []
   for (const p of points) {
-    pts.push(p.X, p.Y, 0)
+    pts.push(p.X, p.Y, zBase)
   }
   const geo = new THREE.BufferGeometry()
   geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3))
@@ -194,7 +265,15 @@ function buildRefLineGeometry(points: Point2D[]): THREE.BufferGeometry {
 
 // ── 实体 → 3D 对象 ──────────────────────────────────────
 
-function createLine3D(entity: LineEntity, openSide: OpenSide, openSize: number, height: number): THREE.Object3D | null {
+function createLine3D(
+  entity: LineEntity,
+  openSide: OpenSide,
+  openSize: number,
+  height: number,
+  zBase: number = 0,
+  tiltAngleDeg: number = 0,
+  downward: boolean = false
+): THREE.Object3D | null {
   const [outerStart, outerEnd] = offsetSegment(entity.start, entity.end, openSide, openSize)
   const outer: Point2D[] = [outerStart, outerEnd]
   const inner: Point2D[] = [{ ...entity.start }, { ...entity.end }]
@@ -202,11 +281,11 @@ function createLine3D(entity: LineEntity, openSide: OpenSide, openSize: number, 
   const group = new THREE.Group()
   const mats = getSharedMaterials()
 
-  const refGeo = buildRefLineGeometry(inner)
+  const refGeo = buildRefLineGeometry(inner, zBase)
   const refLine = new THREE.Line(refGeo, mats.referenceLine)
   group.add(refLine)
 
-  const wallGeo = buildWallGeometry(outer, inner, height)
+  const wallGeo = buildWallGeometry(outer, inner, height, zBase, tiltAngleDeg, downward)
   if (wallGeo) {
     group.add(new THREE.Mesh(wallGeo, mats.wallFace))
   }
@@ -214,7 +293,12 @@ function createLine3D(entity: LineEntity, openSide: OpenSide, openSize: number, 
   return group
 }
 
-function createArc3D(entity: ArcEntity, openSide: OpenSide, openSize: number, height: number): THREE.Object3D | null {
+function createArc3D(
+  entity: ArcEntity,
+  openSide: OpenSide,
+  openSize: number,
+  height: number
+): THREE.Object3D | null {
   const radius = entity.radius
   if (radius < 1e-6) return null
 
@@ -226,7 +310,13 @@ function createArc3D(entity: ArcEntity, openSide: OpenSide, openSize: number, he
 
   const segs = Math.max(8, Math.ceil(Math.abs(sweep) / 5))
   const inner = sampleArcPoints(entity.center, radius, entity.startAngle, entity.endAngle, segs)
-  const outer = sampleArcPoints(entity.center, offsetRadius, entity.startAngle, entity.endAngle, segs)
+  const outer = sampleArcPoints(
+    entity.center,
+    offsetRadius,
+    entity.startAngle,
+    entity.endAngle,
+    segs
+  )
 
   const group = new THREE.Group()
   const mats = getSharedMaterials()
@@ -241,7 +331,12 @@ function createArc3D(entity: ArcEntity, openSide: OpenSide, openSize: number, he
   return group
 }
 
-function createCircle3D(entity: CircleEntity, openSide: OpenSide, openSize: number, height: number): THREE.Object3D | null {
+function createCircle3D(
+  entity: CircleEntity,
+  openSide: OpenSide,
+  openSize: number,
+  height: number
+): THREE.Object3D | null {
   const radius = entity.radius
   if (radius < 1e-6) return null
 
@@ -256,7 +351,7 @@ function createCircle3D(entity: CircleEntity, openSide: OpenSide, openSize: numb
   const group = new THREE.Group()
   const mats = getSharedMaterials()
 
-  const circlePts = inner.slice(0, -1).map(p => new THREE.Vector3(p.X, p.Y, 0))
+  const circlePts = inner.slice(0, -1).map((p) => new THREE.Vector3(p.X, p.Y, 0))
   const circleGeo = new THREE.BufferGeometry().setFromPoints(circlePts)
   group.add(new THREE.LineLoop(circleGeo, mats.referenceLine))
 
@@ -268,7 +363,12 @@ function createCircle3D(entity: CircleEntity, openSide: OpenSide, openSize: numb
   return group
 }
 
-function createPolyline3D(entity: PolylineEntity, openSide: OpenSide, openSize: number, height: number): THREE.Object3D | null {
+function createPolyline3D(
+  entity: PolylineEntity,
+  openSide: OpenSide,
+  openSize: number,
+  height: number
+): THREE.Object3D | null {
   const inner = samplePolylineVertices(entity.vertices)
   if (inner.length < 2) return null
 
@@ -287,7 +387,12 @@ function createPolyline3D(entity: PolylineEntity, openSide: OpenSide, openSize: 
   return group
 }
 
-function createBezier3D(entity: BezierEntity, openSide: OpenSide, openSize: number, height: number): THREE.Object3D | null {
+function createBezier3D(
+  entity: BezierEntity,
+  openSide: OpenSide,
+  openSize: number,
+  height: number
+): THREE.Object3D | null {
   const inner = sampleBezierPoints(entity.controlPoints, 64)
   if (inner.length < 2) return null
 
@@ -306,7 +411,12 @@ function createBezier3D(entity: BezierEntity, openSide: OpenSide, openSize: numb
   return group
 }
 
-function createEllipse3D(entity: EllipseEntity, openSide: OpenSide, openSize: number, height: number): THREE.Object3D | null {
+function createEllipse3D(
+  entity: EllipseEntity,
+  openSide: OpenSide,
+  openSize: number,
+  height: number
+): THREE.Object3D | null {
   const majorRx = Math.hypot(entity.majorAxisEnd.X, entity.majorAxisEnd.Y)
   if (majorRx < 1e-9) return null
 
@@ -316,7 +426,7 @@ function createEllipse3D(entity: EllipseEntity, openSide: OpenSide, openSize: nu
     entity.minorAxisRatio,
     entity.startParamDeg,
     entity.endParamDeg,
-    64,
+    64
   )
   if (inner.length < 2) return null
 
@@ -357,7 +467,11 @@ export interface Entity3DObject {
  * 腰部半径使用传入的 2D 轮廓半径，而非 params.L/W 推算。
  */
 
-function createDiamond3D(params: DiamondParams, center: Point2D, radius: number): THREE.Group | null {
+function createDiamond3D(
+  params: DiamondParams,
+  center: Point2D,
+  radius: number
+): THREE.Group | null {
   if (!Number.isFinite(radius) || radius <= 0) return null
 
   const crownH = (params.Crown / 100) * radius * 2
@@ -401,14 +515,14 @@ function createDiamond3D(params: DiamondParams, center: Point2D, radius: number)
     const t0 = profileXZ(i, tableR / R)
     const t1 = profileXZ(j, tableR / R)
 
-    const tc   = new THREE.Vector3(0,       yTop, 0)
-    const te0  = new THREE.Vector3(t0.x,    yTop, t0.z)
-    const te1  = new THREE.Vector3(t1.x,    yTop, t1.z)
-    const gt0  = new THREE.Vector3(v0.x, yGirdleTop, v0.z)
-    const gt1  = new THREE.Vector3(v1.x, yGirdleTop, v1.z)
-    const gb0  = new THREE.Vector3(v0.x, yGirdleBot, v0.z)
-    const gb1  = new THREE.Vector3(v1.x, yGirdleBot, v1.z)
-    const cu   = new THREE.Vector3(0,       yBot, 0)
+    const tc = new THREE.Vector3(0, yTop, 0)
+    const te0 = new THREE.Vector3(t0.x, yTop, t0.z)
+    const te1 = new THREE.Vector3(t1.x, yTop, t1.z)
+    const gt0 = new THREE.Vector3(v0.x, yGirdleTop, v0.z)
+    const gt1 = new THREE.Vector3(v1.x, yGirdleTop, v1.z)
+    const gb0 = new THREE.Vector3(v0.x, yGirdleBot, v0.z)
+    const gb1 = new THREE.Vector3(v1.x, yGirdleBot, v1.z)
+    const cu = new THREE.Vector3(0, yBot, 0)
 
     // 台面
     pushTri(tc, te0, te1)
@@ -432,19 +546,19 @@ function createDiamond3D(params: DiamondParams, center: Point2D, radius: number)
     metalness: 0.0,
     roughness: 0.05,
     transparent: true,
-    opacity: 0.90,
+    opacity: 0.9,
     side: THREE.DoubleSide,
     envMapIntensity: 1.2,
     clearcoat: 0.6,
     clearcoatRoughness: 0.05,
-    flatShading: true,
+    flatShading: true
   })
 
   const edgeGeom = new THREE.EdgesGeometry(geometry, 5)
   const edgeMat = new THREE.LineBasicMaterial({
     color: 0x6699cc,
     transparent: true,
-    opacity: 0.25,
+    opacity: 0.25
   })
 
   const mesh = new THREE.Mesh(geometry, bodyMat)
@@ -468,19 +582,36 @@ function createDiamond3D(params: DiamondParams, center: Point2D, radius: number)
 export function createEntity3D(entity: SurfaceEntity<EditorEntity>): Entity3DObject | null {
   const e = entity as SurfaceEntity<EditorEntity>
   const h = e.height
+  const zBase = e.zBase ?? 0
+  const tiltAngleDeg = e.tiltAngleDeg ?? 0
   const openSize = e.openSize
   const openSide = e.openSide
+  const downward = zBase > 0
 
   let obj: THREE.Object3D | null = null
 
   switch (e.kind) {
-    case 'LINE':     obj = createLine3D(e, openSide, openSize, h); break
-    case 'ARC':      obj = createArc3D(e, openSide, openSize, h); break
-    case 'CIRCLE':   obj = createCircle3D(e, openSide, openSize, h); break
-    case 'DIAMOND':  obj = createDiamond3D(e.diamondParams, e.center, e.radius); break
-    case 'POLYLINE': obj = createPolyline3D(e, openSide, openSize, h); break
-    case 'BEZIER':   obj = createBezier3D(e, openSide, openSize, h); break
-    case 'ELLIPSE':  obj = createEllipse3D(e, openSide, openSize, h); break
+    case 'LINE':
+      obj = createLine3D(e, openSide, openSize, h, zBase, tiltAngleDeg, downward)
+      break
+    case 'ARC':
+      obj = createArc3D(e, openSide, openSize, h)
+      break
+    case 'CIRCLE':
+      obj = createCircle3D(e, openSide, openSize, h)
+      break
+    case 'DIAMOND':
+      obj = createDiamond3D(e.diamondParams, e.center, e.radius)
+      break
+    case 'POLYLINE':
+      obj = createPolyline3D(e, openSide, openSize, h)
+      break
+    case 'BEZIER':
+      obj = createBezier3D(e, openSide, openSize, h)
+      break
+    case 'ELLIPSE':
+      obj = createEllipse3D(e, openSide, openSize, h)
+      break
   }
 
   if (!obj) return null
@@ -495,7 +626,7 @@ export function createEntity3D(entity: SurfaceEntity<EditorEntity>): Entity3DObj
     return {
       object: obj,
       setSelected(selected: boolean) {
-        bodyMat.opacity = selected ? 0.65 : 0.90
+        bodyMat.opacity = selected ? 0.65 : 0.9
         bodyMat.emissive = selected ? new THREE.Color(0x3b82f6) : new THREE.Color(0x000000)
         bodyMat.emissiveIntensity = selected ? 0.4 : 0
         edgeMat.opacity = selected ? 0.6 : 0.25
@@ -503,14 +634,19 @@ export function createEntity3D(entity: SurfaceEntity<EditorEntity>): Entity3DObj
       },
       dispose() {
         obj!.traverse((child) => {
-          if (child instanceof THREE.Mesh || child instanceof THREE.Line || child instanceof THREE.LineLoop || child instanceof THREE.LineSegments) {
+          if (
+            child instanceof THREE.Mesh ||
+            child instanceof THREE.Line ||
+            child instanceof THREE.LineLoop ||
+            child instanceof THREE.LineSegments
+          ) {
             child.geometry?.dispose()
           }
         })
         bodyMat.dispose()
         edgeMat.dispose()
         if (obj!.parent) obj!.parent.remove(obj!)
-      },
+      }
     }
   }
 
@@ -535,12 +671,16 @@ export function createEntity3D(entity: SurfaceEntity<EditorEntity>): Entity3DObj
     },
     dispose() {
       obj!.traverse((child) => {
-        if (child instanceof THREE.Mesh || child instanceof THREE.Line || child instanceof THREE.LineLoop) {
+        if (
+          child instanceof THREE.Mesh ||
+          child instanceof THREE.Line ||
+          child instanceof THREE.LineLoop
+        ) {
           child.geometry?.dispose()
         }
       })
       if (obj!.parent) obj!.parent.remove(obj!)
-    },
+    }
   }
 }
 
@@ -551,7 +691,7 @@ export function createEntity3D(entity: SurfaceEntity<EditorEntity>): Entity3DObj
  */
 export function createAllEntityObjects(
   entities: SurfaceEntity<EditorEntity>[],
-  selectedIds: Set<string>,
+  selectedIds: Set<string>
 ): Map<string, Entity3DObject> {
   const map = new Map<string, Entity3DObject>()
 

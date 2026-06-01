@@ -1,9 +1,9 @@
 // ============================================================
 // entitiesEditor 实体类型 —— 基于标准 CAD 图元
 // ============================================================
-import type { XY } from "@/shared/types"
+import type { XY } from '@/shared/types'
 // ─── 基础几何 ────────────────────────────────────────
-export type Point2D =XY
+export type Point2D = XY
 /**
  * `BoundingBox`
  * 用途：
@@ -14,7 +14,7 @@ export type Point2D =XY
  * getSceneBounds(entities) → 确定 .ljs 文件的整体尺寸
  * 3. 框选命中检测（可选优化）
  * getEntityBounds(entity) → 快速剔除鼠标远离的实体，避免逐点距离计算
- * 
+ *
  * `ViewportState`
  * 用途：
  * 1. 坐标转换（每次鼠标移动/点击都用到）
@@ -40,15 +40,18 @@ export type Point2D =XY
  *                 → 让 box 内容恰好填满画布
  */
 
-
 export interface BoundingBox {
-  minX: number; minY: number
-  maxX: number; maxY: number
+  minX: number
+  minY: number
+  maxX: number
+  maxY: number
 }
 export interface ViewportState {
   zoom: number
-  panX: number; panY: number
-  width: number; height: number
+  panX: number
+  panY: number
+  width: number
+  height: number
 }
 // ─── 枚举 ──────────────────────────────────────────
 export type EntityKind = 'LINE' | 'ARC' | 'CIRCLE' | 'POLYLINE' | 'BEZIER' | 'ELLIPSE' | 'DIAMOND'
@@ -59,8 +62,14 @@ export type DiamondShape = 'ROUND' | 'PRINCESS' | 'EMERALD' | 'HEART'
 export type OpenSide = 'LEFT' | 'RIGHT'
 
 // ─── 联合 ──────────────────────────────────────────
-export type EditorEntity = LineEntity| ArcEntity| CircleEntity| EllipseEntity| PolylineEntity| BezierEntity| DiamondEntity
-
+export type EditorEntity =
+  | LineEntity
+  | ArcEntity
+  | CircleEntity
+  | EllipseEntity
+  | PolylineEntity
+  | BezierEntity
+  | DiamondEntity
 
 // ─── 实体定义 ──────────────────────────────────────
 export interface BaseEntity {
@@ -95,15 +104,15 @@ export interface CircleEntity extends BaseEntity {
 export interface EllipseEntity extends BaseEntity {
   kind: 'ELLIPSE'
   center: Point2D
-  majorAxisEnd: Point2D     // 长轴端点（相对 center）
-  minorAxisRatio: number    // 短轴/长轴 比例
-  startParamDeg: number     // 起始参数角（度）
-  endParamDeg: number       // 终止参数角（度）
+  majorAxisEnd: Point2D // 长轴端点（相对 center）
+  minorAxisRatio: number // 短轴/长轴 比例
+  startParamDeg: number // 起始参数角（度）
+  endParamDeg: number // 终止参数角（度）
 }
 
 export interface PolylineVertex {
   point: Point2D
-  bulge: number   // 凸度：0 = 直线段，≠0 = 弧段（bulge = tan(弧角/4)）
+  bulge: number // 凸度：0 = 直线段，≠0 = 弧段（bulge = tan(弧角/4)）
 }
 
 /** 轮廓段 — 直线 */
@@ -140,31 +149,32 @@ export interface DiamondEntity extends BaseEntity {
   kind: 'DIAMOND'
   center: Point2D
   radius: number
-  contours?: ContourSegment[]  // 非 ROUND 形状的轮廓段（LINE/ARC）
+  contours?: ContourSegment[] // 非 ROUND 形状的轮廓段（LINE/ARC）
   diamondParams: DiamondParams
 }
 
 /** 钻石参数 */
 export interface DiamondParams {
   shape: DiamondShape
-  L: number       // 长度
-  W: number       // 宽度
-  Depth: number   // 深度比率(%)
+  L: number // 长度
+  W: number // 宽度
+  Depth: number // 深度比率(%)
   Pavilion: number // 亭部比率(%)
-  Crown: number   // 冠部比率(%)
-  Girdle: number  // 腰部比率(%)
-  Table: number   // 台面比率(%)
-  R?: number      // 冠角参数
-  P?: number      // 亭角参数
-  Tilt?: number   // 倾斜角
-  SW?: number     // 侧宽
+  Crown: number // 冠部比率(%)
+  Girdle: number // 腰部比率(%)
+  Table: number // 台面比率(%)
+  R?: number // 冠角参数
+  P?: number // 亭角参数
+  Tilt?: number // 倾斜角
+  SW?: number // 侧宽
 }
 
 // ─── 3D 挤出参数 ───────────────────────────────────
 export interface ExtrusionParams {
-  height: number         // 物体高度（底面 Z=0，顶面 Z=height）
-  openSize: number       // 开口补偿尺寸
-  tiltAngleDeg: number   // 倾斜角度
+  height: number // 物体高度（z 方向挤出量）
+  zBase: number // 实体底面 Z 坐标（默认 0）
+  openSize: number // 开口补偿尺寸
+  tiltAngleDeg: number // 倾斜角度（度），非 0 时顶部顶点沿径向位移 height * tan(θ)
   diamondParams?: DiamondParams // 钻石刻面参数（圆形钻石时与 CIRCLE 共用）
 }
 /** 带挤出参数的实体（用于 3D 预览和激光路径计算） */

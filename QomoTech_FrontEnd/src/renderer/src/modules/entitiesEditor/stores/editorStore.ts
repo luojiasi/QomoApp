@@ -46,7 +46,7 @@ import type {
   ToolMode,
   EntityKind,
   ProjectMeta,
-  DiamondShape,
+  DiamondShape
 } from '../commons/types'
 import {
   MAX_UNDO_STEPS,
@@ -56,7 +56,7 @@ import {
   INITIAL_PAN_Y,
   INITIAL_VIEWPORT_WIDTH,
   INITIAL_VIEWPORT_HEIGHT,
-  PROJECT_VERSION,
+  PROJECT_VERSION
 } from '../configs/defaults'
 import { generateId } from '../utils/idgen'
 import { loadGeneralConfig } from './generalSettingsStore'
@@ -87,7 +87,7 @@ function createInitialViewport(): ViewportState {
     panX: INITIAL_PAN_X,
     panY: INITIAL_PAN_Y,
     width: INITIAL_VIEWPORT_WIDTH,
-    height: INITIAL_VIEWPORT_HEIGHT,
+    height: INITIAL_VIEWPORT_HEIGHT
   }
 }
 
@@ -106,7 +106,7 @@ function createInitialMeta(): ProjectMeta {
     updatedAt: new Date().toISOString(),
     sourceFileName: '',
     entityCount: 0,
-    unsupportedCount: 0,
+    unsupportedCount: 0
   }
 }
 
@@ -122,7 +122,7 @@ function createDefaultLayer(name?: string): EditorLayer {
     name: name ?? DEFAULT_LAYER_NAME,
     visible: true,
     locked: false,
-    entityCount: 0,
+    entityCount: 0
   }
 }
 
@@ -136,34 +136,34 @@ export const useEditorStore = defineStore('entitiesEditor', () => {
   // ── State（响应式状态）──────────────────────────────────────────────
 
   /** 2D 画布视口：zoom、panX/Y、画布像素宽高。用于 screen↔world 坐标转换与重绘。 */
-  const viewport       = ref<ViewportState>(createInitialViewport())
+  const viewport = ref<ViewportState>(createInitialViewport())
 
   /** 图层列表。新建实体归属 layers[0]（见 activeLayerId）。 */
-  const layers         = ref<EditorLayer[]>([createDefaultLayer()])
+  const layers = ref<EditorLayer[]>([createDefaultLayer()])
 
   /** 全部 CAD 实体（含挤出 height / openSize / tiltAngleDeg）。 */
-  const entities       = ref<SurfaceEntity<EditorEntity>[]>([])
+  const entities = ref<SurfaceEntity<EditorEntity>[]>([])
 
   /** 当前选中的实体 id 列表（支持多选）。 */
-  const selectedIds    = ref<string[]>([])
+  const selectedIds = ref<string[]>([])
 
   /** 当前主工具：SELECT | DRAW | PAN。 */
-  const activeTool     = ref<ToolMode>('SELECT')
+  const activeTool = ref<ToolMode>('SELECT')
 
   /** DRAW 模式下的子图元类型：LINE | ARC | CIRCLE 等。 */
-  const drawSubTool    = ref<EntityKind>('LINE')
+  const drawSubTool = ref<EntityKind>('LINE')
 
   /** 钻石绘制模式：非 null 时，提交 CIRCLE/POLYLINE 实体时自动附加 diamondParams */
-  const diamondShape   = ref<DiamondShape | null>(null)
+  const diamondShape = ref<DiamondShape | null>(null)
 
   /** 项目元信息：名称、版本、实体数、更新时间等。 */
-  const projectMeta    = ref<ProjectMeta>(createInitialMeta())
+  const projectMeta = ref<ProjectMeta>(createInitialMeta())
 
   /** 撤销栈：每项为 JSON 字符串快照（entities + layers + projectMeta）。 */
-  const undoStack      = ref<string[]>([])
+  const undoStack = ref<string[]>([])
 
   /** 重做栈：结构与 undoStack 相同。执行新写操作后 redoStack 会被清空。 */
-  const redoStack      = ref<string[]>([])
+  const redoStack = ref<string[]>([])
 
   /**
    * 自上次 clearDirty() 以来被修改过的实体 id。
@@ -192,7 +192,7 @@ export const useEditorStore = defineStore('entitiesEditor', () => {
     projectMeta.value.entityCount = entities.value.length
     projectMeta.value.updatedAt = new Date().toISOString()
     for (const layer of layers.value) {
-      layer.entityCount = entities.value.filter(e => e.layerId === layer.id).length
+      layer.entityCount = entities.value.filter((e) => e.layerId === layer.id).length
     }
   }
 
@@ -212,7 +212,7 @@ export const useEditorStore = defineStore('entitiesEditor', () => {
     const snapshot = JSON.stringify({
       entities: entities.value,
       layers: layers.value,
-      projectMeta: projectMeta.value,
+      projectMeta: projectMeta.value
     })
     undoStack.value.push(snapshot)
     if (undoStack.value.length > MAX_UNDO_STEPS) {
@@ -233,12 +233,12 @@ export const useEditorStore = defineStore('entitiesEditor', () => {
     const current = JSON.stringify({
       entities: entities.value,
       layers: layers.value,
-      projectMeta: projectMeta.value,
+      projectMeta: projectMeta.value
     })
     redoStack.value.push(current)
     const state = JSON.parse(undoStack.value.pop()!)
-    entities.value    = state.entities
-    layers.value      = state.layers
+    entities.value = state.entities
+    layers.value = state.layers
     projectMeta.value = state.projectMeta
     selectedIds.value = []
   }
@@ -255,12 +255,12 @@ export const useEditorStore = defineStore('entitiesEditor', () => {
     const current = JSON.stringify({
       entities: entities.value,
       layers: layers.value,
-      projectMeta: projectMeta.value,
+      projectMeta: projectMeta.value
     })
     undoStack.value.push(current)
     const state = JSON.parse(redoStack.value.pop()!)
-    entities.value    = state.entities
-    layers.value      = state.layers
+    entities.value = state.entities
+    layers.value = state.layers
     projectMeta.value = state.projectMeta
     selectedIds.value = []
   }
@@ -341,8 +341,9 @@ export const useEditorStore = defineStore('entitiesEditor', () => {
       layerId: activeLayerId.value,
       openSide: 'LEFT',
       height: config.defaultExtrudeHeight,
+      zBase: 0,
       openSize: config.defaultOpenSize,
-      tiltAngleDeg: config.defaultTiltAngle,
+      tiltAngleDeg: config.defaultTiltAngle
     } as SurfaceEntity<EditorEntity>
     entities.value.push(entity)
     dirtyEntityIds.value.push(entity.id)
@@ -362,7 +363,7 @@ export const useEditorStore = defineStore('entitiesEditor', () => {
    */
   function updateEntity(id: string, patch: Partial<SurfaceEntity<EditorEntity>>) {
     captureSnapshot()
-    const idx = entities.value.findIndex(e => e.id === id)
+    const idx = entities.value.findIndex((e) => e.id === id)
     if (idx === -1) return
     entities.value[idx] = { ...entities.value[idx], ...patch } as SurfaceEntity<EditorEntity>
     if (!dirtyEntityIds.value.includes(id)) {
@@ -383,8 +384,8 @@ export const useEditorStore = defineStore('entitiesEditor', () => {
     if (selectedIds.value.length === 0) return
     captureSnapshot()
     const ids = new Set(selectedIds.value)
-    entities.value = entities.value.filter(e => !ids.has(e.id))
-    dirtyEntityIds.value = dirtyEntityIds.value.filter(id => !ids.has(id))
+    entities.value = entities.value.filter((e) => !ids.has(e.id))
+    dirtyEntityIds.value = dirtyEntityIds.value.filter((id) => !ids.has(id))
     selectedIds.value = []
     syncMeta()
   }
@@ -407,7 +408,7 @@ export const useEditorStore = defineStore('entitiesEditor', () => {
   function replaceAllEntities(
     newEntities: SurfaceEntity<EditorEntity>[],
     newLayers?: EditorLayer[],
-    newMeta?: Partial<ProjectMeta>,
+    newMeta?: Partial<ProjectMeta>
   ) {
     captureSnapshot()
     entities.value = newEntities
@@ -436,9 +437,7 @@ export const useEditorStore = defineStore('entitiesEditor', () => {
    */
   function createLayer(name?: string) {
     captureSnapshot()
-    const layer = createDefaultLayer(
-      name ?? `${DEFAULT_LAYER_NAME} ${layers.value.length + 1}`
-    )
+    const layer = createDefaultLayer(name ?? `${DEFAULT_LAYER_NAME} ${layers.value.length + 1}`)
     layers.value.push(layer)
     syncMeta()
   }
@@ -456,11 +455,9 @@ export const useEditorStore = defineStore('entitiesEditor', () => {
   function deleteLayer(layerId: string) {
     if (layers.value.length <= 1) return
     captureSnapshot()
-    layers.value = layers.value.filter(l => l.id !== layerId)
-    entities.value = entities.value.filter(e => e.layerId !== layerId)
-    selectedIds.value = selectedIds.value.filter(id =>
-      entities.value.some(e => e.id === id)
-    )
+    layers.value = layers.value.filter((l) => l.id !== layerId)
+    entities.value = entities.value.filter((e) => e.layerId !== layerId)
+    selectedIds.value = selectedIds.value.filter((id) => entities.value.some((e) => e.id === id))
     syncMeta()
   }
 
@@ -476,7 +473,7 @@ export const useEditorStore = defineStore('entitiesEditor', () => {
    * store.updateLayer(layerId, { locked: true, name: '参考' })
    */
   function updateLayer(layerId: string, patch: Partial<Omit<EditorLayer, 'id'>>) {
-    const layer = layers.value.find(l => l.id === layerId)
+    const layer = layers.value.find((l) => l.id === layerId)
     if (!layer) return
     captureSnapshot()
     Object.assign(layer, patch)
@@ -491,10 +488,10 @@ export const useEditorStore = defineStore('entitiesEditor', () => {
    * @param targetLayerId - 目标图层 id
    */
   function moveEntityToLayer(entityId: string, targetLayerId: string) {
-    const entity = entities.value.find(e => e.id === entityId)
+    const entity = entities.value.find((e) => e.id === entityId)
     if (!entity) return
     if (entity.layerId === targetLayerId) return
-    if (!layers.value.some(l => l.id === targetLayerId)) return
+    if (!layers.value.some((l) => l.id === targetLayerId)) return
     captureSnapshot()
     entity.layerId = targetLayerId
     if (!dirtyEntityIds.value.includes(entityId)) {
@@ -579,6 +576,6 @@ export const useEditorStore = defineStore('entitiesEditor', () => {
     moveEntityToLayer,
     setViewportSize,
     resetViewport,
-    clearDirty,
+    clearDirty
   }
 })
