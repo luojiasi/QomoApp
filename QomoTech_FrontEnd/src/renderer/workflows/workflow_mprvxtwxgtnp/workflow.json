@@ -1,0 +1,210 @@
+{
+  "id": "mprvxtwxgtnp",
+  "name": "控制器测试",
+  "description": "",
+  "nodes": [
+    {
+      "id": "mprvxwfk5amt",
+      "type": "trigger.manual",
+      "label": "手动触发",
+      "position": {
+        "x": 125,
+        "y": 175
+      },
+      "params": {},
+      "description": "",
+      "status": "idle"
+    },
+    {
+      "id": "mprw12r83mj5",
+      "type": "motion.connect",
+      "label": "连接控制器",
+      "position": {
+        "x": 325,
+        "y": 175
+      },
+      "params": {
+        "ip": "127.0.0.1"
+      },
+      "description": "",
+      "status": "idle",
+      "__routing": {
+        "method": "POST",
+        "endpoint": "/api/motion/connect",
+        "paramLocation": "body"
+      }
+    },
+    {
+      "id": "mprw49gcd6m9",
+      "type": "motion.disconnect",
+      "label": "断开控制器",
+      "position": {
+        "x": 1600,
+        "y": 175
+      },
+      "params": {},
+      "description": "",
+      "status": "idle",
+      "__routing": {
+        "method": "POST",
+        "endpoint": "/api/motion/disconnect",
+        "paramLocation": "body"
+      }
+    },
+    {
+      "id": "mprw4m5dun9e",
+      "type": "flow.notify",
+      "label": "弹窗通知",
+      "position": {
+        "x": 475,
+        "y": 25
+      },
+      "params": {
+        "type": "info",
+        "message": "$main.message",
+        "description": "",
+        "duration": 4500
+      },
+      "description": "",
+      "status": "idle"
+    },
+    {
+      "id": "mprw5ki4k8ua",
+      "type": "flow.notify",
+      "label": "弹窗通知",
+      "position": {
+        "x": 1750,
+        "y": 25
+      },
+      "params": {
+        "type": "info",
+        "message": "$main.message",
+        "description": "",
+        "duration": 4500
+      },
+      "description": "",
+      "status": "idle"
+    },
+    {
+      "id": "mprwa5npw8nf",
+      "type": "motion.jog",
+      "label": "轴点动",
+      "position": {
+        "x": 925,
+        "y": 425
+      },
+      "params": {
+        "axis": "X",
+        "direction": 1,
+        "speed": 10
+      },
+      "description": "",
+      "status": "idle",
+      "__routing": {
+        "method": "POST",
+        "endpoint": "/api/motion/jog",
+        "paramLocation": "body"
+      }
+    },
+    {
+      "id": "mprwqe0s851l",
+      "type": "motion.stop",
+      "label": "减速停止",
+      "position": {
+        "x": 525,
+        "y": 425
+      },
+      "params": {},
+      "description": "",
+      "status": "success",
+      "__routing": {
+        "method": "POST",
+        "endpoint": "/api/motion/stop",
+        "paramLocation": "body"
+      }
+    },
+    {
+      "id": "mprwqlx3z94s",
+      "type": "motion.reset",
+      "label": "复位",
+      "position": {
+        "x": 725,
+        "y": 425
+      },
+      "params": {},
+      "description": "",
+      "status": "idle",
+      "__routing": {
+        "method": "POST",
+        "endpoint": "/api/motion/reset",
+        "paramLocation": "body"
+      }
+    },
+    {
+      "id": "mprws7ns29q9",
+      "type": "trigger.manual",
+      "label": "手动触发",
+      "position": {
+        "x": 125,
+        "y": 400
+      },
+      "params": {},
+      "description": "",
+      "status": "idle"
+    }
+  ],
+  "edges": [
+    {
+      "id": "mprw162hjlpj",
+      "source": "mprvxwfk5amt",
+      "target": "mprw12r83mj5",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mprw4pgzhq1p",
+      "source": "mprw12r83mj5",
+      "target": "mprw4m5dun9e",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mprw5nfsdqmd",
+      "source": "mprw49gcd6m9",
+      "target": "mprw5ki4k8ua",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mprwqgxkd3to",
+      "source": "mprw12r83mj5",
+      "target": "mprwqe0s851l",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mprwqpsmfpge",
+      "source": "mprwqlx3z94s",
+      "target": "mprwa5npw8nf",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mprwsax6cgsq",
+      "source": "mprws7ns29q9",
+      "target": "mprwqe0s851l",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mprwzvm8p9bi",
+      "source": "mprwqe0s851l",
+      "target": "mprwqlx3z94s",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    }
+  ],
+  "createdAt": "2026-05-30T05:03:21.777Z",
+  "updatedAt": "2026-05-30T05:36:46.719Z",
+  "canvasSettings": {}
+}

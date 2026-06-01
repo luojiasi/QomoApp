@@ -349,8 +349,8 @@
       "type": "data.log",
       "label": "日志输出上游数据",
       "position": {
-        "x": 1525,
-        "y": 1025
+        "x": 1500,
+        "y": 1000
       },
       "params": {},
       "description": "",
@@ -378,7 +378,7 @@
       },
       "params": {},
       "description": "",
-      "status": "success"
+      "status": "idle"
     },
     {
       "id": "mprqvwf64fvu",
@@ -390,12 +390,11 @@
       },
       "params": {
         "portName": "$main.data.ports[0].name",
-        "monitoring": true,
-        "runMode": "oneLayer"
+        "monitoring": false,
+        "runMode": "fullChain"
       },
       "description": "",
-      "status": "running",
-      "statusText": "ING"
+      "status": "idle"
     },
     {
       "id": "mprqwdvpna5m",
@@ -407,7 +406,7 @@
       },
       "params": {},
       "description": "",
-      "status": "success",
+      "status": "idle",
       "__routing": {
         "method": "GET",
         "endpoint": "/api/rs232/ports",
@@ -437,7 +436,7 @@
         "autoScroll": true
       },
       "description": "",
-      "status": "success",
+      "status": "idle",
       "__routing": {
         "method": "POST",
         "endpoint": "/api/rs232/open",
@@ -480,7 +479,7 @@
         "duration": 4500
       },
       "description": "",
-      "status": "success"
+      "status": "idle"
     },
     {
       "id": "mprr77axn8jr",
@@ -560,11 +559,10 @@
       },
       "params": {
         "minutes": 0,
-        "seconds": 90
+        "seconds": 30
       },
       "description": "",
-      "status": "running",
-      "statusText": "43秒"
+      "status": "idle"
     },
     {
       "id": "mprrzbdmff7c",
@@ -580,7 +578,8 @@
         "description": "",
         "duration": 4500
       },
-      "description": ""
+      "description": "",
+      "status": "idle"
     }
   ],
   "edges": [
@@ -768,6 +767,6 @@
     }
   ],
   "createdAt": "2026-05-28T08:31:50.313Z",
-  "updatedAt": "2026-05-30T03:12:46.221Z",
+  "updatedAt": "2026-05-30T03:31:10.537Z",
   "canvasSettings": {}
 }

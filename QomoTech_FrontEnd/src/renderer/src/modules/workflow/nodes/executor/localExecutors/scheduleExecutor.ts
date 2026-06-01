@@ -55,18 +55,22 @@ export async function executeSchedule(
   }
 
   while (remainingSec > 0) {
+    if (callbacks?.signal?.aborted) break
     callbacks?.onProgress?.(node.id, formatTime(remainingSec))
     const waitMs = Math.min(remainingSec * 1000, 1000)
     await sleep(waitMs)
     remainingSec = Math.ceil((targetMs - Date.now()) / 1000)
   }
 
-  callbacks?.onProgress?.(node.id, '0s')
+  const aborted = callbacks?.signal?.aborted
+  if (!aborted) {
+    callbacks?.onProgress?.(node.id, '0s')
+  }
 
   return {
     nodeId: node.id,
     nodeType: node.type,
-    status: 'success',
-    output: { datetime, date, time }
+    status: aborted ? 'idle' : 'success',
+    output: { datetime, date, time, aborted }
   }
 }

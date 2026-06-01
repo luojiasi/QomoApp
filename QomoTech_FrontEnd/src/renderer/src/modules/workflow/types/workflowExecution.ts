@@ -32,6 +32,8 @@ export interface ExecutionCallbacks {
   onNodeCompleted?: (result: NodeRunResult) => void
   /** 进度更新（如倒计时每秒刷新），text 为显示内容如 "5s" */
   onProgress?: (nodeId: string, text: string) => void
+  /** 全局终止信号，长时间运行的执行器（倒计时/延时）应检查此信号 */
+  signal?: AbortSignal
 }
 
 /** 从 trigger 出发的最近下游节点信息 */

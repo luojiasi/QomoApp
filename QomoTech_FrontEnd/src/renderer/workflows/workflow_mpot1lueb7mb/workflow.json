@@ -13,7 +13,7 @@
       },
       "params": {},
       "description": "",
-      "status": "success"
+      "status": "idle"
     },
     {
       "id": "mpot1rqa7cth",
@@ -28,7 +28,7 @@
         "timeout": 15000
       },
       "description": "",
-      "status": "success",
+      "status": "idle",
       "__routing": {
         "method": "GET",
         "endpoint": "/api/health",
@@ -47,7 +47,7 @@
         "duration": 1000
       },
       "description": "",
-      "status": "success"
+      "status": "idle"
     },
     {
       "id": "mpot2w9oltf3",
@@ -61,7 +61,7 @@
         "duration": 1000
       },
       "description": "",
-      "status": "success"
+      "status": "idle"
     },
     {
       "id": "mpot344gvczb",
@@ -87,7 +87,7 @@
       },
       "params": {},
       "description": "",
-      "status": "success"
+      "status": "idle"
     },
     {
       "id": "mpoxsvlxe0jx",
@@ -104,7 +104,7 @@
         "duration": 2000
       },
       "description": "",
-      "status": "success"
+      "status": "idle"
     },
     {
       "id": "mpoxtiq6bbny",
@@ -176,6 +176,6 @@
     }
   ],
   "createdAt": "2026-05-28T01:19:00.566Z",
-  "updatedAt": "2026-05-29T08:32:57.697Z",
+  "updatedAt": "2026-05-30T03:30:59.004Z",
   "canvasSettings": {}
 }

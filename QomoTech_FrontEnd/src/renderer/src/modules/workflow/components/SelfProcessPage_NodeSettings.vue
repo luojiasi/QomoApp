@@ -152,11 +152,12 @@ function stopPolling(): void {
   lastPollNodeId = null
 }
 
-function startPolling(nodeId: string, runMode: 'fullChain' | 'oneLayer'): void {
+function startPolling(nodeId: string, runMode: 'fullChain' | 'oneLayer', signal: AbortSignal): void {
   stopPolling()
   lastPollNodeId = nodeId
 
   pollTimer = setInterval(async () => {
+    if (signal.aborted) { stopPolling(); return }
     if (lastPollNodeId !== nodeId) return
 
     try {
@@ -192,7 +193,7 @@ function startPolling(nodeId: string, runMode: 'fullChain' | 'oneLayer'): void {
           }
           store.addLog({ nodeId: r.nodeId, nodeName: rName, status: r.status, message: msg })
         }
-      })
+      }, signal)
     } catch {
       // 轮询失败静默跳过
     }
@@ -208,7 +209,7 @@ function toggleMonitoring(on: boolean): void {
   if (on) {
     store.setNodeStatus(node.value.id, 'running')
     store.setNodeStatusText(node.value.id, 'ING')
-    startPolling(node.value.id, runMode as 'fullChain' | 'oneLayer')
+    startPolling(node.value.id, runMode as 'fullChain' | 'oneLayer', store.getOrCreateAbortController().signal)
   } else {
     store.setNodeStatus(node.value.id, 'idle')
     store.setNodeStatusText(node.value.id, 'CLS')

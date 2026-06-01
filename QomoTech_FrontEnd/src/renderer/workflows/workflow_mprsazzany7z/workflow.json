@@ -1,0 +1,87 @@
+{
+  "id": "mprsazzany7z",
+  "name": "测试终止流程",
+  "description": "",
+  "nodes": [
+    {
+      "id": "mprsg4pi5shu",
+      "type": "trigger.manual",
+      "label": "手动触发",
+      "position": {
+        "x": 150,
+        "y": 175
+      },
+      "params": {},
+      "description": "",
+      "status": "idle"
+    },
+    {
+      "id": "mprsg959qcf9",
+      "type": "flow.countdown",
+      "label": "倒计时 5秒",
+      "position": {
+        "x": 375,
+        "y": 200
+      },
+      "params": {
+        "minutes": 0,
+        "seconds": 5
+      },
+      "description": "",
+      "status": "idle"
+    },
+    {
+      "id": "mprsgbw92ywx",
+      "type": "flow.countdown",
+      "label": "倒计时 5秒",
+      "position": {
+        "x": 600,
+        "y": 200
+      },
+      "params": {
+        "minutes": 0,
+        "seconds": 5
+      },
+      "description": "",
+      "status": "idle"
+    },
+    {
+      "id": "mprsnv1eqdvr",
+      "type": "trigger.single",
+      "label": "单一入口触发节点",
+      "position": {
+        "x": 150,
+        "y": 50
+      },
+      "params": {},
+      "description": "",
+      "status": "idle"
+    }
+  ],
+  "edges": [
+    {
+      "id": "mprsgag5xwz8",
+      "source": "mprsg4pi5shu",
+      "target": "mprsg959qcf9",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mprsgd54epj5",
+      "source": "mprsg959qcf9",
+      "target": "mprsgbw92ywx",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mprsnwyxdz7y",
+      "source": "mprsnv1eqdvr",
+      "target": "mprsg959qcf9",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    }
+  ],
+  "createdAt": "2026-05-30T03:21:37.702Z",
+  "updatedAt": "2026-05-30T03:32:23.187Z",
+  "canvasSettings": {}
+}

@@ -37,14 +37,22 @@ async function traverseAndExecute(
   nodes: WorkflowNode[],
   edges: WorkflowEdge[],
   callbacks?: ExecutionCallbacks,
-  initialUpstreamData?: Record<string, Record<string, unknown>>
+  initialUpstreamData?: Record<string, Record<string, unknown>>,
+  signal?: AbortSignal
 ): Promise<NodeRunResult[]> {
   const results: NodeRunResult[] = []
   const executionCount = new Map<string, number>()
 
+  // 将 signal 注入 callbacks，长时执行器（倒计时/延时）通过它感知终止
+  if (signal && callbacks) {
+    callbacks = { ...callbacks, signal }
+  }
+
   resetLoopState()
 
   async function runChain(nodeId: string, loopPass: number, inheritedData?: Record<string, Record<string, unknown>>): Promise<void> {
+    if (signal?.aborted) return
+
     const timesExecuted = executionCount.get(nodeId) ?? 0
     if (timesExecuted >= MAX_EXECUTIONS_PER_NODE) return
     executionCount.set(nodeId, timesExecuted + 1)
@@ -128,7 +136,8 @@ async function traverseAndExecute(
  */
 export async function executeWorkflow(
   workflow: Workflow,
-  callbacks?: ExecutionCallbacks
+  callbacks?: ExecutionCallbacks,
+  signal?: AbortSignal
 ): Promise<WorkflowRunResult> {
   const triggers = findTriggerNodes(workflow.nodes)
   if (triggers.length === 0) {
@@ -159,7 +168,7 @@ export async function executeWorkflow(
   const allResults: NodeRunResult[] = []
   for (const entry of entries) {
     const chainResults = await traverseAndExecute(
-      entry.triggerNodeId, workflow.nodes, workflow.edges, callbacks
+      entry.triggerNodeId, workflow.nodes, workflow.edges, callbacks, undefined, signal
     )
     allResults.push(...chainResults)
   }
@@ -173,7 +182,8 @@ export async function executeWorkflow(
 export async function executeFromNode(
   workflow: Workflow,
   nodeId: string,
-  callbacks?: ExecutionCallbacks
+  callbacks?: ExecutionCallbacks,
+  signal?: AbortSignal
 ): Promise<WorkflowRunResult> {
   const node = workflow.nodes.find((n) => n.id === nodeId)
   if (!node) {
@@ -181,7 +191,7 @@ export async function executeFromNode(
   }
 
   const results = await traverseAndExecute(
-    nodeId, workflow.nodes, workflow.edges, callbacks
+    nodeId, workflow.nodes, workflow.edges, callbacks, undefined, signal
   )
 
   if (results.length === 0) {
@@ -212,7 +222,8 @@ export async function executeDownstream(
   sourceNodeId: string,
   sourceOutput: Record<string, unknown>,
   runMode: 'fullChain' | 'oneLayer',
-  callbacks?: ExecutionCallbacks
+  callbacks?: ExecutionCallbacks,
+  signal?: AbortSignal
 ): Promise<WorkflowRunResult> {
   const downstream = findDownstreamNodeIds(sourceNodeId, 'main', workflow.edges)
   if (downstream.length === 0) {
@@ -228,14 +239,15 @@ export async function executeDownstream(
 
     if (runMode === 'fullChain') {
       const chainResults = await traverseAndExecute(
-        downId, workflow.nodes, workflow.edges, callbacks, initialUpstream
+        downId, workflow.nodes, workflow.edges, callbacks, initialUpstream, signal
       )
       allResults.push(...chainResults)
     } else {
-      callbacks?.onNodeStarted?.(downId)
-      const result = await executeSingleNode(node, initialUpstream, callbacks)
-      allResults.push(result)
-      callbacks?.onNodeCompleted?.(result)
+      // oneLayer: 复用 traverseAndExecute，传入空 edges 阻止继续向下递归
+      const directResults = await traverseAndExecute(
+        downId, workflow.nodes, [], callbacks, initialUpstream, signal
+      )
+      allResults.push(...directResults)
     }
   }
 

@@ -30,14 +30,16 @@ export async function executeCountdown(
   const totalSeconds = Math.max(1, minutes * 60 + seconds)
 
   for (let remaining = totalSeconds; remaining >= 0; remaining--) {
+    if (callbacks?.signal?.aborted) break
     callbacks?.onProgress?.(node.id, formatTime(remaining))
     if (remaining > 0) await sleep(1000)
   }
 
+  const aborted = callbacks?.signal?.aborted
   return {
     nodeId: node.id,
     nodeType: node.type,
-    status: 'success',
-    output: { totalSeconds, minutes, seconds }
+    status: aborted ? 'idle' : 'success',
+    output: { totalSeconds, minutes, seconds, aborted }
   }
 }

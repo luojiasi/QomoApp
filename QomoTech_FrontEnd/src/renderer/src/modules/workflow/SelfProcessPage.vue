@@ -21,7 +21,7 @@ import AppButton      from './UI/AppButton.vue'
 import AppTabs        from './UI/AppTabs.vue'
 import './workflow.css'
 
-const { store } = useWorkflowPage()
+const { store, startWorkflow } = useWorkflowPage()
 
 const settingsTab = ref<'node' | 'canvas' | 'log'>('node')
 
@@ -44,10 +44,24 @@ const settingsTabs = [
 
     <div class="flex flex-1 justify-center gap-2">
       <AppButton
+        variant="success"
+        :disabled="!store.currentWorkflow"
+        @click="startWorkflow()"
+      >
+        开始流程
+      </AppButton>
+      <AppButton
         :disabled="!store.currentWorkflow || store.isSaving"
         @click="store.save()"
       >
         {{ store.isSaving ? '保存中...' : '保存流程' }}
+      </AppButton>
+      <AppButton
+        variant="danger"
+        :disabled="!store.currentWorkflow"
+        @click="store.stopAll()"
+      >
+        终止流程
       </AppButton>
     </div>
 

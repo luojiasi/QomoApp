@@ -37,6 +37,7 @@ export const useWorkflowStore = defineStore('workflow', () => {
   const currentWorkflowId = ref<string | null>(null)
   const selectedNodeId   = ref<string | null>(null)
   const isSaving         = ref(false)
+  let abortController   : AbortController | null = null
   const basePath         = ref('')   // 由 Electron 提供的流程目录
   const logs             = ref<LogEntry[]>([])
   /** 最近一次执行中每个节点的 output，供配置面板引用上游数据时展示 */
@@ -232,6 +233,27 @@ export const useWorkflowStore = defineStore('workflow', () => {
     currentWorkflow.value?.nodes.forEach(n => { n.status = 'editing'; n.statusText = undefined })
   }
 
+  // ── 全局终止 ─────────────────────────────────────────────────
+
+  function getOrCreateAbortController(): AbortController {
+    if (abortController && !abortController.signal.aborted) return abortController
+    abortController = new AbortController()
+    return abortController
+  }
+
+  /**
+   * 终止所有正在执行的流程：
+   *   - abort 当前 AbortController（executor 检测到后跳过剩余节点）
+   *   - 重置所有节点状态为 idle
+   */
+  function stopAll(): void {
+    if (abortController) {
+      abortController.abort()
+      abortController = null
+    }
+    resetAllNodeStatuses()
+  }
+
   // ── 日志管理 ─────────────────────────────────────────────────
 
   function addLog(entry: Omit<LogEntry, 'id' | 'timestamp'>): void {
@@ -307,6 +329,9 @@ export const useWorkflowStore = defineStore('workflow', () => {
     moveNode,
     disableNode,
     enableNode,
+    // 终止
+    getOrCreateAbortController,
+    stopAll,
     // 执行状态
     setNodeStatus,
     setNodeStatusText,

@@ -896,8 +896,17 @@
             class="flex items-center justify-between border-b border-slate-800 bg-slate-900/40 px-3 py-2"
           >
             <div class="text-xs font-medium text-slate-200">2D</div>
-            <div class="text-xs font-medium text-slate-200">
-              当前缩放：{{ viewport.zoom.toFixed(3) }}
+            <div class="flex items-center gap-1 text-xs font-medium text-slate-200">
+              <label for="zoom-input" class="whitespace-nowrap">缩放:</label>
+              <input
+                id="zoom-input"
+                v-model.number="viewport.zoom"
+                type="number"
+                min="1"
+                max="50"
+                step="0.1"
+                class="w-16 rounded border border-slate-700 bg-slate-800/60 px-1.5 py-0.5 text-center text-xs text-slate-200 outline-none focus:border-sky-500/70"
+              />
             </div>
             <div class="flex items-center gap-2">
               <button

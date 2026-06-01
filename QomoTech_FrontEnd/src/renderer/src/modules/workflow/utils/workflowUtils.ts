@@ -97,6 +97,39 @@ function makeDefaultLabel(def: NodeTypeDef): string {
     return '相机断开'
   }
 
+  if (def.type === 'motion.connect') {
+    return '连接控制器'
+  }
+
+  if (def.type === 'motion.disconnect') {
+    return '断开控制器'
+  }
+
+  if (def.type === 'motion.move-rel') {
+    const pos = (d.position as number) ?? 0
+    return pos !== 0 ? `相对移动 ${pos}mm` : '相对移动'
+  }
+
+  if (def.type === 'motion.jog') {
+    return '轴点动'
+  }
+
+  if (def.type === 'motion.jog-stop') {
+    return '停止点动'
+  }
+
+  if (def.type === 'motion.reset') {
+    return '复位'
+  }
+
+  if (def.type === 'motion.stop') {
+    return '减速停止'
+  }
+
+  if (def.type === 'motion.estop') {
+    return '急停'
+  }
+
   if (def.type === 'camera.getParams') {
     return '获取相机参数'
   }

@@ -15,7 +15,7 @@
         "mainRecipeId": "main-1"
       },
       "description": "",
-      "status": "success"
+      "status": "idle"
     },
     {
       "id": "mpqrbu8y3jfp",
@@ -27,7 +27,7 @@
       },
       "params": {},
       "description": "",
-      "status": "success"
+      "status": "idle"
     },
     {
       "id": "mpqrcw6p3jus",
@@ -43,7 +43,8 @@
         "operand": "",
         "targetField": ""
       },
-      "description": ""
+      "description": "",
+      "status": "idle"
     }
   ],
   "edges": [
@@ -63,6 +64,6 @@
     }
   ],
   "createdAt": "2026-05-29T09:43:11.082Z",
-  "updatedAt": "2026-05-30T01:53:50.557Z",
+  "updatedAt": "2026-05-30T03:31:16.723Z",
   "canvasSettings": {}
 }

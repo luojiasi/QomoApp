@@ -15,7 +15,7 @@
         "data": "{\"循环结构体\":0}"
       },
       "description": "",
-      "status": "success",
+      "status": "idle",
       "disabled": false
     },
     {
@@ -28,7 +28,7 @@
       },
       "params": {},
       "description": "",
-      "status": "success"
+      "status": "idle"
     },
     {
       "id": "mpnr9ab5qml5",
@@ -51,8 +51,7 @@
         ]
       },
       "description": "",
-      "status": "success",
-      "statusText": "done"
+      "status": "idle"
     },
     {
       "id": "mpnrgng9rsya",
@@ -64,7 +63,7 @@
       },
       "params": {},
       "description": "",
-      "status": "success"
+      "status": "idle"
     },
     {
       "id": "mpntk9wdn6bz",
@@ -81,7 +80,7 @@
         "targetField": "循环结构体"
       },
       "description": "",
-      "status": "success"
+      "status": "idle"
     },
     {
       "id": "mpntkp48wgd8",
@@ -95,7 +94,7 @@
         "duration": 1000
       },
       "description": "",
-      "status": "success"
+      "status": "idle"
     },
     {
       "id": "mpntku5ffwqz",
@@ -109,7 +108,7 @@
         "duration": 1000
       },
       "description": "",
-      "status": "success"
+      "status": "idle"
     },
     {
       "id": "mpnloopend001",
@@ -121,7 +120,7 @@
       },
       "params": {},
       "description": "",
-      "status": "success"
+      "status": "idle"
     },
     {
       "id": "mpottirj0d7n",
@@ -136,7 +135,7 @@
         "time": "09:42"
       },
       "description": "",
-      "status": "warning"
+      "status": "idle"
     },
     {
       "id": "mpotu9gi220e",
@@ -150,7 +149,7 @@
         "duration": 1000
       },
       "description": "",
-      "status": "success"
+      "status": "idle"
     },
     {
       "id": "mpqo0fk23qnz",
@@ -167,7 +166,7 @@
         "duration": 4500
       },
       "description": "",
-      "status": "success"
+      "status": "idle"
     },
     {
       "id": "mpqo0woxh63e",
@@ -184,7 +183,7 @@
         "duration": 4500
       },
       "description": "",
-      "status": "success"
+      "status": "idle"
     }
   ],
   "edges": [
@@ -281,6 +280,6 @@
     }
   ],
   "createdAt": "2026-05-27T06:50:08.757Z",
-  "updatedAt": "2026-05-29T08:37:12.354Z",
+  "updatedAt": "2026-05-30T03:31:01.643Z",
   "canvasSettings": {}
 }

@@ -13,7 +13,7 @@
       },
       "params": {},
       "description": "",
-      "status": "success"
+      "status": "idle"
     },
     {
       "id": "mpqn53drmt0p",
@@ -27,7 +27,7 @@
         "duration": 1000
       },
       "description": "",
-      "status": "success"
+      "status": "idle"
     },
     {
       "id": "mpqn54z6kmql",
@@ -41,7 +41,7 @@
         "data": " {\"x1\":100,\"y1\":200}"
       },
       "description": "",
-      "status": "success"
+      "status": "idle"
     },
     {
       "id": "mpqn5bdb9akq",
@@ -55,7 +55,7 @@
         "data": " {\"x2\":100,\"y2\":200}"
       },
       "description": "",
-      "status": "success"
+      "status": "idle"
     },
     {
       "id": "mpqnbq0xqysk",
@@ -69,7 +69,7 @@
         "duration": 2000
       },
       "description": "",
-      "status": "success"
+      "status": "idle"
     },
     {
       "id": "mpqncr16yxli",
@@ -83,7 +83,7 @@
         "duration": 1000
       },
       "description": "",
-      "status": "success"
+      "status": "idle"
     },
     {
       "id": "mpqngwkazv9v",
@@ -97,7 +97,7 @@
         "extraInputCount": 0
       },
       "description": "",
-      "status": "success"
+      "status": "idle"
     },
     {
       "id": "mpqnwlmd87vm",
@@ -114,7 +114,7 @@
         "duration": 4500
       },
       "description": "",
-      "status": "success"
+      "status": "idle"
     },
     {
       "id": "mpqnx9ieqf6c",
@@ -131,7 +131,7 @@
         "duration": 4500
       },
       "description": "",
-      "status": "success"
+      "status": "idle"
     },
     {
       "id": "mpqnxx8u8guj",
@@ -148,7 +148,7 @@
         "duration": 4500
       },
       "description": "",
-      "status": "success"
+      "status": "idle"
     }
   ],
   "edges": [
@@ -224,6 +224,6 @@
     }
   ],
   "createdAt": "2026-05-29T08:07:38.028Z",
-  "updatedAt": "2026-05-29T08:32:00.344Z",
+  "updatedAt": "2026-05-30T03:31:13.171Z",
   "canvasSettings": {}
 }

@@ -90,7 +90,8 @@ export function useWorkflowNode(props: NodeProps) {
     store.clearNodeOutputs()
     store.addLog({ nodeId: props.id, nodeName: displayName.value, status: 'idle', message: '开始执行链路，所有节点状态已重置' })
 
-    // 2. 执行（通过回调逐节点增量更新状态和日志）
+    // 2. 创建 AbortController 并执行（通过回调逐节点增量更新状态和日志）
+    const controller = store.getOrCreateAbortController()
     const result = await executeFromNode(wf, props.id, {
       onNodeStarted(nodeId: string) {
         store.setNodeStatus(nodeId, 'running')
@@ -119,7 +120,7 @@ export function useWorkflowNode(props: NodeProps) {
         const name = wf.nodes.find(n => n.id === nodeId)?.label ?? nodeId
         store.addLog({ nodeId, nodeName: name, status: 'running', message: text })
       }
-    })
+    }, controller.signal)
 
     // 3. 全局失败（如节点不存在）
     if (!result.success) {
