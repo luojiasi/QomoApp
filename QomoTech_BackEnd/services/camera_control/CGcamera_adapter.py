@@ -131,7 +131,7 @@ class 相机适配器:
         await self._在线程执行(cam.uninitialize_sdk)
         self._已连接 = False
         self._已推流 = False
-        self._执行器.shutdown(wait=False)
+        self._执行器.shutdown(wait=True)
         日志.info("相机 SDK 已关闭")
 
     # ------------------------------------------------------------------

@@ -119,6 +119,10 @@ class CGImageTechCamera:
         self.device_handle = None
         self.initialized = False
         self._streaming = False
+        self._frame_buffer = None  # 复用的帧缓冲区 (ctypes array)
+        self._frame_buffer_size = 0
+        self._cached_w = 0
+        self._cached_h = 0
         
     def _define_functions(self):
         """定义所有函数原型"""
@@ -478,30 +482,42 @@ class CGImageTechCamera:
         return status
 
     def capture_frame(self, timeout_ms=1000, as_bgr=True):
-        """抓取单帧图像，返回 np.ndarray。"""
+        """抓取单帧图像，返回 np.ndarray。
+
+        帧缓冲区在首次调用时分配，后续调用复用（参照 preview_opencv 做法）。
+        仅在分辨率变化时重新分配，避免每帧 malloc/free ~6MB 的 ctypes 缓冲区。
+        """
         if not self.device_handle:
             raise RuntimeError("请先打开相机")
         if not self._streaming:
             raise RuntimeError("请先启动视频流")
 
-        w = INT(0)
-        h = INT(0)
+        w = INT(self._cached_w)
+        h = INT(self._cached_h)
         status = self.GetImageSize(self.device_handle, ctypes.byref(w), ctypes.byref(h))
         if status != 0 or w.value <= 0 or h.value <= 0:
             raise RuntimeError(f"GetImageSize 失败: {status}, w={w.value}, h={h.value}")
 
-        rgb = (BYTE * (w.value * h.value * 3))()
+        needed = w.value * h.value * 3
+        if self._frame_buffer is None or self._frame_buffer_size != needed:
+            self._frame_buffer = (BYTE * needed)()
+            self._frame_buffer_size = needed
+            self._cached_w = w.value
+            self._cached_h = h.value
+
         frame_info = DeviceFrameInfo()
         status = self.DeviceGetImageBufferEx2(
             self.device_handle,
-            ctypes.cast(rgb, ctypes.POINTER(BYTE)),
+            ctypes.cast(self._frame_buffer, ctypes.POINTER(BYTE)),
             UINT(timeout_ms),
             ctypes.byref(frame_info),
         )
         if status != STATUS_OK:
             raise RuntimeError(f"取帧失败: {status}")
 
-        img_rgb = np.frombuffer(rgb, dtype=np.uint8).reshape((h.value, w.value, 3))
+        img_rgb = np.frombuffer(
+            self._frame_buffer, dtype=np.uint8, count=self._frame_buffer_size,
+        ).reshape((h.value, w.value, 3))
         if as_bgr:
             return cv2.cvtColor(img_rgb, cv2.COLOR_RGB2BGR)
         return img_rgb

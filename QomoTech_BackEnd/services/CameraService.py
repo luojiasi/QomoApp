@@ -175,11 +175,18 @@ class CameraService:
     ) -> bytes:
         async with self._服务锁:
             self._准入(相机状态.CONNECTED)
-            数据 = await self.适配器.取_jpeg(
-                timeout_ms=timeout_ms, quality=quality,
-            )
-            日志.debug(f"取帧成功 size={len(数据)}B quality={quality}")
-            return 数据
+
+        # 锁在此处已释放 —— 取帧期间不再阻塞参数设置/断开等操作
+        # 若取帧途中相机被断开，adapter 内部 _断言已连接 会抛出 CameraError，
+        # 由上层 WS 推送循环捕获并重试
+        adapter = self.适配器
+        if adapter is None:
+            raise CameraError("相机服务未就绪")
+        数据 = await adapter.取_jpeg(
+            timeout_ms=timeout_ms, quality=quality,
+        )
+        日志.debug(f"取帧成功 size={len(数据)}B quality={quality}")
+        return 数据
 
     # ==================================================================
     # 参数设置
