@@ -1,7 +1,7 @@
 import type { Ref, InjectionKey } from 'vue'
 
 // ActionDef 定义
-export type ActionGroup = 'file' | 'shape' | 'diamond' | 'tool' | 'settings' | 'view'
+export type ActionGroup = 'file' | 'shape' | 'freeparam' | 'diamond' | 'tool' | 'settings' | 'view'
 
 /** provide/inject：设置弹窗共享状态 */
 export interface SettingsState {

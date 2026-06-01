@@ -27,6 +27,8 @@ export const ACTIONS: ActionDef[] = [
     { id: 'DRAW_ELLIPSE', label: '椭圆', group: 'shape', key: 'e' },
     { id: 'DRAW_POLYLINE', label: '多段线', group: 'shape', key: 'p' },
     { id: 'DRAW_BEZIER', label: '曲线', group: 'shape', key: 'b' },
+    // —— 自由编辑参数 ——
+    { id: 'FREE_EDIT_PARAMS', label: '自由编辑参数', group: 'freeparam' },
     // —— 钻石工具 ——
     { id: 'DRAW_DIAMOND', label: '钻石', group: 'diamond', key: 'd' },
     // ── 工具 ──
@@ -157,11 +159,7 @@ import type { DiamondParams, DiamondShape } from '../commons/types'
 export const DIAMOND_PRESETS: Record<DiamondShape, DiamondParams> = {
   ROUND:    { shape: 'ROUND',    L: 6,   W: 6,   Depth: 62, Pavilion: 43.5, Crown: 14.7, Girdle: 4, Table: 58, R: 3.1167, P: 0.5529, Tilt: 0, SW: 3.37 },
   PRINCESS: { shape: 'PRINCESS', L: 6,   W: 6,   Depth: 72, Pavilion: 49,   Crown: 19,   Girdle: 4, Table: 67 },
-  CUSHION:  { shape: 'CUSHION',  L: 6,   W: 6,   Depth: 65, Pavilion: 44,   Crown: 17,   Girdle: 4, Table: 58 },
   EMERALD:  { shape: 'EMERALD',  L: 7,   W: 5,   Depth: 62, Pavilion: 45,   Crown: 13,   Girdle: 4, Table: 65 },
-  OVAL:     { shape: 'OVAL',     L: 8,   W: 5.5, Depth: 62, Pavilion: 43.5, Crown: 14.5, Girdle: 4, Table: 57 },
-  PEAR:     { shape: 'PEAR',     L: 8,   W: 5,   Depth: 62, Pavilion: 43.5, Crown: 14.5, Girdle: 4, Table: 57 },
-  MARQUISE: { shape: 'MARQUISE', L: 10,  W: 5,   Depth: 62, Pavilion: 43.5, Crown: 14.5, Girdle: 4, Table: 57 },
   HEART:    { shape: 'HEART',    L: 6,   W: 6,   Depth: 62, Pavilion: 43.5, Crown: 14.5, Girdle: 4, Table: 57 },
 }
 

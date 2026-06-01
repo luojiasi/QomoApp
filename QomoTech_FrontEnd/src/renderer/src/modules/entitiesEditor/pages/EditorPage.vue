@@ -8,6 +8,7 @@ import LayoutPanel from '../components/panels/LayoutPanel.vue'
 import InspectorPanel from '../components/panels/InspectorPanel.vue'
 import StoreDebugger from '../components/panels/StoreDebugger.vue'
 import SettingsDialog from '../components/SettingsDialog.vue'
+import FreeParamDialog from '../components/FreeParamDialog.vue'
 import StatusBar from '../components/StatusBar.vue'
 import { useRightPanel } from '../composables/useRightPanel'
 import { useInspectorPanel } from '../composables/useInspectorPanel'
@@ -33,6 +34,7 @@ function onDeleteLayer(id: string) { deleteLayer(id) }
 function onToggleLayer(id: string) { toggleLayer(id) }
 
 const settingsRef = ref<InstanceType<typeof SettingsDialog> | null>(null)
+const freeparamRef = ref<InstanceType<typeof FreeParamDialog> | null>(null)
 const previewRef = ref<InstanceType<typeof Preview3D> | null>(null)
 const toolbarRef = ref<InstanceType<typeof EditorToolbar> | null>(null)
 const canvas2DRef = ref<InstanceType<typeof Canvas2D> | null>(null)
@@ -62,6 +64,7 @@ const { dispatchAction } = useShortCutsDetails({
   onSave: ()=>saveProject(),
   onExport: ()=> exportProject(),
   onImportDxf: () => fileInputRef.value?.click(),
+  onFreeEditParams: () => freeparamRef.value?.open(),
 })
 
 function handleImportDxf(e: Event) {
@@ -146,6 +149,7 @@ useKeyboardShortcuts(dispatchAction, { isOpen: settingsIsOpen, capturing: settin
     />
 
     <SettingsDialog ref="settingsRef" @saved="onSettingsSaved" />
+    <FreeParamDialog ref="freeparamRef" />
   </div>
 </template>
 

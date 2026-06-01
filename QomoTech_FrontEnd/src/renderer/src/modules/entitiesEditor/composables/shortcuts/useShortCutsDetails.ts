@@ -20,6 +20,7 @@ export function useShortCutsDetails(handlers: {
   onSave: () => void
   onExport: () => void
   onImportDxf: () => void
+  onFreeEditParams: () => void
 }) {
   const store = useEditorStore()
 
@@ -55,6 +56,7 @@ export function useShortCutsDetails(handlers: {
 
       // ── 设置 ──
       case 'SETTINGS': handlers.onSettingsOpen(); break
+      case 'FREE_EDIT_PARAMS': handlers.onFreeEditParams(); break
       case 'BACKHOME': router.back(); break
     }
   }

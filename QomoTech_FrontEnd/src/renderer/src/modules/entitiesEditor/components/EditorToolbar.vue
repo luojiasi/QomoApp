@@ -10,7 +10,7 @@ import { SHAPE_LABELS } from '../composables/preview/diamount/types'
 const DIAMOND_SHAPE_OPTIONS: { shape: DiamondShape; label: string }[] =
   Object.entries(SHAPE_LABELS).map(([shape, label]) => ({ shape: shape as DiamondShape, label }))
 
-const { fileGroup, shapeGroup, diamondGroup, toolGroup, settingsGroup, toolTitle, reload } = useEditorToolbar()
+const { fileGroup, shapeGroup, freeparamGroup, diamondGroup, toolGroup, settingsGroup, toolTitle, reload } = useEditorToolbar()
 
 defineExpose({ reload })
 
@@ -107,6 +107,24 @@ function closeDiamondMenu() {
           @click="onClick(t)"
           @contextmenu.prevent="onShapeContextMenu($event, actionIdToKind(t.id)!)"
         >
+          <span v-if="t.key" class="tool-key">{{ t.key }}</span>
+          <span class="tool-label">{{ t.label }}</span>
+        </button>
+      </div>
+    </div>
+
+    <span class="panel-sep" />
+
+    <!-- ▸ 自由编辑参数 -->
+    <div class="tool-panel">
+      <div class="panel-btns">
+        <button
+          v-for="t in freeparamGroup" :key="t.id"
+          class="tool-btn"
+          :title="toolTitle(t)"
+          @click="onClick(t)"
+        >
+          <span v-if="t.icon" class="tool-icon">{{ t.icon }}</span>
           <span v-if="t.key" class="tool-key">{{ t.key }}</span>
           <span class="tool-label">{{ t.label }}</span>
         </button>

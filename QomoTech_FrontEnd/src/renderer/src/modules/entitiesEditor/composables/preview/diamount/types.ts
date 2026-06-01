@@ -22,10 +22,6 @@ export interface ShapeDefinition {
 export const SHAPE_LABELS: Record<string, string> = {
   ROUND:    '圆形明亮式',
   PRINCESS: '公主方',
-  CUSHION:  '垫形',
   EMERALD:  '祖母绿形',
-  OVAL:     '椭圆形',
-  PEAR:     '水滴形',
-  MARQUISE: '马眼形',
   HEART:    '心形',
 }
