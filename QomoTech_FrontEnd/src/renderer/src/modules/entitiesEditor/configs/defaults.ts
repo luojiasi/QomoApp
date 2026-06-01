@@ -126,6 +126,7 @@ export const CANVAS_AXIS_LINE_WIDTH = 2
 // ── 实体绘制 ──
 export const CANVAS_ENTITY_STROKE = '#94a3b8'
 export const CANVAS_ENTITY_LINE_WIDTH = 1.5
+export const CANVAS_FREEPARAM_STROKE = '#f59e0b'
 
 // ── 选中 / 悬停 ──
 export const CANVAS_SELECTION_STROKE = '#3b82f6'

@@ -10,6 +10,7 @@ import {
   CANVAS_GRID_AXIS_COLOR,
   CANVAS_AXIS_LINE_WIDTH,
   CANVAS_ENTITY_STROKE,
+  CANVAS_FREEPARAM_STROKE,
   CANVAS_ENTITY_LINE_WIDTH,
   CANVAS_SELECTION_STROKE,
   CANVAS_SELECTION_LINE_WIDTH,
@@ -29,6 +30,7 @@ export interface Canvas2DConfig {
   gridAxisColor: string
   axisLineWidth: number
   entityStroke: string
+  freeparamStroke: string
   entityLineWidth: number
   selectionStroke: string
   selectionLineWidth: number
@@ -53,6 +55,7 @@ export function loadCanvas2DConfig(): Canvas2DConfig {
         gridAxisColor: saved.gridAxisColor ?? CANVAS_GRID_AXIS_COLOR,
         axisLineWidth: saved.axisLineWidth ?? CANVAS_AXIS_LINE_WIDTH,
         entityStroke: saved.entityStroke ?? CANVAS_ENTITY_STROKE,
+        freeparamStroke: saved.freeparamStroke ?? CANVAS_FREEPARAM_STROKE,
         entityLineWidth: saved.entityLineWidth ?? CANVAS_ENTITY_LINE_WIDTH,
         selectionStroke: saved.selectionStroke ?? CANVAS_SELECTION_STROKE,
         selectionLineWidth: saved.selectionLineWidth ?? CANVAS_SELECTION_LINE_WIDTH,
@@ -73,6 +76,7 @@ export function loadCanvas2DConfig(): Canvas2DConfig {
     gridAxisColor: CANVAS_GRID_AXIS_COLOR,
     axisLineWidth: CANVAS_AXIS_LINE_WIDTH,
     entityStroke: CANVAS_ENTITY_STROKE,
+    freeparamStroke: CANVAS_FREEPARAM_STROKE,
     entityLineWidth: CANVAS_ENTITY_LINE_WIDTH,
     selectionStroke: CANVAS_SELECTION_STROKE,
     selectionLineWidth: CANVAS_SELECTION_LINE_WIDTH,

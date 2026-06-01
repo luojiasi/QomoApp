@@ -49,6 +49,7 @@ import type {
 } from '@/modules/entitiesEditor/commons/types'
 import { MIN_ZOOM, MAX_ZOOM } from '@/modules/entitiesEditor/configs/defaults'
 import { loadCanvas2DConfig, type Canvas2DConfig } from '@/modules/entitiesEditor/stores/canvas2DSettingsStore'
+import { drawnEntityIds } from '@/modules/entitiesEditor/composables/useFreeParamTask'
 import {
   sampleBezierPoints,
   samplePolylineVertices,
@@ -263,6 +264,9 @@ export function useCanvas2D() {
       c.lineWidth = cfg.selectionLineWidth / store.viewport.zoom
     } else if (hovered) {
       c.strokeStyle = cfg.hoverStroke
+      c.lineWidth = cfg.entityLineWidth / store.viewport.zoom
+    } else if (drawnEntityIds.has(entity.id)) {
+      c.strokeStyle = cfg.freeparamStroke
       c.lineWidth = cfg.entityLineWidth / store.viewport.zoom
     } else {
       c.strokeStyle = cfg.entityStroke
