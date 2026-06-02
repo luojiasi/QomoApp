@@ -108,7 +108,7 @@ function onDraw(): void {
     // 计算圆周上的 n 个顶点
     const points: Array<{ X: number; Y: number }> = []
     for (let j = 0; j < n; j++) {
-      const angle = (2 * Math.PI * j) / n
+      const angle = -(2 * Math.PI * j) / n
       points.push({
         X: radius * Math.cos(angle),
         Y: radius * Math.sin(angle)
@@ -127,7 +127,7 @@ function onDraw(): void {
         end: points[(j + 1) % n],
         height: row.height,
         zBase: rowZBase[i],
-        openSize: 1,
+        openSize: 0.1,
         tiltAngleDeg
       } as SurfaceEntity<EditorEntity>)
       drawnEntityIds.add(id)

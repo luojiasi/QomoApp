@@ -92,10 +92,6 @@ function fieldsFor(portName: string): string[] {
   return props.upstreamFields?.[portName] ?? []
 }
 
-/** 当前行展示的数据端口（与该行条件引用的端口一致） */
-function dataForPort(portName: string): Record<string, unknown> | undefined {
-  return props.upstreamOutputData?.[portName]
-}
 </script>
 
 <template>

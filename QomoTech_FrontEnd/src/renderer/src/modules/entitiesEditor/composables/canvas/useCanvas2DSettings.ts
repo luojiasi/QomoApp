@@ -7,7 +7,7 @@ import {
   CANVAS_SELECTION_STROKE, CANVAS_SELECTION_LINE_WIDTH, CANVAS_HOVER_STROKE,
   CANVAS_PREVIEW_STROKE, CANVAS_PREVIEW_DASH,
   CANVAS_SELECTION_RECT_STROKE, CANVAS_SELECTION_RECT_DASH,
-  CANVAS_SELECTION_RECT_FILL, CANVAS_HIT_PX,
+  CANVAS_SELECTION_RECT_FILL, CANVAS_HIT_PX, CANVAS_FREEPARAM_STROKE,
 } from '../../configs/defaults'
 
 export interface Canvas2DForm {
@@ -17,6 +17,7 @@ export interface Canvas2DForm {
   gridAxisColor: string
   axisLineWidth: number
   entityStroke: string
+  freeparamStroke: string
   entityLineWidth: number
   selectionStroke: string
   selectionLineWidth: number
@@ -42,6 +43,7 @@ export function useCanvas2DSettings() {
     gridAxisColor: initial.gridAxisColor,
     axisLineWidth: initial.axisLineWidth,
     entityStroke: initial.entityStroke,
+    freeparamStroke: initial.freeparamStroke,
     entityLineWidth: initial.entityLineWidth,
     selectionStroke: initial.selectionStroke,
     selectionLineWidth: initial.selectionLineWidth,
@@ -61,6 +63,7 @@ export function useCanvas2DSettings() {
     form.gridAxisColor = CANVAS_GRID_AXIS_COLOR
     form.axisLineWidth = CANVAS_AXIS_LINE_WIDTH
     form.entityStroke = CANVAS_ENTITY_STROKE
+    form.freeparamStroke = CANVAS_FREEPARAM_STROKE
     form.entityLineWidth = CANVAS_ENTITY_LINE_WIDTH
     form.selectionStroke = CANVAS_SELECTION_STROKE
     form.selectionLineWidth = CANVAS_SELECTION_LINE_WIDTH
@@ -81,6 +84,7 @@ export function useCanvas2DSettings() {
       gridAxisColor: form.gridAxisColor,
       axisLineWidth: form.axisLineWidth,
       entityStroke: form.entityStroke,
+      freeparamStroke: form.freeparamStroke,
       entityLineWidth: form.entityLineWidth,
       selectionStroke: form.selectionStroke,
       selectionLineWidth: form.selectionLineWidth,
@@ -102,6 +106,7 @@ export function useCanvas2DSettings() {
     form.gridAxisColor = c.gridAxisColor
     form.axisLineWidth = c.axisLineWidth
     form.entityStroke = c.entityStroke
+    form.freeparamStroke = c.freeparamStroke
     form.entityLineWidth = c.entityLineWidth
     form.selectionStroke = c.selectionStroke
     form.selectionLineWidth = c.selectionLineWidth
