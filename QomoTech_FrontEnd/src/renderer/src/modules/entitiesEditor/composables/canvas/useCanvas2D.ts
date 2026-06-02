@@ -40,7 +40,6 @@ import type {
   LineEntity,
   ArcEntity,
   CircleEntity,
-  DiamondEntity,
   EllipseEntity,
   PolylineEntity,
   PolylineVertex,
@@ -53,7 +52,6 @@ import { drawnEntityIds } from '@/modules/entitiesEditor/composables/useFreePara
 import {
   sampleBezierPoints,
   samplePolylineVertices,
-  sampleContourSegments,
   getEntityBounds,
 } from '@/modules/entitiesEditor/utils/geometry'
 import { cursorX, cursorY } from '@/modules/entitiesEditor/composables/useStatusBar'
@@ -277,7 +275,6 @@ export function useCanvas2D() {
       case 'LINE':     drawLine(entity); break
       case 'ARC':      drawArc(entity); break
       case 'CIRCLE':   drawCircle(entity); break
-      case 'DIAMOND':  drawDiamond(entity); break
       case 'BEZIER':
         drawBezier(entity)
         if (selected) drawBezierControlPoints(c, entity)
@@ -306,20 +303,6 @@ export function useCanvas2D() {
 
   function drawCircle(e: CircleEntity) {
     const c = getCtx()!; c.beginPath(); c.arc(e.center.X, e.center.Y, e.radius, 0, Math.PI * 2); c.stroke()
-  }
-
-  function drawDiamond(e: DiamondEntity) {
-    const c = getCtx()!
-    if (e.contours && e.contours.length > 0) {
-      const pts = sampleContourSegments(e.contours)
-      if (pts.length >= 2) {
-        c.beginPath(); c.moveTo(pts[0].X, pts[0].Y)
-        for (let i = 1; i < pts.length; i++) c.lineTo(pts[i].X, pts[i].Y)
-        c.closePath(); c.stroke()
-      }
-    } else {
-      c.beginPath(); c.arc(e.center.X, e.center.Y, e.radius, 0, Math.PI * 2); c.stroke()
-    }
   }
 
   /**
@@ -485,7 +468,7 @@ export function useCanvas2D() {
         c.arc(center.X, center.Y, radius, startRad, endRad, ccw)
         c.stroke()
       }
-    } else if (kind === 'CIRCLE' || kind === 'DIAMOND') {
+    } else if (kind === 'CIRCLE') {
       // 字段顺序：center(0), P2(1)
       const center = pointAt(0)
       if (center) {
@@ -668,14 +651,6 @@ export function useCanvas2D() {
         return hitArcEntity(world, entity, threshold)
       case 'CIRCLE':
         return Math.abs(Math.hypot(world.X - entity.center.X, world.Y - entity.center.Y) - entity.radius) <= threshold
-      case 'DIAMOND': {
-        const e = entity
-        if (e.contours && e.contours.length > 0) {
-          const pts = sampleContourSegments(e.contours)
-          return hitPolyline(world.X, world.Y, pts, threshold)
-        }
-        return Math.abs(Math.hypot(world.X - e.center.X, world.Y - e.center.Y) - e.radius) <= threshold
-      }
       case 'BEZIER':
         return hitPolyline(world.X, world.Y, sampleBezierPoints(entity.controlPoints, 64), threshold)
       case 'POLYLINE':

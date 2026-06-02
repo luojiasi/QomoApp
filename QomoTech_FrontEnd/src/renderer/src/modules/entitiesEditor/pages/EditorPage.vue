@@ -20,7 +20,7 @@ import type { ActionDef, Scene3DConfig } from '../shares/types'
 import { loadSceneConfig, saveSceneConfig } from '../stores/preview3dStore'
 import { saveProject, exportProject, loadProjectIntoStore } from '../stores/projectStore'
 import { importDxf } from '../composables/canvas/useImportCad'
-import { EntityKind, DiamondShape } from '../commons/types'
+import { EntityKind } from '../commons/types'
 import { useEditorStore } from '../stores/editorStore'
 
 const { activeTab, rightPanelTabs } = useRightPanel()
@@ -95,13 +95,6 @@ function onContextStrategy(payload: { kind: EntityKind; strategyId: string }) {
   editorStore.setDrawSubTool(payload.kind)
 }
 
-/** 钻石右键选择形状 */
-function onDiamondShape(shape: DiamondShape) {
-  editorStore.setTool('DRAW')
-  editorStore.setDrawSubTool('DIAMOND')
-  editorStore.setDiamondShape(shape)
-}
-
 function onSettingsSaved() {
   previewRef.value?.reloadConfig()
   toolbarRef.value?.reload()
@@ -114,7 +107,7 @@ useKeyboardShortcuts(dispatchAction, { isOpen: settingsIsOpen, capturing: settin
 <template>
   <div class="editor-page">
     <!-- 首先我们要在这里去添加回传给到2D去画图 -->
-    <EditorToolbar ref="toolbarRef" @action="onToolbarAction" @context-strategy="onContextStrategy" @context-diamond-shape="onDiamondShape" />
+    <EditorToolbar ref="toolbarRef" @action="onToolbarAction" @context-strategy="onContextStrategy" />
 
     <div class="main-area desktop-only">
       <div class="panel panel-3d">

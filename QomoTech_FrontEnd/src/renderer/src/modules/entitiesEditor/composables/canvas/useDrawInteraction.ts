@@ -13,12 +13,10 @@
 // =============================================================================
 
 import { computed, ref, watch } from 'vue'
-import type { Point2D, EntityKind, DiamondShape, ContourSegment } from '../../commons/types'
+import type { Point2D, EntityKind } from '../../commons/types'
 import type { DrawStrategyDef, FieldDef } from './drawStrategies'
 import { useEditorStore } from '../../stores/editorStore'
 import { getDefaultStrategy } from './drawStrategies'
-import { DIAMOND_PRESETS } from '../../configs/defaults'
-import { getShapeDef } from '../preview/diamount'
 
 // ── 字段运行时值 ────────────────────────────────────────
 
@@ -129,9 +127,8 @@ export function useDrawInteraction() {
     const s = session.value
     if (!s) return
     const v = s.values
-    const input = buildEntityInput(s.kind, s.strategy.id, v, store.diamondShape)
+    const input = buildEntityInput(s.kind, s.strategy.id, v)
     if (input) {
-      if (s.kind === 'DIAMOND') store.setDiamondShape(null)
       store.addEntity(input as any)
     }
     session.value = null
@@ -318,7 +315,6 @@ function buildEntityInput(
   kind: EntityKind,
   _strategyId: string,
   values: FieldValue[],
-  diamondShape: DiamondShape | null,
 ): object | null {
   switch (kind) {
     case 'LINE':
@@ -333,8 +329,6 @@ function buildEntityInput(
       return buildBezier(values)
     case 'ELLIPSE':
       return buildEllipse(values)
-    case 'DIAMOND':
-      return buildDiamond(values, diamondShape)
     default:
       return null
   }
@@ -434,34 +428,5 @@ function buildEllipse(values: FieldValue[]): object | null {
     minorAxisRatio,
     startParamDeg: 0,
     endParamDeg: 360,
-  }
-}
-
-function buildDiamond(values: FieldValue[], diamondShape: DiamondShape | null): object | null {
-  const center = (values[0] as any)?.value as Point2D | undefined
-  const p2 = (values[1] as any)?.value as Point2D | undefined
-  if (!center || !p2) return null
-
-  const radius = dist(center, p2)
-  if (radius < 1e-6) return null
-
-  const shape = diamondShape ?? 'ROUND'
-  const diameter = radius * 2
-
-  const L = radius
-  const W = radius
-
-  let contours: ContourSegment[] | undefined
-  if (shape !== 'ROUND') {
-    const shapeDef = getShapeDef(shape)
-    contours = shapeDef.get2DContours(center, L, W)
-  }
-
-  return {
-    kind: 'DIAMOND' as const,
-    center,
-    radius,
-    contours,
-    diamondParams: { ...DIAMOND_PRESETS[shape], shape, L: diameter, W: diameter },
   }
 }

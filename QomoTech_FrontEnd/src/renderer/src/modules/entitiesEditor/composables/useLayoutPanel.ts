@@ -21,7 +21,6 @@ const KIND_LABEL: Record<EntityKind, string> = {
   ELLIPSE: '椭圆',
   POLYLINE: '多段线',
   BEZIER: '曲线',
-  DIAMOND: '钻石',
 }
 
 /** 安全格式化数值：undefined/null → '?'，否则保留 1 位小数 */
@@ -68,11 +67,6 @@ function summarizeGeometry(e: EditorEntity): string {
       return cp?.length
         ? `${cp.length}控制点`
         : '(数据不完整)'
-    }
-    case 'DIAMOND': {
-      const c = e.center
-      if (!c) return '(数据不完整)'
-      return `圆心(${f(c.X)},${f(c.Y)}) r=${f(e.radius)}`
     }
   }
 }

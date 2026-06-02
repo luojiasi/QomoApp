@@ -54,10 +54,8 @@ export interface ViewportState {
   height: number
 }
 // ─── 枚举 ──────────────────────────────────────────
-export type EntityKind = 'LINE' | 'ARC' | 'CIRCLE' | 'POLYLINE' | 'BEZIER' | 'ELLIPSE' | 'DIAMOND'
+export type EntityKind = 'LINE' | 'ARC' | 'CIRCLE' | 'POLYLINE' | 'BEZIER' | 'ELLIPSE'
 export type ToolMode = 'SELECT' | 'DRAW' | 'PAN'
-/** 钻石形状 */
-export type DiamondShape = 'ROUND' | 'PRINCESS' | 'EMERALD' | 'HEART'
 /** 开口方向（激光切割特有） */
 export type OpenSide = 'LEFT' | 'RIGHT'
 
@@ -69,7 +67,6 @@ export type EditorEntity =
   | EllipseEntity
   | PolylineEntity
   | BezierEntity
-  | DiamondEntity
 
 // ─── 实体定义 ──────────────────────────────────────
 export interface BaseEntity {
@@ -115,22 +112,6 @@ export interface PolylineVertex {
   bulge: number // 凸度：0 = 直线段，≠0 = 弧段（bulge = tan(弧角/4)）
 }
 
-/** 轮廓段 — 直线 */
-export interface LineContourSegment {
-  kind: 'LINE'
-  start: Point2D
-  end: Point2D
-}
-/** 轮廓段 — 圆弧 */
-export interface ArcContourSegment {
-  kind: 'ARC'
-  start: Point2D
-  end: Point2D
-  center: Point2D
-  radius: number
-  clockwise: boolean
-}
-export type ContourSegment = LineContourSegment | ArcContourSegment
 /** POLYLINE — 对应 DXF LWPOLYLINE，每顶点可直可弧 */
 export interface PolylineEntity extends BaseEntity {
   kind: 'POLYLINE'
@@ -144,38 +125,12 @@ export interface BezierEntity extends BaseEntity {
   controlPoints: Point2D[]
 }
 
-/** DIAMOND — 钻石实体，2D 轮廓由 shape 决定，3D 走刻面构建 */
-export interface DiamondEntity extends BaseEntity {
-  kind: 'DIAMOND'
-  center: Point2D
-  radius: number
-  contours?: ContourSegment[] // 非 ROUND 形状的轮廓段（LINE/ARC）
-  diamondParams: DiamondParams
-}
-
-/** 钻石参数 */
-export interface DiamondParams {
-  shape: DiamondShape
-  L: number // 长度
-  W: number // 宽度
-  Depth: number // 深度比率(%)
-  Pavilion: number // 亭部比率(%)
-  Crown: number // 冠部比率(%)
-  Girdle: number // 腰部比率(%)
-  Table: number // 台面比率(%)
-  R?: number // 冠角参数
-  P?: number // 亭角参数
-  Tilt?: number // 倾斜角
-  SW?: number // 侧宽
-}
-
 // ─── 3D 挤出参数 ───────────────────────────────────
 export interface ExtrusionParams {
   height: number // 物体高度（z 方向挤出量）
   zBase: number // 实体底面 Z 坐标（默认 0）
   openSize: number // 开口补偿尺寸
   tiltAngleDeg: number // 倾斜角度（度），非 0 时顶部顶点沿径向位移 height * tan(θ)
-  diamondParams?: DiamondParams // 钻石刻面参数（圆形钻石时与 CIRCLE 共用）
 }
 /** 带挤出参数的实体（用于 3D 预览和激光路径计算） */
 export type SurfaceEntity<T extends BaseEntity = BaseEntity> = T & ExtrusionParams

@@ -48,7 +48,6 @@ export function useShortCutsDetails(handlers: {
       case 'DRAW_CIRCLE':   store.setTool('DRAW'); store.setDrawSubTool('CIRCLE'); break
       case 'DRAW_ELLIPSE':  store.setTool('DRAW'); store.setDrawSubTool('ELLIPSE'); break
       case 'DRAW_POLYLINE': store.setTool('DRAW'); store.setDrawSubTool('POLYLINE'); break
-      case 'DRAW_DIAMOND':  store.setDiamondShape('ROUND'); store.setTool('DRAW'); store.setDrawSubTool('DIAMOND'); break
 
       // ── 视图 ──
       case 'TOGGLE_GRID': handlers.onToggleGrid(); break
@@ -83,17 +82,6 @@ export function useShortCutsDetails(handlers: {
         case 'ARC':
         case 'CIRCLE':
           e.center = { X: e.center.X + offsetX, Y: e.center.Y + offsetY }
-          break
-        case 'DIAMOND':
-          e.center = { X: e.center.X + offsetX, Y: e.center.Y + offsetY }
-          if (e.contours) {
-            e.contours = e.contours.map((seg) => {
-              const s = { X: seg.start.X + offsetX, Y: seg.start.Y + offsetY }
-              const en = { X: seg.end.X + offsetX, Y: seg.end.Y + offsetY }
-              if (seg.kind === 'LINE') return { ...seg, start: s, end: en }
-              return { ...seg, start: s, end: en, center: { X: seg.center.X + offsetX, Y: seg.center.Y + offsetY } }
-            })
-          }
           break
         case 'ELLIPSE':
           e.center = { X: e.center.X + offsetX, Y: e.center.Y + offsetY }

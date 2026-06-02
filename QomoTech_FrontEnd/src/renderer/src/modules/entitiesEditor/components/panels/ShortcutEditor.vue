@@ -20,11 +20,10 @@ const GROUP_LABELS: Record<GroupId, string> = {
   shape: '图形',
   freeparam: '自由参数',
   tool: '工具',
-  diamond: '钻石',
   view: '3D视图',
   settings: '设置',
 }
-const GROUP_ORDER: GroupId[] = ['file', 'shape', 'freeparam', 'tool', 'diamond', 'view', 'settings']
+const GROUP_ORDER: GroupId[] = ['file', 'shape', 'freeparam', 'tool', 'view', 'settings']
 
 const groups = computed(() => {
   const map = new Map<GroupId, ActionDef[]>()

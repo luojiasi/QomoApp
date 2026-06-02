@@ -188,19 +188,6 @@
               vector-effect="non-scaling-stroke"
             />
 
-            <!-- DIAMOND（2D 以圆形显示） -->
-            <circle
-              v-else-if="entity.kind === 'DIAMOND'"
-              :cx="entity.center.X"
-              :cy="entity.center.Y"
-              :r="entity.radius"
-              fill="none"
-              :stroke="getEntityStrokeColor(entity.id)"
-              :stroke-width="getEntityStrokeWidth(entity.id)"
-              vector-effect="non-scaling-stroke"
-              stroke-dasharray="4 3"
-            />
-
             <!-- BEZIER（控制点折线） -->
             <path
               v-else-if="entity.kind === 'BEZIER'"

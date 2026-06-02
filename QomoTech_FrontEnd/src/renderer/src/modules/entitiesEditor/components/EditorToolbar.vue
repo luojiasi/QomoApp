@@ -1,23 +1,17 @@
 <script setup lang="ts">
 import { reactive } from 'vue';
-import { EntityKind, DiamondShape } from '../commons/types';
+import { EntityKind } from '../commons/types';
 import { useEditorToolbar } from '../composables/useEditorToolbar'
 import type { ActionDef } from '../shares/types'
 import { getStrategies } from '../composables/canvas/drawStrategies';
 
-import { SHAPE_LABELS } from '../composables/preview/diamount/types'
-
-const DIAMOND_SHAPE_OPTIONS: { shape: DiamondShape; label: string }[] =
-  Object.entries(SHAPE_LABELS).map(([shape, label]) => ({ shape: shape as DiamondShape, label }))
-
-const { fileGroup, shapeGroup, freeparamGroup, diamondGroup, toolGroup, settingsGroup, toolTitle, reload } = useEditorToolbar()
+const { fileGroup, shapeGroup, freeparamGroup, toolGroup, settingsGroup, toolTitle, reload } = useEditorToolbar()
 
 defineExpose({ reload })
 
 const emit = defineEmits<{
   'action': [action: ActionDef]
   'context-strategy': [{ kind: EntityKind; strategyId: string }]
-  'context-diamond-shape': [shape: DiamondShape]
 }>()
 
 function onClick(a: ActionDef) {
@@ -55,22 +49,6 @@ function onCtxStrategySelect(strategyId: string) {
 function closeCtxMenu() {
   ctxMenu.visible = false
   ctxMenu.kind = null
-}
-
-// ── 钻石形状右键菜单 ──
-const ctxDiamond = reactive({ visible: false, x: 0, y: 0 })
-function onDiamondContextMenu(e: MouseEvent) {
-  e.preventDefault()
-  ctxDiamond.visible = true
-  ctxDiamond.x = e.clientX
-  ctxDiamond.y = e.clientY
-}
-function onDiamondShapeSelect(shape: DiamondShape) {
-  emit('context-diamond-shape', shape)
-  ctxDiamond.visible = false
-}
-function closeDiamondMenu() {
-  ctxDiamond.visible = false
 }
 
 </script>
@@ -125,26 +103,6 @@ function closeDiamondMenu() {
           @click="onClick(t)"
         >
           <span v-if="t.icon" class="tool-icon">{{ t.icon }}</span>
-          <span v-if="t.key" class="tool-key">{{ t.key }}</span>
-          <span class="tool-label">{{ t.label }}</span>
-        </button>
-      </div>
-    </div>
-
-    <span class="panel-sep" />
-
-    <!-- ▸ 钻石操作 -->
-
-    <div class="tool-panel">
-      <span class="panel-label">钻石</span>
-      <div class="panel-btns">
-        <button
-          v-for="t in diamondGroup" :key="t.id"
-          class="tool-btn"
-          :title="toolTitle(t) + ' (右键选择形状)'"
-          @click="onClick(t)"
-          @contextmenu="onDiamondContextMenu"
-        >
           <span v-if="t.key" class="tool-key">{{ t.key }}</span>
           <span class="tool-label">{{ t.label }}</span>
         </button>
@@ -215,31 +173,6 @@ function closeDiamondMenu() {
       </div>
     </teleport>
 
-    <!-- ▸ 钻石形状选择菜单 -->
-    <teleport to="body">
-      <div
-        v-if="ctxDiamond.visible"
-        class="ctx-menu-backdrop"
-        @mousedown="closeDiamondMenu"
-      />
-      <div
-        v-if="ctxDiamond.visible"
-        class="ctx-menu"
-        :style="{ left: ctxDiamond.x + 'px', top: ctxDiamond.y + 'px' }"
-      >
-        <div class="ctx-header">钻石形状</div>
-        <button
-          v-for="ds in DIAMOND_SHAPE_OPTIONS"
-          :key="ds.shape"
-          class="ctx-item"
-          :class="{ 'ctx-default': ds.shape === 'ROUND' }"
-          @click="onDiamondShapeSelect(ds.shape)"
-        >
-          <span class="ctx-dot">{{ ds.shape === 'ROUND' ? '●' : '○' }}</span>
-          <span>{{ ds.label }}</span>
-        </button>
-      </div>
-    </teleport>
   </div>
 </template>
 

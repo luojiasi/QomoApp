@@ -28,19 +28,19 @@ export function useProgramRunner() {
   const {
     dialogVisible: show4PDialogVisible,
     isAcquiring: show4PIsAcquiring,
-    diamondCount: show4PDiamondCount,
-    currentDiamondIndex: show4PCurrentDiamondIndex,
+    positioningCount: show4PPositioningCount,
+    currentPositioningIndex: show4PCurrentPositioningIndex,
     currentTablePosition: show4PTablePosition,
     currentCenterPosition: show4PCenterPosition,
-    diamondTablePositions: show4PDiamondTablePositions,
-    diamondCenterPositions: show4PDiamondCenterPositions,
+    tablePositions: show4PTablePositions,
+    centerPositions: show4PCenterPositions,
     isCurrentCenterAcquired: show4PIsCurrentCenterAcquired,
     isCurrentTableAcquired: show4PIsCurrentTableAcquired,
     allAcquired: show4PAllAcquired,
     acquireCenterPosition: show4PAcquireCenter,
     acquireTablePosition: show4PAcquireTable,
-    goToNextDiamond: show4PNextDiamond,
-    goToPrevDiamond: show4PPrevDiamond,
+    goToNextPosition: show4PNextPosition,
+    goToPrevPosition: show4PPrevPosition,
     // openDialog: show4POpenDialog,
     closeDialog: show4PCloseDialog,
     buildPayload: show4PBuildPayload,
@@ -333,30 +333,7 @@ export function useProgramRunner() {
           controlPoints: entity.controlPoints.map((p) => ({ X: p.X + dx, Y: p.Y + dy }))
         }
       }
-      // DIAMOND
-      return {
-        ...entity,
-        center: { X: entity.center.X + dx, Y: entity.center.Y + dy },
-        ...(entity.contours
-          ? {
-              contours: entity.contours.map((seg) => {
-                if (seg.kind === 'LINE') {
-                  return {
-                    ...seg,
-                    start: { X: seg.start.X + dx, Y: seg.start.Y + dy },
-                    end: { X: seg.end.X + dx, Y: seg.end.Y + dy }
-                  }
-                }
-                return {
-                  ...seg,
-                  start: { X: seg.start.X + dx, Y: seg.start.Y + dy },
-                  end: { X: seg.end.X + dx, Y: seg.end.Y + dy },
-                  center: { X: seg.center.X + dx, Y: seg.center.Y + dy }
-                }
-              })
-            }
-          : {})
-      }
+      return entity
     })
   }
 
@@ -428,19 +405,19 @@ export function useProgramRunner() {
     on4PTableCancel,
     show4PDialogVisible,
     show4PIsAcquiring,
-    show4PDiamondCount,
-    show4PCurrentDiamondIndex,
+    show4PPositioningCount,
+    show4PCurrentPositioningIndex,
     show4PTablePosition,
     show4PCenterPosition,
-    show4PDiamondTablePositions,
-    show4PDiamondCenterPositions,
+    show4PTablePositions,
+    show4PCenterPositions,
     show4PIsCurrentCenterAcquired,
     show4PIsCurrentTableAcquired,
     show4PAllAcquired,
     show4PAcquireCenter,
     show4PAcquireTable,
-    show4PNextDiamond,
-    show4PPrevDiamond,
+    show4PNextPosition,
+    show4PPrevPosition,
     onPauseToggleClick,
     onResetAlarmsClick,
     onEstopClick,

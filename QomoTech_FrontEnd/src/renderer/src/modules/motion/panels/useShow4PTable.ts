@@ -8,10 +8,8 @@ import { useAuxiliaryFunctionPanelStore } from '../stores/useAuxiliaryFunctionPa
 function 根据当前轴位置计算实体偏移(
   entities: SurfaceEntity<EditorEntity>[],
   dx: number,
-  dy: number,
-  diamondCenterPositions: Record<number, XYZPosition>
+  dy: number
 ): SurfaceEntity<EditorEntity>[] {
-  let diamondIdx = 0
   return entities.map((entity) => {
     const k = entity.kind
     if (k === 'LINE') {
@@ -61,28 +59,6 @@ function 根据当前轴位置计算实体偏移(
         controlPoints: entity.controlPoints.map((p) => ({ X: p.X + dx, Y: p.Y + dy }))
       }
     }
-    if (k === 'DIAMOND') {
-      const centerPos = diamondCenterPositions[diamondIdx] ?? { x: 0, y: 0, z: 0 }
-      const offsetX = centerPos.x - entity.center.X
-      const offsetY = centerPos.y - entity.center.Y
-      diamondIdx++
-      return {
-        ...entity,
-        center: { X: entity.center.X + offsetX, Y: entity.center.Y + offsetY },
-        ...(entity.contours
-          ? {
-              contours: entity.contours.map((seg) => {
-                const offsetStart = { X: seg.start.X + offsetX, Y: seg.start.Y + offsetY }
-                const offsetEnd = { X: seg.end.X + offsetX, Y: seg.end.Y + offsetY }
-                if (seg.kind === 'LINE') {
-                  return { ...seg, start: offsetStart, end: offsetEnd }
-                }
-                return { ...seg, start: offsetStart, end: offsetEnd, center: { X: seg.center.X + offsetX, Y: seg.center.Y + offsetY } }
-              })
-            }
-          : {})
-      }
-    }
     return entity
   })
 }
@@ -99,40 +75,40 @@ export function useShow4PTable() {
   const dialogVisible = ref(false)
   const isAcquiring = ref(false)
 
-  // ── Diamond wizard state ──
-  const diamondEntities = ref<SurfaceEntity<EditorEntity>[]>([])
-  const currentDiamondIndex = ref(0)
-  const diamondTablePositions = ref<Record<number, XYZPosition>>({})
-  const diamondCenterPositions = ref<Record<number, XYZPosition>>({})
+  // ── Positioning wizard state ──
+  const positioningEntities = ref<SurfaceEntity<EditorEntity>[]>([])
+  const currentPositioningIndex = ref(0)
+  const tablePositions = ref<Record<number, XYZPosition>>({})
+  const centerPositions = ref<Record<number, XYZPosition>>({})
 
   const { axisAbsoluteInputs, handleAbsoluteMove } = useAxisJog(ref(5))
   const auxiliaryFunctionPanelStore = useAuxiliaryFunctionPanelStore()
 
   // ── Computed ──
-  const diamondCount = computed(() => diamondEntities.value.length)
+  const positioningCount = computed(() => positioningEntities.value.length)
 
   const currentTablePosition = computed(() =>
-    diamondTablePositions.value[currentDiamondIndex.value] ?? { x: 0, y: 0, z: 0 }
+    tablePositions.value[currentPositioningIndex.value] ?? { x: 0, y: 0, z: 0 }
   )
 
   const currentCenterPosition = computed(() =>
-    diamondCenterPositions.value[currentDiamondIndex.value] ?? { x: 0, y: 0, z: 0 }
+    centerPositions.value[currentPositioningIndex.value] ?? { x: 0, y: 0, z: 0 }
   )
 
   const isCurrentCenterAcquired = computed(() =>
-    currentDiamondIndex.value in diamondCenterPositions.value
+    currentPositioningIndex.value in centerPositions.value
   )
 
   const isCurrentTableAcquired = computed(() =>
-    currentDiamondIndex.value in diamondTablePositions.value
+    currentPositioningIndex.value in tablePositions.value
   )
 
   const allAcquired = computed(() => {
-    const n = diamondCount.value
+    const n = positioningCount.value
     if (n === 0) return false
     for (let i = 0; i < n; i++) {
-      if (!(i in diamondCenterPositions.value)) return false
-      if (!(i in diamondTablePositions.value)) return false
+      if (!(i in centerPositions.value)) return false
+      if (!(i in tablePositions.value)) return false
     }
     return true
   })
@@ -168,9 +144,9 @@ export function useShow4PTable() {
     isAcquiring.value = true
     try {
       const pos = resolveXYZFromHardwareState()
-      diamondCenterPositions.value = {
-        ...diamondCenterPositions.value,
-        [currentDiamondIndex.value]: pos
+      centerPositions.value = {
+        ...centerPositions.value,
+        [currentPositioningIndex.value]: pos
       }
       // 自动旋转 U→90°，准备定台面
       await 移动到垂直位置进行台面确认(90)
@@ -183,28 +159,28 @@ export function useShow4PTable() {
     isAcquiring.value = true
     try {
       const pos = resolveXYZFromHardwareState()
-      diamondTablePositions.value = {
-        ...diamondTablePositions.value,
-        [currentDiamondIndex.value]: pos
+      tablePositions.value = {
+        ...tablePositions.value,
+        [currentPositioningIndex.value]: pos
       }
-      // 自动旋转 U→0°，准备去下一颗钻石
+      // 自动旋转 U→0°，准备去下一个目标
       await 移动到垂直位置进行台面确认(0)
     } finally {
       isAcquiring.value = false
     }
   }
 
-  function goToDiamond(index: number) {if (index >= 0 && index < diamondCount.value) {currentDiamondIndex.value = index}}
+  function goToPosition(index: number) {if (index >= 0 && index < positioningCount.value) {currentPositioningIndex.value = index}}
 
-  function goToNextDiamond() {goToDiamond(currentDiamondIndex.value + 1)}
+  function goToNextPosition() {goToPosition(currentPositioningIndex.value + 1)}
 
-  function goToPrevDiamond() {goToDiamond(currentDiamondIndex.value - 1)}
+  function goToPrevPosition() {goToPosition(currentPositioningIndex.value - 1)}
 
   async function openDialog(entities: SurfaceEntity<EditorEntity>[]) {
-    diamondEntities.value = entities.filter(e => e.kind === 'DIAMOND')
-    diamondTablePositions.value = {}
-    diamondCenterPositions.value = {}
-    currentDiamondIndex.value = 0
+    positioningEntities.value = entities.filter(e => e.kind === 'CIRCLE')
+    tablePositions.value = {}
+    centerPositions.value = {}
+    currentPositioningIndex.value = 0
     dialogVisible.value = true
     // 从 U=0° 开始，先确定中心点
     await 移动到垂直位置进行台面确认(0)
@@ -227,14 +203,14 @@ export function useShow4PTable() {
   }
 
   // ── Payload builders ──
-  /** 只保留 DIAMOND 实体并按序号附加各自的 table_position。center 已由 根据当前轴位置计算实体偏移 处理。 */
+  /** 只保留 CIRCLE 实体并按序号附加各自的 table_position。center 已由 根据当前轴位置计算实体偏移 处理。 */
   function buildEntitiesWithTablePosition(offsetEditorEntities: SurfaceEntity<EditorEntity>[]): unknown[] {
-    let diamondIdx = 0
+    let entityIdx = 0
     return offsetEditorEntities
-      .filter((entity) => entity.kind === 'DIAMOND')
+      .filter((entity) => entity.kind === 'CIRCLE')
       .map((entity) => {
-        const tablePos = diamondTablePositions.value[diamondIdx] ?? { x: 0, y: 0, z: 0 }
-        diamondIdx++
+        const tablePos = tablePositions.value[entityIdx] ?? { x: 0, y: 0, z: 0 }
+        entityIdx++
         return { ...entity, table_position: { ...tablePos } }
       })
   }
@@ -243,8 +219,7 @@ export function useShow4PTable() {
     const offsetEditorEntities = 根据当前轴位置计算实体偏移(
       entities,
       xyOffset.x,
-      xyOffset.y,
-      diamondCenterPositions.value
+      xyOffset.y
     )
     return {
       recipe_payload: currentRunRecipePayload,
@@ -255,19 +230,19 @@ export function useShow4PTable() {
   return {
     dialogVisible,
     isAcquiring,
-    diamondCount,
-    currentDiamondIndex,
+    positioningCount,
+    currentPositioningIndex,
     currentTablePosition,
     currentCenterPosition,
-    diamondTablePositions,
-    diamondCenterPositions,
+    tablePositions,
+    centerPositions,
     isCurrentCenterAcquired,
     isCurrentTableAcquired,
     allAcquired,
     acquireCenterPosition,
     acquireTablePosition,
-    goToNextDiamond,
-    goToPrevDiamond,
+    goToNextPosition,
+    goToPrevPosition,
     openDialog,
     closeDialog,
     buildPayload,

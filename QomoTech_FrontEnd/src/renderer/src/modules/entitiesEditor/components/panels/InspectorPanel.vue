@@ -76,19 +76,6 @@ function removePolyVertex(entity: PolylineInspectedEntity) {
   emit('update', 'vertices', verts as unknown as Record<string, unknown>[], entity.id)
 }
 
-/** 钻石长/宽修改：ROUND 时 L=W 联动 + radius 同步；非 ROUND 仅更新当前字段 */
-function onDiamondLWChange(entity: InspectedEntity, value: number) {
-  if (value <= 0) return
-  if (entity.diamondParams?.shape === 'ROUND') {
-    emit('update', 'diamondParams.L', value, entity.id)
-    emit('update', 'diamondParams.W', value, entity.id)
-    emit('update', 'radius', value / 2, entity.id)
-  } else {
-    emit('update', 'diamondParams.L', value, entity.id)
-    emit('update', 'diamondParams.W', value, entity.id)
-  }
-}
-
 const count = computed(() => props.entities?.length ?? 0)
 </script>
 
@@ -175,16 +162,6 @@ const count = computed(() => props.entities?.length ?? 0)
               </label>
             </template>
 
-            <template v-else-if="entity.kind === 'DIAMOND'">
-              <PointRow label="圆心" :x="entity.center.X" :y="entity.center.Y"
-                :entity-id="entity.id" x-field="center.X" y-field="center.Y"
-                @update="(f, v, id) => emit('update', f, v, id)" />
-              <label class="field"><span>半径</span>
-                <input type="number" :value="entity.radius" step="1" min="0.1"
-                  @input="emit('update', 'radius', +($event.target as HTMLInputElement).value, entity.id)" />
-              </label>
-            </template>
-
             <template v-else-if="entity.kind === 'ELLIPSE'">
               <PointRow label="圆心" :x="entity.center.X" :y="entity.center.Y"
                 :entity-id="entity.id" x-field="center.X" y-field="center.Y"
@@ -250,39 +227,6 @@ const count = computed(() => props.entities?.length ?? 0)
                 @click="removeControlPoint(entity)"
                 >- 删除</button>
               </div>
-            </template>
-
-            <!-- ── 钻石参数（任何实体有 diamondParams 时显示） ── -->
-            <template v-if="entity.diamondParams">
-              <div class="section-label">钻石参数</div>
-              <label class="field"><span>长 (L)</span>
-                <input type="number" :value="entity.diamondParams.L" step="0.01" min="0.1"
-                  @input="onDiamondLWChange(entity, +($event.target as HTMLInputElement).value)" />
-              </label>
-              <label class="field"><span>宽 (W)</span>
-                <input type="number" :value="entity.diamondParams.W" step="0.01" min="0.1"
-                  @input="onDiamondLWChange(entity, +($event.target as HTMLInputElement).value)" />
-              </label>
-              <label class="field"><span>深度 %</span>
-                <input type="number" :value="entity.diamondParams.Depth" step="0.1" min="0" max="100"
-                  @input="emit('update', 'diamondParams.Depth', +($event.target as HTMLInputElement).value, entity.id)" />
-              </label>
-              <label class="field"><span>亭部 %</span>
-                <input type="number" :value="entity.diamondParams.Pavilion" step="0.1" min="0" max="100"
-                  @input="emit('update', 'diamondParams.Pavilion', +($event.target as HTMLInputElement).value, entity.id)" />
-              </label>
-              <label class="field"><span>冠部 %</span>
-                <input type="number" :value="entity.diamondParams.Crown" step="0.1" min="0" max="100"
-                  @input="emit('update', 'diamondParams.Crown', +($event.target as HTMLInputElement).value, entity.id)" />
-              </label>
-              <label class="field"><span>腰部 %</span>
-                <input type="number" :value="entity.diamondParams.Girdle" step="0.1" min="0" max="100"
-                  @input="emit('update', 'diamondParams.Girdle', +($event.target as HTMLInputElement).value, entity.id)" />
-              </label>
-              <label class="field"><span>台面 %</span>
-                <input type="number" :value="entity.diamondParams.Table" step="0.1" min="0" max="100"
-                  @input="emit('update', 'diamondParams.Table', +($event.target as HTMLInputElement).value, entity.id)" />
-              </label>
             </template>
 
             <!-- ── 挤出参数（共用到所有实体） ── -->

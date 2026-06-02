@@ -59,19 +59,19 @@ const {
   on4PTableCancel,
   show4PDialogVisible,
   show4PIsAcquiring,
-  show4PDiamondCount,
-  show4PCurrentDiamondIndex,
+  show4PPositioningCount,
+  show4PCurrentPositioningIndex,
   show4PTablePosition,
   show4PCenterPosition,
-  show4PDiamondTablePositions,
-  show4PDiamondCenterPositions,
+  show4PTablePositions,
+  show4PCenterPositions,
   show4PIsCurrentCenterAcquired,
   show4PIsCurrentTableAcquired,
   show4PAllAcquired,
   show4PAcquireCenter,
   show4PAcquireTable,
-  show4PNextDiamond,
-  show4PPrevDiamond,
+  show4PNextPosition,
+  show4PPrevPosition,
   onPauseToggleClick,
   onResetAlarmsClick,
   onEstopClick,
@@ -236,19 +236,19 @@ onUnmounted(() => {
   <Show4PTable
     :visible="show4PDialogVisible"
     :is-acquiring="show4PIsAcquiring"
-    :diamond-count="show4PDiamondCount"
-    :current-diamond-index="show4PCurrentDiamondIndex"
+    :positioning-count="show4PPositioningCount"
+    :current-positioning-index="show4PCurrentPositioningIndex"
     :is-current-center-acquired="show4PIsCurrentCenterAcquired"
     :is-current-table-acquired="show4PIsCurrentTableAcquired"
     :all-acquired="show4PAllAcquired"
     :current-center-position="show4PCenterPosition"
     :current-table-position="show4PTablePosition"
-    :diamond-center-positions="show4PDiamondCenterPositions"
-    :diamond-table-positions="show4PDiamondTablePositions"
+    :center-positions="show4PCenterPositions"
+    :table-positions="show4PTablePositions"
     @acquire-center="show4PAcquireCenter"
     @acquire-table="show4PAcquireTable"
-    @next-diamond="show4PNextDiamond"
-    @prev-diamond="show4PPrevDiamond"
+    @next-position="show4PNextPosition"
+    @prev-position="show4PPrevPosition"
     @confirm="on4PTableConfirm"
     @cancel="on4PTableCancel"
   />

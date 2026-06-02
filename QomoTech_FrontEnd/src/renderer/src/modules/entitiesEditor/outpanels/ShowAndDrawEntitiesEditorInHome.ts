@@ -2,7 +2,7 @@
 // entitiesEditor 实体在 Home 页相机画面上的 2D SVG 叠加展示
 //
 // 与 editor/panels/ShowAndDrawPanel.vue 对等，但数据源为 useEditorStore()
-// 支持 LINE / ARC / CIRCLE / POLYLINE / BEZIER / ELLIPSE / DIAMOND
+// 支持 LINE / ARC / CIRCLE / POLYLINE / BEZIER / ELLIPSE
 
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
