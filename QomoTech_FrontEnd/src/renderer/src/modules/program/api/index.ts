@@ -32,3 +32,7 @@ export const getStartProgramStatus = async (): Promise<ApiCallResult<{ running?:
 /** 控制程序运行状态：暂停/继续/复位/急停/跳过。 */
 export const startProgramControl = async (action: StartProgramControlAction): Promise<ApiCallResult<Record<string, unknown>>> =>
   apiCall('startProgram/control', 'POST', { action } as unknown as Record<string, unknown>)
+
+/** 将自由编辑参数下发到后端。 */
+export const sendFreeParams = async (payload: Record<string, unknown>): Promise<ApiCallResult<Record<string, unknown>>> =>
+  apiCall('startProgram/entitiesEditFreeparam', 'POST', payload)

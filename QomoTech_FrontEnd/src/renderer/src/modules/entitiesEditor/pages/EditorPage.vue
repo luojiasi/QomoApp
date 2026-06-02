@@ -10,6 +10,7 @@ import StoreDebugger from '../components/panels/StoreDebugger.vue'
 import SettingsDialog from '../components/SettingsDialog.vue'
 import FreeParamDialog from '../components/FreeParamDialog.vue'
 import StatusBar from '../components/StatusBar.vue'
+import FloatingCamera from '../components/FloatingCamera.vue'
 import { useRightPanel } from '../composables/useRightPanel'
 import { useInspectorPanel } from '../composables/useInspectorPanel'
 import { useLayoutPanel } from '../composables/useLayoutPanel'
@@ -40,6 +41,10 @@ const toolbarRef = ref<InstanceType<typeof EditorToolbar> | null>(null)
 const canvas2DRef = ref<InstanceType<typeof Canvas2D> | null>(null)
 const fileInputRef = ref<HTMLInputElement | null>(null)
 
+// ── 浮动相机 ──
+const showCamera = ref(false)
+function toggleCamera() { showCamera.value = !showCamera.value }
+
 // ── 页面初始化：从 localStorage 恢复上次保存的项目 ──
 loadProjectIntoStore()
 
@@ -65,6 +70,7 @@ const { dispatchAction } = useShortCutsDetails({
   onExport: ()=> exportProject(),
   onImportDxf: () => fileInputRef.value?.click(),
   onFreeEditParams: () => freeparamRef.value?.open(),
+  onShowCamera: toggleCamera,
 })
 
 function handleImportDxf(e: Event) {
@@ -143,6 +149,8 @@ useKeyboardShortcuts(dispatchAction, { isOpen: settingsIsOpen, capturing: settin
 
     <SettingsDialog ref="settingsRef" @saved="onSettingsSaved" />
     <FreeParamDialog ref="freeparamRef" />
+
+    <FloatingCamera v-if="showCamera" @close="showCamera = false" />
   </div>
 </template>
 

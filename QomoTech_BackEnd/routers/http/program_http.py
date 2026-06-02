@@ -41,7 +41,13 @@ class 开始程序控制请求模型(BaseModel):
         ..., pattern=r"^(pause|resume|reset|estop|skip)$",
         description="控制动作：pause / resume / reset / estop / skip",
     )
-
+class 自由编辑参数请求模型(BaseModel):
+    recipes: Dict[str, Any] = Field(
+        ..., description="配方列表",
+    )
+    rows: List[Dict[str, Any]] = Field(
+        ..., description="自由编辑参数列表",
+    )
 
 # ==================================================================
 # 1. 启动程序
@@ -74,18 +80,23 @@ async def start_program(payload: 开始程序参数请求模型):
 #     return ApiResponse(success=True, message="QOMO4PN编辑器已启动")
 
 # from services.ProgramService4p import ProgramService4p
-@路由.post("/startProgram/4PTest", summary="启动4P测试程序")
-async def start_program_4p_test(payload: 开始程序参数请求模型):
+@路由.post("/startProgram/entitiesEditFreeparam", summary="启动4P测试程序")
+async def send_free_params(payload: 自由编辑参数请求模型):
     """启动后台任务执行4P测试程序。"""
     try:
-        for index, entity in enumerate(payload.entities):
+        print(payload.recipes)
+        for row in payload.rows:
             print(f"{'-'*100}")
-            print(f"实体序号: {index}")
-            print(f"实体数据: {entity}")
+            print(f"行号: {row['taskNo']}")
+            print(f"直径: {row['diameter']}")
+            print(f"高度: {row['height']}")
+            print(f"分度: {row['divisions']}")
+            print(f"配方: {row['recipe']}")
             print(f"{'-'*100}")
+        return ApiResponse(success=True, message="自由编辑参数已下发")
     except Exception:
-        日志.exception("startProgram/4PTest 后台任务异常")
-    return ApiResponse(success=True, message="QOMO4PN编辑器已启动")
+        日志.exception("send_free_params 后台任务异常")
+    return ApiResponse(success=False, message="自由编辑参数下发失败")
 
 
 # ==================================================================

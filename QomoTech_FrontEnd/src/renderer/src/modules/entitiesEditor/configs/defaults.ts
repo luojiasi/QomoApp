@@ -35,6 +35,7 @@ export const ACTIONS: ActionDef[] = [
     { id: 'DELETE_SELECTED', label: '删除', group: 'tool', key: 'Delete' },
     { id: 'FIT_VIEW', label: '适应', group: 'tool', key: '0' },
     { id: 'RECENTER_ENTITIES', label: '图形居中', group: 'tool', key: '0', ctrl: true },
+    { id: 'SHOW_CAMERA', label: '显示相机', group: 'tool' },
     // ── 3D ──
     { id: 'TOGGLE_GRID', label: '显示网格', group: 'view', key: 'g' },
     { id: 'TOGGLE_AXES', label: '显示坐标轴', group: 'view', key: 'x' },

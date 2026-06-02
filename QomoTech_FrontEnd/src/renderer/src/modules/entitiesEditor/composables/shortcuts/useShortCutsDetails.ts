@@ -21,6 +21,7 @@ export function useShortCutsDetails(handlers: {
   onExport: () => void
   onImportDxf: () => void
   onFreeEditParams: () => void
+  onShowCamera: () => void
 }) {
   const store = useEditorStore()
 
@@ -40,6 +41,7 @@ export function useShortCutsDetails(handlers: {
       case 'DELETE_SELECTED': store.deleteSelected(); break
       case 'FIT_VIEW':        fitView(); break
       case 'RECENTER_ENTITIES': recenterEntities(); break
+      case 'SHOW_CAMERA':      handlers.onShowCamera(); break
 
       // ── 图形（DRAW 模式 + 子工具） ──
       case 'DRAW_LINE':     store.setTool('DRAW'); store.setDrawSubTool('LINE'); break

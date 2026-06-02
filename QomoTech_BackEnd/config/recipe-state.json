@@ -1,16 +1,4 @@
 {
-  "selectedMainRecipeId": "main-1",
-  "filter": {
-    "keyword": "",
-    "recipeStatus": "all",
-    "libraryKeywords": {
-      "blackening": "",
-      "machining": "",
-      "laserPower": "",
-      "horizontalFormula": "",
-      "verticalFormula": ""
-    }
-  },
   "mainRecipes": [
     {
       "id": "main-1",
@@ -248,5 +236,17 @@
       "verticalFormulaId": "vertical-formula-2",
       "laserPowerRecipeId": "laser-power-2"
     }
-  ]
+  ],
+  "selectedMainRecipeId": "main-1",
+  "filter": {
+    "keyword": "",
+    "recipeStatus": "all",
+    "libraryKeywords": {
+      "blackening": "",
+      "machining": "",
+      "laserPower": "",
+      "horizontalFormula": "",
+      "verticalFormula": ""
+    }
+  }
 }

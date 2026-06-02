@@ -4,6 +4,7 @@ import { useFreeParamDialog } from '../composables/useFreeParamDialog'
 import { useFreeParamTask } from '../composables/useFreeParamTask'
 import { useRecipeSettingsStore } from '@/modules/recipe/useRecipeStore'
 import { useNotification } from '@/shared/composables/useNotification'
+import { sendFreeParams } from '@/modules/program/api'
 import { useEditorStore } from '../stores/editorStore'
 import { generateId } from '../utils/idgen'
 import { drawnEntityIds } from '../composables/useFreeParamTask'
@@ -19,14 +20,19 @@ const activeMainRecipes = computed(() =>
   recipeStore.recipeState.mainRecipes.filter((recipe) => recipe.status === 'active')
 )
 
-const { warning } = useNotification()
+const { warning, success, error } = useNotification()
 const fileInputRef = ref<HTMLInputElement | null>(null)
+const sendConfirming = ref(false)
+const riskConfirmed = ref(false)
+const riskShake = ref(false)
 
 async function open(): Promise<void> {
   await recipeStore.loadRecipeState()
   if (taskRows.length === 0) {
     initDefault()
   }
+  sendConfirming.value = false
+  riskConfirmed.value = false
   _open()
 }
 
@@ -58,6 +64,101 @@ function onSave(): void {
     }
   }
   exportToFile()
+}
+
+async function onSendToBackend(): Promise<void> {
+  if (!sendConfirming.value) {
+    if (taskRows.length === 0) {
+      warning('没有可发送的参数，请先添加任务行')
+      return
+    }
+    for (const row of taskRows) {
+      if (isDiameterInvalid(row.diameter)) {
+        warning(`第 ${row.taskNo} 行直径必须在 0~200 之间，请修正后再发送`)
+        return
+      }
+      if (isHeightInvalid(row.height)) {
+        warning(`第 ${row.taskNo} 行高度必须在 0~20 之间，请修正后再发送`)
+        return
+      }
+      if (isDivisionsInvalid(row.divisions)) {
+        warning(`第 ${row.taskNo} 行分割数必须为 0 或 3~360，请修正后再发送`)
+        return
+      }
+      if (isRecipeInvalid(row.recipe)) {
+        warning(`第 ${row.taskNo} 行未选择配方，请选择后再发送`)
+        return
+      }
+    }
+    sendConfirming.value = true
+    return
+  }
+
+  if (!riskConfirmed.value) {
+    riskShake.value = true
+    setTimeout(() => { riskShake.value = false }, 600)
+    return
+  }
+
+  sendConfirming.value = false
+  riskConfirmed.value = false
+
+  const {
+    mainRecipes,
+    machiningRecipes,
+    blackeningRecipes,
+    laserPowerRecipes,
+    horizontalFormulaRecipes,
+    verticalFormulaRecipes,
+  } = recipeStore.recipeState
+
+  function resolveRecipeChain(mainRecipeId: string) {
+    const main = mainRecipes.find(r => r.id === mainRecipeId)
+    if (!main) return null
+    const machining = machiningRecipes.find(r => r.id === main.machiningRecipeId)
+    const blackening = blackeningRecipes.find(r => r.id === main.blackeningRecipeId)
+    const vertical = machining ? verticalFormulaRecipes.find(r => r.id === machining.verticalFormulaId) : undefined
+    const horizontal = machining ? horizontalFormulaRecipes.find(r => r.id === machining.horizontalFormulaId) : undefined
+    const machiningLaser = machining ? laserPowerRecipes.find(r => r.id === machining.laserPowerRecipeId) : undefined
+    const blackeningLaser = blackening ? laserPowerRecipes.find(r => r.id === blackening.laserPowerRecipeId) : undefined
+    return {
+      vertical: vertical ?? null,
+      horizontal: horizontal ?? null,
+      blackening: blackening ?? null,
+      machiningLaser: machiningLaser ?? null,
+      blackeningLaser: blackeningLaser ?? null,
+    }
+  }
+
+  const payload = {
+    recipes: {
+      mainRecipes,
+      machiningRecipes,
+      blackeningRecipes,
+      laserPowerRecipes,
+      horizontalFormulaRecipes,
+      verticalFormulaRecipes,
+    },
+    rows: taskRows.map(row => ({
+      taskNo: row.taskNo,
+      diameter: row.diameter,
+      height: row.height,
+      divisions: row.divisions,
+      recipeId: row.recipe,
+      recipe: resolveRecipeChain(row.recipe),
+    })),
+  }
+
+  try {
+    const result = await sendFreeParams(payload as unknown as Record<string, unknown>)
+    if (result?.success) {
+      success(result?.message || '自由编辑参数已发送至后端')
+    } else {
+      error(result?.message || '发送失败：后端未提供失败原因')
+    }
+  } catch {
+    error('发送失败：无法连接后端')
+  }
 }
 
 function onDraw(): void {
@@ -271,6 +372,29 @@ function isRecipeInvalid(recipe: string): boolean {
         </div>
 
         <div class="fp-footer">
+          <button
+            class="fp-btn send"
+            :class="{ confirming: sendConfirming, disabled: sendConfirming && !riskConfirmed }"
+            @click="onSendToBackend"
+          >
+            {{ sendConfirming ? '确定使用自由编辑参数进行切割' : '使用自由编辑参数进行切割' }}
+          </button>
+          <div
+            v-if="sendConfirming"
+            class="fp-risk"
+            :class="{ unconfirmed: !riskConfirmed }"
+          >
+            <label class="fp-risk-label">
+              <input
+                v-model="riskConfirmed"
+                type="checkbox"
+                class="fp-risk-check"
+                :class="{ shake: riskShake }"
+              />
+              <span class="fp-risk-text">已确认不存在加工风险</span>
+            </label>
+          </div>
+          <div class="fp-footer-spacer" />
           <button class="fp-btn cancel" @click="close">取消</button>
           <button class="fp-btn save" @click="onSave">保存</button>
           <button class="fp-btn draw" @click="onDraw">绘制</button>
@@ -528,11 +652,14 @@ function isRecipeInvalid(recipe: string): boolean {
 /* ── footer ── */
 .fp-footer {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
   gap: 8px;
   padding: 10px 16px;
   border-top: 1px solid #27272a;
   flex-shrink: 0;
+}
+.fp-footer-spacer {
+  flex: 1;
 }
 .fp-btn {
   padding: 6px 18px;
@@ -564,8 +691,95 @@ function isRecipeInvalid(recipe: string): boolean {
 .fp-btn.draw:hover {
   background: #f4f4f5;
 }
+.fp-btn.send {
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  color: #fff;
+  border: none;
+}
+.fp-btn.send:hover {
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+}
+.fp-btn.send.confirming {
+  background: linear-gradient(135deg, #f59e0b, #ef4444);
+  animation: send-pulse 0.8s ease-in-out;
+}
+.fp-btn.send.confirming:hover {
+  background: linear-gradient(135deg, #d97706, #dc2626);
+}
 
-/* ── modal transition ── */
+@keyframes send-pulse {
+  0%   { transform: scale(1);   box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.5); }
+  15%  { transform: scale(1.06); }
+  30%  { transform: scale(0.97); }
+  45%  { transform: scale(1.03); }
+  60%  { transform: scale(0.99); }
+  75%  { transform: scale(1.01); }
+  100% { transform: scale(1);   box-shadow: 0 0 0 8px rgba(245, 158, 11, 0); }
+}
+
+/* ── risk checkbox ── */
+.fp-risk {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  border: 1px solid #27272a;
+  border-radius: 6px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.fp-risk.unconfirmed {
+  border-color: #f59e0b;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.35);
+  animation: risk-glow 1.2s ease-in-out infinite;
+}
+.fp-risk-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+.fp-risk-check {
+  width: 16px;
+  height: 16px;
+  accent-color: #f59e0b;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.fp-risk-text {
+  font-size: 12px;
+  color: #a1a1aa;
+  line-height: 1.4;
+}
+.fp-risk.unconfirmed .fp-risk-text {
+  color: #f59e0b;
+  font-weight: 500;
+}
+
+@keyframes risk-glow {
+  0%, 100% { box-shadow: 0 0 4px rgba(245, 158, 11, 0.25); }
+  50%      { box-shadow: 0 0 14px rgba(245, 158, 11, 0.55); }
+}
+
+.fp-risk-check.shake {
+  animation: risk-shake 0.5s ease-in-out;
+}
+
+@keyframes risk-shake {
+  0%, 100% { transform: translateX(0); }
+  10%      { transform: translateX(-6px); }
+  20%      { transform: translateX(6px); }
+  30%      { transform: translateX(-5px); }
+  40%      { transform: translateX(5px); }
+  50%      { transform: translateX(-3px); }
+  60%      { transform: translateX(3px); }
+  70%      { transform: translateX(-1px); }
+  80%      { transform: translateX(1px); }
+}
+
+.fp-btn.send.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
 .modal-enter-active,
 .modal-leave-active {
   transition: opacity 0.2s;
