@@ -110,6 +110,11 @@ async def _推送循环(
             await asyncio.sleep(0.05)
             continue
 
+        # 相机未连接时跳过取帧，避免 CameraError 触发全局异常追踪
+        if not await svc.是否已连接():
+            await asyncio.sleep(0.5)
+            continue
+
         try:
             jpeg = await svc.取_jpeg(
                 timeout_ms=state.timeout_ms, quality=state.quality,
@@ -118,7 +123,7 @@ async def _推送循环(
             await _send_json_safe(
                 websocket, {"type": "error", "message": str(exc)},
             )
-            await asyncio.sleep(0.05)
+            await asyncio.sleep(0.5)
             continue
         except Exception as exc:
             日志.exception(f"取帧异常: {exc}")

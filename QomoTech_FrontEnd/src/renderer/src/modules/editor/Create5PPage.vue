@@ -138,36 +138,6 @@
           </div>
         </div>
 
-        <div
-          v-if="toolButtons.find((b) => b.selected)?.id === 1"
-          class="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900/60 px-2 py-2 shadow-sm shadow-black/20"
-          @click="toggleQuickAddExpanded"
-        >
-          <div
-            class="cursor-pointer text-xs font-medium text-slate-200 [writing-mode:vertical-rl] [text-orientation:mixed] tracking-wide"
-          >
-            快捷添加
-          </div>
-          <div class="mx-1 h-10 w-px bg-slate-700/70"></div>
-
-          <div v-show="quickAddExpanded" class="flex items-center gap-3">
-            <button
-              v-for="diamond in canvas2dTools.addDiamondQucikFunction"
-              :key="diamond.id"
-              type="button"
-              class="group relative flex h-12 w-16 flex-col items-center justify-center rounded-md border text-slate-200 transition-colors hover:bg-slate-800/60"
-              :class="
-                selectedQuickAddDiamondId === diamond.id
-                  ? 'border-white bg-slate-800/80'
-                  : 'border-transparent hover:border-slate-600'
-              "
-              @click.stop="openDiamondParamsDetails(diamond)"
-            >
-              <div class="mt-1 text-[11px] text-slate-200">{{ diamond.name }}</div>
-            </button>
-          </div>
-        </div>
-
         <!-- 2D复杂图形运算 -->
         <div
           v-if="toolButtons.find((b) => b.selected)?.id === 1"
@@ -1164,12 +1134,6 @@
       </div>
     </Teleport>
 
-    <CreateDiamondParamsDetails
-      :visible="diamondParamsModalOpen"
-      :diamond-detail="selectedQuickAddDiamond"
-      @close="closeDiamondParamsDetails"
-      @save="handleDiamondSave"
-    />
   </div>
 </template>
 
@@ -1178,7 +1142,6 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useNotification } from '@/shared/composables/useNotification'
 import QomoCanvas from './panels/QomoCanvas.vue'
 import Qomo3DPreview from './panels/Qomo3DPreview.vue'
-import CreateDiamondParamsDetails from './panels/CreateDiamondParamsDetails.vue'
 import { dispatchQomoTo5PAction } from './cad/QomoTo5P'
 import { dispatchQomoToCanvasAction, DrawingShapeTools } from './cad/QomoToCanvas'
 import {
@@ -1190,8 +1153,6 @@ import {
 } from './qomo5pTypes'
 import { useQomo5PStore } from './useQomo5PStore'
 import { storeToRefs } from 'pinia'
-import type { DiamondDetailParameters } from './common'
-import { diamondQuickAddConfigs } from './configs/diamondConfigs'
 const store = useQomo5PStore()
 const { viewport, layers, entities, selectedEntityIds } = storeToRefs(store)
 const { success, error } = useNotification()
@@ -1380,9 +1341,7 @@ const handleDocMouseDown = (e: MouseEvent) => {
 const toolButtons = ref([
   { id: 1, name: '绘图工具', selected: true },
   { id: 2, name: '参数信息', selected: false },
-  { id: 3, name: '图层管理', selected: false },
-  { id: 4, name: '3D编辑', selected: false },
-  { id: 5, name: '帮助', selected: false }
+  { id: 3, name: '图层管理', selected: false }
 ])
 
 const selectToolButton = (id: number) => {
@@ -1456,7 +1415,6 @@ const canvas2dTools = ref<{
   function: Canvas2DFunctionTool[]
   drawing: DrawingTool2D[]
   complexfunction: Canvas2DFunctionComplexTool[]
-  addDiamondQucikFunction: DiamondDetailParameters[]
 }>({
   function: [
     { id: 'fn-select', name: '选择' },
@@ -1534,18 +1492,15 @@ const canvas2dTools = ref<{
       entityType: 'IRREGULAR',
       svgStrokeLinecap: 'round',
       shapes: [
-        // 钻石主体轮廓（闭合的菱形路径）
         { kind: 'path', d: 'M12 8 L18 14 L12 20 L6 14 Z' },
-        // 钻石四个顶点的实心圆点（与轮廓顶点坐标一一对应）
-        { kind: 'circle', cx: 12, cy: 8, r: 1.2, fill: true }, // 顶部顶点
-        { kind: 'circle', cx: 18, cy: 14, r: 1.2, fill: true }, // 右侧顶点
-        { kind: 'circle', cx: 12, cy: 20, r: 1.2, fill: true }, // 底部顶点
-        { kind: 'circle', cx: 6, cy: 14, r: 1.2, fill: true } // 左侧顶点
+        { kind: 'circle', cx: 12, cy: 8, r: 1.2, fill: true },
+        { kind: 'circle', cx: 18, cy: 14, r: 1.2, fill: true },
+        { kind: 'circle', cx: 12, cy: 20, r: 1.2, fill: true },
+        { kind: 'circle', cx: 6, cy: 14, r: 1.2, fill: true }
       ],
       DrawingShapeTools: ['oval', 'heart', 'pear', 'square', 'marquise', 'cushion', 'octagon']
     }
-  ],
-  addDiamondQucikFunction: diamondQuickAddConfigs
+  ]
 })
 
 const drawingShapeToolsMenuItems = computed(() => {
@@ -1553,31 +1508,6 @@ const drawingShapeToolsMenuItems = computed(() => {
   const tool = canvas2dTools.value.drawing.find((t) => t.id === drawingShapeToolsMenuToolId.value)
   return tool?.DrawingShapeTools ?? []
 })
-
-const quickAddExpanded = ref(true)
-const selectedQuickAddDiamond = ref<DiamondDetailParameters | null>(null)
-const diamondParamsModalOpen = ref(false)
-const selectedQuickAddDiamondId = computed(() => selectedQuickAddDiamond.value?.id ?? null)
-
-const toggleQuickAddExpanded = () => {
-  quickAddExpanded.value = !quickAddExpanded.value
-}
-
-const openDiamondParamsDetails = (diamond: DiamondDetailParameters) => {
-  selectedQuickAddDiamond.value = diamond
-  diamondParamsModalOpen.value = true
-}
-
-const closeDiamondParamsDetails = () => {
-  diamondParamsModalOpen.value = false
-}
-
-const handleDiamondSave = (diamond: DiamondDetailParameters) => {
-  // 在 entities 中创建带钻石参数的 CIRCLE 实体（自动保存到 qomo-5p-draft）
-  const diameter = (diamond.L + diamond.W) / 2
-  const center = {x: 0,y: 0}
-  store.addDiamondEntity(center, diameter / 2, diamond)
-}
 
 // 添加对应的名字
 const drawingShapeToolLabel = (tool: DrawingShapeTools) => {
@@ -1879,7 +1809,7 @@ const openAcEdit = (entityId: string,field: AcEditField,opts?: { pt?: { x: numbe
   nextTick(() => acFirstInputRef.value?.focus())
 }
 
-const saveAcEdit = (entity: { id: string; type: string; diamondData?: { L: number; W: number } }, field: AcEditField) => {
+const saveAcEdit = (entity: { id: string; type: string }, field: AcEditField) => {
   const id = entity.id
   const bezierPointIndex = bezierPointIndexFromField(field)
   if (field === 'arcStart' ||field === 'arcEnd' ||field === 'arcCenter' ||field === 'circleCenter' ||bezierPointIndex !== null ||field === 'ellipseCenter') {
@@ -1904,9 +1834,6 @@ const saveAcEdit = (entity: { id: string; type: string; diamondData?: { L: numbe
     }
     if (field === 'arcRadius' || field === 'circleRadius'){
       store.updateEntityParams(id, { radius: v })
-      if (entity.type === 'CIRCLE' && entity.diamondData) {
-        store.updateEntityParams(id, { diamondData: { ...entity.diamondData, L: v * 2, W: v * 2 } as DiamondDetailParameters })
-      }
     }
     else if (field === 'arcStartAngle') store.updateEntityParams(id, { startAngle: v })
     else if (field === 'arcEndAngle') store.updateEntityParams(id, { endAngle: v })

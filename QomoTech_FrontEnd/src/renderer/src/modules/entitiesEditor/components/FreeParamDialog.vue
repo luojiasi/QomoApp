@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useFreeParamDialog } from '../composables/useFreeParamDialog'
 import { useFreeParamTask } from '../composables/useFreeParamTask'
@@ -110,8 +110,8 @@ function onDraw(): void {
     for (let j = 0; j < n; j++) {
       const angle = -(2 * Math.PI * j) / n
       points.push({
-        X: radius * Math.cos(angle),
-        Y: radius * Math.sin(angle)
+        X: Math.round(radius * Math.cos(angle) * 1000) / 1000,
+        Y: Math.round(radius * Math.sin(angle) * 1000) / 1000
       })
     }
 

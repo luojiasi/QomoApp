@@ -64,12 +64,11 @@ export interface QomoArcEntity extends QomonBaseEntity {
     startPoint?: XY | XYZ
     endPoint?: XY | XYZ
 }
-// 圆（可携带钻石参数，用于 3D 钻石预览）
+// 圆
 export interface QomoCircleEntity extends QomonBaseEntity {
     type: 'CIRCLE'
     center: XY | XYZ
     radius: number
-    diamondData?: DiamondDetailParameters
 }
 // 通用贝塞尔曲线（2~6 个点，对应 1~5 次）
 export interface QomoBezierEntity extends QomonBaseEntity {
@@ -124,27 +123,5 @@ export interface QomoViewport {
 
 
 
-interface RatioAndReal{
-    Ratio:number      //比例
-    Real:number       //实际大小
-    Distance?:number  //角度
-}
-/** 钻石参数 */
-export interface DiamondDetailParameters {
-    id: string
-    name: string
-    type: string
-    R?:number
-    P?:number
-    L:number
-    W:number
-    LW?:number
-    Depth:RatioAndReal
-    Yield:number
-    Pavilion:RatioAndReal
-    Crown:RatioAndReal
-    Girdle:RatioAndReal
-    Table:RatioAndReal
-    Tilt?:number
-    SW?:number
-}
+
+

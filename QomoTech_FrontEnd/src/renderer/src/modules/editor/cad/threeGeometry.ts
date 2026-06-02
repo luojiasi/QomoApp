@@ -1,7 +1,6 @@
 import * as THREE from 'three'
 import type { OpenDirectionType, Point } from '../qomo5pTypes'
-import type { QomoCircleSurfacesEntity, QomoEntityWithSurface, QomoIrregularSurfacesEntity } from '../qomo5pTypes'
-import type { DiamondDetailParameters } from '../common'
+import type { QomoEntityWithSurface, QomoIrregularSurfacesEntity } from '../qomo5pTypes'
 
 const SELECTED_REFERENCE_SURFACE_OPACITY = 0.36
 const BASE_REFERENCE_SURFACE_OPACITY = 0.26
@@ -1635,16 +1634,6 @@ export const buildQomo5PSceneObjects = (entities: QomoEntityWithSurface[],select
   const endpointOffsetOverrides = buildOpenEntityOffsetOverrides(entities)
   return entities
     .map((entity) => {
-      // CIRCLE 实体携带钻石参数 → 构建 3D 钻石模型
-      if (entity.type === 'CIRCLE' && (entity as QomoCircleSurfacesEntity).diamondData) {
-        const diamondEntity = entity as QomoCircleSurfacesEntity
-        const obj = buildDiamond3DObject(diamondEntity.diamondData!, diamondEntity.center)
-        if (obj) {
-          obj.userData.entityId = entity.id
-          obj.userData.entityType = entity.type
-        }
-        return obj
-      }
       return buildQomo5PEntityObject3d(
         entity,
         selectedIdSet.has(entity.id),
@@ -1792,114 +1781,4 @@ export const buildQomo5PProjectionToZ0Objects = (entities: QomoEntityWithSurface
   return entities
     .map((entity) => buildProjectionToZ0ForEntity(entity, selectedIdSet.has(entity.id)))
     .filter((object): object is THREE.Object3D => Boolean(object))
-}
-
-/**
- * 构建面状刻面钻石 3D 模型（自定义 BufferGeometry）
- * 刻面结构：台面 → 冠部刻面 → 腰部 → 亭部刻面 → 底部尖点
- * @param params  钻石参数
- * @param center  在 Three 空间中的位置（canvas 坐标转换后）
- */
-export const buildDiamond3DObject = (params: DiamondDetailParameters, center?: Point): THREE.Group | null => {
-  const diameter = (params.L + params.W) / 2
-  if (!Number.isFinite(diameter) || diameter <= 0) return null
-
-  const crownH = (Number(params.Crown.Ratio) / 100) * diameter
-  const pavilionH = (Number(params.Pavilion.Ratio) / 100) * diameter
-  const girdleH = (Number(params.Girdle.Ratio) / 100) * diameter
-  const totalH = crownH + girdleH + pavilionH
-  const tableR = (Number(params.Table.Ratio) / 100) * diameter / 2
-  const R = diameter / 2
-  const halfH = totalH / 2
-
-  // Y-up 坐标系：y 轴为高度（倒置：底部尖点朝上，台面朝下）
-  const yTop = -halfH
-  const yGirdleTop = -(halfH - crownH)
-  const yGirdleBot = -(halfH - crownH - girdleH)
-  const yBot = halfH
-
-  const N = 16 // 圆周刻面数量（数值越大刻面越细）
-  const positions: number[] = []
-  const normals: number[] = []
-
-  const pushTri = (a: THREE.Vector3, b: THREE.Vector3, c: THREE.Vector3) => {
-    const ab = new THREE.Vector3().copy(b).sub(a)
-    const ac = new THREE.Vector3().copy(c).sub(a)
-    const n = new THREE.Vector3().crossVectors(ab, ac).normalize()
-    positions.push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z)
-    normals.push(n.x, n.y, n.z, n.x, n.y, n.z, n.x, n.y, n.z)
-  }
-
-  for (let i = 0; i < N; i++) {
-    const a0 = (i / N) * Math.PI * 2
-    const a1 = ((i + 1) / N) * Math.PI * 2
-    const c0 = Math.cos(a0), s0 = Math.sin(a0)
-    const c1 = Math.cos(a1), s1 = Math.sin(a1)
-
-    // Y-up 顶点
-    const tc   = new THREE.Vector3(0,            yTop, 0)
-    const te0  = new THREE.Vector3(tableR * c0,  yTop, tableR * s0)
-    const te1  = new THREE.Vector3(tableR * c1,  yTop, tableR * s1)
-    const gt0  = new THREE.Vector3(R * c0, yGirdleTop, R * s0)
-    const gt1  = new THREE.Vector3(R * c1, yGirdleTop, R * s1)
-    const gb0  = new THREE.Vector3(R * c0, yGirdleBot, R * s0)
-    const gb1  = new THREE.Vector3(R * c1, yGirdleBot, R * s1)
-    const cu   = new THREE.Vector3(0,            yBot, 0)
-
-    // ① 台面（三角形扇）
-    pushTri(tc, te0, te1)
-
-    // ② 冠部刻面（table edge → girdle top，四边形分两个三角）
-    pushTri(te0, gt0, te1)
-    pushTri(te1, gt0, gt1)
-
-    // ③ 腰部（girdle top → girdle bottom）
-    pushTri(gt0, gb0, gt1)
-    pushTri(gb0, gb1, gt1)
-
-    // ④ 亭部刻面（girdle bottom → culet）
-    pushTri(gb0, cu, gb1)
-  }
-
-  const geometry = new THREE.BufferGeometry()
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
-  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3))
-  // Y-up → Z-up（Three.js Z 轴朝上）
-  geometry.rotateX(-Math.PI / 2)
-
-  // 主体材质 —— 透明高亮仿钻石
-  const material = new THREE.MeshPhysicalMaterial({
-    color: 0xd8ecff,
-    metalness: 0.0,
-    roughness: 0.05,
-    transparent: true,
-    opacity: 0.90,
-    side: THREE.DoubleSide,
-    envMapIntensity: 1.2,
-    clearcoat: 0.6,
-    clearcoatRoughness: 0.05,
-    flatShading: true,
-  })
-
-  // 刻面棱线
-  const edgeGeom = new THREE.EdgesGeometry(geometry, 5)
-  const edgeMat = new THREE.LineBasicMaterial({
-    color: 0x6699cc,
-    transparent: true,
-    opacity: 0.25,
-  })
-
-  const mesh = new THREE.Mesh(geometry, material)
-  const wireframe = new THREE.LineSegments(edgeGeom, edgeMat)
-
-  const group = new THREE.Group()
-  group.add(mesh)
-  group.add(wireframe)
-
-  // 定位到指定中心
-  if (center && Number.isFinite(center.x) && Number.isFinite(center.y)) {
-    group.position.set(center.x, center.y, 0)
-  }
-
-  return group
 }
