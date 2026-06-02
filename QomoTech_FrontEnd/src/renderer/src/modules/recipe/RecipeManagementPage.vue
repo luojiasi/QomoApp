@@ -38,18 +38,8 @@ const statusOptions: { label: string; value: RecipeStatus }[] = [
   { label: '生效', value: 'active' },
   { label: '归档', value: 'archived' }
 ]
-const mainRecipeCount = computed(() => recipeState.value.mainRecipes.length)
-const activeRecipeCount = computed(
-  () => recipeState.value.mainRecipes.filter((recipe) => recipe.status === 'active').length
-)
-const childRecipeCount = computed(
-  () =>
-    recipeState.value.laserPowerRecipes.length +
-    recipeState.value.blackeningRecipes.length +
-    recipeState.value.machiningRecipes.length
-)
 
-/** 主配方列表：备注匹配关键词 + 状态筛选（草稿 / 生效 / 归档） */
+/** 主配方列表：名称匹配关键词 + 状态筛选（草稿 / 生效 / 归档） */
 const filteredMainRecipes = computed(() => {
   const list = recipeState.value.mainRecipes
   const { keyword, recipeStatus } = recipeState.value.filter
@@ -59,22 +49,22 @@ const filteredMainRecipes = computed(() => {
     recipeStatus === 'all' ? list : list.filter((recipe) => recipe.status === recipeStatus)
 
   if (kw) {
-    next = next.filter((recipe) => (recipe.notes ?? '').toLowerCase().includes(kw))
+    next = next.filter((recipe) => (recipe.name ?? '').toLowerCase().includes(kw))
   }
 
   return next
 })
 
-function matchesRecipeRecordKeyword(item: { name: string; code: string; notes: string },kw: string): boolean {
+function matchesRecipeRecordKeyword(item: { name: string }, kw: string): boolean {
   const t = kw.trim().toLowerCase()
   if (!t) return true
-  return [item.name, item.code, item.notes].some((s) => s.toLowerCase().includes(t))
+  return item.name.toLowerCase().includes(t)
 }
 
 function matchesLaserPowerKeyword(item: LaserPowerRecipe, kw: string): boolean {
   const t = kw.trim().toLowerCase()
   if (!t) return true
-  const parts = [item.name, item.code, item.notes, item.laserManufacturer]
+  const parts = [item.name, item.laserManufacturer]
   return parts.some((s) => s.toLowerCase().includes(t))
 }
 
@@ -222,7 +212,7 @@ const activeProcessDetailPopover = computed(() => {
     const lp = laserPowerMap.value.get(mr.laserPowerRecipeId)
     return {
       title: '激光功率配方',
-      description: lp ? `${lp.name}（${lp.code}）` : '当前未关联有效配方',
+      description: lp ? lp.name : '当前未关联有效配方',
       fields: getLaserPowerFields(lp)
     }
   }
@@ -230,14 +220,14 @@ const activeProcessDetailPopover = computed(() => {
     const shared = getHorizontalFormulaById(mr.horizontalFormulaId)
     return {
       title: '水平工艺配方',
-      description: shared ? `${shared.name}（${shared.code}）` : '当前未选择',
+      description: shared ? shared.name : '当前未选择',
       fields: getFormulaFields(shared)
     }
   }
   const shared = getVerticalFormulaById(mr.verticalFormulaId)
   return {
     title: '垂直工艺配方',
-    description: shared ? `${shared.name}（${shared.code}）` : '当前未选择',
+    description: shared ? shared.name : '当前未选择',
     fields: getVerticalFormulaFields(shared)
   }
 })
@@ -306,7 +296,6 @@ function markMainRecipeUpdated(): void {
 
 function getFormulaFields(recipe?: ProcessFormulaRecipe): ParameterField[] {
   return [
-    { key: 'name', label: '工艺名称', value: recipe?.name ?? '-' },
     { key: 'openingShape', label: '开口形状', value: recipe?.openingShape ?? '-' },
     { key: 'angleFormula', label: '角度公式', value: formatLinearFormula('A', recipe?.angleFormula) },
     {
@@ -357,7 +346,6 @@ function getLaserPowerFields(lp?: LaserPowerRecipe | null): ParameterField[] {
   if (!lp) return []
   return [
     { key: 'name', label: '配方名称', value: lp.name },
-    { key: 'code', label: '配方编码', value: lp.code },
     { key: 'laserManufacturer', label: '激光厂家', value: lp.laserManufacturer },
     { key: 'laserPower', label: '激光功率', value: lp.laserPower },
     { key: 'laserFrequency', label: '激光频率', value: lp.laserFrequency },
@@ -648,29 +636,12 @@ onMounted(async () => {
         </div>
       </div>
 
-      <div class="grid gap-4 md:grid-cols-3" v-if="activeEditorPanel === 'main'">
-        <div class="app-card rounded-2xl p-5 shadow-sm">
-          <p class="app-text-secondary text-sm">主配方数量</p>
-          <p class="app-text-primary mt-2 text-2xl font-semibold">{{ mainRecipeCount }}</p>
-        </div>
-
-        <div class="app-card rounded-2xl p-5 shadow-sm">
-          <p class="app-text-secondary text-sm">生效主配方</p>
-          <p class="app-text-primary mt-2 text-2xl font-semibold">{{ activeRecipeCount }}</p>
-        </div>
-
-        <div class="app-card rounded-2xl p-5 shadow-sm">
-          <p class="app-text-secondary text-sm">子配方总数</p>
-          <p class="app-text-primary mt-2 text-2xl font-semibold">{{ childRecipeCount }}</p>
-        </div>
-      </div>
-
       <section v-if="activeEditorPanel === 'main'" class="app-card rounded-2xl p-4 shadow-sm">
         <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>
             <h2 class="app-text-primary text-lg font-semibold">主配方列表</h2>
             <p class="app-text-secondary mt-1 text-xs leading-snug">
-              先选中主配方，再在下方编辑它所绑定的两个工艺子配方。可通过关键词（备注）与状态（草稿/生效/归档）缩小列表。
+              先选中主配方，再在下方编辑它所绑定的两个工艺子配方。可通过关键词（名称）与状态（草稿/生效/归档）缩小列表。
             </p>
           </div>
           <button
@@ -688,7 +659,7 @@ onMounted(async () => {
             <input
               v-model="recipeState.filter.keyword"
               type="search"
-              placeholder="输入文字筛选主配方备注"
+              placeholder="输入文字筛选主配方名称"
               class="min-w-0 flex-1 rounded-lg border border-(--app-border) bg-transparent px-2.5 py-1.5 text-sm outline-none"
             />
           </label>
@@ -735,20 +706,6 @@ onMounted(async () => {
             <div class="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
               <div class="min-w-0 flex-1">
                 <p class="app-text-primary text-sm font-semibold leading-tight">{{ recipe.name }}</p>
-                <p class="app-text-secondary mt-0.5 text-xs leading-snug">
-                  {{ recipe.code }} / {{ recipe.version }} / {{ recipe.productModel }}
-                </p>
-                <p class="app-text-secondary mt-1 text-xs leading-snug">
-                  扫黑：{{
-                    recipeState.blackeningRecipes.find((item) => item.id === recipe.blackeningRecipeId)
-                      ?.name ?? '-'
-                  }}
-                  <span class="text-slate-400 dark:text-slate-500"> · </span>
-                  加工：{{
-                    recipeState.machiningRecipes.find((item) => item.id === recipe.machiningRecipeId)
-                      ?.name ?? '-'
-                  }}
-                </p>
               </div>
 
               <div class="flex shrink-0 items-center gap-2">
@@ -796,26 +753,6 @@ onMounted(async () => {
             <span class="app-text-secondary shrink-0 text-xs leading-tight">主配方名称</span>
             <input
               v-model="selectedMainRecipe.name"
-              type="text"
-              class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2.5 py-1.5 text-sm outline-none"
-              @input="markMainRecipeUpdated"
-            />
-          </label>
-
-          <label class="grid grid-cols-[minmax(5.25rem,auto)_1fr] items-center gap-2">
-            <span class="app-text-secondary shrink-0 text-xs leading-tight">产品型号</span>
-            <input
-              v-model="selectedMainRecipe.productModel"
-              type="text"
-              class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2.5 py-1.5 text-sm outline-none"
-              @input="markMainRecipeUpdated"
-            />
-          </label>
-
-          <label class="grid grid-cols-[minmax(5.25rem,auto)_1fr] items-center gap-2">
-            <span class="app-text-secondary shrink-0 text-xs leading-tight">版本号</span>
-            <input
-              v-model="selectedMainRecipe.version"
               type="text"
               class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2.5 py-1.5 text-sm outline-none"
               @input="markMainRecipeUpdated"
@@ -874,18 +811,6 @@ onMounted(async () => {
                 {{ recipe.name }}
               </option>
             </select>
-          </label>
-
-          <label
-            class="grid grid-cols-[minmax(5.25rem,auto)_1fr] items-start gap-2 sm:col-span-2 lg:col-span-3 xl:col-span-4"
-          >
-            <span class="app-text-secondary mt-1.5 shrink-0 text-xs leading-tight">备注</span>
-            <textarea
-              v-model="selectedMainRecipe.notes"
-              rows="2"
-              class="min-h-10 max-h-24 min-w-0 w-full resize-y rounded-lg border border-(--app-border) bg-transparent px-2.5 py-1.5 text-sm outline-none"
-              @input="markMainRecipeUpdated"
-            />
           </label>
         </div>
       </section>
@@ -964,7 +889,7 @@ onMounted(async () => {
               <input
                 v-model="recipeState.filter.libraryKeywords.blackening"
                 type="search"
-                placeholder="按名称、编码、备注筛选（扫黑工艺）"
+                placeholder="按名称筛选（扫黑工艺）"
                 class="min-w-0 flex-1 rounded-lg border border-(--app-border) bg-transparent px-2.5 py-1.5 text-sm outline-none"
               />
             </label>
@@ -1007,7 +932,7 @@ onMounted(async () => {
               <input
                 v-model="recipeState.filter.libraryKeywords.machining"
                 type="search"
-                placeholder="按名称、编码、备注筛选（加工工艺）"
+                placeholder="按名称筛选（加工工艺）"
                 class="min-w-0 flex-1 rounded-lg border border-(--app-border) bg-transparent px-2.5 py-1.5 text-sm outline-none"
               />
             </label>
@@ -1054,7 +979,7 @@ onMounted(async () => {
               <input
                 v-model="recipeState.filter.libraryKeywords.laserPower"
                 type="search"
-                placeholder="按名称、编码、备注、激光厂家筛选"
+                placeholder="按名称、激光厂家筛选"
                 class="min-w-0 flex-1 rounded-lg border border-(--app-border) bg-transparent px-2.5 py-1.5 text-sm outline-none"
               />
             </label>
@@ -1097,7 +1022,7 @@ onMounted(async () => {
               <input
                 v-model="recipeState.filter.libraryKeywords.horizontalFormula"
                 type="search"
-                placeholder="按名称、编码、备注筛选（水平工艺）"
+                placeholder="按名称筛选（水平工艺）"
                 class="min-w-0 flex-1 rounded-lg border border-(--app-border) bg-transparent px-2.5 py-1.5 text-sm outline-none"
               />
             </label>
@@ -1144,7 +1069,7 @@ onMounted(async () => {
               <input
                 v-model="recipeState.filter.libraryKeywords.verticalFormula"
                 type="search"
-                placeholder="按名称、编码、备注筛选（垂直工艺）"
+                placeholder="按名称筛选（垂直工艺）"
                 class="min-w-0 flex-1 rounded-lg border border-(--app-border) bg-transparent px-2.5 py-1.5 text-sm outline-none"
               />
             </label>

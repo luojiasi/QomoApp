@@ -119,7 +119,7 @@ function setDescription(value: string): void {
 // ── 配方节点：主配方下拉选项 ──
 const recipeOptions = computed(() =>
   recipeStore.recipeState.mainRecipes.map((r) => ({
-    label: `${r.name} (${r.code})`,
+    label: r.name,
     value: r.id
   }))
 )

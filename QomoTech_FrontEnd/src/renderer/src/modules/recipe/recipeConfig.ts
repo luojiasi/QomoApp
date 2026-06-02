@@ -25,7 +25,7 @@ export function formatLinearFormula(symbol: 'A' | 'L' | 'D' | 'CA',formula?: Lin
 }
 
 /** 水平与垂直工艺配方共用的默认工艺参数（仅外层档案 id/编码/名称不同） */
-function createDefaultSharedProcessFormula(processLineName: string): Omit<ProcessFormulaRecipe, 'id' | 'code' | 'notes' | 'updatedAt'> {
+function createDefaultSharedProcessFormula(processLineName: string): Omit<ProcessFormulaRecipe, 'id' | 'updatedAt'> {
   return {
     name: processLineName,
     openingShape: 'V型',
@@ -41,9 +41,7 @@ function createDefaultSharedProcessFormula(processLineName: string): Omit<Proces
 export function createLaserPowerRecipe(sequence: number): LaserPowerRecipe {
   return {
     id: `laser-power-${sequence}`,
-    code: `LP-${String(sequence).padStart(3, '0')}`,
     name: `激光功率配方 ${sequence}`,
-    notes: '可被扫黑工艺配方与加工工艺配方引用。',
     updatedAt: createTimestamp(),
     laserManufacturer: '默认厂家',
     laserPower: 950,
@@ -55,9 +53,7 @@ export function createLaserPowerRecipe(sequence: number): LaserPowerRecipe {
 export function createBlackeningRecipe(sequence: number,laserPowerRecipeId: string): BlackeningProcessRecipe {
   return {
     id: `blackening-${sequence}`,
-    code: `BH-${String(sequence).padStart(3, '0')}`,
     name: `扫黑工艺配方 ${sequence}`,
-    notes: '用于主配方中的扫黑工艺步骤。',
     updatedAt: createTimestamp(),
     enabled: true,
     descentStep: 0.1,
@@ -74,9 +70,7 @@ export function createHorizontalFormulaRecipe(sequence: number): ProcessFormulaR
   return {
     ...createDefaultSharedProcessFormula(`水平工艺 ${sequence}`),
     id: `horizontal-formula-${sequence}`,
-    code: `HP-${String(sequence).padStart(3, '0')}`,
     name: `水平工艺配方 ${sequence}`,
-    notes: '水平工艺共享配方，可被加工和清洗工艺同时引用。',
     updatedAt: createTimestamp()
   }
 }
@@ -110,9 +104,7 @@ export function createVerticalFormulaRecipe(sequence: number): VerticalProcessFo
   return {
     ...createDefaultVerticalProcessFormula(),
     id: `vertical-formula-${sequence}`,
-    code: `VP-${String(sequence).padStart(3, '0')}`,
     name: `垂直工艺配方 ${sequence}`,
-    notes: '垂直工艺共享配方，可被加工和清洗工艺同时引用。',
     updatedAt: createTimestamp()
   }
 }
@@ -127,9 +119,7 @@ export function createMachiningRecipe(
 ): MachiningProcessRecipe {
   return {
     id: `machining-${sequence}`,
-    code: `JG-${String(sequence).padStart(3, '0')}`,
     name: `加工工艺配方 ${sequence}`,
-    notes: '可选择共享的水平工艺配方与垂直工艺配方。',
     updatedAt: createTimestamp(),
     ...requiredFormulas
   }
@@ -144,12 +134,8 @@ export function createMainRecipe(
 ): MainRecipeDefinition {
   return {
     id: `main-${sequence}`,
-    code: `MP-${String(sequence).padStart(3, '0')}`,
     name: `主配方 ${sequence}`,
-    version: 'v1.0.0',
-    productModel: `QMT-${String(sequence).padStart(2, '0')}`,
     status: sequence === 1 ? 'active' : 'draft',
-    notes: '主配方必须同时选择扫黑、加工两个工艺配方。',
     updatedAt: createTimestamp(),
     ...requiredChildren
   } satisfies RecipeManagerState['mainRecipes'][number]
@@ -215,7 +201,6 @@ function createLaserPowerParameterFields(recipe?: LaserPowerRecipe | null): Para
 
 function createFormulaFields(prefix: string, recipe?: ProcessFormulaRecipe): ParameterField[] {
   return [
-    { key: `${prefix}-name`, label: '工艺名称', value: recipe?.name ?? '-' },
     { key: `${prefix}-shape`, label: '开口形状', value: recipe?.openingShape ?? '-' },
     { key: `${prefix}-upper`, label: '上开口公式', value: recipe?.upperOpeningFormula ?? '-' },
     {

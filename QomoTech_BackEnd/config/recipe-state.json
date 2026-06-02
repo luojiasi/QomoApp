@@ -89,7 +89,7 @@
   ],
   "horizontalFormulaRecipes": [
     {
-      "name": "123",
+      "name": "111",
       "openingShape": "V型",
       "angleFormula": {
         "k": 0,
@@ -112,7 +112,7 @@
       "id": "horizontal-formula-1",
       "code": "HP-001",
       "notes": "水平工艺共享配方，可被加工和清洗工艺同时引用。",
-      "updatedAt": "2026-6-2 18:29:49"
+      "updatedAt": "2026-6-2 19:02:22"
     },
     {
       "name": "555",
@@ -237,7 +237,7 @@
       "laserPowerRecipeId": "laser-power-2"
     }
   ],
-  "selectedMainRecipeId": "main-2",
+  "selectedMainRecipeId": "main-1",
   "filter": {
     "keyword": "",
     "recipeStatus": "all",

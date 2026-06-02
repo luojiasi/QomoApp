@@ -1,16 +1,12 @@
 export interface RecipeRecordBase {
   id: string
-  code: string
   name: string
-  notes: string
   updatedAt: string
 }
 
 // 主配方的类型
 export type RecipeStatus = 'draft' | 'active' | 'archived'
 export interface MainRecipeDefinition extends RecipeRecordBase {
-  version: string
-  productModel: string
   status: RecipeStatus
   blackeningRecipeId: string
   machiningRecipeId: string

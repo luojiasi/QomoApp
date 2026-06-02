@@ -27,9 +27,7 @@ function isProcessFormulaRecipe(value: unknown): value is ProcessFormulaRecipe {
 
   return (
     typeof value.id === 'string' &&
-    typeof value.code === 'string' &&
     typeof value.name === 'string' &&
-    typeof value.notes === 'string' &&
     typeof value.updatedAt === 'string' &&
     (value.openingShape === 'V型' || value.openingShape === '//型') &&
     isLinearFormulaCoefficients(value.angleFormula) &&
@@ -63,9 +61,7 @@ function isVerticalProcessFormulaRecipe(value: unknown): value is VerticalProces
   if (!isObject(value)) return false
   return (
     typeof value.id === 'string' &&
-    typeof value.code === 'string' &&
     typeof value.name === 'string' &&
-    typeof value.notes === 'string' &&
     typeof value.updatedAt === 'string' &&
     (value.cuttingAxis === 'XY' || value.cuttingAxis === 'R') &&
     typeof value.changePercent === 'number' &&
@@ -115,17 +111,13 @@ function migrateVerticalFormulaRecipeRecord(raw: unknown): VerticalProcessFormul
     return isVerticalProcessFormulaRecipe(raw) ? raw : null
   }
 
-  // 旧版嵌套结构：{ id, code, name, notes, updatedAt, formula: {...} }
+  // 旧版嵌套结构：{ id, name, updatedAt, formula: {...} }
   const id = raw.id
-  const code = raw.code
   const name = raw.name
-  const notes = raw.notes
   const updatedAt = raw.updatedAt
   if (
     typeof id !== 'string' ||
-    typeof code !== 'string' ||
     typeof name !== 'string' ||
-    typeof notes !== 'string' ||
     typeof updatedAt !== 'string'
   ) {
     return null
@@ -134,10 +126,10 @@ function migrateVerticalFormulaRecipeRecord(raw: unknown): VerticalProcessFormul
   const formula = raw.formula
 
   if (isVerticalFormulaData(formula)) {
-    return { id, code, name, notes, updatedAt, ...(formula as Record<string, unknown>) } as VerticalProcessFormulaRecipe
+    return { id, name, updatedAt, ...(formula as Record<string, unknown>) } as VerticalProcessFormulaRecipe
   }
   if (isProcessFormulaData(formula)) {
-    return { id, code, name, notes, updatedAt, ...createDefaultVerticalProcessFormula() }
+    return { id, name, updatedAt, ...createDefaultVerticalProcessFormula() }
   }
   return null
 }

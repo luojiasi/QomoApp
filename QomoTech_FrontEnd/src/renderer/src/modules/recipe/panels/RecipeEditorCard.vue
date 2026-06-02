@@ -127,18 +127,17 @@ function setFormulaFieldB(recipe: ProcessFormulaRecipe, key: EditableFormulaKey,
         <template v-if="props.type === 'horizontalFormula'">
           <p class="app-text-secondary text-xs">共享水平工艺配方</p>
           <p class="app-text-primary mt-1 text-base font-semibold">
-            {{ props.item.name }} / {{ props.item.code }}
+            {{ props.item.name }}
           </p>
         </template>
         <template v-else-if="props.type === 'verticalFormula'">
           <p class="app-text-secondary text-xs">共享垂直工艺配方</p>
           <p class="app-text-primary mt-1 text-base font-semibold">
-            {{ props.item.name }} / {{ props.item.code }}
+            {{ props.item.name }}
           </p>
         </template>
         <template v-else>
           <p class="app-text-primary text-lg font-semibold">{{ props.item.name }}</p>
-          <p class="app-text-secondary mt-1 text-sm">{{ props.item.code }}</p>
         </template>
       </div>
       <button
@@ -173,15 +172,6 @@ function setFormulaFieldB(recipe: ProcessFormulaRecipe, key: EditableFormulaKey,
           <span class="app-text-secondary text-xs">配方名称</span>
           <input
             v-model="(props.item as BlackeningProcessRecipe).name"
-            type="text"
-            class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
-            @input="markUpdated"
-          />
-        </label>
-        <label class="grid grid-cols-[6.5rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) px-3 py-2">
-          <span class="app-text-secondary text-xs">配方编码</span>
-          <input
-            v-model="(props.item as BlackeningProcessRecipe).code"
             type="text"
             class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
             @input="markUpdated"
@@ -284,19 +274,9 @@ function setFormulaFieldB(recipe: ProcessFormulaRecipe, key: EditableFormulaKey,
             :value="lp.id"
             class="text-slate-900"
           >
-            {{ lp.name }} ({{ lp.code }})
+            {{ lp.name }}
           </option>
         </select>
-      </label>
-
-      <label class="mt-3 grid grid-cols-[6.5rem_1fr] items-start gap-2 rounded-xl border border-(--app-border) px-3 py-2">
-        <span class="app-text-secondary mt-1 text-xs">备注</span>
-        <textarea
-          v-model="(props.item as BlackeningProcessRecipe).notes"
-          rows="2"
-          class="min-h-10 min-w-0 w-full resize-y rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
-          @input="markUpdated"
-        />
       </label>
     </template>
 
@@ -306,15 +286,6 @@ function setFormulaFieldB(recipe: ProcessFormulaRecipe, key: EditableFormulaKey,
           <span class="app-text-secondary text-xs">配方名称</span>
           <input
             v-model="(props.item as MachiningProcessRecipe).name"
-            type="text"
-            class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
-            @input="markUpdated"
-          />
-        </label>
-        <label class="grid grid-cols-[6.5rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) px-3 py-2">
-          <span class="app-text-secondary text-xs">配方编码</span>
-          <input
-            v-model="(props.item as MachiningProcessRecipe).code"
             type="text"
             class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
             @input="markUpdated"
@@ -337,7 +308,7 @@ function setFormulaFieldB(recipe: ProcessFormulaRecipe, key: EditableFormulaKey,
                 :value="lp.id"
                 class="text-slate-900"
               >
-                {{ lp.name }} ({{ lp.code }})
+                {{ lp.name }}
               </option>
             </select>
           </label>
@@ -362,7 +333,7 @@ function setFormulaFieldB(recipe: ProcessFormulaRecipe, key: EditableFormulaKey,
                 :value="formula.id"
                 class="text-slate-900"
               >
-                {{ formula.name }} ({{ formula.code }})
+                {{ formula.name }}
               </option>
             </select>
           </label>
@@ -386,7 +357,7 @@ function setFormulaFieldB(recipe: ProcessFormulaRecipe, key: EditableFormulaKey,
                 :value="formula.id"
                 class="text-slate-900"
               >
-                {{ formula.name }} ({{ formula.code }})
+                {{ formula.name }}
               </option>
             </select>
           </label>
@@ -395,16 +366,6 @@ function setFormulaFieldB(recipe: ProcessFormulaRecipe, key: EditableFormulaKey,
           </p>
         </div>
       </div>
-
-      <label class="mt-4 grid grid-cols-[6.5rem_1fr] items-start gap-2 rounded-xl border border-(--app-border) px-3 py-2">
-        <span class="app-text-secondary mt-1 text-xs">备注</span>
-        <textarea
-          v-model="(props.item as MachiningProcessRecipe).notes"
-          rows="2"
-          class="min-h-10 min-w-0 w-full resize-y rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
-          @input="markUpdated"
-        />
-      </label>
     </template>
 
     <template v-else-if="props.type === 'laserPower'">
@@ -414,15 +375,6 @@ function setFormulaFieldB(recipe: ProcessFormulaRecipe, key: EditableFormulaKey,
             <span class="app-text-secondary text-xs">配方名称</span>
             <input
               v-model="(props.item as LaserPowerRecipe).name"
-              type="text"
-              class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
-              @input="markUpdated"
-            />
-          </label>
-          <label class="grid grid-cols-[6.5rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) px-3 py-2">
-            <span class="app-text-secondary text-xs">配方编码</span>
-            <input
-              v-model="(props.item as LaserPowerRecipe).code"
               type="text"
               class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
               @input="markUpdated"
@@ -464,15 +416,6 @@ function setFormulaFieldB(recipe: ProcessFormulaRecipe, key: EditableFormulaKey,
             />
           </label>
         </div>
-        <label class="grid grid-cols-[6.5rem_1fr] items-start gap-2 rounded-xl border border-(--app-border) px-3 py-2">
-          <span class="app-text-secondary mt-1 text-xs">备注</span>
-          <textarea
-            v-model="(props.item as LaserPowerRecipe).notes"
-            rows="2"
-            class="min-h-10 min-w-0 w-full resize-y rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
-            @input="markUpdated"
-          />
-        </label>
       </div>
     </template>
 
@@ -481,15 +424,6 @@ function setFormulaFieldB(recipe: ProcessFormulaRecipe, key: EditableFormulaKey,
         <div class="grid gap-2 lg:grid-cols-5">
           <label class="grid grid-cols-[6rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) bg-(--app-card) px-3 py-2">
             <span class="app-text-secondary text-xs">配方名称</span>
-            <input
-              v-model="(props.item as ProcessFormulaRecipe).name"
-              type="text"
-              class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
-              @input="markUpdated"
-            />
-          </label>
-          <label class="grid grid-cols-[6rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) bg-(--app-card) px-3 py-2">
-            <span class="app-text-secondary text-xs">工艺名称</span>
             <input
               v-model="(props.item as ProcessFormulaRecipe).name"
               type="text"
@@ -563,16 +497,6 @@ function setFormulaFieldB(recipe: ProcessFormulaRecipe, key: EditableFormulaKey,
             </div>
           </div>
         </div>
-
-        <label class="grid grid-cols-[7rem_1fr] items-start gap-2 rounded-xl border border-(--app-border) bg-(--app-card) px-3 py-2">
-          <span class="app-text-secondary mt-1 text-xs">备注</span>
-          <textarea
-            v-model="(props.item as ProcessFormulaRecipe).notes"
-            rows="2"
-            class="min-h-10 min-w-0 w-full resize-y rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
-            @input="markUpdated"
-          />
-        </label>
       </div>
     </template>
 
@@ -583,15 +507,6 @@ function setFormulaFieldB(recipe: ProcessFormulaRecipe, key: EditableFormulaKey,
             <span class="app-text-secondary text-xs">配方名称</span>
             <input
               v-model="(props.item as VerticalProcessFormulaRecipe).name"
-              type="text"
-              class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
-              @input="markUpdated"
-            />
-          </label>
-          <label class="grid grid-cols-[6rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) bg-(--app-card) px-3 py-2">
-            <span class="app-text-secondary text-xs">配方编码</span>
-            <input
-              v-model="(props.item as VerticalProcessFormulaRecipe).code"
               type="text"
               class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
               @input="markUpdated"
@@ -822,16 +737,6 @@ function setFormulaFieldB(recipe: ProcessFormulaRecipe, key: EditableFormulaKey,
             </div>
           </div>
         </div>
-
-        <label class="grid grid-cols-[7rem_1fr] items-start gap-2 rounded-xl border border-(--app-border) bg-(--app-card) px-3 py-2">
-          <span class="app-text-secondary mt-1 text-xs">备注</span>
-          <textarea
-            v-model="(props.item as VerticalProcessFormulaRecipe).notes"
-            rows="2"
-            class="min-h-10 min-w-0 w-full resize-y rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
-            @input="markUpdated"
-          />
-        </label>
       </div>
     </template>
   </div>
