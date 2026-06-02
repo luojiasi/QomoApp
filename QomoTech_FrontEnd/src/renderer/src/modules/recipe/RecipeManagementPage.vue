@@ -129,71 +129,6 @@ const laserPowerMap = computed(
 const activeEditorPanel = ref<EditorPanel>('main')
 const savingMainRecipeFile = ref(false)
 
-const referencePopoverKind = ref<ChildRecipeType | null>(null)
-
-const referenceCards = computed(() => [
-  {
-    kind: 'blackening' as const,
-    summaryLabel: '已选扫黑工艺配方',
-    name: selectedBlackeningRecipe.value?.name ?? '未选择'
-  },
-  {
-    kind: 'machining' as const,
-    summaryLabel: '已选加工工艺配方',
-    name: selectedMachiningRecipe.value?.name ?? '未选择'
-  }
-])
-
-const referenceDetailSectionByKind = computed(() => {
-  const list = childRecipeDetailSections.value
-  return {
-    blackening: list.find((s) => s.id === 'recipe-blackening-detail') ?? null,
-    machining: list.find((s) => s.id === 'recipe-machining-detail') ?? null
-  }
-})
-
-const activeReferenceDetailSection = computed(() => {
-  const k = referencePopoverKind.value
-  if (!k) return null
-  return referenceDetailSectionByKind.value[k]
-})
-
-const REFERENCE_POPOVER_HIDE_DELAY_MS = 400
-let referencePopoverHideTimer: number | null = null
-
-function clearReferencePopoverHideTimer(): void {
-  if (referencePopoverHideTimer !== null) {
-    window.clearTimeout(referencePopoverHideTimer)
-    referencePopoverHideTimer = null
-  }
-}
-
-function onReferenceCardEnter(kind: ChildRecipeType): void {
-  clearReferencePopoverHideTimer()
-  referencePopoverKind.value = kind
-}
-
-function onReferenceCardLeave(): void {
-  clearReferencePopoverHideTimer()
-  referencePopoverHideTimer = window.setTimeout(() => {
-    referencePopoverKind.value = null
-    referencePopoverHideTimer = null
-  }, REFERENCE_POPOVER_HIDE_DELAY_MS)
-}
-
-function onReferenceCenterPanelEnter(): void {
-  clearReferencePopoverHideTimer()
-}
-
-function onReferenceCenterPanelLeave(): void {
-  referencePopoverKind.value = null
-}
-
-function closeReferenceCenterPanel(): void {
-  clearReferencePopoverHideTimer()
-  referencePopoverKind.value = null
-}
-
 type ProcessLibraryKind = 'machining'
 
 const processDetailHover = ref<{
@@ -269,7 +204,6 @@ function closeProcessDetailPanel(): void {
 }
 
 onUnmounted(() => {
-  clearReferencePopoverHideTimer()
   clearProcessDetailHideTimer()
 })
 const editorPanelOptions: { key: EditorPanel; label: string }[] = [
@@ -281,9 +215,6 @@ const editorPanelOptions: { key: EditorPanel; label: string }[] = [
   { key: 'vertical', label: '垂直工艺配方' }
 ]
 
-const childRecipeDetailSections = computed(() =>
-  sections.value.filter((section) => section.id.endsWith('-detail'))
-)
 
 const otherSections = computed(() =>
   sections.value.filter((section) => !section.id.endsWith('-detail'))
@@ -841,30 +772,6 @@ onMounted(async () => {
         </section>
       </template>
 
-
-
-      <section v-if="activeEditorPanel === 'main'" class="app-card rounded-2xl p-6 shadow-sm">
-        <div class="flex items-center gap-2">
-          <h2 class="app-text-primary text-xl font-semibold">当前主配方引用详情</h2>
-          <span class="app-text-secondary text-xs">悬停各卡片，在屏幕右侧查看详细参数</span>
-        </div>
-        <div class="mt-4 grid gap-4 lg:grid-cols-3">
-          <div
-            v-for="card in referenceCards"
-            :key="card.kind"
-            @mouseenter="onReferenceCardEnter(card.kind)"
-            @mouseleave="onReferenceCardLeave"
-          >
-            <div class="app-card-soft rounded-2xl p-5">
-              <p class="app-text-secondary text-sm">{{ card.summaryLabel }}</p>
-              <p class="app-text-primary mt-2 text-lg font-semibold">
-                {{ card.name }}
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <section
         v-if="activeEditorPanel === 'main' && selectedMainRecipe"
         class="app-card rounded-2xl p-6 shadow-sm"
@@ -1098,41 +1005,6 @@ onMounted(async () => {
             />
           </div>
         </RecipeLibrarySection>
-
-
-        <!-- 主配方下子配方的悬停展示 -->
-        <Teleport to="body">
-          <div
-            v-if="referencePopoverKind"
-            class="pointer-events-none fixed inset-0 z-200 flex items-start justify-center p-4 md:p-6"
-          >
-            <div class="pointer-events-none absolute inset-0 bg-slate-900/18 dark:bg-black/28"></div>
-            <div
-              class="pointer-events-auto relative max-h-[90vh] w-[min(64rem,calc(100vw-2rem))] overflow-y-auto rounded-2xl border border-(--app-border) bg-(--app-card) p-4 shadow-[0_20px_40px_-12px_rgba(15,23,42,0.35)] dark:shadow-[0_20px_40px_-12px_rgba(0,0,0,0.55)]"
-              @mouseenter="onReferenceCenterPanelEnter"
-              @mouseleave="onReferenceCenterPanelLeave"
-            >
-              <button
-                type="button"
-                class="absolute right-3 top-3 rounded-lg px-2 py-1 text-xs text-(--app-text-muted) transition hover:bg-(--app-card-soft) hover:text-(--app-text-primary)"
-                @click="closeReferenceCenterPanel"
-              >
-                关闭
-              </button>
-              <template v-if="activeReferenceDetailSection">
-                <RecipeDetailFieldPanel
-                  :key="`popover-${activeReferenceDetailSection.id}`"
-                  :title="activeReferenceDetailSection.title"
-                  :description="activeReferenceDetailSection.description"
-                  :fields="activeReferenceDetailSection.fields"
-                  :field-groups="activeReferenceDetailSection.fieldGroups"
-                />
-              </template>
-              <p v-else class="app-text-secondary px-2 pb-2 text-xs">暂无该工艺引用详情</p>
-            </div>
-          </div>
-        </Teleport>
-        <!-- 非主配方其他的悬停展示 -->
         <Teleport to="body">
           <div
             v-if="processDetailHover"
