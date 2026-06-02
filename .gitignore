@@ -21,6 +21,8 @@ QomoTech_BackEnd/**/*.pyc
 node_modules/
 dist/
 out/
+*.tsbuildinfo
+.eslintcache
 scripts/
 *.local
 npm-debug.log*
