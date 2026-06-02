@@ -1,14 +1,19 @@
 import { ref, computed } from 'vue'
 import { useNotification } from '@/shared/composables/useNotification'
-import { useQomo5PStore } from '@/modules/editor/useQomo5PStore'
+
 import { useHardwareState } from '@/shared/api/hardware'
-import { startProgram} from '../api'
+import { startProgram, startProgram4PTest } from '../api'
 import { useProgramStatus } from './useProgramStatus'
 import { useProgramControl } from './useProgramControl'
-import { QomoEntityWithSurface } from '@/modules/editor/qomo5pTypes'
-import { startProgram4PTest } from '../api'
+// 旧版 editor
+import { useQomo5PStore } from '@/modules/editor/useQomo5PStore'
+import type { QomoEntityWithSurface } from '@/modules/editor/qomo5pTypes'
+// 新版 entitiesEditor
+import type { EditorEntity, SurfaceEntity } from '@/modules/entitiesEditor/commons/types'
 import { exportEntitiesWithCalculated } from '@/modules/entitiesEditor/utils/entitiesWithCalculated'
+
 import { useShow4PTable } from '@/modules/motion/panels/useShow4PTable'
+import type { ApiCallResult } from '@/shared/api/httpClient'
 
 type XYMotionOffset = { x: number; y: number }
 
@@ -187,24 +192,41 @@ export function useProgramRunner() {
     }
   }
 
+  /** 根据实体来源判断应该走哪条运行路径，返回 null 表示无法运行。 */
+  function detectEntitySource(): 'qomo5p' | 'entitiesEditor' | null {
+    const qomo5pEntities = qomo5pStore.exportEntitiesToHomeVue()  // 旧编辑器
+    const editorEntities = exportEntitiesWithCalculated()         // 新编辑器 (entitiesEditor)
+    const hasQomo5p = qomo5pEntities.length > 0
+    const hasEditor = editorEntities.length > 0
+
+    if (hasQomo5p && hasEditor) {
+      error('运行失败：Qomo5P 编辑器和Qomo5PN 编辑器中同时存在实体，请只保留其中一个编辑器的内容后再运行。')
+      return null
+    }
+    if (hasQomo5p) return 'qomo5p'
+    if (hasEditor) return 'entitiesEditor'
+
+    error('运行失败：两个编辑器中都没有实体，请先创建或导入图形。')
+    return null
+  }
+
   async function onRunClick(): Promise<void> {
     if (!currentRunRecipePayload.value) {
       error('运行失败：当前没有可下发的配方，请先选择有效主配方。')
       return
     }
-    // let 是否存在钻石 = false
-    // if (programRunning.value) return
-    // for(const entity of exportEntitiesWithCalculated()) {
-    //   if (entity.kind === 'DIAMOND') {
-    //     是否存在钻石 = true
-    //     break
-    //   }
-    // }
-    // if (是否存在钻石) {
-    //   show4POpenDialog(exportEntitiesWithCalculated());
-    //   return 
-    // }
 
+    const source = detectEntitySource()
+    if (!source) return
+
+    if (source === 'qomo5p') {
+      await runQomo5P()
+    } else {
+      await runEntitiesEditor()
+    }
+  }
+
+  async function runQomo5P(): Promise<void> {
     try {
       const xyOffset = resolveXYMotionOffsetFromHardwareState()
       homeXyOffset.value = xyOffset
@@ -215,25 +237,127 @@ export function useProgramRunner() {
         entities: offsetEntities
       }
       const result = await startProgram(payload)
-
-      if (!result?.success) {
-        error(result?.message || '运行失败：后端为提供失败参数。')
-        return
-      }
-      const data = result?.data as { task_count?: number } | undefined
-      const tc = typeof data?.task_count === 'number' ? data.task_count : 0
-      programTaskCount.value = tc
-      programRunning.value = true
-      programPaused.value = false
-      programStartedAtMs.value = Date.now()
-      programElapsedMs.value = 0
-      persistProgramStartedAtToStorage(programStartedAtMs.value)
-      startProgramElapsedTimer()
-      success(result?.message || '运行指令已发送。')
-
+      applyRunResult(result)
     } catch {
       error('运行失败：无法连接后端。')
     }
+  }
+
+  async function runEntitiesEditor(): Promise<void> {
+    try {
+      const xyOffset = resolveXYMotionOffsetFromHardwareState()
+      homeXyOffset.value = xyOffset
+      runTrigger.value = true
+      const rawEntities = exportEntitiesWithCalculated()
+      const offsetEditorEntities = offsetEditorEntitiesByXY(rawEntities, xyOffset.x, xyOffset.y)
+      const payload = {
+        recipe_payload: currentRunRecipePayload.value,
+        entities: offsetEditorEntities
+      }
+      const result = await startProgram4PTest(payload)
+      applyRunResult(result)
+    } catch {
+      error('运行失败：无法连接后端。')
+    }
+  }
+
+  function applyRunResult(result: ApiCallResult<Record<string, unknown>>): void {
+    if (!result?.success) {
+      error(result?.message || '运行失败：后端未提供失败原因。')
+      return
+    }
+    const data = result?.data as { task_count?: number } | undefined
+    const tc = typeof data?.task_count === 'number' ? data.task_count : 0
+    programTaskCount.value = tc
+    programRunning.value = true
+    programPaused.value = false
+    programStartedAtMs.value = Date.now()
+    programElapsedMs.value = 0
+    persistProgramStartedAtToStorage(programStartedAtMs.value)
+    startProgramElapsedTimer()
+    success(result?.message || '运行指令已发送。')
+  }
+
+  /** 对自由编辑器的实体按 XY 轴当前位置进行偏移（{ X, Y } 坐标系）。 */
+  function offsetEditorEntitiesByXY(
+    entities: SurfaceEntity<EditorEntity>[],
+    dx: number,
+    dy: number
+  ): SurfaceEntity<EditorEntity>[] {
+    return entities.map((entity) => {
+      const k = entity.kind
+      if (k === 'LINE') {
+        return {
+          ...entity,
+          start: { X: entity.start.X + dx, Y: entity.start.Y + dy },
+          end: { X: entity.end.X + dx, Y: entity.end.Y + dy }
+        }
+      }
+      if (k === 'ARC') {
+        return {
+          ...entity,
+          center: { X: entity.center.X + dx, Y: entity.center.Y + dy },
+          ...(entity.startPoint
+            ? { startPoint: { X: entity.startPoint.X + dx, Y: entity.startPoint.Y + dy } }
+            : {}),
+          ...(entity.endPoint
+            ? { endPoint: { X: entity.endPoint.X + dx, Y: entity.endPoint.Y + dy } }
+            : {})
+        }
+      }
+      if (k === 'CIRCLE') {
+        return {
+          ...entity,
+          center: { X: entity.center.X + dx, Y: entity.center.Y + dy }
+        }
+      }
+      if (k === 'ELLIPSE') {
+        return {
+          ...entity,
+          center: { X: entity.center.X + dx, Y: entity.center.Y + dy },
+          majorAxisEnd: { X: entity.majorAxisEnd.X + dx, Y: entity.majorAxisEnd.Y + dy }
+        }
+      }
+      if (k === 'POLYLINE') {
+        return {
+          ...entity,
+          vertices: entity.vertices.map((v) => ({
+            ...v,
+            point: { X: v.point.X + dx, Y: v.point.Y + dy }
+          }))
+        }
+      }
+      if (k === 'BEZIER') {
+        return {
+          ...entity,
+          controlPoints: entity.controlPoints.map((p) => ({ X: p.X + dx, Y: p.Y + dy }))
+        }
+      }
+      // DIAMOND
+      return {
+        ...entity,
+        center: { X: entity.center.X + dx, Y: entity.center.Y + dy },
+        ...(entity.contours
+          ? {
+              contours: entity.contours.map((seg) => {
+                if (seg.kind === 'LINE') {
+                  return {
+                    ...seg,
+                    start: { X: seg.start.X + dx, Y: seg.start.Y + dy },
+                    end: { X: seg.end.X + dx, Y: seg.end.Y + dy }
+                  }
+                }
+                return {
+                  ...seg,
+                  start: { X: seg.start.X + dx, Y: seg.start.Y + dy },
+                  end: { X: seg.end.X + dx, Y: seg.end.Y + dy },
+                  center: { X: seg.center.X + dx, Y: seg.center.Y + dy }
+                }
+              })
+            }
+          : {})
+      }
+    })
   }
 
   async function on4PTableConfirm(): Promise<void> {

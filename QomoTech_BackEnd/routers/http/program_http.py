@@ -75,7 +75,7 @@ async def start_program_4p_test(payload: 开始程序参数请求模型):
         await ProgramService4p().执行程序4P(配方数据=payload.recipe_payload,实体数据=payload.entities)
     except Exception:
         日志.exception("startProgram/4PTest 后台任务异常")
-    return ApiResponse(success=True, message="4P测试程序已启动")
+    return ApiResponse(success=True, message="QOMO4PN编辑器已启动")
 
 # ==================================================================
 # 2. 程序状态
