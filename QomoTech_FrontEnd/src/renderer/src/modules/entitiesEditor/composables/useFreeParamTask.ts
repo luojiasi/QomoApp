@@ -24,21 +24,28 @@ function createRow(taskNo: number): TaskRow {
   }
 }
 
-export function useFreeParamTask() {
+export function useFreeParamTask(): {
+  taskRows: typeof rows
+  initDefault: () => void
+  addRow: () => void
+  removeRow: (id: string) => void
+  exportToFile: (fileName?: string) => void
+  loadFromFile: (jsonStr: string) => boolean
+} {
   /** 初始化默认行 */
-  function initDefault() {
+  function initDefault(): void {
     rows.length = 0
     rows.push(createRow(1))
   }
 
   /** 添加一行 */
-  function addRow() {
+  function addRow(): void {
     const nextNo = rows.length > 0 ? Math.max(...rows.map(r => r.taskNo)) + 1 : 1
     rows.push(createRow(nextNo))
   }
 
   /** 删除行 */
-  function removeRow(id: string) {
+  function removeRow(id: string): void {
     const idx = rows.findIndex(r => r.id === id)
     if (idx !== -1) rows.splice(idx, 1)
     // 重新编号
@@ -46,7 +53,7 @@ export function useFreeParamTask() {
   }
 
   /** 导出为 .qtask 文件（浏览器下载） */
-  function exportToFile(fileName?: string) {
+  function exportToFile(fileName?: string): void {
     const data: SerializedTaskTable = {
       format: 'QOMO5P-TaskTable',
       version: TASK_TABLE_VERSION,
@@ -54,7 +61,7 @@ export function useFreeParamTask() {
       rows: JSON.parse(JSON.stringify(rows)),
     }
     const json = JSON.stringify(data, null, 2)
-    const name = fileName || `task_params${TASK_TABLE_FILE_EXT}`
+    const name = fileName || 'task_params' + TASK_TABLE_FILE_EXT
     const blob = new Blob([json], { type: 'application/json;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const anchor = document.createElement('a')

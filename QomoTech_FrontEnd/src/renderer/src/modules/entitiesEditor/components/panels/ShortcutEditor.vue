@@ -40,7 +40,7 @@ const expanded = ref<Record<string, boolean>>(
   Object.fromEntries(GROUP_ORDER.map(g => [g, false]))
 )
 
-function toggle(g: string) {
+function toggle(g: string): void {
   expanded.value[g] = !expanded.value[g]
 }
 

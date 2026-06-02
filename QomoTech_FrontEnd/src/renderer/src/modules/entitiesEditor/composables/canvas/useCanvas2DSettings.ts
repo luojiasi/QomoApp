@@ -33,7 +33,12 @@ export interface Canvas2DForm {
 function arrToStr(a: number[]): string { return a.join(', ') }
 function strToArr(s: string): number[] { return s.split(',').map(v => Number(v.trim())).filter(n => !isNaN(n)) }
 
-export function useCanvas2DSettings() {
+export function useCanvas2DSettings(): {
+  form: Canvas2DForm
+  reset: () => void
+  toData: () => Canvas2DConfig
+  reload: () => void
+} {
   const initial = loadCanvas2DConfig()
 
   const form = reactive<Canvas2DForm>({
@@ -56,7 +61,7 @@ export function useCanvas2DSettings() {
     hitPx: initial.hitPx,
   })
 
-  function reset() {
+  function reset(): void {
     form.snaptoGrid = DEFAULT_SNAP_TO_GRID
     form.gridStep = CANVAS_GRID_STEP
     form.gridColor = CANVAS_GRID_COLOR
@@ -98,7 +103,7 @@ export function useCanvas2DSettings() {
     }
   }
 
-  function reload() {
+  function reload(): void {
     const c = loadCanvas2DConfig()
     form.snaptoGrid = c.snaptoGrid
     form.gridStep = c.gridStep
