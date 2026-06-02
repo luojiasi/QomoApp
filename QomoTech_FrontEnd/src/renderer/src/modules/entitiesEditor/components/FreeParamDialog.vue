@@ -50,6 +50,10 @@ function onSave(): void {
       warning(`第 ${row.taskNo} 行直径必须在 0~200 之间，请修正后再保存`)
       return
     }
+    if (isAngleInvalid(row.angle)) {
+      warning(`第 ${row.taskNo} 行角度必须在 -90~90 之间，请修正后再保存`)
+      return
+    }
     if (isHeightInvalid(row.height)) {
       warning(`第 ${row.taskNo} 行高度必须在 0~20 之间，请修正后再保存`)
       return
@@ -75,6 +79,10 @@ async function onSendToBackend(): Promise<void> {
     for (const row of taskRows) {
       if (isDiameterInvalid(row.diameter)) {
         warning(`第 ${row.taskNo} 行直径必须在 0~200 之间，请修正后再发送`)
+        return
+      }
+      if (isAngleInvalid(row.angle)) {
+        warning(`第 ${row.taskNo} 行角度必须在 -90~90 之间，请修正后再发送`)
         return
       }
       if (isHeightInvalid(row.height)) {
@@ -142,6 +150,7 @@ async function onSendToBackend(): Promise<void> {
     rows: taskRows.map(row => ({
       taskNo: row.taskNo,
       diameter: row.diameter,
+      angle: row.angle,
       height: row.height,
       divisions: row.divisions,
       recipeId: row.recipe,
@@ -166,6 +175,10 @@ function onDraw(): void {
   for (const row of taskRows) {
     if (isDiameterInvalid(row.diameter)) {
       warning(`第 ${row.taskNo} 行直径必须在 0~200 之间，请修正后再绘制`)
+      return
+    }
+    if (isAngleInvalid(row.angle)) {
+      warning(`第 ${row.taskNo} 行角度必须在 -90~90 之间，请修正后再绘制`)
       return
     }
     if (isHeightInvalid(row.height)) {
@@ -194,17 +207,11 @@ function onDraw(): void {
   // 从上到下遍历：taskRows[0] = 序号1 = 最上层
   for (let i = 0; i < taskRows.length; i++) {
     const row = taskRows[i]
-    const isLast = i === taskRows.length - 1
     const n = row.divisions === 0 ? 360 : row.divisions
     const radius = row.diameter / 2
 
-    // 倾斜角：基于下一层（下方层）的直径差
-    let tiltAngleDeg = 0
-    if (!isLast) {
-      const belowRadius = taskRows[i + 1].diameter / 2
-      const radiusDiff = belowRadius - radius
-      tiltAngleDeg = Math.atan2(radiusDiff, row.height) * (180 / Math.PI)
-    }
+    // 倾斜角：使用行指定的角度
+    const tiltAngleDeg = row.angle
 
     // 计算圆周上的 n 个顶点
     const points: Array<{ X: number; Y: number }> = []
@@ -269,6 +276,10 @@ function isDiameterInvalid(diameter: number): boolean {
   return diameter < 0 || diameter > 200
 }
 
+function isAngleInvalid(angle: number): boolean {
+  return angle < -90 || angle > 90
+}
+
 function isRecipeInvalid(recipe: string): boolean {
   return !recipe
 }
@@ -295,6 +306,7 @@ function isRecipeInvalid(recipe: string): boolean {
                 <tr>
                   <th class="col-no">序号</th>
                   <th class="col-num">直径 (mm)</th>
+                  <th class="col-num">角度 (°)</th>
                   <th class="col-num">高度 (mm)</th>
                   <th class="col-num">分割数</th>
                   <th class="col-recipe">配方</th>
@@ -314,6 +326,18 @@ function isRecipeInvalid(recipe: string): boolean {
                       min="0"
                       :title="isDiameterInvalid(row.diameter) ? '直径必须在 0~200 之间' : ''"
                       max="200"
+                    />
+                  </td>
+                  <td class="col-num">
+                    <input
+                      v-model.number="row.angle"
+                      type="number"
+                      class="fp-input numeric"
+                      :class="{ invalid: isAngleInvalid(row.angle) }"
+                      step="0.1"
+                      min="-90"
+                      max="90"
+                      :title="isAngleInvalid(row.angle) ? '角度必须在 -90~90 之间' : ''"
                     />
                   </td>
                   <td class="col-num">

@@ -3,24 +3,24 @@
     {
       "id": "main-1",
       "code": "MP-001",
-      "name": "主配方 1",
+      "name": "分片的",
       "version": "v1.0.0",
       "productModel": "QMT-01",
       "status": "active",
       "notes": "主配方必须同时选择扫黑、加工两个工艺配方。",
-      "updatedAt": "2026-5-22 15:56:34",
+      "updatedAt": "2026-6-2 18:19:31",
       "blackeningRecipeId": "blackening-1",
       "machiningRecipeId": "machining-1"
     },
     {
       "id": "main-2",
       "code": "MP-002",
-      "name": "主配方 2",
+      "name": "修面的",
       "version": "v1.0.0",
       "productModel": "QMT-02",
-      "status": "draft",
+      "status": "active",
       "notes": "主配方必须同时选择扫黑、加工两个工艺配方。",
-      "updatedAt": "2026-5-22 15:56:34",
+      "updatedAt": "2026-6-2 18:19:36",
       "blackeningRecipeId": "blackening-2",
       "machiningRecipeId": "machining-2"
     }
@@ -89,7 +89,7 @@
   ],
   "horizontalFormulaRecipes": [
     {
-      "name": "水平工艺配方 1",
+      "name": "123",
       "openingShape": "V型",
       "angleFormula": {
         "k": 0,
@@ -112,10 +112,10 @@
       "id": "horizontal-formula-1",
       "code": "HP-001",
       "notes": "水平工艺共享配方，可被加工和清洗工艺同时引用。",
-      "updatedAt": "2026-5-26 13:27:44"
+      "updatedAt": "2026-6-2 18:29:49"
     },
     {
-      "name": "水平工艺配方 2",
+      "name": "555",
       "openingShape": "V型",
       "angleFormula": {
         "k": 0,
@@ -138,7 +138,7 @@
       "id": "horizontal-formula-2",
       "code": "HP-002",
       "notes": "水平工艺共享配方，可被加工和清洗工艺同时引用。",
-      "updatedAt": "2026-5-22 15:56:34"
+      "updatedAt": "2026-6-2 18:29:52"
     }
   ],
   "verticalFormulaRecipes": [
@@ -237,7 +237,7 @@
       "laserPowerRecipeId": "laser-power-2"
     }
   ],
-  "selectedMainRecipeId": "main-1",
+  "selectedMainRecipeId": "main-2",
   "filter": {
     "keyword": "",
     "recipeStatus": "all",

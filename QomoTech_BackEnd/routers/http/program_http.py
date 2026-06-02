@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 from core.calc_offset_ljs import OffsetEndpointCalculator  # 旧的
 # from core.calc_offset import OffsetEndpointCalculator  # 新的
 from services.PragramService import PragramService
+from services.ProgramServiceFreeParam import ProgramServiceFreeParam
 from services.SystemSettingService import 保存配方状态到文件, 从文件加载配方状态
 from routers.apiresponse import ApiResponse
 from utils.logger import 获取日志记录器
@@ -80,23 +81,18 @@ async def start_program(payload: 开始程序参数请求模型):
 #     return ApiResponse(success=True, message="QOMO4PN编辑器已启动")
 
 # from services.ProgramService4p import ProgramService4p
-@路由.post("/startProgram/entitiesEditFreeparam", summary="启动4P测试程序")
+@路由.post("/startProgram/entitiesEditFreeparam", summary="自由编辑参数切割")
 async def send_free_params(payload: 自由编辑参数请求模型):
-    """启动后台任务执行4P测试程序。"""
-    try:
-        print(payload.recipes)
-        for row in payload.rows:
-            print(f"{'-'*100}")
-            print(f"行号: {row['taskNo']}")
-            print(f"直径: {row['diameter']}")
-            print(f"高度: {row['height']}")
-            print(f"分度: {row['divisions']}")
-            print(f"配方: {row['recipe']}")
-            print(f"{'-'*100}")
-        return ApiResponse(success=True, message="自由编辑参数已下发")
-    except Exception:
-        日志.exception("send_free_params 后台任务异常")
-    return ApiResponse(success=False, message="自由编辑参数下发失败")
+    """接收自由编辑参数，启动后台切割任务。"""
+
+    async def _run() -> None:
+        try:
+            await ProgramServiceFreeParam.获取实例().执行自由编辑参数(配方数据=payload.recipes,实体数据=payload.rows)
+        except Exception:
+            日志.exception("自由编辑参数执行异常")
+
+    asyncio.ensure_future(_run())
+    return ApiResponse(success=True, message="自由编辑参数已下发", data={"task_count": len(payload.rows)})
 
 
 # ==================================================================

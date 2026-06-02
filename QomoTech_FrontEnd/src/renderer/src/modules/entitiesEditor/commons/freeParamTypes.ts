@@ -12,6 +12,8 @@ export interface TaskRow {
   taskNo: number
   /** 直径 (mm) */
   diameter: number
+  /** 角度 (°), -90~90 */
+  angle: number
   /** 高度 (mm) */
   height: number
   /** 分割数 (3-360) */
