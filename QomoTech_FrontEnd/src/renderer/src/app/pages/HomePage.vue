@@ -11,6 +11,8 @@ import HomeOperationHelp from '@/modules/editor/panels/HomeOperationHelp.vue'
 import StratProgramRunning from '@/modules/program/panels/StartProgramPanel.vue'
 import CameraPic from '@/modules/camera/CameraPic.vue'
 import ShowAndDrawInHome from '@/modules/editor/panels/ShowAndDrawPanel.vue'
+import ShowAndDrawEntitiesEditorInHome from '@/modules/entitiesEditor/outpanels/ShowAndDrawEntitiesEditorInHome.vue'
+import { useQomo5PStore } from '@/modules/editor/useQomo5PStore'
 import TaskProgressAside from '@/modules/program/panels/TaskProgressAside.vue'
 import Show4PTable from '@/modules/motion/panels/Show4PTable.vue'
 import ControllerSettings from '@/modules/motion/pages/ControllerSettingsPage.vue'
@@ -115,6 +117,11 @@ async function onRefreshClick(): Promise<void> {
 }
 
 
+const qomo5pStore = useQomo5PStore()
+
+/** 决定 Home 页展示哪个编辑器的实体叠加层。Qomo5P 优先，否则展示 entitiesEditor。 */
+const showQomo5POverlay = computed(() => qomo5pStore.exportEntitiesToHomeVue().length > 0)
+
 onMounted(async () => {
   initProgramRunner()
 
@@ -202,6 +209,14 @@ onUnmounted(() => {
     >
       <CameraPic object-fit="cover" />
       <ShowAndDrawInHome
+        v-if="showQomo5POverlay"
+        :scale="1"
+        :upper-opening-mm="recipeUpperOpeningMm"
+        :xy-offset="homeXyOffset"
+        :run-trigger="runTrigger"
+      />
+      <ShowAndDrawEntitiesEditorInHome
+        v-else
         :scale="1"
         :upper-opening-mm="recipeUpperOpeningMm"
         :xy-offset="homeXyOffset"

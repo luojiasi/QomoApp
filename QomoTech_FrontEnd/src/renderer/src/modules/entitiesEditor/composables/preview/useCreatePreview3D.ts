@@ -6,7 +6,8 @@
 //
 // 材质分为三层：
 //   参考线（底部 2D 轮廓）  → 统一 MeshBasicMaterial，无光照
-//   挤出面（竖直墙体）      → 渐变顶点色 MeshStandardMaterial，半透明
+//   挤出面（竖直墙体）      → 纯色半透明 MeshStandardMaterial（参考 editor/ 旧版 uniform 风格）
+//   开口偏移参考线          → 左红右绿半透明线（openSide LEFT=红, RIGHT=绿）
 //   顶/底盖（水平封口）     → 固定色 MeshStandardMaterial，半透明
 //
 // 材质参数由 Scene3DConfig 驱动，通过 applyMaterialConfig() 热更新。
@@ -65,22 +66,26 @@ function createSharedMaterials() {
       depthWrite: true
     }),
     wallFace: new THREE.MeshStandardMaterial({
-      vertexColors: true,
+      color: c.materialWallTopColor,
       side: THREE.DoubleSide,
       transparent: true,
       opacity: c.materialWallOpacity,
-      roughness: 0.6,
-      metalness: 0.1,
-      depthWrite: false
+      roughness: 0.72,
+      metalness: 0.02,
+      depthWrite: false,
+      emissive: 0x05050a,
+      emissiveIntensity: 0.06
     }),
     selectedWallFace: new THREE.MeshStandardMaterial({
-      vertexColors: true,
+      color: c.materialSelectedColor,
       side: THREE.DoubleSide,
       transparent: true,
       opacity: c.materialSelectedWallOpacity,
-      roughness: 0.5,
-      metalness: 0.1,
-      depthWrite: false
+      roughness: 0.62,
+      metalness: 0.06,
+      depthWrite: false,
+      emissive: 0x0a0a12,
+      emissiveIntensity: 0.12
     }),
     capFace: new THREE.MeshStandardMaterial({
       color: c.materialCapColor,
@@ -126,7 +131,8 @@ function openSideSign(side: OpenSide): number {
   return side === 'LEFT' ? 1 : -1
 }
 
-/** 将 Point2D[] 转为带顶点色（沿 Z 渐变）的 BufferGeometry。
+/** 将 Point2D[] 转为墙体 BufferGeometry（纯色半透明，不渐变）。
+ * 参考 editor/cad/threeGeometry.ts createReferenceWallFace 的单色风格。
  * @param zBase - 顶面 Z 坐标（默认 0）
  * @param tiltAngleDeg - 倾斜角（度），非 0 时底部顶点沿径向位移
  * @param downward - true 时墙体向下挤出（zBase → zBase-height），自由参数使用
@@ -142,11 +148,7 @@ function buildWallGeometry(
   const N = Math.min(outer.length, inner.length)
   if (N < 2) return null
 
-  const c = _cfg!
   const positions = new Float32Array(N * 12)
-  const colors = new Float32Array(N * 12)
-  const topColor = new THREE.Color(c.materialWallTopColor)
-  const botColor = new THREE.Color(c.materialWallBottomColor)
 
   const tiltRad = tiltAngleDeg * (Math.PI / 180)
   const shift = height * Math.tan(tiltRad)
@@ -193,18 +195,6 @@ function buildWallGeometry(
     positions[b + 10] = inner[i].Y + innerBotShiftY
     positions[b + 11] = botZ
 
-    colors[b + 0] = topColor.r
-    colors[b + 1] = topColor.g
-    colors[b + 2] = topColor.b
-    colors[b + 3] = botColor.r
-    colors[b + 4] = botColor.g
-    colors[b + 5] = botColor.b
-    colors[b + 6] = topColor.r
-    colors[b + 7] = topColor.g
-    colors[b + 8] = topColor.b
-    colors[b + 9] = botColor.r
-    colors[b + 10] = botColor.g
-    colors[b + 11] = botColor.b
   }
 
   const segs = N - 1
@@ -246,7 +236,6 @@ function buildWallGeometry(
 
   const geo = new THREE.BufferGeometry()
   geo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3))
   geo.setIndex(new THREE.BufferAttribute(indices, 1))
   geo.computeVertexNormals()
   return geo
@@ -284,6 +273,23 @@ function createLine3D(
   const refGeo = buildRefLineGeometry(inner, zBase)
   const refLine = new THREE.Line(refGeo, mats.referenceLine)
   group.add(refLine)
+
+  // ── 开口偏移参考线（zBase 平面，L/R 分色） ──
+  if (openSize > 1e-9) {
+    const offsetGeo = buildRefLineGeometry(outer, zBase)
+    const offsetColor = openSide === 'LEFT' ? 0xf87171 : 0x4ade80
+    const offsetMat = new THREE.LineBasicMaterial({
+      color: offsetColor,
+      transparent: true,
+      opacity: 0.6,
+      depthWrite: false
+    })
+    const offsetLine = new THREE.Line(offsetGeo, offsetMat)
+    offsetLine.userData._isOffsetLine = true
+    group.add(offsetLine)
+    // 记录以便 dispose
+    group.userData._offsetLineMat = offsetMat
+  }
 
   const wallGeo = buildWallGeometry(outer, inner, height, zBase, tiltAngleDeg, downward)
   if (wallGeo) {
@@ -323,6 +329,18 @@ function createArc3D(
 
   group.add(new THREE.Line(buildRefLineGeometry(inner), mats.referenceLine))
 
+  // ── 开口偏移参考线 ──
+  if (openSize > 1e-9) {
+    const offsetColor = openSide === 'LEFT' ? 0xf87171 : 0x4ade80
+    const offsetMat = new THREE.LineBasicMaterial({ color: offsetColor, transparent: true, opacity: 0.6, depthWrite: false })
+    const offsetGeo = buildRefLineGeometry(outer)
+    const offsetLine = new THREE.Line(offsetGeo, offsetMat)
+    offsetLine.userData._isOffsetLine = true
+    group.add(offsetLine)
+    if (!group.userData._offsetMats) group.userData._offsetMats = []
+    ;(group.userData._offsetMats as THREE.Material[]).push(offsetMat)
+  }
+
   const wallGeo = buildWallGeometry(outer, inner, height)
   if (wallGeo) {
     group.add(new THREE.Mesh(wallGeo, mats.wallFace))
@@ -355,6 +373,19 @@ function createCircle3D(
   const circleGeo = new THREE.BufferGeometry().setFromPoints(circlePts)
   group.add(new THREE.LineLoop(circleGeo, mats.referenceLine))
 
+  // ── 开口偏移参考线（偏移圆环） ──
+  if (openSize > 1e-9) {
+    const offsetColor = openSide === 'LEFT' ? 0xf87171 : 0x4ade80
+    const offsetMat = new THREE.LineBasicMaterial({ color: offsetColor, transparent: true, opacity: 0.6, depthWrite: false })
+    const outerPts = outer.slice(0, -1).map((p) => new THREE.Vector3(p.X, p.Y, 0))
+    const offsetGeo = new THREE.BufferGeometry().setFromPoints(outerPts)
+    const offsetLoop = new THREE.LineLoop(offsetGeo, offsetMat)
+    offsetLoop.userData._isOffsetLine = true
+    group.add(offsetLoop)
+    if (!group.userData._offsetMats) group.userData._offsetMats = []
+    ;(group.userData._offsetMats as THREE.Material[]).push(offsetMat)
+  }
+
   const wallGeo = buildWallGeometry(outer, inner, height)
   if (wallGeo) {
     group.add(new THREE.Mesh(wallGeo, mats.wallFace))
@@ -379,6 +410,18 @@ function createPolyline3D(
 
   group.add(new THREE.Line(buildRefLineGeometry(inner), mats.referenceLine))
 
+  // ── 开口偏移参考线 ──
+  if (openSize > 1e-9) {
+    const offsetColor = openSide === 'LEFT' ? 0xf87171 : 0x4ade80
+    const offsetMat = new THREE.LineBasicMaterial({ color: offsetColor, transparent: true, opacity: 0.6, depthWrite: false })
+    const offsetGeo = buildRefLineGeometry(outer)
+    const offsetLine = new THREE.Line(offsetGeo, offsetMat)
+    offsetLine.userData._isOffsetLine = true
+    group.add(offsetLine)
+    if (!group.userData._offsetMats) group.userData._offsetMats = []
+    ;(group.userData._offsetMats as THREE.Material[]).push(offsetMat)
+  }
+
   const wallGeo = buildWallGeometry(outer, inner, height)
   if (wallGeo) {
     group.add(new THREE.Mesh(wallGeo, mats.wallFace))
@@ -402,6 +445,16 @@ function createBezier3D(
   const mats = getSharedMaterials()
 
   group.add(new THREE.Line(buildRefLineGeometry(inner), mats.referenceLine))
+
+  // ── 开口偏移参考线 ──
+  if (openSize > 1e-9) {
+    const offsetColor = openSide === 'LEFT' ? 0xf87171 : 0x4ade80
+    const offsetMat = new THREE.LineBasicMaterial({ color: offsetColor, transparent: true, opacity: 0.6, depthWrite: false })
+    const offsetGeo = buildRefLineGeometry(outer)
+    group.add(new THREE.Line(offsetGeo, offsetMat))
+    if (!group.userData._offsetMats) group.userData._offsetMats = []
+    ;(group.userData._offsetMats as THREE.Material[]).push(offsetMat)
+  }
 
   const wallGeo = buildWallGeometry(outer, inner, height)
   if (wallGeo) {
@@ -436,6 +489,18 @@ function createEllipse3D(
   const mats = getSharedMaterials()
 
   group.add(new THREE.Line(buildRefLineGeometry(inner), mats.referenceLine))
+
+  // ── 开口偏移参考线 ──
+  if (openSize > 1e-9) {
+    const offsetColor = openSide === 'LEFT' ? 0xf87171 : 0x4ade80
+    const offsetMat = new THREE.LineBasicMaterial({ color: offsetColor, transparent: true, opacity: 0.6, depthWrite: false })
+    const offsetGeo = buildRefLineGeometry(outer)
+    const offsetLine = new THREE.Line(offsetGeo, offsetMat)
+    offsetLine.userData._isOffsetLine = true
+    group.add(offsetLine)
+    if (!group.userData._offsetMats) group.userData._offsetMats = []
+    ;(group.userData._offsetMats as THREE.Material[]).push(offsetMat)
+  }
 
   const wallGeo = buildWallGeometry(outer, inner, height)
   if (wallGeo) {
@@ -655,7 +720,9 @@ export function createEntity3D(entity: SurfaceEntity<EditorEntity>): Entity3DObj
   const meshChildren: THREE.Mesh[] = []
 
   obj.traverse((child) => {
-    if (child instanceof THREE.Line || child instanceof THREE.LineLoop) lineChildren.push(child)
+    if (child instanceof THREE.Line || child instanceof THREE.LineLoop) {
+      if (!child.userData._isOffsetLine) lineChildren.push(child)
+    }
     if (child instanceof THREE.Mesh) meshChildren.push(child)
   })
 
@@ -679,6 +746,13 @@ export function createEntity3D(entity: SurfaceEntity<EditorEntity>): Entity3DObj
           child.geometry?.dispose()
         }
       })
+      // 清理偏移线材质
+      const offsetMats = obj!.userData._offsetMats as THREE.Material[] | undefined
+      if (offsetMats) {
+        for (const m of offsetMats) m.dispose()
+      }
+      const offsetLineMat = obj!.userData._offsetLineMat as THREE.Material | undefined
+      if (offsetLineMat) offsetLineMat.dispose()
       if (obj!.parent) obj!.parent.remove(obj!)
     }
   }
