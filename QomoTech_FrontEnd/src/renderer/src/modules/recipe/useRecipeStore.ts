@@ -179,7 +179,8 @@ export const useRecipeSettingsStore = defineStore('recipe-settings', () => {
     clearBackendPersistTimer()
     backendPersistTimer = setTimeout(() => {
       backendPersistTimer = null
-      void saveRecipeStateToBackend(recipeState.value)
+      const { filter: _, ...stateForBackend } = recipeState.value
+      void saveRecipeStateToBackend(stateForBackend as RecipeManagerState)
     }, HEAVY_SETTINGS_PERSIST_DEBOUNCE_MS)
   }
 
@@ -189,6 +190,9 @@ export const useRecipeSettingsStore = defineStore('recipe-settings', () => {
     if (fromBackend) {
       recipeState.value = fromBackend
       persistStateToLocalStorage(recipeState.value)
+      // 用清洗后的数据（无废弃字段、无 filter）覆写后端旧文件
+      const { filter: _, ...cleanState } = fromBackend
+      void saveRecipeStateToBackend(cleanState as RecipeManagerState)
       return createSettingsSaveResult('已从服务端加载配方管理数据。', recipeState.value)
     }
 
@@ -198,7 +202,8 @@ export const useRecipeSettingsStore = defineStore('recipe-settings', () => {
       persistStateToLocalStorage(recipeState.value)
       // 将 localStorage 数据同步到后端文件（首次迁移 + 兜底）
       clearBackendPersistTimer()
-      void saveRecipeStateToBackend(recipeState.value)
+      const { filter: _, ...stateForBackend } = cached
+      void saveRecipeStateToBackend(stateForBackend as RecipeManagerState)
       return createSettingsSaveResult('已从本地存储加载配方管理数据。', recipeState.value)
     }
 
@@ -206,14 +211,15 @@ export const useRecipeSettingsStore = defineStore('recipe-settings', () => {
     return createSettingsSaveResult('未找到有效配方数据，已加载默认配方配置。', recipeState.value)
   }
 
-  /** 手动持久化：同时写入 localStorage 和后端 */
+  /** 手动持久化：同时写入 localStorage 和后端（filter 仅写 localStorage，不写后端） */
   const saveRecipeState = async (
     payload: RecipeManagerState
   ): Promise<SettingsSaveResult<RecipeManagerState>> => {
     recipeState.value = cloneSettings(payload)
     persistStateToLocalStorage(recipeState.value)
     clearBackendPersistTimer()
-    await saveRecipeStateToBackend(recipeState.value)
+    const { filter: _, ...stateForBackend } = recipeState.value
+    await saveRecipeStateToBackend(stateForBackend as RecipeManagerState)
     return createSettingsSaveResult('配方管理数据已保存到服务端。', recipeState.value)
   }
 

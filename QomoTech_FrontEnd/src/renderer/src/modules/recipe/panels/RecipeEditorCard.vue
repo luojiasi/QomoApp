@@ -1,17 +1,7 @@
-﻿<script setup lang="ts">
-import { computed } from 'vue'
+<script setup lang="ts">
 import type {
-  BlackeningProcessRecipe,
   CardRecipeItem,
-  EditableFormulaItem,
-  EditableFormulaKey,
-  LaserPowerRecipe,
   LinearFormulaCoefficients,
-  MachiningProcessRecipe,
-  OpeningShape,
-  OpeningShapeFormulaPreset,
-  ProcessDetailFieldKind,
-  ProcessFormulaRecipe,
   RecipeCardType,
   VerticalProcessFormulaRecipe
 } from '../recipeTypes'
@@ -24,26 +14,11 @@ const props = withDefaults(
     warningText?: string
     cardClass?: string
     onUpdated?: (item: CardRecipeItem) => void
-    onHoverEnter?: (recipeId: string, kind: ProcessDetailFieldKind) => void
-    onHoverLeave?: () => void
-    laserPowerOptions?: LaserPowerRecipe[]
-    horizontalFormulaOptions?: ProcessFormulaRecipe[]
-    verticalFormulaOptions?: VerticalProcessFormulaRecipe[]
-    openingShapeOptions?: OpeningShape[]
-    openingShapeFormulaPresets?: Partial<Record<OpeningShape, OpeningShapeFormulaPreset>>
-    editableFormulaItems?: EditableFormulaItem[]
-    formatLinearFormula?: (symbol: 'A' | 'L' | 'D' | 'CA',formula?: ProcessFormulaRecipe[EditableFormulaKey]) => string
   }>(),
   {
     deleteDisabled: false,
     warningText: '',
-    cardClass: 'app-card-soft rounded-2xl p-5',
-    laserPowerOptions: () => [],
-    horizontalFormulaOptions: () => [],
-    verticalFormulaOptions: () => [],
-    openingShapeOptions: () => [],
-    openingShapeFormulaPresets: () => ({}),
-    editableFormulaItems: () => []
+    cardClass: 'app-card-soft rounded-2xl p-5'
   }
 )
 
@@ -51,78 +26,19 @@ const emit = defineEmits<{
   (event: 'delete'): void
 }>()
 
-const isSharedFormulaType = computed(
-  () => props.type === 'horizontalFormula' || props.type === 'verticalFormula'
-)
-
-const headerClass = computed(() =>
-  isSharedFormulaType.value ? 'flex items-start justify-between gap-3' : 'flex items-start justify-between gap-4'
-)
-
-const warningClass = computed(() =>
-  isSharedFormulaType.value ? 'mt-2 text-xs text-amber-600' : 'mt-3 text-sm text-amber-600'
-)
-
-const deleteButtonClass = computed(() =>
-  isSharedFormulaType.value
-    ? 'rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50'
-    : 'rounded-lg border border-red-200 px-3 py-1.5 text-xs text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50'
-)
-
 function markUpdated(): void {
   props.onUpdated?.(props.item)
-}
-
-function onRowHoverEnter(kind: ProcessDetailFieldKind): void {
-  props.onHoverEnter?.(props.item.id, kind)
-}
-
-function onRowHoverLeave(): void {
-  props.onHoverLeave?.()
-}
-
-function formatFormulaValue(
-  symbol: 'A' | 'L' | 'D' | 'CA',
-  formula?: ProcessFormulaRecipe[EditableFormulaKey]
-): string {
-  return props.formatLinearFormula ? props.formatLinearFormula(symbol, formula) : '-'
-}
-
-function onOpeningShapeChange(shape: OpeningShape): void {
-  const recipe = props.item as ProcessFormulaRecipe
-  const presets = props.openingShapeFormulaPresets?.[shape]
-  if (presets) {
-    ;(Object.keys(presets) as EditableFormulaKey[]).forEach((key) => {
-      const preset = presets[key]
-      if (!preset) return
-      recipe[key].k = preset.k
-      recipe[key].b = preset.b
-    })
-  }
-  markUpdated()
 }
 
 function formatVerticalChangeFormula(formula?: LinearFormulaCoefficients): string {
   if (!formula) return '-'
   return `变化率 = ${formula.k} * 计算 + ${formula.b}`
 }
-
-function getFormulaField(recipe: ProcessFormulaRecipe, key: EditableFormulaKey): LinearFormulaCoefficients {
-  return recipe[key]
-}
-
-function setFormulaFieldK(recipe: ProcessFormulaRecipe, key: EditableFormulaKey, e: Event): void {
-  recipe[key].k = Number((e.target as HTMLInputElement).value)
-}
-
-function setFormulaFieldB(recipe: ProcessFormulaRecipe, key: EditableFormulaKey, e: Event): void {
-  recipe[key].b = Number((e.target as HTMLInputElement).value)
-}
 </script>
 
 <template>
   <div :class="props.cardClass">
-    <div :class="headerClass">
+    <div class="flex items-start justify-between gap-3">
       <div>
         <template v-if="props.type === 'horizontalFormula'">
           <p class="app-text-secondary text-xs">共享水平工艺配方</p>
@@ -142,7 +58,7 @@ function setFormulaFieldB(recipe: ProcessFormulaRecipe, key: EditableFormulaKey,
       </div>
       <button
         type="button"
-        :class="deleteButtonClass"
+        class="rounded-lg border border-red-200 px-3 py-1 text-xs text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
         :disabled="props.deleteDisabled"
         @click="emit('delete')"
       >
@@ -150,357 +66,11 @@ function setFormulaFieldB(recipe: ProcessFormulaRecipe, key: EditableFormulaKey,
       </button>
     </div>
 
-    <p v-if="props.warningText" :class="warningClass">
+    <p v-if="props.warningText" class="mt-2 text-xs text-amber-600">
       {{ props.warningText }}
     </p>
 
-    <template v-if="props.type === 'blackening'">
-      <label class="mt-3 grid grid-cols-[6.5rem_1fr] items-center gap-2">
-        <span class="app-text-secondary text-xs">是否启用该配方</span>
-        <select
-          v-model="(props.item as BlackeningProcessRecipe).enabled"
-          class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2.5 py-1.5 text-sm outline-none"
-          @change="markUpdated"
-        >
-          <option :value="true" class="text-slate-900">启用</option>
-          <option :value="false" class="text-slate-900">禁用</option>
-        </select>
-      </label>
-
-      <div class="mt-4 grid gap-2 lg:grid-cols-2">
-        <label class="grid grid-cols-[6.5rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) px-3 py-2">
-          <span class="app-text-secondary text-xs">配方名称</span>
-          <input
-            v-model="(props.item as BlackeningProcessRecipe).name"
-            type="text"
-            class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
-            @input="markUpdated"
-          />
-        </label>
-      </div>
-
-      <div class="mt-3 grid gap-2 lg:grid-cols-4">
-        <label class="grid grid-cols-[6.5rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) px-3 py-2">
-          <span class="app-text-secondary text-xs">下降步长（mm）</span>
-          <input
-            v-model.number="(props.item as BlackeningProcessRecipe).descentStep"
-            type="number"
-            step="0.001"
-            class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
-            @input="markUpdated"
-          />
-        </label>
-        <label class="grid grid-cols-[6.5rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) px-3 py-2">
-          <span class="app-text-secondary text-xs">下降次数（次）</span>
-          <input
-            v-model.number="(props.item as BlackeningProcessRecipe).descentCount"
-            type="number"
-            step="1"
-            class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
-            @input="markUpdated"
-          />
-        </label>
-        <label class="grid grid-cols-[6.5rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) px-3 py-2">
-          <span class="app-text-secondary text-xs">扫黑速度（mm/s）</span>
-          <input
-            v-model.number="(props.item as BlackeningProcessRecipe).blackeningSpeed"
-            type="number"
-            step="1"
-            class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
-            @input="markUpdated"
-          />
-        </label>
-        <label class="grid grid-cols-[6.5rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) px-3 py-2">
-          <span class="app-text-secondary text-xs">扫黑步进（mm）</span>
-          <input
-            v-model.number="(props.item as BlackeningProcessRecipe).blackeningStep"
-            type="number"
-            step="0.001"
-            class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
-            @input="markUpdated"
-          />
-        </label>
-      </div>
-      <div class="mt-3 grid gap-2 lg:grid-cols-4">
-        <label class="grid grid-cols-[6.5rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) px-3 py-2">
-          <span class="app-text-secondary text-xs">焦距补偿（um）</span>
-          <input
-            v-model.number="(props.item as BlackeningProcessRecipe).jiaojubuchang"
-            type="number"
-            min="0"
-            max="1000"
-            step="1"
-            class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
-            @input="markUpdated"
-          />
-        </label>
-        <label class="grid grid-cols-[6.5rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) px-3 py-2">
-          <span class="app-text-secondary text-xs">扫黑开口K</span>
-          <input
-            v-model.number="(props.item as BlackeningProcessRecipe).saoheikaikou.k"
-            type="number"
-
-            step="1"
-            class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
-            @input="markUpdated"
-          />
-        </label>
-        <label class="grid grid-cols-[6.5rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) px-3 py-2">
-          <span class="app-text-secondary text-xs">扫黑开口B</span>
-          <input
-            v-model.number="(props.item as BlackeningProcessRecipe).saoheikaikou.b"
-            type="number"
-            step="0.01"
-            class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
-            @input="markUpdated"
-          />
-        </label>
-        <label class="grid not-only:items-center gap-2 rounded-xl border border-(--app-border) px-3 py-2">
-          <span class="app-text-secondary text-xs">扫黑开口公式：K*高度+B</span>
-        </label>
-      </div>
-      
-
-      <label class="mt-3 grid grid-cols-[6.5rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) px-3 py-2">
-        <span class="app-text-secondary text-xs">激光功率配方</span>
-        <select
-          v-model="(props.item as BlackeningProcessRecipe).laserPowerRecipeId"
-          class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2.5 py-1.5 text-sm outline-none"
-          @change="markUpdated"
-        >
-          <option
-            v-for="lp in props.laserPowerOptions"
-            :key="lp.id"
-            :value="lp.id"
-            class="text-slate-900"
-          >
-            {{ lp.name }}
-          </option>
-        </select>
-      </label>
-    </template>
-
-    <template v-else-if="props.type === 'machining'">
-      <div class="mt-3 grid gap-2 lg:grid-cols-2">
-        <label class="grid grid-cols-[6.5rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) px-3 py-2">
-          <span class="app-text-secondary text-xs">配方名称</span>
-          <input
-            v-model="(props.item as MachiningProcessRecipe).name"
-            type="text"
-            class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
-            @input="markUpdated"
-          />
-        </label>
-      </div>
-
-      <div class="mt-4 grid min-w-0 gap-2 lg:grid-cols-3">
-        <div class="min-w-0" @mouseenter="onRowHoverEnter('laserPower')" @mouseleave="onRowHoverLeave">
-          <label class="grid grid-cols-[6.5rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) px-3 py-2">
-            <span class="app-text-secondary text-xs">激光功率配方</span>
-            <select
-              v-model="(props.item as MachiningProcessRecipe).laserPowerRecipeId"
-              class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2.5 py-1.5 text-sm outline-none"
-              @change="markUpdated"
-            >
-              <option
-                v-for="lp in props.laserPowerOptions"
-                :key="lp.id"
-                :value="lp.id"
-                class="text-slate-900"
-              >
-                {{ lp.name }}
-              </option>
-            </select>
-          </label>
-          <p class="app-text-secondary mt-1.5 text-[11px] leading-snug">
-            悬停此项在屏幕右侧查看激光功率详细参数
-          </p>
-        </div>
-
-
-
-        <div class="min-w-0" @mouseenter="onRowHoverEnter('horizontal')" @mouseleave="onRowHoverLeave">
-          <label class="grid grid-cols-[6.5rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) px-3 py-2">
-            <span class="app-text-secondary text-xs">水平工艺配方</span>
-            <select
-              v-model="(props.item as MachiningProcessRecipe).horizontalFormulaId"
-              class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2.5 py-1.5 text-sm outline-none"
-              @change="markUpdated"
-            >
-            <option
-                v-for="formula in props.horizontalFormulaOptions"
-                :key="formula.id"
-                :value="formula.id"
-                class="text-slate-900"
-              >
-                {{ formula.name }}
-              </option>
-            </select>
-          </label>
-          <p class="app-text-secondary mt-1.5 text-[11px] leading-snug">
-            悬停此项在屏幕右侧查看激光功率详细参数
-          </p>
-        </div>
-
-
-        <div class="min-w-0" @mouseenter="onRowHoverEnter('vertical')" @mouseleave="onRowHoverLeave">
-          <label class="grid grid-cols-[6.5rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) px-3 py-2">
-            <span class="app-text-secondary text-xs">垂直工艺配方</span>
-            <select
-              v-model="(props.item as MachiningProcessRecipe).verticalFormulaId"
-              class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2.5 py-1.5 text-sm outline-none"
-              @change="markUpdated"
-            >
-            <option
-                v-for="formula in props.verticalFormulaOptions"
-                :key="formula.id"
-                :value="formula.id"
-                class="text-slate-900"
-              >
-                {{ formula.name }}
-              </option>
-            </select>
-          </label>
-          <p class="app-text-secondary mt-1.5 text-[11px] leading-snug">
-            悬停此项在屏幕右侧查看垂直工艺详细参数
-          </p>
-        </div>
-      </div>
-    </template>
-
-    <template v-else-if="props.type === 'laserPower'">
-      <div class="mt-4 space-y-2">
-        <div class="grid gap-2 lg:grid-cols-4">
-          <label class="grid grid-cols-[6.5rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) px-3 py-2">
-            <span class="app-text-secondary text-xs">配方名称</span>
-            <input
-              v-model="(props.item as LaserPowerRecipe).name"
-              type="text"
-              class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
-              @input="markUpdated"
-            />
-          </label>
-        </div>
-        <div class="grid gap-2 lg:grid-cols-2">
-          
-        </div>
-        <div class="grid gap-2 lg:grid-cols-3">
-          <label class="grid grid-cols-[6.5rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) px-3 py-2">
-            <span class="app-text-secondary text-xs">激光功率</span>
-            <input
-              v-model.number="(props.item as LaserPowerRecipe).laserPower"
-              type="number"
-              step="0.01"
-              class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
-              @input="markUpdated"
-            />
-          </label>
-          <label class="grid grid-cols-[6.5rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) px-3 py-2">
-            <span class="app-text-secondary text-xs">激光频率</span>
-            <input
-              v-model.number="(props.item as LaserPowerRecipe).laserFrequency"
-              type="number"
-              step="0.01"
-              class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
-              @input="markUpdated"
-            />
-          </label>
-          <label class="grid grid-cols-[6.5rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) px-3 py-2">
-            <span class="app-text-secondary text-xs">激光电流</span>
-            <input
-              v-model.number="(props.item as LaserPowerRecipe).laserCurrent"
-              type="number"
-              step="0.01"
-              class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
-              @input="markUpdated"
-            />
-          </label>
-        </div>
-      </div>
-    </template>
-
-    <template v-else-if="props.type === 'horizontalFormula'">
-      <div class="mt-3 space-y-2">
-        <div class="grid gap-2 lg:grid-cols-5">
-          <label class="grid grid-cols-[6rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) bg-(--app-card) px-3 py-2">
-            <span class="app-text-secondary text-xs">配方名称</span>
-            <input
-              v-model="(props.item as ProcessFormulaRecipe).name"
-              type="text"
-              class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
-              @input="markUpdated"
-            />
-          </label>
-          <label class="grid grid-cols-[6rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) bg-(--app-card) px-3 py-2">
-            <span class="app-text-secondary text-xs">开口形状</span>
-            <select
-              v-model="(props.item as ProcessFormulaRecipe).openingShape"
-              class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
-              @change="onOpeningShapeChange((props.item as ProcessFormulaRecipe).openingShape)"
-            >
-              <option v-for="shape in props.openingShapeOptions" :key="shape" :value="shape" class="text-slate-900">
-                {{ shape }}
-              </option>
-            </select>
-          </label>
-          <label class="grid grid-cols-[6rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) bg-(--app-card) px-3 py-2">
-            <span class="app-text-secondary text-xs">焦距补偿</span>
-            <input
-              v-model.number="(props.item as ProcessFormulaRecipe).focusCompensation"
-              type="number"
-              step="0.001"
-              class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
-              @input="markUpdated"
-            />
-          </label>
-          <div class="rounded-xl border border-(--app-border) bg-(--app-card) px-3 py-2">
-            <p class="app-text-secondary text-xs">上开口公式</p>
-            <p class="app-text-primary mt-2 text-sm font-medium break-all">
-              {{ (props.item as ProcessFormulaRecipe).upperOpeningFormula }}
-            </p>
-          </div>
-        </div>
-
-        <div class="grid gap-2 xl:grid-cols-4">
-          <div
-            v-for="item in props.editableFormulaItems"
-            :key="`${props.type}-${(props.item as ProcessFormulaRecipe).id}-${item.key}`"
-            class="rounded-xl border border-(--app-border) bg-(--app-card) px-3 py-2"
-          >
-            <div class="flex flex-wrap items-center justify-between gap-2">
-              <span class="app-text-secondary text-xs">{{ item.label }}</span>
-              <span class="app-text-primary text-xs font-medium">
-                {{ formatFormulaValue(item.symbol, getFormulaField((props.item as ProcessFormulaRecipe), item.key)) }}
-              </span>
-            </div>
-            <div class="mt-2 grid gap-2 sm:grid-cols-2">
-              <label class="grid grid-cols-[2rem_1fr] items-center gap-2">
-                <span class="app-text-secondary text-xs">{{ item.kLabel }}</span>
-                <input
-                  :value="getFormulaField((props.item as ProcessFormulaRecipe), item.key).k"
-                  type="number"
-                  step="0.001"
-                  class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
-                  @input="setFormulaFieldK((props.item as ProcessFormulaRecipe), item.key, $event); markUpdated()"
-                />
-              </label>
-              <label class="grid grid-cols-[2rem_1fr] items-center gap-2">
-                <span class="app-text-secondary text-xs">{{ item.bLabel }}</span>
-                <input
-                  :value="getFormulaField((props.item as ProcessFormulaRecipe), item.key).b"
-                  type="number"
-                  step="0.001"
-                  class="min-w-0 w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none"
-                  @input="setFormulaFieldB((props.item as ProcessFormulaRecipe), item.key, $event); markUpdated()"
-                />
-              </label>
-            </div>
-          </div>
-        </div>
-      </div>
-    </template>
-
-    <template v-else>
+    <template v-if="props.type === 'verticalFormula' || !props.type">
       <div class="mt-3 space-y-2">
         <div class="grid gap-2 lg:grid-cols-2">
           <label class="grid grid-cols-[6rem_1fr] items-center gap-2 rounded-xl border border-(--app-border) bg-(--app-card) px-3 py-2">

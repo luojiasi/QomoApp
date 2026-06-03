@@ -51,14 +51,14 @@ export interface ProcessFormulaRecipe extends RecipeRecordBase {
 }
 
 // 垂直工艺配方的类型
-export type cuttingAxis = 'XY'|'R'
-export interface VerticalEdgeOrMiddleCutting {
+type cuttingAxis = 'XY'|'R'
+interface VerticalEdgeOrMiddleCutting {
   speed: number
   cutTimes: number
   cutSpeedNums?: number
   change: LinearFormulaCoefficients
 }
-export interface VerticalDescentCutting {
+interface VerticalDescentCutting {
   speed: number
   zFeed: number
   change: LinearFormulaCoefficients
@@ -99,7 +99,7 @@ export function createDefaultLibraryKeywords(): Record<RecipeLibraryCardType, st
   }
 }
 
-export interface RecipeFilter {
+interface RecipeFilter {
   /** 在主配方「备注」中不区分大小写包含匹配 */
   keyword: string
   /** 按卡片上的主配方状态筛选：草稿 / 生效 / 归档；`all` 表示不限定 */
@@ -119,7 +119,7 @@ export interface RecipeManagerState {
   filter: RecipeFilter
 }
 
-export type RecipeDefinition = MainRecipeDefinition
+
 
 // ------------------------------------------------------------------
 // 编辑器/管理页面共享类型（避免各 .vue 文件中重复定义）
@@ -131,18 +131,8 @@ export type EditableFormulaKey =
   | 'depthCompensationFormula'
   | 'compensationAngleFormula'
 
-export type ProcessDetailFieldKind = 'laserPower' | 'horizontal' | 'vertical'
-
 /** 与 `RECIPE_LIBRARY_CARD_TYPE_KEYS` 一致，用于编辑卡片类型区分 */
 export type RecipeCardType = RecipeLibraryCardType
-
-export interface EditableFormulaItem {
-  key: EditableFormulaKey
-  label: string
-  symbol: 'A' | 'L' | 'D' | 'CA'
-  kLabel: string
-  bLabel: string
-}
 
 export type OpeningShapeFormulaPreset = Partial<Record<EditableFormulaKey, LinearFormulaCoefficients>>
 

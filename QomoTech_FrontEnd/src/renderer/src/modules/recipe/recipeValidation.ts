@@ -209,5 +209,18 @@ export function normalizeRecipeState(raw: unknown): RecipeManagerState | null {
     if (typeof m.laserPowerRecipeId !== 'string') return _normalizeFail(`machiningRecipes[${i}] 缺少 laserPowerRecipeId`)
   }
 
+  // 剔除已废弃字段（code, version, productModel, notes），防止旧存档残留写回后端
+  const DEPRECATED_KEYS = ['code', 'version', 'productModel', 'notes']
+  const allArrays = [p.mainRecipes, p.laserPowerRecipes, p.blackeningRecipes, p.horizontalFormulaRecipes, p.verticalFormulaRecipes, p.machiningRecipes]
+  for (const arr of allArrays) {
+    if (!arr) continue
+    for (const item of arr) {
+      if (!isObject(item)) continue
+      for (const key of DEPRECATED_KEYS) {
+        delete (item as Record<string, unknown>)[key]
+      }
+    }
+  }
+
   return cloneSettings(p as RecipeManagerState)
 }

@@ -83,8 +83,6 @@ watch(
 function computeAngleValue(formula: ProcessFormulaRecipe['angleFormula'],height: number): number {return formula.b + formula.k*height }
 function computeLowerOpeningValue(formula: ProcessFormulaRecipe['lowerOpeningFormula'], height: number): number {return formula.k * height + formula.b}
 function computeDepthCompensationValue(formula: ProcessFormulaRecipe['depthCompensationFormula'], height: number,angle: number,lowerOpening: number): number {return formula.k * (height+formula.b) * Math.tan(angle * Math.PI / 180)*1000 + lowerOpening }
-// function computeCompensationAngleValue(formula: ProcessFormulaRecipe['compensationAngleFormula'], height: number): number {return formula.k * height + formula.b}
-
 
 /** 开口按水平工艺配方的角度 / 下开口 / 深度补偿公式计算（垂直配方已不再包含这些字段）。 */
 function calculateUpperOpening(height: number): number | null {

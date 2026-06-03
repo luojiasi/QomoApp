@@ -1,22 +1,21 @@
 ﻿<script setup lang="ts">
 import SvgIcon from '@/shared/components/SvgIcon.vue'
-import RecipeDetailFieldPanel from './panels/RecipeDetailPanel.vue'
 import RecipeLibrarySection from './panels/RecipeLibrarySection.vue'
 import RecipeEditorCard from './panels/RecipeEditorCard.vue'
 import RecipeTopologyDiagram from './panels/RecipeTopologyDiagram.vue'
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useNotification } from '@/shared/composables/useNotification'
 import { useRecipeSettingsStore } from './useRecipeStore'
-import { createRecipeSections, createTimestamp, editableFormulaItems, formatLinearFormula, openingShapeFormulaPresets, openingShapeOptions } from './recipeConfig'
+import { createTimestamp, openingShapeFormulaPresets, openingShapeOptions } from './recipeConfig'
 import type {
+  EditableFormulaKey,
   LaserPowerRecipe,
-  ProcessDetailFieldKind,
+  OpeningShape,
   ProcessFormulaRecipe,
   RecipeStatus,
   VerticalProcessFormulaRecipe
 } from './recipeTypes'
-import type { ParameterField } from '@/shared/types'
-import { cloneSettings, formatSettingValue } from '@/shared/utils/settings'
+import { cloneSettings } from '@/shared/utils/settings'
 
 type ChildRecipeType = 'blackening' | 'machining'
 type EditorPanel =
@@ -30,7 +29,6 @@ type FormulaType = 'horizontal' | 'vertical'
 
 const recipeStore = useRecipeSettingsStore()
 const recipeState = computed(() => recipeStore.recipeState)
-const sections = computed(() => createRecipeSections(recipeStore.recipeState))
 const { success, warning, error } = useNotification()
 
 const statusOptions: { label: string; value: RecipeStatus }[] = [
@@ -129,83 +127,6 @@ const laserPowerMap = computed(
 const activeEditorPanel = ref<EditorPanel>('main')
 const savingMainRecipeFile = ref(false)
 
-type ProcessLibraryKind = 'machining'
-
-const processDetailHover = ref<{
-  library: ProcessLibraryKind
-  recipeId: string
-  kind: ProcessDetailFieldKind
-} | null>(null)
-
-const activeProcessDetailPopover = computed(() => {
-  const h = processDetailHover.value
-  if (!h) return null
-
-  const mr = recipeState.value.machiningRecipes.find((r) => r.id === h.recipeId)
-  if (!mr) return null
-  if (h.kind === 'laserPower') {
-    const lp = laserPowerMap.value.get(mr.laserPowerRecipeId)
-    return {
-      title: '激光功率配方',
-      description: lp ? lp.name : '当前未关联有效配方',
-      fields: getLaserPowerFields(lp)
-    }
-  }
-  if (h.kind === 'horizontal') {
-    const shared = getHorizontalFormulaById(mr.horizontalFormulaId)
-    return {
-      title: '水平工艺配方',
-      description: shared ? shared.name : '当前未选择',
-      fields: getFormulaFields(shared)
-    }
-  }
-  const shared = getVerticalFormulaById(mr.verticalFormulaId)
-  return {
-    title: '垂直工艺配方',
-    description: shared ? shared.name : '当前未选择',
-    fields: getVerticalFormulaFields(shared)
-  }
-})
-
-const PROCESS_DETAIL_HIDE_DELAY_MS = 400
-let processDetailHideTimer: number | null = null
-
-function clearProcessDetailHideTimer(): void {
-  if (processDetailHideTimer !== null) {
-    window.clearTimeout(processDetailHideTimer)
-    processDetailHideTimer = null
-  }
-}
-
-function onProcessDetailRowEnter(library: ProcessLibraryKind,recipeId: string,kind: ProcessDetailFieldKind): void {
-  clearProcessDetailHideTimer()
-  processDetailHover.value = { library, recipeId, kind }
-}
-
-function onProcessDetailRowLeave(): void {
-  clearProcessDetailHideTimer()
-  processDetailHideTimer = window.setTimeout(() => {
-    processDetailHover.value = null
-    processDetailHideTimer = null
-  }, PROCESS_DETAIL_HIDE_DELAY_MS)
-}
-
-function onProcessDetailPanelEnter(): void {
-  clearProcessDetailHideTimer()
-}
-
-function onProcessDetailPanelLeave(): void {
-  processDetailHover.value = null
-}
-
-function closeProcessDetailPanel(): void {
-  clearProcessDetailHideTimer()
-  processDetailHover.value = null
-}
-
-onUnmounted(() => {
-  clearProcessDetailHideTimer()
-})
 const editorPanelOptions: { key: EditorPanel; label: string }[] = [
   { key: 'main', label: '主配方' },
   { key: 'blackening', label: '扫黑工艺配方' },
@@ -216,72 +137,11 @@ const editorPanelOptions: { key: EditorPanel; label: string }[] = [
 ]
 
 
-const otherSections = computed(() =>
-  sections.value.filter((section) => !section.id.endsWith('-detail'))
-)
+
 
 function markMainRecipeUpdated(): void {
   if (!selectedMainRecipe.value) return
   selectedMainRecipe.value.updatedAt = createTimestamp()
-}
-
-function getFormulaFields(recipe?: ProcessFormulaRecipe): ParameterField[] {
-  return [
-    { key: 'openingShape', label: '开口形状', value: recipe?.openingShape ?? '-' },
-    { key: 'angleFormula', label: '角度公式', value: formatLinearFormula('A', recipe?.angleFormula) },
-    {
-      key: 'lowerOpeningFormula',
-      label: '下开口公式',
-      value: formatLinearFormula('L', recipe?.lowerOpeningFormula)
-    },
-    {
-      key: 'depthCompensationFormula',
-      label: '深度补偿公式',
-      value: formatLinearFormula('D', recipe?.depthCompensationFormula)
-    },
-    { key: 'upperOpeningFormula', label: '上开口公式', value: recipe?.upperOpeningFormula ?? '-' },
-    {
-      key: 'compensationAngleFormula',
-      label: '补偿角度公式',
-      value: formatLinearFormula('CA', recipe?.compensationAngleFormula)
-    },
-    { key: 'focusCompensation', label: '焦距补偿', value: recipe?.focusCompensation ?? '-' }
-  ]
-}
-
-function formatChangeFormula(formula?: VerticalProcessFormulaRecipe['edgeCutting']['change']): string {
-  if (!formula) return '-'
-  return `CHANGE = ${formula.k} * 距离(mm) + ${formula.b}`
-}
-
-function getVerticalFormulaFields(recipe?: VerticalProcessFormulaRecipe): ParameterField[] {
-  return [
-    { key: 'cuttingAxis', label: '切割轴（XY/R）', value: recipe?.cuttingAxis ?? '-' },
-    { key: 'changePercent', label: '变化百分比', value: recipe?.changePercent ?? '-' },
-    { key: 'xFeed', label: 'X_偏移量（mm）', value: recipe?.xFeed ?? '-' },
-    { key: 'xSpeed', label: '插补运行速度（mm/s）', value: recipe?.xSpeed ?? '-' },
-    { key: 'edgeSpeed', label: '边缘切割百分比（%）', value: recipe?.edgeCutting.speed ?? '-' },
-    { key: 'edgeCutTimes', label: '切割次数（次）', value: recipe?.edgeCutting.cutTimes ?? '-' },
-    { key: 'cutSpeedNums', label: '切割速量(次)', value: recipe?.edgeCutting.cutSpeedNums ?? '-' },
-    { key: 'edgeChange', label: '边缘切割变化', value: formatChangeFormula(recipe?.edgeCutting.change) },
-    { key: 'middleSpeed', label: '中间切割百分比（%）', value: recipe?.middleCutting.speed ?? '-' },
-    { key: 'middleCutTimes', label: '中间切割次数（次）', value: recipe?.middleCutting.cutTimes ?? '-' },
-    {key: 'middleChange',label: '中间切割 CHANGE',value: formatChangeFormula(recipe?.middleCutting.change)},
-    { key: 'descentSpeed', label: '下降量(mm/层)', value: recipe?.descentCutting.speed ?? '-' },
-    { key: 'descentZFeed', label: '下降减少量(mm/%)', value: recipe?.descentCutting.zFeed ?? '-' },
-    {key: 'descentChange',label: '下降切割 CHANGE',value: formatChangeFormula(recipe?.descentCutting.change)}
-  ]
-}
-
-function getLaserPowerFields(lp?: LaserPowerRecipe | null): ParameterField[] {
-  if (!lp) return []
-  return [
-    { key: 'name', label: '配方名称', value: lp.name },
-    { key: 'laserManufacturer', label: '激光厂家', value: lp.laserManufacturer },
-    { key: 'laserPower', label: '激光功率', value: lp.laserPower },
-    { key: 'laserFrequency', label: '激光频率', value: lp.laserFrequency },
-    { key: 'laserCurrent', label: '激光电流', value: lp.laserCurrent },
-  ]
 }
 
 function getHorizontalFormulaById(id?: string): ProcessFormulaRecipe | undefined {
@@ -337,6 +197,19 @@ function markProcessRecipeUpdated(recipe: { updatedAt: string }): void {
 
 function markSharedFormulaUpdated(recipe: { updatedAt: string }): void {
   recipe.updatedAt = createTimestamp()
+}
+
+function onHorizontalShapeChange(formula: ProcessFormulaRecipe, shape: OpeningShape): void {
+  const presets = openingShapeFormulaPresets[shape]
+  if (presets) {
+    ;(Object.keys(presets) as EditableFormulaKey[]).forEach((key) => {
+      const preset = presets[key]
+      if (!preset) return
+      formula[key].k = preset.k
+      formula[key].b = preset.b
+    })
+  }
+  markSharedFormulaUpdated(formula)
 }
 
 function getFormulaLinkedProcessNames(type: FormulaType, id: string): string[] {
@@ -746,32 +619,6 @@ onMounted(async () => {
         </div>
       </section>
 
-
-
-      
-      <template v-for="section in otherSections" :key="section.id">
-        <section
-          v-if="activeEditorPanel === 'main'"
-          class="app-card rounded-2xl p-6 shadow-sm"
-        >
-          <h2 class="app-text-primary text-xl font-semibold">{{ section.title }}</h2>
-          <p class="app-text-secondary mt-2 text-sm">{{ section.description }}</p>
-
-          <div class="mt-5 grid gap-3 md:grid-cols-2">
-            <div
-              v-for="field in section.fields"
-              :key="field.key"
-              class="app-card-soft rounded-xl p-4"
-            >
-              <p class="app-text-secondary text-xs">{{ field.label }}</p>
-              <p class="app-text-primary mt-2 text-base font-medium break-all">
-                {{ formatSettingValue(field.value, field.unit) }}
-              </p>
-            </div>
-          </div>
-        </section>
-      </template>
-
       <section
         v-if="activeEditorPanel === 'main' && selectedMainRecipe"
         class="app-card rounded-2xl p-6 shadow-sm"
@@ -807,22 +654,68 @@ onMounted(async () => {
           >
             当前筛选条件下没有扫黑工艺配方，请调整关键词。
           </p>
-          <div v-else class="mt-5 space-y-4">
-            <RecipeEditorCard
-              v-for="recipe in filteredBlackeningRecipes"
-              :key="recipe.id"
-              type="blackening"
-              :item="recipe"
-              :delete-disabled="isChildRecipeLinked('blackening', recipe.id)"
-              :warning-text="
-                isChildRecipeLinked('blackening', recipe.id)
-                  ? `已被主配方引用：${getLinkedMainRecipeNames('blackening', recipe.id).join('、')}`
-                  : ''
-              "
-              :laser-power-options="recipeState.laserPowerRecipes"
-              :on-updated="markProcessRecipeUpdated"
-              @delete="removeBlackeningRecipe(recipe.id)"
-            />
+          <div v-else class="mt-5 overflow-x-auto rounded-xl border border-(--app-border)">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="bg-(--app-card-soft)">
+                  <th class="px-3 py-2.5 text-left text-xs font-semibold app-text-primary w-32">配方名称</th>
+                  <th class="px-3 py-2.5 text-center text-xs font-semibold app-text-primary w-14">启用</th>
+                  <th class="px-3 py-2.5 text-left text-xs font-semibold app-text-primary w-24">下降步长</th>
+                  <th class="px-3 py-2.5 text-left text-xs font-semibold app-text-primary w-24">下降次数</th>
+                  <th class="px-3 py-2.5 text-left text-xs font-semibold app-text-primary w-24">扫黑速度</th>
+                  <th class="px-3 py-2.5 text-left text-xs font-semibold app-text-primary w-24">扫黑步进</th>
+                  <th class="px-3 py-2.5 text-left text-xs font-semibold app-text-primary w-24">焦距补偿</th>
+                  <th class="px-3 py-2.5 text-left text-xs font-semibold app-text-primary w-20">开口K</th>
+                  <th class="px-3 py-2.5 text-left text-xs font-semibold app-text-primary w-20">开口B</th>
+                  <th class="px-3 py-2.5 text-left text-xs font-semibold app-text-primary w-36">激光功率配方</th>
+                  <th class="px-3 py-2.5 text-center text-xs font-semibold app-text-primary w-16">操作</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-(--app-border)">
+                <tr
+                  v-for="recipe in filteredBlackeningRecipes"
+                  :key="recipe.id"
+                  :class="isChildRecipeLinked('blackening', recipe.id) ? 'bg-amber-50 dark:bg-amber-950/20' : ''"
+                  :title="isChildRecipeLinked('blackening', recipe.id) ? `已被主配方引用：${getLinkedMainRecipeNames('blackening', recipe.id).join('、')}` : ''"
+                >
+                  <td class="px-3 py-2">
+                    <input v-model="recipe.name" type="text" class="w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none" @input="markProcessRecipeUpdated(recipe)" />
+                  </td>
+                  <td class="px-3 py-2 text-center">
+                    <input v-model="recipe.enabled" type="checkbox" class="mt-0.5 h-4 w-4" @change="markProcessRecipeUpdated(recipe)" />
+                  </td>
+                  <td class="px-3 py-2">
+                    <input v-model.number="recipe.descentStep" type="number" step="0.001" class="w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none" @input="markProcessRecipeUpdated(recipe)" />
+                  </td>
+                  <td class="px-3 py-2">
+                    <input v-model.number="recipe.descentCount" type="number" step="1" class="w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none" @input="markProcessRecipeUpdated(recipe)" />
+                  </td>
+                  <td class="px-3 py-2">
+                    <input v-model.number="recipe.blackeningSpeed" type="number" step="1" class="w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none" @input="markProcessRecipeUpdated(recipe)" />
+                  </td>
+                  <td class="px-3 py-2">
+                    <input v-model.number="recipe.blackeningStep" type="number" step="0.001" class="w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none" @input="markProcessRecipeUpdated(recipe)" />
+                  </td>
+                  <td class="px-3 py-2">
+                    <input v-model.number="recipe.jiaojubuchang" type="number" min="0" max="1000" step="1" class="w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none" @input="markProcessRecipeUpdated(recipe)" />
+                  </td>
+                  <td class="px-3 py-2">
+                    <input v-model.number="recipe.saoheikaikou.k" type="number" step="1" class="w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none" @input="markProcessRecipeUpdated(recipe)" />
+                  </td>
+                  <td class="px-3 py-2">
+                    <input v-model.number="recipe.saoheikaikou.b" type="number" step="0.01" class="w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none" @input="markProcessRecipeUpdated(recipe)" />
+                  </td>
+                  <td class="px-3 py-2">
+                    <select v-model="recipe.laserPowerRecipeId" class="w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none" @change="markProcessRecipeUpdated(recipe)">
+                      <option v-for="lp in recipeState.laserPowerRecipes" :key="lp.id" :value="lp.id" class="text-slate-900">{{ lp.name }}</option>
+                    </select>
+                  </td>
+                  <td class="px-3 py-2 text-center">
+                    <button type="button" class="rounded-lg border border-red-200 px-2.5 py-1 text-xs text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40" :disabled="isChildRecipeLinked('blackening', recipe.id)" @click="removeBlackeningRecipe(recipe.id)">删除</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </RecipeLibrarySection>
 
@@ -850,26 +743,48 @@ onMounted(async () => {
           >
             当前筛选条件下没有加工工艺配方，请调整关键词。
           </p>
-          <div v-else class="mt-5 space-y-4">
-            <RecipeEditorCard
-              v-for="recipe in filteredMachiningRecipes"
-              :key="recipe.id"
-              type="machining"
-              :item="recipe"
-              :delete-disabled="isChildRecipeLinked('machining', recipe.id)"
-              :warning-text="
-                isChildRecipeLinked('machining', recipe.id)
-                  ? `已被主配方引用：${getLinkedMainRecipeNames('machining', recipe.id).join('、')}`
-                  : ''
-              "
-              :laser-power-options="recipeState.laserPowerRecipes"
-              :horizontal-formula-options="recipeState.horizontalFormulaRecipes"
-              :vertical-formula-options="recipeState.verticalFormulaRecipes"
-              :on-updated="markProcessRecipeUpdated"
-              :on-hover-enter="(id, kind) => onProcessDetailRowEnter('machining', id, kind)"
-              :on-hover-leave="onProcessDetailRowLeave"
-              @delete="removeMachiningRecipe(recipe.id)"
-            />
+          <div v-else class="mt-5 overflow-x-auto rounded-xl border border-(--app-border)">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="bg-(--app-card-soft)">
+                  <th class="px-4 py-2.5 text-left text-xs font-semibold app-text-primary w-32">配方名称</th>
+                  <th class="px-4 py-2.5 text-left text-xs font-semibold app-text-primary w-36">激光功率配方</th>
+                  <th class="px-4 py-2.5 text-left text-xs font-semibold app-text-primary w-36">水平工艺配方</th>
+                  <th class="px-4 py-2.5 text-left text-xs font-semibold app-text-primary w-36">垂直工艺配方</th>
+                  <th class="px-4 py-2.5 text-center text-xs font-semibold app-text-primary w-16">操作</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-(--app-border)">
+                <tr
+                  v-for="recipe in filteredMachiningRecipes"
+                  :key="recipe.id"
+                  :class="isChildRecipeLinked('machining', recipe.id) ? 'bg-amber-50 dark:bg-amber-950/20' : ''"
+                  :title="isChildRecipeLinked('machining', recipe.id) ? `已被主配方引用：${getLinkedMainRecipeNames('machining', recipe.id).join('、')}` : ''"
+                >
+                  <td class="px-4 py-2">
+                    <input v-model="recipe.name" type="text" class="w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none" @input="markProcessRecipeUpdated(recipe)" />
+                  </td>
+                  <td class="px-4 py-2">
+                    <select v-model="recipe.laserPowerRecipeId" class="w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none" @change="markProcessRecipeUpdated(recipe)">
+                      <option v-for="lp in recipeState.laserPowerRecipes" :key="lp.id" :value="lp.id" class="text-slate-900">{{ lp.name }}</option>
+                    </select>
+                  </td>
+                  <td class="px-4 py-2">
+                    <select v-model="recipe.horizontalFormulaId" class="w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none" @change="markProcessRecipeUpdated(recipe)">
+                      <option v-for="hf in recipeState.horizontalFormulaRecipes" :key="hf.id" :value="hf.id" class="text-slate-900">{{ hf.name }}</option>
+                    </select>
+                  </td>
+                  <td class="px-4 py-2">
+                    <select v-model="recipe.verticalFormulaId" class="w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none" @change="markProcessRecipeUpdated(recipe)">
+                      <option v-for="vf in recipeState.verticalFormulaRecipes" :key="vf.id" :value="vf.id" class="text-slate-900">{{ vf.name }}</option>
+                    </select>
+                  </td>
+                  <td class="px-4 py-2 text-center">
+                    <button type="button" class="rounded-lg border border-red-200 px-2.5 py-1 text-xs text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40" :disabled="isChildRecipeLinked('machining', recipe.id)" @click="removeMachiningRecipe(recipe.id)">删除</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </RecipeLibrarySection>
 
@@ -897,22 +812,46 @@ onMounted(async () => {
           >
             当前筛选条件下没有激光功率配方，请调整关键词。
           </p>
-          <div v-else class="mt-5 space-y-4">
-            <RecipeEditorCard
-              v-for="recipe in filteredLaserPowerRecipes"
-              :key="recipe.id"
-              type="laserPower"
-              :item="recipe"
-              card-class="app-card-soft rounded-2xl border border-(--app-border) p-5"
-              :delete-disabled="isLaserPowerLinked(recipe.id)"
-              :warning-text="
-                isLaserPowerLinked(recipe.id)
-                  ? `已被引用：${getLaserPowerLinkedProcessNames(recipe.id).join('、')}`
-                  : ''
-              "
-              :on-updated="markProcessRecipeUpdated"
-              @delete="removeLaserPowerRecipe(recipe.id)"
-            />
+          <div v-else class="mt-5 overflow-x-auto rounded-xl border border-(--app-border)">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="bg-(--app-card-soft)">
+                  <th class="px-4 py-2.5 text-left text-xs font-semibold app-text-primary w-32">配方名称</th>
+                  <th class="px-4 py-2.5 text-left text-xs font-semibold app-text-primary w-28">激光厂家</th>
+                  <th class="px-4 py-2.5 text-left text-xs font-semibold app-text-primary w-24">激光功率</th>
+                  <th class="px-4 py-2.5 text-left text-xs font-semibold app-text-primary w-24">激光频率</th>
+                  <th class="px-4 py-2.5 text-left text-xs font-semibold app-text-primary w-24">激光电流</th>
+                  <th class="px-4 py-2.5 text-center text-xs font-semibold app-text-primary w-16">操作</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-(--app-border)">
+                <tr
+                  v-for="recipe in filteredLaserPowerRecipes"
+                  :key="recipe.id"
+                  :class="isLaserPowerLinked(recipe.id) ? 'bg-amber-50 dark:bg-amber-950/20' : ''"
+                  :title="isLaserPowerLinked(recipe.id) ? `已被引用：${getLaserPowerLinkedProcessNames(recipe.id).join('、')}` : ''"
+                >
+                  <td class="px-4 py-2">
+                    <input v-model="recipe.name" type="text" class="w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none" @input="markProcessRecipeUpdated(recipe)" />
+                  </td>
+                  <td class="px-4 py-2">
+                    <input v-model="recipe.laserManufacturer" type="text" class="w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none" @input="markProcessRecipeUpdated(recipe)" />
+                  </td>
+                  <td class="px-4 py-2">
+                    <input v-model.number="recipe.laserPower" type="number" step="0.01" class="w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none" @input="markProcessRecipeUpdated(recipe)" />
+                  </td>
+                  <td class="px-4 py-2">
+                    <input v-model.number="recipe.laserFrequency" type="number" step="0.01" class="w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none" @input="markProcessRecipeUpdated(recipe)" />
+                  </td>
+                  <td class="px-4 py-2">
+                    <input v-model.number="recipe.laserCurrent" type="number" step="0.01" class="w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none" @input="markProcessRecipeUpdated(recipe)" />
+                  </td>
+                  <td class="px-4 py-2 text-center">
+                    <button type="button" class="rounded-lg border border-red-200 px-2.5 py-1 text-xs text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40" :disabled="isLaserPowerLinked(recipe.id)" @click="removeLaserPowerRecipe(recipe.id)">删除</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </RecipeLibrarySection>
 
@@ -940,26 +879,72 @@ onMounted(async () => {
           >
             当前筛选条件下没有水平工艺配方，请调整关键词。
           </p>
-          <div v-else class="mt-5 space-y-4">
-            <RecipeEditorCard
-              v-for="formula in filteredHorizontalFormulaRecipes"
-              :key="`horizontal-formula-${formula.id}`"
-              type="horizontalFormula"
-              :item="formula"
-              card-class="app-card-soft rounded-2xl border border-(--app-border) p-4"
-              :delete-disabled="isFormulaLinked('horizontal', formula.id)"
-              :warning-text="
-                isFormulaLinked('horizontal', formula.id)
-                  ? `已被引用：${getFormulaLinkedProcessNames('horizontal', formula.id).join('、')}`
-                  : ''
-              "
-              :opening-shape-options="openingShapeOptions"
-              :opening-shape-formula-presets="openingShapeFormulaPresets"
-              :editable-formula-items="editableFormulaItems"
-              :format-linear-formula="formatLinearFormula"
-              :on-updated="markSharedFormulaUpdated"
-              @delete="removeHorizontalFormulaRecipe(formula.id)"
-            />
+          <div v-else class="mt-5 overflow-x-auto rounded-xl border border-(--app-border)">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="bg-(--app-card-soft)">
+                  <th class="px-3 py-2.5 text-left text-xs font-semibold app-text-primary w-32">配方名称</th>
+                  <th class="px-3 py-2.5 text-left text-xs font-semibold app-text-primary w-20">开口形状</th>
+                  <th class="px-3 py-2.5 text-left text-xs font-semibold app-text-primary w-24">焦距补偿</th>
+                  <th class="px-3 py-2.5 text-left text-xs font-semibold app-text-primary w-20">角度K</th>
+                  <th class="px-3 py-2.5 text-left text-xs font-semibold app-text-primary w-20">角度B</th>
+                  <th class="px-3 py-2.5 text-left text-xs font-semibold app-text-primary w-20">下开口K</th>
+                  <th class="px-3 py-2.5 text-left text-xs font-semibold app-text-primary w-20">下开口B</th>
+                  <th class="px-3 py-2.5 text-left text-xs font-semibold app-text-primary w-24">深度补偿K</th>
+                  <th class="px-3 py-2.5 text-left text-xs font-semibold app-text-primary w-24">深度补偿B</th>
+                  <th class="px-3 py-2.5 text-left text-xs font-semibold app-text-primary w-24">补偿角度K</th>
+                  <th class="px-3 py-2.5 text-left text-xs font-semibold app-text-primary w-24">补偿角度B</th>
+                  <th class="px-3 py-2.5 text-center text-xs font-semibold app-text-primary w-16">操作</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-(--app-border)">
+                <tr
+                  v-for="formula in filteredHorizontalFormulaRecipes"
+                  :key="formula.id"
+                  :class="isFormulaLinked('horizontal', formula.id) ? 'bg-amber-50 dark:bg-amber-950/20' : ''"
+                  :title="isFormulaLinked('horizontal', formula.id) ? `已被引用：${getFormulaLinkedProcessNames('horizontal', formula.id).join('、')}` : ''"
+                >
+                  <td class="px-3 py-2">
+                    <input v-model="formula.name" type="text" class="w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none" @input="markSharedFormulaUpdated(formula)" />
+                  </td>
+                  <td class="px-3 py-2">
+                    <select v-model="formula.openingShape" class="w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none" @change="onHorizontalShapeChange(formula, formula.openingShape)">
+                      <option v-for="shape in openingShapeOptions" :key="shape" :value="shape" class="text-slate-900">{{ shape }}</option>
+                    </select>
+                  </td>
+                  <td class="px-3 py-2">
+                    <input v-model.number="formula.focusCompensation" type="number" step="0.001" class="w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none" @input="markSharedFormulaUpdated(formula)" />
+                  </td>
+                  <td class="px-3 py-2">
+                    <input v-model.number="formula.angleFormula.k" type="number" step="0.001" class="w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none" @input="markSharedFormulaUpdated(formula)" />
+                  </td>
+                  <td class="px-3 py-2">
+                    <input v-model.number="formula.angleFormula.b" type="number" step="0.001" class="w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none" @input="markSharedFormulaUpdated(formula)" />
+                  </td>
+                  <td class="px-3 py-2">
+                    <input v-model.number="formula.lowerOpeningFormula.k" type="number" step="0.001" class="w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none" @input="markSharedFormulaUpdated(formula)" />
+                  </td>
+                  <td class="px-3 py-2">
+                    <input v-model.number="formula.lowerOpeningFormula.b" type="number" step="0.001" class="w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none" @input="markSharedFormulaUpdated(formula)" />
+                  </td>
+                  <td class="px-3 py-2">
+                    <input v-model.number="formula.depthCompensationFormula.k" type="number" step="0.001" class="w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none" @input="markSharedFormulaUpdated(formula)" />
+                  </td>
+                  <td class="px-3 py-2">
+                    <input v-model.number="formula.depthCompensationFormula.b" type="number" step="0.001" class="w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none" @input="markSharedFormulaUpdated(formula)" />
+                  </td>
+                  <td class="px-3 py-2">
+                    <input v-model.number="formula.compensationAngleFormula.k" type="number" step="0.001" class="w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none" @input="markSharedFormulaUpdated(formula)" />
+                  </td>
+                  <td class="px-3 py-2">
+                    <input v-model.number="formula.compensationAngleFormula.b" type="number" step="0.001" class="w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none" @input="markSharedFormulaUpdated(formula)" />
+                  </td>
+                  <td class="px-3 py-2 text-center">
+                    <button type="button" class="rounded-lg border border-red-200 px-2.5 py-1 text-xs text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40" :disabled="isFormulaLinked('horizontal', formula.id)" @click="removeHorizontalFormulaRecipe(formula.id)">删除</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </RecipeLibrarySection>
 
@@ -1005,36 +990,6 @@ onMounted(async () => {
             />
           </div>
         </RecipeLibrarySection>
-        <Teleport to="body">
-          <div
-            v-if="processDetailHover"
-            class="pointer-events-none fixed inset-0 z-210 flex items-start justify-center p-4 md:p-6"
-          >
-            <div class="pointer-events-none absolute inset-0 bg-slate-900/18 dark:bg-black/28"></div>
-            <div
-              class="pointer-events-auto relative max-h-[90vh] w-[min(64rem,calc(100vw-2rem))] overflow-y-auto rounded-2xl border border-(--app-border) bg-(--app-card) p-4 shadow-[0_20px_40px_-12px_rgba(15,23,42,0.35)] dark:shadow-[0_20px_40px_-12px_rgba(0,0,0,0.55)]"
-              @mouseenter="onProcessDetailPanelEnter"
-              @mouseleave="onProcessDetailPanelLeave"
-            >
-              <button
-                type="button"
-                class="absolute right-3 top-3 rounded-lg px-2 py-1 text-xs text-(--app-text-muted) transition hover:bg-(--app-card-soft) hover:text-(--app-text-primary)"
-                @click="closeProcessDetailPanel"
-              >
-                关闭
-              </button>
-              <template v-if="activeProcessDetailPopover">
-                <RecipeDetailFieldPanel
-                  :key="`process-popover-${processDetailHover.library}-${processDetailHover.recipeId}-${processDetailHover.kind}`"
-                  :title="activeProcessDetailPopover.title"
-                  :description="activeProcessDetailPopover.description"
-                  :fields="activeProcessDetailPopover.fields"
-                />
-              </template>
-              <p v-else class="app-text-secondary px-2 pb-2 text-xs">暂无详细数据</p>
-            </div>
-          </div>
-        </Teleport>
       </div>
     </div>
   </div>

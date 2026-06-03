@@ -1,6 +1,5 @@
 ﻿import type {
   BlackeningProcessRecipe,
-  EditableFormulaItem,
   LaserPowerRecipe,
   LinearFormulaCoefficients,
   MachiningProcessRecipe,
@@ -12,17 +11,12 @@
   RecipeRecordBase,
   VerticalProcessFormulaRecipe
 } from './recipeTypes'
-import type { ParameterField, ParameterSection } from '@/shared/types'
 import { createDefaultLibraryKeywords } from './recipeTypes'
 
 export function createTimestamp(): string {return new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-')}
 
 function createLinearFormulaCoefficients(k: number, b: number): LinearFormulaCoefficients {return { k, b }}
 
-export function formatLinearFormula(symbol: 'A' | 'L' | 'D' | 'CA',formula?: LinearFormulaCoefficients): string {
-  if (!formula) return '-'
-  return `${symbol} = ${formula.k} * 深度 + ${formula.b}`
-}
 
 /** 水平与垂直工艺配方共用的默认工艺参数（仅外层档案 id/编码/名称不同） */
 function createDefaultSharedProcessFormula(processLineName: string): Omit<ProcessFormulaRecipe, 'id' | 'updatedAt'> {
@@ -184,110 +178,11 @@ export const defaultRecipeManagerState: RecipeManagerState = {
   machiningRecipes: defaultMachiningRecipes
 }
 
-function getSelectedMainRecipe(state: RecipeManagerState): MainRecipeDefinition | undefined {
-  return (
-    state.mainRecipes.find((recipe) => recipe.id === state.selectedMainRecipeId) ?? state.mainRecipes[0]
-  )
-}
-
-function createLaserPowerParameterFields(recipe?: LaserPowerRecipe | null): ParameterField[] {
-  return [
-    { key: 'laser-manufacturer', label: '激光厂家', value: recipe?.laserManufacturer ?? '-' },
-    { key: 'laser-power', label: '激光功率', value: recipe?.laserPower ?? '-' },
-    { key: 'laser-frequency', label: '激光频率', value: recipe?.laserFrequency ?? '-' },
-    { key: 'laser-current', label: '激光电流', value: recipe?.laserCurrent ?? '-' },
-  ]
-}
-
-function createFormulaFields(prefix: string, recipe?: ProcessFormulaRecipe): ParameterField[] {
-  return [
-    { key: `${prefix}-shape`, label: '开口形状', value: recipe?.openingShape ?? '-' },
-    { key: `${prefix}-upper`, label: '上开口公式', value: recipe?.upperOpeningFormula ?? '-' },
-    {
-      key: `${prefix}-focus`,
-      label: '焦距补偿',
-      value: recipe?.focusCompensation ?? '-'
-    },
-    { key: `${prefix}-angle`, label: '角度公式', value: formatLinearFormula('A', recipe?.angleFormula) },
-    {
-      key: `${prefix}-lower`,
-      label: '下开口公式',
-      value: formatLinearFormula('L', recipe?.lowerOpeningFormula)
-    },
-    {
-      key: `${prefix}-depth`,
-      label: '深度补偿公式',
-      value: formatLinearFormula('D', recipe?.depthCompensationFormula)
-    },
-
-    {
-      key: `${prefix}-compensation-angle`,
-      label: '补偿角度公式',
-      value: formatLinearFormula('CA', recipe?.compensationAngleFormula)
-    }
-  ]
-}
 
 
-function formatDepthLinearFormula(label: string,formula?: VerticalProcessFormulaRecipe['edgeCutting']['change']): string {
-  if (!formula) return '-'
-  return `${label} = ${formula.k}*距离+${formula.b} [增至100%]`
-}
 
-function createVerticalFormulaFieldGroups(prefix: string,recipe?: VerticalProcessFormulaRecipe): NonNullable<ParameterSection['fieldGroups']> {
-  return [
-    {
-      id: `${prefix}-base`,
-      title: '基础参数',
-      fields: [
-        { key: `${prefix}-cutting-axis`, label: '切割轴(XY/R)', value: recipe?.cuttingAxis ?? '-' },
-        { key: `${prefix}-x-feed`, label: 'X_偏移量(mm)', value: recipe?.xFeed ?? '-' },
-        { key: `${prefix}-x-speed`, label: '插补运行速度(mm/s)', value: recipe?.xSpeed ?? '-' }
-      ]
-    },
-    {
-      id: `${prefix}-edge-cutting`,
-      title: '边缘切割',
-      fields: [
-        { key: `${prefix}-edge-speed`, label: '切割速度百分比(%)', value: recipe?.edgeCutting.speed ?? '-' },
-        { key: `${prefix}-edge-cut-times`, label: '切割次数(次)', value: recipe?.edgeCutting.cutTimes ?? '-' },
-        { key: `${prefix}-edge-cut-speed-nums`, label: '切割速量(次)', value: recipe?.edgeCutting.cutSpeedNums ?? '-' },
-        {key: `${prefix}-edge-change`,label: '边缘切割变化率',value: formatDepthLinearFormula('速度', recipe?.edgeCutting.change)}
-      ]
-    },
-    {
-      id: `${prefix}-middle-cutting`,
-      title: '中间切割',
-      fields: [
-        { key: `${prefix}-middle-speed`, label: '切割速度百分比(%)', value: recipe?.middleCutting.speed ?? '-' },
-        {
-          key: `${prefix}-middle-cut-times`,
-          label: '切割次数(次)',
-          value: recipe?.middleCutting.cutTimes ?? '-'
-        },
-        {
-          key: `${prefix}-middle-change`,
-          label: '中间切割变化率',
-          value: formatDepthLinearFormula('速度', recipe?.middleCutting.change)
-        }
-      ]
-    },
-    {
-      id: `${prefix}-descent-cutting`,
-      title: '下降切割',
-      fields: [
-        { key: `${prefix}-descent-speed`, label: '下降量(mm/层)', value: recipe?.descentCutting.speed ?? '-' },
-        { key: `${prefix}-descent-z-feed`, label: '下降减少量(mm/%)', value: recipe?.descentCutting.zFeed ?? '-' },
-        { key: `${prefix}-change-percent`, label: '变化百分比(%)', value: recipe?.changePercent ?? '-' },
-        {
-          key: `${prefix}-descent-change`,
-          label: '下降切割变化率',
-          value:`下降量=${recipe?.descentCutting.speed}-${recipe?.descentCutting.zFeed}*进度//${recipe?.changePercent}%`
-        }
-      ]
-    }
-  ]
-}
+
+
 
 // ------------------------------------------------------------------
 // 编辑器/管理页面共享数据
@@ -295,12 +190,6 @@ function createVerticalFormulaFieldGroups(prefix: string,recipe?: VerticalProces
 
 export const openingShapeOptions: OpeningShape[] = ['V型', '//型']
 
-export const editableFormulaItems: EditableFormulaItem[] = [
-  { key: 'angleFormula', label: '角度公式', symbol: 'A', kLabel: 'K：', bLabel: 'B：' },
-  { key: 'lowerOpeningFormula', label: '下开口公式', symbol: 'L', kLabel: 'K：', bLabel: 'B：' },
-  { key: 'depthCompensationFormula', label: '深度补偿公式', symbol: 'D', kLabel: 'K：', bLabel: 'B：' },
-  { key: 'compensationAngleFormula', label: '补偿角度公式', symbol: 'CA', kLabel: 'K：', bLabel: 'B：' }
-]
 
 export const openingShapeFormulaPresets: Record<OpeningShape, OpeningShapeFormulaPreset> = {
   'V型': {
@@ -317,68 +206,3 @@ export const openingShapeFormulaPresets: Record<OpeningShape, OpeningShapeFormul
   }
 }
 
-export const createRecipeSections = (state: RecipeManagerState): ParameterSection[] => {
-  const selectedRecipe = getSelectedMainRecipe(state)
-  const selectedBlackening = state.blackeningRecipes.find(
-    (recipe) => recipe.id === selectedRecipe?.blackeningRecipeId
-  )
-  const selectedMachining = state.machiningRecipes.find(
-    (recipe) => recipe.id === selectedRecipe?.machiningRecipeId
-  )
-  const selectedMachiningHorizontal = state.horizontalFormulaRecipes.find(
-    (recipe) => recipe.id === selectedMachining?.horizontalFormulaId
-  )
-  const selectedMachiningVertical = state.verticalFormulaRecipes.find(
-    (recipe) => recipe.id === selectedMachining?.verticalFormulaId
-  )
-  const selectedBlackeningLaser = state.laserPowerRecipes.find(
-    (recipe) => recipe.id === selectedBlackening?.laserPowerRecipeId
-  )
-  const selectedMachiningLaser = state.laserPowerRecipes.find(
-    (recipe) => recipe.id === selectedMachining?.laserPowerRecipeId
-  )
-
-  return [
-    {
-      id: 'recipe-blackening-detail',
-      title: '扫黑工艺配方详情',
-      description: '扫黑工艺配方包含下降步长、下降次数、扫黑速度、扫黑步进及激光功率配方。',
-      fields: [
-        { key: 'blackening-enabled', label: '是否启用该配方', value: selectedBlackening?.enabled ?? false },
-        { key: 'descentStep', label: '下降步长', value: selectedBlackening?.descentStep ?? '-' },
-        { key: 'descentCount', label: '下降次数', value: selectedBlackening?.descentCount ?? '-' },
-        { key: 'blackeningSpeed', label: '扫黑速度', value: selectedBlackening?.blackeningSpeed ?? '-' },
-        { key: 'blackeningStep', label: '扫黑步进', value: selectedBlackening?.blackeningStep ?? '-' }
-      ],
-      fieldGroups: [
-        {
-          id: 'blackening-laser',
-          title: '激光功率配方',
-          fields: createLaserPowerParameterFields(selectedBlackeningLaser)
-        }
-      ]
-    },
-    {
-      id: 'recipe-machining-detail',
-      title: '加工工艺配方详情',
-      description: '加工工艺配方包含激光功率配方，并可选择共享的水平工艺配方与垂直工艺配方。',
-      fields: [],
-      fieldGroups: [
-        {
-          id: 'machining-laser',
-          title: '激光功率配方',
-          fields: createLaserPowerParameterFields(selectedMachiningLaser)
-        },
-        {
-          id: 'machining-horizontal',
-          title: '水平工艺参数',
-          fields: createFormulaFields('machining-horizontal', selectedMachiningHorizontal)
-        },
-        ...createVerticalFormulaFieldGroups(
-          'machining-vertical',
-          selectedMachiningVertical
-        )
-      ]
-    }
-  ]
-}
