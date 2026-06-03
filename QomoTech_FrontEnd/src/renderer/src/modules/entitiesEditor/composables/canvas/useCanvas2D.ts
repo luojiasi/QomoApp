@@ -702,7 +702,8 @@ export function useCanvas2D() {
   // ── 鼠标事件辅助 ─────────────────────────────────────────────────────
 
   function getCanvasPoint(e: MouseEvent | WheelEvent): { x: number; y: number } {
-    const canvas = canvasRef.value!
+    const canvas = canvasRef.value
+    if (!canvas) return { x: 0, y: 0 }
     const rect = canvas.getBoundingClientRect()
     return { x: e.clientX - rect.left, y: e.clientY - rect.top }
   }

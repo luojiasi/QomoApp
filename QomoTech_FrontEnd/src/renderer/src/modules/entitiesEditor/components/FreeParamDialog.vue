@@ -823,3 +823,5 @@ function isRecipeInvalid(recipe: string): boolean {
   transform: scale(0.95) translateY(8px);
 }
 </style>
+
+

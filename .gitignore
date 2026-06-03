@@ -7,6 +7,7 @@ build/
 dist/
 logs/
 *.log
+QomoTech_Claude_Codex/
 
 # QomoTech_BackEnd: PyInstaller 产物与运行日志（本地构建，不提交）
 QomoTech_BackEnd/build/run/

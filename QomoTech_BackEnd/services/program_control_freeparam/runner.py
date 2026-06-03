@@ -2,7 +2,7 @@ from typing import Any
 import asyncio
 
 from services.MotionService import MotionService
-from services.program_control_freeparam.geometry import 构建任务的数据
+from services.program_control_freeparam.geometry import 构建任务的数据, 构建配方数据
 from utils.logger import 获取日志记录器
 
 日志 = 获取日志记录器("自由参数切割程序")
@@ -122,8 +122,9 @@ class ProgramRunnerFreeParam:
                     当前序号 = 序号 + 1
                     日志.info(f"\n[FreeParam] ======== 任务 {当前序号}/{任务总数} ========")
                     该序号的参数 = 构建任务的数据(行数据)
+                    该序号的配方 = 构建配方数据(配方数据,该序号的参数.get("配方ID"))
                     try:
-                        await self._切割(配方数据=配方数据,执行任务的参数=该序号的参数)
+                        await self._切割(配方数据=该序号的配方,执行任务的参数=该序号的参数)
                     except Exception as e:
                         日志.error(f"任务 {当前序号} 执行失败: {e}")
                         return {"success": False, "message": f"任务 {当前序号} 执行失败: {e}"}
@@ -139,9 +140,77 @@ class ProgramRunnerFreeParam:
 
     async def _切割(self,配方数据:dict[str, Any],执行任务的参数:dict[str, Any])->bool:
         是否完成切割 = False
+
+        任务选择的扫黑配方 = dict(配方数据.get("selectedBlackeningRecipe")[0])
+        任务选择的扫黑激光参数 = dict(配方数据.get("selectedBlackeningLaser")[0])
+        任务选择的加工激光参数 = dict(配方数据.get("selectedMachiningLaser")[0])
+        任务选择的水平配方参数 = dict(配方数据.get("selectedHorizontal")[0])
+        任务选择的垂直配方参数 = dict(配方数据.get("selectedVertical")[0])
+
+        是否打开扫黑 = bool(任务选择的扫黑配方.get("enabled",False))
+        扫黑下降步长 = float(任务选择的扫黑配方.get("descentStep",0))
+        扫黑的速度 = float(任务选择的扫黑配方.get("blackeningSpeed",0))
+        扫黑的焦距补偿 = float(任务选择的扫黑配方.get("jiaojubuchang",0))
+        扫黑的步进 = float(任务选择的扫黑配方.get("blackeningStep",0))
+        扫黑的开口K = float(任务选择的扫黑配方.get("saoheikaikou",{}).get("k",0))
+        扫黑的开口B = float(任务选择的扫黑配方.get("saoheikaikou",{}).get("b",0))
+
+        扫黑功率 = float(任务选择的扫黑激光参数.get("laserPower"))
+        扫黑频率 = float(任务选择的扫黑激光参数.get("laserFrequency"))
+        扫黑电流 = float(任务选择的扫黑激光参数.get("laserCurrent"))
+
+        加工功率 = float(任务选择的加工激光参数.get("laserPower"))
+        加工频率 = float(任务选择的加工激光参数.get("laserFrequency"))
+        加工电流 = float(任务选择的加工激光参数.get("laserCurrent"))
+
+        水平的开口形状 = str(任务选择的水平配方参数.get("openingShape", ""))
+        水平的焦距补偿 = float(任务选择的水平配方参数.get("focusCompensation",{}).get("k",0))
+        水平的角度K = float(任务选择的水平配方参数.get("angleFormula",{}).get("k",0))
+        水平的角度B = float(任务选择的水平配方参数.get("angleFormula",{}).get("b",0))
+        水平的下开口K = float(任务选择的水平配方参数.get("lowerOpeningFormula",{}).get("k",0))
+        水平的下开口B = float(任务选择的水平配方参数.get("lowerOpeningFormula",{}).get("b",0))
+        水平的深度补偿K = float(任务选择的水平配方参数.get("depthCompensationFormula",{}).get("k",0))
+        水平的深度补偿B = float(任务选择的水平配方参数.get("depthCompensationFormula",{}).get("b",0))
+        水平的补偿角度K = float(任务选择的水平配方参数.get("compensationAngleFormula",{}).get("k",0))
+        水平的补偿角度B = float(任务选择的水平配方参数.get("compensationAngleFormula",{}).get("b",0))
+
+        X轴的偏移量 = float(任务选择的垂直配方参数.get("xFeed",0))
+        插补的运行速度 = float(任务选择的垂直配方参数.get("xSpeed",0))
+        切割轴 = str(任务选择的垂直配方参数.get("cuttingAxis", ""))
+
+        垂直的变化百分比 = float(任务选择的垂直配方参数.get("changePercent",10))
+        垂直的每次下降步长量 = float(任务选择的垂直配方参数.get("descentCutting",{}).get("speed",0.075))
+        垂直的每次下降步长量减少量 = float(任务选择的垂直配方参数.get("descentCutting",{}).get("zFeed",0))
+
+        垂直的边缘切割速度百分比 = float(任务选择的垂直配方参数.get("edgeCutting",{}).get("speed",50))
+        垂直的边缘切割次数 = float(任务选择的垂直配方参数.get("edgeCutting",{}).get("cutTimes",1))
+        垂直的边缘切割速量 = float(任务选择的垂直配方参数.get("edgeCutting",{}).get("cutSpeedNums",1))
+        垂直的边缘切割变化率K = float(任务选择的垂直配方参数.get("edgeCutting",{}).get("change",{}).get("k",0))
+        垂直的边缘切割变化率B = float(任务选择的垂直配方参数.get("edgeCutting",{}).get("change",{}).get("b",0))
+
+        垂直的中间切割速度百分比 = float(任务选择的垂直配方参数.get("middleCutting",{}).get("speed",100))
+        垂直的中间切割次数 = float(任务选择的垂直配方参数.get("middleCutting",{}).get("cutTimes",1))
+        垂直的中间切割变化率K = float(任务选择的垂直配方参数.get("middleCutting",{}).get("change",{}).get("k",0))
+        垂直的中间切割变化率B = float(任务选择的垂直配方参数.get("middleCutting",{}).get("change",{}).get("b",0))
+
+
+
+
+
+
+        
+
         print(执行任务的参数)
         print("================================================")
-        print(配方数据)
+        print("任务选择的垂直配方参数",任务选择的垂直配方参数)
+        print("================================================")
+        print("任务选择的水平配方参数",任务选择的水平配方参数)
+        print("================================================")
+        print("任务选择的加工激光参数",任务选择的加工激光参数)
+        print("================================================")
+        print("任务选择的扫黑激光参数",任务选择的扫黑激光参数)
+        print("================================================")
+        print("任务选择的扫黑配方参数",任务选择的扫黑配方)
         print("================================================")
         return 是否完成切割
 

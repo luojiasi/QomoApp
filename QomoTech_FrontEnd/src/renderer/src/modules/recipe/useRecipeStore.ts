@@ -190,9 +190,7 @@ export const useRecipeSettingsStore = defineStore('recipe-settings', () => {
     if (fromBackend) {
       recipeState.value = fromBackend
       persistStateToLocalStorage(recipeState.value)
-      // 用清洗后的数据（无废弃字段、无 filter）覆写后端旧文件
-      const { filter: _, ...cleanState } = fromBackend
-      void saveRecipeStateToBackend(cleanState as RecipeManagerState)
+      // 清洗写回由 deep watch 的 scheduleBackendPersist 负责
       return createSettingsSaveResult('已从服务端加载配方管理数据。', recipeState.value)
     }
 
@@ -200,10 +198,7 @@ export const useRecipeSettingsStore = defineStore('recipe-settings', () => {
     if (cached) {
       recipeState.value = cached
       persistStateToLocalStorage(recipeState.value)
-      // 将 localStorage 数据同步到后端文件（首次迁移 + 兜底）
-      clearBackendPersistTimer()
-      const { filter: _, ...stateForBackend } = cached
-      void saveRecipeStateToBackend(stateForBackend as RecipeManagerState)
+      // 清洗写回由 deep watch 的 scheduleBackendPersist 负责
       return createSettingsSaveResult('已从本地存储加载配方管理数据。', recipeState.value)
     }
 
