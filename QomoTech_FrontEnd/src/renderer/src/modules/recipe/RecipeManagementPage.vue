@@ -1,8 +1,10 @@
 ﻿<script setup lang="ts">
 import SvgIcon from '@/shared/components/SvgIcon.vue'
+import FloatingActionButton from '@/shared/components/FloatingActionButton.vue'
 import RecipeLibrarySection from './panels/RecipeLibrarySection.vue'
 import RecipeEditorCard from './panels/RecipeEditorCard.vue'
 import RecipeTopologyDiagram from './panels/RecipeTopologyDiagram.vue'
+import RecipeParamOutDetail from './panels/RecipeParamOutDetail.vue'
 import { computed, onMounted, ref } from 'vue'
 import { useNotification } from '@/shared/composables/useNotification'
 import { useRecipeSettingsStore } from './useRecipeStore'
@@ -126,6 +128,7 @@ const laserPowerMap = computed(
 
 const activeEditorPanel = ref<EditorPanel>('main')
 const savingMainRecipeFile = ref(false)
+const showParamOverview = ref(false)
 
 const editorPanelOptions: { key: EditorPanel; label: string }[] = [
   { key: 'main', label: '主配方' },
@@ -992,5 +995,17 @@ onMounted(async () => {
         </RecipeLibrarySection>
       </div>
     </div>
+
+    <FloatingActionButton
+      icon="icon-biaoge"
+      label="配方参数总览"
+      @click="showParamOverview = true"
+    />
+
+    <RecipeParamOutDetail
+      :visible="showParamOverview"
+      :state="recipeState"
+      @close="showParamOverview = false"
+    />
   </div>
 </template>
