@@ -24,7 +24,7 @@
         "y": 175
       },
       "params": {
-        "ip": "127.0.0.1"
+        "ip": "192.168.0.11"
       },
       "description": "",
       "status": "idle",
@@ -56,8 +56,8 @@
       "type": "flow.notify",
       "label": "弹窗通知",
       "position": {
-        "x": 475,
-        "y": 25
+        "x": 500,
+        "y": -50
       },
       "params": {
         "type": "info",
@@ -66,7 +66,7 @@
         "duration": 4500
       },
       "description": "",
-      "status": "idle"
+      "status": "success"
     },
     {
       "id": "mprw5ki4k8ua",
@@ -116,7 +116,7 @@
       },
       "params": {},
       "description": "",
-      "status": "success",
+      "status": "idle",
       "__routing": {
         "method": "POST",
         "endpoint": "/api/motion/stop",
@@ -146,11 +146,51 @@
       "label": "手动触发",
       "position": {
         "x": 125,
-        "y": 400
+        "y": 375
       },
       "params": {},
       "description": "",
       "status": "idle"
+    },
+    {
+      "id": "mpxpiqcsgxaf",
+      "type": "flow.delay",
+      "label": "等待 1s",
+      "position": {
+        "x": -150,
+        "y": -50
+      },
+      "params": {
+        "duration": 1000
+      },
+      "description": "",
+      "status": "success"
+    },
+    {
+      "id": "mpxpit7lvhgv",
+      "type": "flow.delay",
+      "label": "等待 1s",
+      "position": {
+        "x": 75,
+        "y": -50
+      },
+      "params": {
+        "duration": 1000
+      },
+      "description": "",
+      "status": "success"
+    },
+    {
+      "id": "mpxpjctrye5o",
+      "type": "trigger.single",
+      "label": "单一入口触发节点",
+      "position": {
+        "x": -300,
+        "y": -250
+      },
+      "params": {},
+      "description": "",
+      "status": "success"
     }
   ],
   "edges": [
@@ -202,9 +242,30 @@
       "target": "mprwqlx3z94s",
       "sourceHandle": "main",
       "targetHandle": "main"
+    },
+    {
+      "id": "mpxpjk3xmb70",
+      "source": "mpxpjctrye5o",
+      "target": "mpxpiqcsgxaf",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mpxpjmdhwk21",
+      "source": "mpxpiqcsgxaf",
+      "target": "mpxpit7lvhgv",
+      "sourceHandle": "main",
+      "targetHandle": "main"
+    },
+    {
+      "id": "mpxpk3tf8esw",
+      "source": "mpxpit7lvhgv",
+      "target": "mprw4m5dun9e",
+      "sourceHandle": "main",
+      "targetHandle": "main"
     }
   ],
   "createdAt": "2026-05-30T05:03:21.777Z",
-  "updatedAt": "2026-05-30T05:36:46.719Z",
+  "updatedAt": "2026-06-03T06:51:44.506Z",
   "canvasSettings": {}
 }
