@@ -1004,7 +1004,6 @@ onMounted(async () => {
 
     <RecipeParamOutDetail
       :visible="showParamOverview"
-      :state="recipeState"
       @close="showParamOverview = false"
     />
   </div>

@@ -175,19 +175,21 @@ import type {
   MainRecipeDefinition,
   MachiningProcessRecipe,
   ProcessFormulaRecipe,
-  RecipeManagerState,
   RecipeStatus,
   VerticalProcessFormulaRecipe
 } from '../recipeTypes'
+import { useRecipeSettingsStore } from '../useRecipeStore'
 
 const props = defineProps<{
   visible: boolean
-  state: RecipeManagerState
 }>()
 
 defineEmits<{
   close: []
 }>()
+
+const recipeStore = useRecipeSettingsStore()
+const recipeState = computed(() => recipeStore.recipeState)
 
 const headScroller = ref<HTMLElement | null>(null)
 const bodyScroller = ref<HTMLElement | null>(null)
@@ -216,7 +218,7 @@ interface RecipeRow {
 }
 
 const rows = computed<RecipeRow[]>(() => {
-  const { mainRecipes, blackeningRecipes, machiningRecipes, horizontalFormulaRecipes, verticalFormulaRecipes } = props.state
+  const { mainRecipes, blackeningRecipes, machiningRecipes, horizontalFormulaRecipes, verticalFormulaRecipes } = recipeState.value
 
   return mainRecipes.map((main) => {
     const blackening = blackeningRecipes.find((r) => r.id === main.blackeningRecipeId) ?? null

@@ -11,6 +11,8 @@ import SettingsDialog from '../components/SettingsDialog.vue'
 import FreeParamDialog from '../components/FreeParamDialog.vue'
 import StatusBar from '../components/StatusBar.vue'
 import FloatingCamera from '../components/FloatingCamera.vue'
+import FloatingActionButton from '@/shared/components/FloatingActionButton.vue'
+import RecipeParamOutDetail from '@/modules/recipe/panels/RecipeParamOutDetail.vue'
 import { useRightPanel } from '../composables/useRightPanel'
 import { useInspectorPanel } from '../composables/useInspectorPanel'
 import { useLayoutPanel } from '../composables/useLayoutPanel'
@@ -43,6 +45,7 @@ const fileInputRef = ref<HTMLInputElement | null>(null)
 
 // ── 浮动相机 ──
 const showCamera = ref(false)
+const showParamOverview = ref(false)
 function toggleCamera() { showCamera.value = !showCamera.value }
 
 // ── 页面初始化：从 localStorage 恢复上次保存的项目 ──
@@ -151,6 +154,17 @@ useKeyboardShortcuts(dispatchAction, { isOpen: settingsIsOpen, capturing: settin
     <FreeParamDialog ref="freeparamRef" />
 
     <FloatingCamera v-if="showCamera" @close="showCamera = false" />
+
+    <FloatingActionButton
+      icon="icon-biaoge"
+      label="配方参数总览"
+      @click="showParamOverview = true"
+    />
+
+    <RecipeParamOutDetail
+      :visible="showParamOverview"
+      @close="showParamOverview = false"
+    />
   </div>
 </template>
 
