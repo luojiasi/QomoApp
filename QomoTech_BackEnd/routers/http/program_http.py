@@ -59,7 +59,7 @@ class 自由编辑参数请求模型(BaseModel):
 async def start_program(payload: 开始程序参数请求模型):
     """接收配方 + 实体，启动后台任务执行程序。"""
     tasks = OffsetEndpointCalculator.calc_xy_points(payload.entities, 0)
-    if not tasks: raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="没有可执行的任务，请检查实体几何",)
+    if not tasks: raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="没有可执行的任务，请检查实体几何")
     async def _run_program() -> None:
         try:
             await _svc().执行程序(配方数据=payload.recipe_payload,实体数据=payload.entities,)
@@ -81,10 +81,12 @@ async def start_program(payload: 开始程序参数请求模型):
 #     return ApiResponse(success=True, message="QOMO4PN编辑器已启动")
 
 # from services.ProgramService4p import ProgramService4p
+
+
 @路由.post("/startProgram/entitiesEditFreeparam", summary="自由编辑参数切割")
 async def send_free_params(payload: 自由编辑参数请求模型):
     """接收自由编辑参数，启动后台切割任务。"""
-
+    if payload.rows is None: raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="没有可执行的任务，请检查实体几何")
     async def _run() -> None:
         try:
             await ProgramServiceFreeParam.获取实例().执行自由编辑参数(配方数据=payload.recipes,实体数据=payload.rows)
@@ -130,6 +132,36 @@ async def _dispatch_program_control(action: str) -> Dict[str, Any]:
 @路由.post("/startProgram/control", summary="控制程序运行（暂停/继续/复位/急停/跳过）")
 async def program_control(payload: 开始程序控制请求模型):
     result = await _dispatch_program_control(payload.action)
+    if not result.get("success"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(result.get("message", "操作失败")),
+        )
+    return ApiResponse(success=True, message=str(result.get("message", "操作成功")))
+
+
+# ==================================================================
+# 3b. 自由编辑参数程序控制
+# ==================================================================
+
+_FREEPARAM_ACTION_MAP = {
+    "pause": "暂停",
+    "resume": "恢复",
+    "reset": "复位",
+    "estop": "急停",
+}
+
+
+@路由.post("/startProgram/freeparam/control", summary="控制自由编辑参数程序（暂停/继续/复位/急停）")
+async def program_freeparam_control(payload: 开始程序控制请求模型):
+    svc = ProgramServiceFreeParam.获取实例()
+    method_name = _FREEPARAM_ACTION_MAP.get(payload.action)
+    if method_name is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"不支持的操作: {payload.action}",
+        )
+    result = await getattr(svc, method_name)()
     if not result.get("success"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

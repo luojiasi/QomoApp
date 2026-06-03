@@ -1,45 +1,12 @@
 from typing import Any
+import asyncio
 
 from services.MotionService import MotionService
-from services.program_control_freeparam.geometry import 生成切割实体
-from services.PragramService import PragramService
+from services.program_control_freeparam.geometry import 构建任务的数据
+from utils.logger import 获取日志记录器
 
+日志 = 获取日志记录器("自由参数切割程序")
 
-async def _回到起点(运动服务: MotionService, StartX: float, StartY: float, StartZ: float) -> bool:
-    try:
-        await 运动服务.绝对运动("X", StartX)
-        await 运动服务.绝对运动("Y", StartY)
-        await 运动服务.绝对运动("Z", StartZ)
-        await 运动服务.等待静止("X")
-        await 运动服务.等待静止("Y")
-        await 运动服务.等待静止("Z")
-        return True
-    except Exception as e:
-        print(f"    回到起点失败: {e}")
-        return False
-
-
-def _构建配方数据(配方链: dict[str, Any], 切割高度: float) -> dict[str, Any]:
-    """将前端解析的配方链转换为 PragramService/RecipeResolver 期望的格式。"""
-    主配方 = 配方链.get("main") or {}
-    加工配方 = 配方链.get("machining")
-    扫黑配方 = 配方链.get("blackening")
-    垂直配方 = 配方链.get("vertical")
-    水平配方 = 配方链.get("horizontal")
-    加工激光 = 配方链.get("machiningLaser")
-    扫黑激光 = 配方链.get("blackeningLaser")
-
-    激光配方列表 = [r for r in (加工激光, 扫黑激光) if r]
-
-    return {
-        "selectedMainRecipe": 主配方,
-        "selectedMachiningRecipe": [加工配方] if 加工配方 else [],
-        "selectedBlackeningRecipe": [扫黑配方] if 扫黑配方 else [],
-        "selectedLaserRecipe": 激光配方列表,
-        "selectedHorizontal": [水平配方] if 水平配方 else [],
-        "selectedVertical": [垂直配方] if 垂直配方 else [],
-        "extraHeight": 切割高度,
-    }
 
 
 # ======================================================================
@@ -51,53 +18,130 @@ class ProgramRunnerFreeParam:
     def __init__(self) -> None:
         self._运动 = MotionService.获取实例()
 
-    async def 执行自由编辑参数(self,*,配方数据: dict[str, Any],实体数据: list[dict[str, Any]]) -> dict[str, Any]:
-        任务总数 = len(实体数据)
-        print(f"[FreeParam] ====== 开始执行，共 {任务总数} 个任务 ======")
+        # ── 运行状态标志 ──
+        self._是否运行中 = False
+        self._是否已暂停 = False
+        self._是否急停请求 = False
 
-        # 记录当前 XYZ 坐标，执行完成后回到起点
-        # try:
-        #     StartX, StartY = await self._运动.取_xy_实际位置()
-        #     StartZ = await self._运动.取_z_实际位置()
-        # except Exception:
-        #     return {"success": False, "message": "记录当前XYZ坐标失败"}
+        self._控制锁 = asyncio.Lock()
+        self._执行锁 = asyncio.Lock()
 
-        for 序号, 行数据 in enumerate(实体数据):
-            当前序号 = 序号 + 1
-            直径 = float(行数据.get("diameter", 0))
-            角度 = float(行数据.get("angle", 0))
-            高度 = float(行数据.get("height", 0))
-            分度 = int(行数据.get("divisions", 0))
-            配方链 = 行数据.get("recipe") or {}
+        # ── 广播回调（由 ProgramServiceFreeParam 注入） ──
+        self._广播回调 = None
 
-            print(f"\n[FreeParam] ======== 任务 {当前序号}/{任务总数} ========")
-            print(f"    直径: {直径} mm, 角度: {角度}°, 高度: {高度} mm, 分度: {分度}")
-            print(f"    U轴旋转角度:要去计算")
+    # ==================================================================
+    # 运行状态快照
+    # ==================================================================
 
-            for i in range(分度):
-                print(f"    切割第{i}/{分度}个分度")
+    def 获取运行状态(self) -> dict[str, Any]:
+        return {
+            "running": self._是否运行中,
+            "paused": self._是否已暂停,
+            "total_tasks": 0,
+            "current_task_index": 0,
+            "进度百分比": 0.0,
+        }
 
-                print(f"    X轴移动")
+    def _广播状态变更(self, *, force: bool = False) -> None:
+        if self._广播回调 is not None:
+            self._广播回调(force=force)
 
-                # 生成切割实体
-                # 切割实体 = 生成切割实体(直径=直径)
+    # ==================================================================
+    # 控制指令（参照 ProgramRunner）
+    # ==================================================================
 
-                # 构建 PragramService 期望的配方数据格式
-                # 行配方数据 = _构建配方数据(配方链, 高度)
-                print(f"    开始切割")
-                # 执行切割
-                try:
-                    # result = await PragramService.获取实例().执行程序(配方数据=行配方数据,实体数据=[切割实体])
-                    # print(f"    切割结果: {result}")
-                    print(f"    切割结果: ")
-                except Exception as e:
-                    print(f"    切割失败: {e}")
-                    # await _回到起点(self._运动, StartX, StartY, StartZ)
-                    return {"success": False, "message": f"任务 {当前序号} 执行失败: {e}"}
+    async def 暂停(self) -> dict[str, Any]:
+        async with self._控制锁:
+            if not self._是否运行中:
+                return {"success": False, "message": "当前没有运行中的程序"}
+            self._是否已暂停 = True
+        if self._运动.适配器 and self._运动.适配器.已连接:
+            try:
+                await self._运动.设置输出(2, False)
+                await self._运动.暂停()
+            except Exception:
+                pass
+        self._广播状态变更(force=True)
+        return {"success": True, "message": "已暂停"}
 
-                # 每个任务完成后回到起点
-                # await _回到起点(self._运动, StartX, StartY, StartZ)
-                print(f"    旋转R轴开始切割下一个分度...")
+    async def 恢复(self) -> dict[str, Any]:
+        async with self._控制锁:
+            if not self._是否运行中:return {"success": False, "message": "当前没有运行中的程序"}
+            self._是否已暂停 = False
+        if self._运动.适配器 and self._运动.适配器.已连接:
+            try:
+                await self._运动.继续()
+                await self._运动.设置输出(2, True)
+            except Exception:
+                pass
+        self._广播状态变更(force=True)
+        return {"success": True, "message": "已继续运行"}
 
-        print(f"\n[FreeParam] ====== 全部完成，共处理 {任务总数} 个任务 =====")
-        return {"success": True, "task_count": 任务总数}
+    async def 急停(self) -> dict[str, Any]:
+        async with self._控制锁:
+            self._是否急停请求 = True
+            self._是否已暂停 = False
+        if self._运动.适配器 and self._运动.适配器.已连接:
+            await self._运动.设置输出(0, False)
+            await self._运动.设置输出(2, False)
+            await self._运动.急停()
+        self._广播状态变更(force=True)
+        return {"success": True, "message": "已急停"}
+
+    async def 复位(self) -> dict[str, Any]:
+        if not self._运动.适配器 or not self._运动.适配器.已连接: return {"success": False, "message": "motion 控制器未连接"}
+        _ALARM_CLEAR_AXIS_NOS = (0, 1, 2, 3, 4)
+        _轴号映射 = {0: "X", 1: "Y", 2: "Z", 3: "U", 4: "R"}
+        失败列表: list[int] = []
+        for 轴号 in _ALARM_CLEAR_AXIS_NOS:
+            try:
+                await self._运动.清除轴错误(_轴号映射[int(轴号)])
+            except Exception:
+                失败列表.append(int(轴号))
+        if 失败列表: return {"success": False, "message": f"部分轴清除报警失败: {失败列表}"}
+        await self._运动.复位()
+        return {"success": True, "message": "报警已清除，状态机已复位"}
+
+    # ==================================================================
+    # 主入口
+    # ==================================================================
+
+    async def 执行自由编辑参数(self, *, 配方数据: dict[str, Any], 实体数据: list[dict[str, Any]]) -> dict[str, Any]:
+        if self._执行锁.locked():return {"success": False, "message": "程序正在执行中（重复触发被拒绝）"}
+        if not self._运动.适配器 or not self._运动.适配器.已连接:return {"success": False, "message": "motion 控制器未连接"}
+        async with self._执行锁:
+            async with self._控制锁:
+                self._是否运行中 = True
+                self._是否已暂停 = False
+                self._是否急停请求 = False
+            try:
+                任务总数 = len(实体数据)
+                日志.info(f"[FreeParam] ====== 开始执行，共 {任务总数} 个任务 ======")
+
+                for 序号, 行数据 in enumerate(实体数据):
+                    当前序号 = 序号 + 1
+                    日志.info(f"\n[FreeParam] ======== 任务 {当前序号}/{任务总数} ========")
+                    该序号的参数 = 构建任务的数据(行数据)
+                    try:
+                        await self._切割(配方数据=配方数据,执行任务的参数=该序号的参数)
+                    except Exception as e:
+                        日志.error(f"任务 {当前序号} 执行失败: {e}")
+                        return {"success": False, "message": f"任务 {当前序号} 执行失败: {e}"}
+
+                日志.info(f"\n[FreeParam] ====== 全部完成，共处理 {任务总数} 个任务 =====")
+                return {"success": True, "task_count": 任务总数}
+            finally:
+                async with self._控制锁:
+                    self._是否运行中 = False
+                    self._是否已暂停 = False
+                    self._是否急停请求 = False
+                self._广播状态变更(force=True)
+
+    async def _切割(self,配方数据:dict[str, Any],执行任务的参数:dict[str, Any])->bool:
+        是否完成切割 = False
+        print(执行任务的参数)
+        print("================================================")
+        print(配方数据)
+        print("================================================")
+        return 是否完成切割
+

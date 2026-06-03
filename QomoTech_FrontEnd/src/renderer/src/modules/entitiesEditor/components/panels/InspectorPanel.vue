@@ -278,7 +278,12 @@ const count = computed(() => props.entities?.length ?? 0)
   padding: 2px 8px;
   border-radius: 10px;
 }
-.panel-body { flex: 1; overflow-y: auto; }
+.panel-body {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.panel-body::-webkit-scrollbar { display: none; }
 .empty-hint {
   padding: 24px 10px;
   text-align: center;
