@@ -14,7 +14,7 @@
                     启用连续轨迹 / 关闭连续轨迹
   暂停控制           暂停 / 继续 / 停止 / 急停
   U/R 业务旋转       U轴旋转的角度参数 / U轴旋转角度 / U轴是否到达旋转角度 /
-                    R轴旋转的圈数 / R轴一直进行旋转 / 获取R轴的当前位置
+                    R轴旋转的圈数带参数 / R轴一直进行旋转 / 获取R轴的当前位置
   IO                设置输出 / 读输出 / 批量读输出 / 读输入 / 批量读输入
   轴参数             写入轴参数 / 批量设置轴参数 / 重新下发所有轴 /
                     设置反向间隙 / 设置软限位 / 清除轴错误 / 轴位置清零
@@ -777,13 +777,74 @@ class MotionService:
         日志.info(f"U轴旋转到角度={旋转角度}° → {结果.get('message', 'OK')}")
         return 结果
 
-    async def U轴是否到达旋转角度(self, 旋转角度: float, 容差: float = 0.001) -> bool:
+    async def U轴是否到达旋转角度(self, 旋转角度: float, 容差: float = 0.001, 超时秒: float = 40.0) -> bool:
+        """轮询直到 U 轴到达目标角度，暂停/急停/超时返回 False。"""
         self._保证已启动()
-        结果 = await self._断言adapter().U轴是否到达旋转角度(旋转角度, 容差)
-        日志.debug(f"U轴是否到达 {旋转角度}°（容差={容差}）: {结果}")
-        return 结果
+        adapter = self._断言adapter()
+        截止 = asyncio.get_event_loop().time() + 超时秒
+        while True:
+            当前状态 = self._状态机.当前
+            if 当前状态 == 运动状态.ESTOP:
+                return False
+            if 当前状态 == 运动状态.PAUSED:
+                await asyncio.sleep(0.1)
+                continue
+            结果 = await adapter.U轴是否到达旋转角度(旋转角度, 容差)
+            if 结果:
+                日志.info(f"U轴已到达 {旋转角度}°")
+                return True
+            if asyncio.get_event_loop().time() >= 截止:
+                日志.error(f"U轴旋转超时（目标={旋转角度}°）")
+                return False
+            await asyncio.sleep(0.02)
 
-    async def R轴旋转的圈数(self, 旋转参数: Dict[str, Any]) -> Dict[str, Any]:
+    async def R轴旋转的圈数(self, 旋转圈数: float, 超时秒: float = 60.0) -> Dict[str, Any]:
+        """简化版 R 轴旋转 —— 只传圈数，不改速度，顺时针相对运动，等待到位后返回。"""
+        self._保证已启动()
+        adapter = self._断言adapter()
+        try:
+            self._断言safety().准入_运动指令(self._状态机.当前)
+        except SafetyViolation as exc:
+            return {"success": False, "message": str(exc)}
+
+        # 记录起始圈数，计算目标
+        起始圈数 = await adapter.获取R轴的当前位置()
+        目标圈数 = 起始圈数 + float(旋转圈数)
+
+        self._状态机.触发(状态事件.MOVE_START)
+        try:
+            结果 = await adapter.R轴旋转的圈数(旋转圈数)
+        except Exception:
+            self._状态机.触发(状态事件.STOP, 强制=True)
+            raise
+        if not 结果.get("success"):
+            self._状态机.触发(状态事件.STOP, 强制=True)
+            await self._刷新快照()
+            return 结果
+
+        # 轮询等待到位
+        截止 = asyncio.get_event_loop().time() + 超时秒
+        while True:
+            当前状态 = self._状态机.当前
+            if 当前状态 == 运动状态.ESTOP:
+                return {"success": False, "message": "急停，R轴旋转中断"}
+            if 当前状态 == 运动状态.PAUSED:
+                await asyncio.sleep(0.05)
+                continue
+            当前圈数 = await adapter.获取R轴的当前位置()
+            if abs(当前圈数 - 目标圈数) <= 0.01:
+                日志.info(f"R轴已到达目标圈数 {目标圈数:.2f}（当前={当前圈数:.2f}）")
+                break
+            if asyncio.get_event_loop().time() >= 截止:
+                日志.error(f"R轴旋转超时（目标={目标圈数:.2f}，当前={当前圈数:.2f}）")
+                return {"success": False, "message": f"R轴旋转超时（目标={目标圈数:.2f}）"}
+            await asyncio.sleep(0.02)
+
+        await self._刷新快照()
+        日志.info(f"R轴旋转圈数={旋转圈数} → 已到达 {目标圈数:.2f}")
+        return {"success": True, "message": f"R轴已旋转到 {目标圈数:.2f} 圈"}
+
+    async def R轴旋转的圈数带参数(self, 旋转参数: Dict[str, Any]) -> Dict[str, Any]:
         self._保证已启动()
         adapter = self._断言adapter()
         try:
@@ -792,7 +853,7 @@ class MotionService:
             return {"success": False, "message": str(exc)}
         self._状态机.触发(状态事件.MOVE_START)
         try:
-            结果 = await adapter.R轴旋转的圈数(旋转参数)
+            结果 = await adapter.R轴旋转的圈数带参数(旋转参数)
         except Exception:
             self._状态机.触发(状态事件.STOP, 强制=True)
             raise
@@ -824,7 +885,7 @@ class MotionService:
     async def 获取R轴的当前位置(self) -> float:
         self._保证已启动()
         值 = await self._断言adapter().获取R轴的当前位置()
-        日志.debug(f"R轴当前位置: {值}")
+        日志.info(f"R轴当前位置: {值}")
         return 值
 
     # ==================================================================

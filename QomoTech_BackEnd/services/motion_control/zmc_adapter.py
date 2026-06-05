@@ -28,7 +28,7 @@
                             控制器执行缓存在线命令
   core ZMotionAdapter:      get_status / open_output / absolute_move / absolute_move_speed /
                             U轴旋转的角度参数 / U轴旋转角度 / U轴是否到达旋转角度 /
-                            R轴旋转的圈数 / R轴一直进行旋转 / 获取R轴的当前位置 /
+                            R轴旋转的圈数带参数 / R轴一直进行旋转 / 获取R轴的当前位置 /
                             get_notIsMoving / get_xy_dpos_mm / get_z_mpos_mm /
                             stop_axis_motion / continuous_interpolation_move_adapter
 
@@ -82,7 +82,7 @@ from utils.logger import 获取日志记录器
 # 业务级 U/R 旋转默认机械参数（沿用 core/zmotion_adapter.py 历史实现）
 _U轴默认_每圈脉冲数 = 10000.0
 _U轴默认_电子齿轮比 = 1.0
-_U轴默认_减速比 = 100.0
+_U轴默认_减速比 = 1.0
 
 _R轴默认_步进角度 = 1.8
 _R轴默认_细分数 = 32.0
@@ -1475,7 +1475,45 @@ class ZMC适配器:
     # R 轴圈数旋转（业务级换算）
     # ------------------------------------------------------------------
 
-    async def R轴旋转的圈数(self, 旋转参数: Dict[str, Any]) -> Dict[str, Any]:
+    async def R轴旋转的圈数(self, 旋转圈数: float) -> Dict[str, Any]:
+        """简化版 R 轴旋转 —— 只传圈数，不改速度，顺时针相对运动。"""
+        if not isinstance(旋转圈数, (int, float)):
+            return {"success": False, "message": "旋转圈数必须是数字"}
+        旋转圈数 = float(旋转圈数)
+        if 旋转圈数 <= 0:
+            return {"success": False, "message": "旋转圈数必须大于 0"}
+
+        步进角度 = _R轴默认_步进角度
+        细分数 = _R轴默认_细分数
+        减速比 = _R轴默认_减速比
+        方向归一 = 1  # 顺时针
+        
+        电机每圈整步数 = 360.0 / 步进角度
+        每圈脉冲数 = 电机每圈整步数 * 细分数 * 减速比
+        try:
+            状态 = await self.读全部轴状态()
+        except ZMCError as exc:
+            return {"success": False, "message": f"读取轴状态失败: {exc}"}
+        r状态 = 状态.get(str(轴_R), {})
+        axis_units = float(r状态.get("units", 0.0))
+        if axis_units <= 0:
+            return {"success": False, "message": "R 轴 units 未配置或非法"}
+
+        每圈距离 = 每圈脉冲数 / axis_units
+        输入圈数 = 旋转圈数 * 方向归一
+        实际增量圈数 = 输入圈数
+
+        旋转位移 = 实际增量圈数 * 每圈距离
+        try:
+            await self.单轴相对(轴_R, 旋转位移)
+        except ZMCError as exc:
+            return {"success": False, "message": f"R 轴旋转失败: {exc}"}
+        return {
+            "success": True,
+            "message": f"R 轴已旋转 {旋转圈数} 圈",
+        }
+    
+    async def R轴旋转的圈数带参数(self, 旋转参数: Dict[str, Any]) -> Dict[str, Any]:
         """对应 core ZMotionAdapter.R轴旋转的圈数。
 
         机械默认参数：步进角=1.8°、细分=32、减速比=1:1。

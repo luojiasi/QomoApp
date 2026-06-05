@@ -652,9 +652,9 @@ async def U轴是否到达旋转角度(
 
 
 @路由.post("/r/rotate-turns", summary="R 轴按业务参数旋转圈数")
-async def R轴旋转的圈数(req: UR轴参数请求模型):
+async def R轴旋转的圈数带参数(req: UR轴参数请求模型):
     try:
-        return _ok("OK", await _service().R轴旋转的圈数(req.params))
+        return _ok("OK", await _service().R轴旋转的圈数带参数(req.params))
     except Exception as exc:
         raise _handle_exc(exc) from exc
 
