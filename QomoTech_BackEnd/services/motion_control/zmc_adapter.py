@@ -79,15 +79,6 @@ from utils.logger import 获取日志记录器
 轴_U = 3                # 工件旋转
 轴_R = 4                # 工具旋转
 
-# 业务级 U/R 旋转默认机械参数（沿用 core/zmotion_adapter.py 历史实现）
-_U轴默认_每圈脉冲数 = 10000.0
-_U轴默认_电子齿轮比 = 1.0
-_U轴默认_减速比 = 1.0
-
-_R轴默认_步进角度 = 1.8
-_R轴默认_细分数 = 32.0
-_R轴默认_减速比 = 1.0
-
 
 # ======================================================================
 # 异常 / 数据载体
@@ -182,6 +173,30 @@ class ZMC适配器:
     @property
     def 配置(self) -> MotionConfig:
         return self._配置
+
+    @property
+    def _U轴每圈脉冲数(self) -> float:
+        return float(self._配置.u_axis.pulses_per_rev)
+
+    @property
+    def _U轴电子齿轮比(self) -> float:
+        return float(self._配置.u_axis.electronic_gear_ratio)
+
+    @property
+    def _U轴减速比(self) -> float:
+        return float(self._配置.u_axis.gear_ratio)
+
+    @property
+    def _R轴步进角度(self) -> float:
+        return float(self._配置.r_axis.step_angle)
+
+    @property
+    def _R轴细分数(self) -> float:
+        return float(self._配置.r_axis.microsteps)
+
+    @property
+    def _R轴减速比(self) -> float:
+        return float(self._配置.r_axis.gear_ratio)
 
     @property
     def 最近错误(self) -> Optional[str]:
@@ -1356,9 +1371,9 @@ class ZMC适配器:
         try:
             旋转角度 = float(旋转参数.get("旋转角度", 0))
             # 旋转速度 = float(旋转参数.get("旋转速度", 1))
-            每圈脉冲数 = float(旋转参数.get("每圈脉冲数", _U轴默认_每圈脉冲数))
-            电子齿轮比 = float(旋转参数.get("电子齿轮比", _U轴默认_电子齿轮比))
-            减速比 = float(旋转参数.get("减速比", _U轴默认_减速比))
+            每圈脉冲数 = float(旋转参数.get("每圈脉冲数", self._U轴每圈脉冲数))
+            电子齿轮比 = float(旋转参数.get("电子齿轮比", self._U轴电子齿轮比))
+            减速比 = float(旋转参数.get("减速比", self._U轴减速比))
             角度下限_原值 = 旋转参数.get("角度下限", -90)
             角度上限_原值 = 旋转参数.get("角度上限", 90)
             角度下限 = float(角度下限_原值) if 角度下限_原值 is not None else None
@@ -1466,7 +1481,7 @@ class ZMC适配器:
         axis_units = float(u状态.get("units", 0.0))
         if axis_units <= 0:
             return False
-        有效每圈脉冲数 = (_U轴默认_每圈脉冲数 * _U轴默认_电子齿轮比 * _U轴默认_减速比)
+        有效每圈脉冲数 = (self._U轴每圈脉冲数 * self._U轴电子齿轮比 * self._U轴减速比)
         目标工程位移 = (float(旋转角度) / 360.0) * 有效每圈脉冲数 / axis_units
         mpos = float(u状态.get("mpos", 0.0))
         return abs(mpos - 目标工程位移) <= float(容差)
@@ -1483,9 +1498,9 @@ class ZMC适配器:
         if 旋转圈数 <= 0:
             return {"success": False, "message": "旋转圈数必须大于 0"}
 
-        步进角度 = _R轴默认_步进角度
-        细分数 = _R轴默认_细分数
-        减速比 = _R轴默认_减速比
+        步进角度 = self._R轴步进角度
+        细分数 = self._R轴细分数
+        减速比 = self._R轴减速比
         方向归一 = 1  # 顺时针
         
         电机每圈整步数 = 360.0 / 步进角度
@@ -1539,9 +1554,9 @@ class ZMC适配器:
             return {"success": False, "message": "运动模式仅支持 relative/absolute"}
 
         try:
-            步进角度 = float(旋转参数.get("步进角度", _R轴默认_步进角度))
-            细分数 = float(旋转参数.get("细分数", _R轴默认_细分数))
-            减速比 = float(旋转参数.get("减速比", _R轴默认_减速比))
+            步进角度 = float(旋转参数.get("步进角度", self._R轴步进角度))
+            细分数 = float(旋转参数.get("细分数", self._R轴细分数))
+            减速比 = float(旋转参数.get("减速比", self._R轴减速比))
         except (TypeError, ValueError):
             return {"success": False, "message": "步进角度/细分数/减速比参数格式错误"}
         if 步进角度 <= 0 or 细分数 <= 0 or 减速比 <= 0:
@@ -1642,7 +1657,7 @@ class ZMC适配器:
         axis_units = float(r状态.get("units", 0.0))
         if axis_units <= 0: return 0.0
         每圈脉冲数 = (
-            (360.0 / _R轴默认_步进角度) * _R轴默认_细分数 * _R轴默认_减速比
+            (360.0 / self._R轴步进角度) * self._R轴细分数 * self._R轴减速比
         )
         return 当前工程位移 * axis_units / 每圈脉冲数
 

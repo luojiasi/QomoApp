@@ -26,9 +26,8 @@ from utils.logger import 获取日志记录器
 路由 = APIRouter(prefix="/api", tags=["程序运行"])
 
 # 应该委托给 self.程序执行器，而且 HTTP 路由里 program_http.py:87 调的 _svc() 是 PragramService，不是 ProgramService4p——4P 跑起来了状态也拿不到。
-def _svc() -> PragramService:
-    return PragramService.获取实例()
-
+def _svc() -> PragramService: return PragramService.获取实例()
+def _freeparam_svc() -> ProgramServiceFreeParam: return ProgramServiceFreeParam.获取实例()
 
 class 开始程序参数请求模型(BaseModel):
     recipe_payload: Dict[str, Any] = Field(
@@ -86,7 +85,6 @@ async def start_program(payload: 开始程序参数请求模型):
 @路由.post("/startProgram/entitiesEditFreeparam", summary="自由编辑参数切割")
 async def send_free_params(payload: 自由编辑参数请求模型):
     """接收自由编辑参数，启动后台切割任务。"""
-    if payload.rows is None: raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="没有可执行的任务，请检查实体几何")
     async def _run() -> None:
         try:
             await ProgramServiceFreeParam.获取实例().执行自由编辑参数(配方数据=payload.recipes,实体数据=payload.rows)
@@ -104,8 +102,16 @@ async def send_free_params(payload: 自由编辑参数请求模型):
 
 @路由.get("/startProgram/status", summary="获取程序运行状态")
 def program_status() -> ApiResponse:
-    """返回 running / paused / total_tasks / current_task_index / 进度百分比。"""
-    return ApiResponse(success=True, message="OK", data=_svc().获取运行状态())
+    """返回 running / paused / total_tasks / current_task_index / 进度百分比（合并旧程序与 FreeParam）。"""
+    旧状态是否在跑 = _svc().获取运行状态().get("running", False)
+    自由编辑状态是否在跑 = _freeparam_svc().获取运行状态().get("running", False)
+    # 任一正在运行则 running=True
+    if 旧状态是否在跑:
+        return ApiResponse(success=True, message="OK", data=_svc().获取运行状态())
+    elif 自由编辑状态是否在跑:
+        return ApiResponse(success=True, message="OK", data=_freeparam_svc().获取运行状态())
+    else:
+        return ApiResponse(success=True, message="OK", data=_freeparam_svc().获取运行状态())
 
 
 # ==================================================================
@@ -115,58 +121,38 @@ def program_status() -> ApiResponse:
 
 async def _dispatch_program_control(action: str) -> Dict[str, Any]:
     svc = _svc()
-    if action == "pause":
-        return await svc.暂停()
-    elif action == "resume":
-        return await svc.恢复()
-    elif action == "reset":
-        return await svc.复位()
-    elif action == "estop":
-        return await svc.急停()
-    elif action == "skip":
-        return await svc.跳过任务()
+    freeparam_svc = _freeparam_svc()
+    if action == "reset":
+        result  = await svc.复位() or await freeparam_svc.复位()
+        return result
+
+    if svc.获取实例().获取运行状态().get("running"):
+        if action == "pause":
+            return await svc.暂停()
+        elif action == "resume":
+            return await svc.恢复()
+        elif action == "estop":
+            return await svc.急停()
+        elif action == "skip":
+            return await svc.跳过任务()
+        else:
+            return {"success": False, "message": f"未知操作: {action}"}
+    elif freeparam_svc.获取实例().获取运行状态().get("running"):
+        if action == "pause":
+            return await freeparam_svc.暂停()
+        elif action == "resume":
+            return await freeparam_svc.恢复()
+        elif action == "estop":
+            return await freeparam_svc.急停()
     else:
-        return {"success": False, "message": f"未知操作: {action}"}
+        return {"success": False, "message": "没有正在运行的程序"}
 
 
 @路由.post("/startProgram/control", summary="控制程序运行（暂停/继续/复位/急停/跳过）")
 async def program_control(payload: 开始程序控制请求模型):
     result = await _dispatch_program_control(payload.action)
     if not result.get("success"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(result.get("message", "操作失败")),
-        )
-    return ApiResponse(success=True, message=str(result.get("message", "操作成功")))
-
-
-# ==================================================================
-# 3b. 自由编辑参数程序控制
-# ==================================================================
-
-_FREEPARAM_ACTION_MAP = {
-    "pause": "暂停",
-    "resume": "恢复",
-    "reset": "复位",
-    "estop": "急停",
-}
-
-
-@路由.post("/startProgram/freeparam/control", summary="控制自由编辑参数程序（暂停/继续/复位/急停）")
-async def program_freeparam_control(payload: 开始程序控制请求模型):
-    svc = ProgramServiceFreeParam.获取实例()
-    method_name = _FREEPARAM_ACTION_MAP.get(payload.action)
-    if method_name is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"不支持的操作: {payload.action}",
-        )
-    result = await getattr(svc, method_name)()
-    if not result.get("success"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(result.get("message", "操作失败")),
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail=str(result.get("message", "操作失败")),)
     return ApiResponse(success=True, message=str(result.get("message", "操作成功")))
 
 

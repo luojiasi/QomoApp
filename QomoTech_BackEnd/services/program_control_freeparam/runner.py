@@ -1,3 +1,4 @@
+from ast import Or
 import math
 from typing import Any
 import asyncio
@@ -234,21 +235,26 @@ class ProgramRunnerFreeParam:
         最小的偏移 = 0
         最大的偏移 = 上开口值
         是否是从小到大的开口偏移 = True
+        当前一层是否切割完整 = False
 
         旋转任务的的分割数 = 执行任务的参数.get("R轴旋转的分割数")
         当前R轴旋转分割数 = 1 
+        准备开始切割下一次的第一次 = False
         适当延长 = 1
 
 
 
         while 当前步骤< ProgramFreeParamsStep.结束当前任务:
-            match 当前步骤: 
+            # 每步开始时检查急停/暂停
+            if await self._检查是否应中止():
+                当前步骤 = ProgramFreeParamsStep.清理所有状态
+
+            match 当前步骤:
 
                 case ProgramFreeParamsStep.准备开始:
                     是否连上 = self._运动.适配器.已连接 if self._运动.适配器 else False
                     if 是否连上:
-                        # TODO:这里要打开吹风
-                        # await self._自由编辑参数的运动.开启吹风()
+                        await self._自由编辑参数的运动.开启吹风()
                         当前步骤 = ProgramFreeParamsStep.U轴进行角度旋转
 
 
@@ -337,14 +343,17 @@ class ProgramRunnerFreeParam:
                     当前开口值 = 当前开口值 + X轴的偏移量 if 是否是从小到大的开口偏移 else 当前开口值 - X轴的偏移量
                     当前开口值是否在范围内 = (当前开口值> 最小的偏移 / 1000 and 当前开口值 < 最大的偏移 / 1000)
 
-                    if 最大的偏移 / 1000 < 当前开口值 and 是否是从小到大的开口偏移 :
+                    if (最大的偏移 / 1000 < 当前开口值 and 是否是从小到大的开口偏移) or 准备开始切割下一次的第一次 :
                         当前开口值 = 最大的偏移 / 1000
                         是否在边缘位置 = True
                         是否是从小到大的开口偏移 = not 是否是从小到大的开口偏移
-                    if 最小的偏移 / 1000 > 当前开口值 and not 是否是从小到大的开口偏移:
+                        准备开始切割下一次的第一次 = False
+                    if (最小的偏移 / 1000 > 当前开口值 and not 是否是从小到大的开口偏移) or 准备开始切割下一次的第一次:
                         当前开口值 = 最小的偏移 / 1000
                         是否在边缘位置 = True
                         是否是从小到大的开口偏移 = not 是否是从小到大的开口偏移
+                        准备开始切割下一次的第一次 = False
+
 
                     if 当前开口值是否在范围内:
                         当前步骤 = ProgramFreeParamsStep.切割直线
@@ -359,6 +368,7 @@ class ProgramRunnerFreeParam:
                         当前步骤 = ProgramFreeParamsStep.计算下一层开口
                     else:
                         当前R轴旋转分割数 += 1
+                        准备开始切割下一次的第一次 = True
                         R轴旋转圈数 = float(1 / 旋转任务的的分割数) 
                         await self._运动.R轴旋转的圈数(R轴旋转圈数)
                         当前步骤 = ProgramFreeParamsStep.切割直线
@@ -371,7 +381,6 @@ class ProgramRunnerFreeParam:
                     if 水平的开口形状 == "//型":
                         最小的偏移, 最大的偏移 = 更新平行型开口偏移(上开口值=上开口值, 正切角度=tana, 累计下降量=累计下降量)
 
-                    # TODO：计算累计下降量
                     进度百分比 = (累计下降量 / 产品的高度 * 100)
                     当前量 = int(进度百分比 // 垂直的变化百分比)
                     垂直的每次下降步长量 -= (当前量 - 上层量) * 垂直的每次下降步长量减少量
@@ -392,7 +401,7 @@ class ProgramRunnerFreeParam:
                 case ProgramFreeParamsStep.清理所有状态:
                     await self._自由编辑参数的运动.关闭吹风()
                     await self._自由编辑参数的运动.关闭激光()
-                    await self._运动.急停()
+                    # 不重复调急停——急停已在外部控制指令中触发
                     # TODO:回到台面的位置
 
                     当前步骤 = ProgramFreeParamsStep.结束当前任务

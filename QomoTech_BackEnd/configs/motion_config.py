@@ -58,6 +58,13 @@ class MotionAxisConfig(BaseModel):
     fwd_in: int = -1                                                # 正限位输入口（-1=禁用）
     rev_in: int = -1                                                # 负限位输入口（-1=禁用）
 
+    # U/R 轴机械参数（步进/伺服驱动器的物理常数，用于角度↔位移换算）
+    pulses_per_rev: float = Field(default=10000.0, gt=0)            # U轴 每圈脉冲数
+    electronic_gear_ratio: float = Field(default=1.0, gt=0)         # U轴 电子齿轮比
+    gear_ratio: float = Field(default=1.0, gt=0)                    # 减速比（U/R 共用）
+    step_angle: float = Field(default=1.8, gt=0)                    # R轴 步进角度（度）
+    microsteps: float = Field(default=32.0, gt=0)                   # R轴 细分数
+
     merge_params: MergeParams = Field(default_factory=MergeParams)
 
 
@@ -75,8 +82,14 @@ class MotionConfig(BaseModel):
     x_axis: MotionAxisConfig = MotionAxisConfig(axis_no=0, axis_name="X")
     y_axis: MotionAxisConfig = MotionAxisConfig(axis_no=1, axis_name="Y")
     z_axis: MotionAxisConfig = MotionAxisConfig(axis_no=2, axis_name="Z")
-    u_axis: MotionAxisConfig = MotionAxisConfig(axis_no=3, axis_name="U")
-    r_axis: MotionAxisConfig = MotionAxisConfig(axis_no=4, axis_name="R")
+    u_axis: MotionAxisConfig = MotionAxisConfig(
+        axis_no=3, axis_name="U",
+        pulses_per_rev=10000.0, electronic_gear_ratio=1.0, gear_ratio=1.0,
+    )
+    r_axis: MotionAxisConfig = MotionAxisConfig(
+        axis_no=4, axis_name="R",
+        step_angle=1.8, microsteps=32.0, gear_ratio=1.0,
+    )
 
     @property
     def axes(self) -> dict[str, MotionAxisConfig]:

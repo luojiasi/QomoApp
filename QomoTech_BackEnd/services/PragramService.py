@@ -63,7 +63,8 @@ class PragramService:
     # 生命周期
     # ==================================================================
 
-    def 设置事件循环(self, loop: asyncio.AbstractEventLoop) -> None: self._loop = loop
+    def 设置事件循环(self, loop: asyncio.AbstractEventLoop) -> None: 
+        self._loop = loop
 
     # ==================================================================
     # 运行状态

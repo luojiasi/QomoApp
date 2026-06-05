@@ -96,6 +96,9 @@
       "merge": 0,
       "fwd_in": -1,
       "rev_in": -1,
+      "pulses_per_rev": 10000.0,
+      "electronic_gear_ratio": 1.0,
+      "gear_ratio": 1.0,
       "merge_params": {
         "corner_mode": 0,
         "decel_angle": 15,
@@ -110,7 +113,7 @@
       "axis_name": "R",
       "axis_type": 1,
       "units": 200,
-      "speed": 200,
+      "speed": 20,
       "lspeed": 0,
       "accel": 500000,
       "decel": 500000,
@@ -119,6 +122,9 @@
       "merge": 0,
       "fwd_in": -1,
       "rev_in": -1,
+      "step_angle": 1.8,
+      "microsteps": 32.0,
+      "gear_ratio": 1.0,
       "merge_params": {
         "corner_mode": 0,
         "decel_angle": 15,

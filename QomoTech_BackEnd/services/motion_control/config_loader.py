@@ -55,6 +55,11 @@ def _从文件数据构建配置(data: dict) -> MotionConfig:
             merge=a.get("merge", 0),
             fwd_in=a.get("fwd_in", -1),
             rev_in=a.get("rev_in", -1),
+            pulses_per_rev=a.get("pulses_per_rev", 10000.0),
+            electronic_gear_ratio=a.get("electronic_gear_ratio", 1.0),
+            gear_ratio=a.get("gear_ratio", 1.0),
+            step_angle=a.get("step_angle", 1.8),
+            microsteps=a.get("microsteps", 32.0),
             merge_params=MergeParams(
                 corner_mode=mp.get("corner_mode", 0),
                 decel_angle=mp.get("decel_angle", 15.0),

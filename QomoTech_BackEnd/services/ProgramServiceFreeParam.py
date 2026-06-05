@@ -45,10 +45,8 @@ class ProgramServiceFreeParam:
     # ==================================================================
 
     def 获取运行状态(self) -> dict[str, Any]:
-        if self.程序执行器 is not None:
-            return self.程序执行器.获取运行状态()
-        return {"running": False, "paused": False, "total_tasks": 0,
-                "current_task_index": 0, "进度百分比": 0.0}
+        if self.程序执行器 is not None:return self.程序执行器.获取运行状态()
+        return {"running": False, "paused": False, "total_tasks": 0,"current_task_index": 0, "进度百分比": 0.0}
 
     # ==================================================================
     # 程序执行
