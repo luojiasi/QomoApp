@@ -13,7 +13,7 @@
                     五轴联动直线 / 三加二定向加工 /
                     启用连续轨迹 / 关闭连续轨迹
   暂停控制           暂停 / 继续 / 停止 / 急停
-  U/R 业务旋转       U轴旋转的角度 / U轴旋转角度 / U轴是否到达旋转角度 /
+  U/R 业务旋转       U轴旋转的角度参数 / U轴旋转角度 / U轴是否到达旋转角度 /
                     R轴旋转的圈数 / R轴一直进行旋转 / 获取R轴的当前位置
   IO                设置输出 / 读输出 / 批量读输出 / 读输入 / 批量读输入
   轴参数             写入轴参数 / 批量设置轴参数 / 重新下发所有轴 /
@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import asyncio
 import threading
+import time
 from typing import Any, Dict, Iterable, List, Optional, Sequence
 
 from services.motion_control.config_loader import 加载运动配置
@@ -72,7 +73,7 @@ _默认进给倍率 = 100.0
 
 # 默认采集周期（status_monitor 用）—— 等 motion_config 加 MotionMonitorConfig 后改读配置
 _默认状态轮询毫秒 = 50
-_默认订阅队列上限 = 5
+_默认订阅队列上限 = 20
 _默认最大订阅数 = 16
 
 
@@ -736,7 +737,7 @@ class MotionService:
     # U / R 业务级旋转（透传到 adapter，外加状态机驱动）
     # ==================================================================
 
-    async def U轴旋转的角度(self, 旋转参数: Dict[str, Any]) -> Dict[str, Any]:
+    async def U轴旋转的角度参数(self, 旋转参数: Dict[str, Any]) -> Dict[str, Any]:
         self._保证已启动()
         adapter = self._断言adapter()
         # 业务级方法返回 dict 风格（success/data/message），不打状态机硬转
@@ -747,7 +748,7 @@ class MotionService:
             return {"success": False, "message": str(exc)}
         self._状态机.触发(状态事件.MOVE_START)
         try:
-            结果 = await adapter.U轴旋转的角度(旋转参数)
+            结果 = await adapter.U轴旋转的角度参数(旋转参数)
         except Exception:
             self._状态机.触发(状态事件.STOP, 强制=True)
             raise
@@ -1015,6 +1016,57 @@ class MotionService:
         结果 = await self._断言adapter().等待静止(cfg.axis_no, 超时秒, 轮询间隔秒)
         日志.info(f"等待静止 {轴名}#{cfg.axis_no} 超时={超时秒}s → {'已静止' if 结果 else '超时'}")
         return 结果
+
+    async def 等待轴到位(
+        self,
+        轴名与位置: list[tuple[str, float]],
+        超时秒: float = 100.0,
+        轮询间隔秒: float = 0.05,
+        容差: float = 0.001,
+    ) -> bool:
+        """等待全部轴到达目标位置（DPOS），支持多轴。
+
+        参数
+            轴名与位置：[(轴名, 目标位置), ...]，如 [("X", 100.0), ("Y", 50.0)]
+            容差：|DPOS - 目标位置| ≤ 容差 即视为到位
+
+        返回
+            True  全部轴均已到位
+            False 超时（任一轴未到位）
+        """
+        self._保证已启动()
+        if not 轴名与位置: return True
+
+        gate = self._断言safety()
+        adapter = self._断言adapter()
+        轴信息: list[tuple[str, int, float]] = []
+        for name, target in 轴名与位置:
+            cfg = gate.校验轴名(name)
+            轴信息.append((name, cfg.axis_no, float(target)))
+
+        日志.info(f"等待轴到位 目标={[(n, t) for n, _, t in 轴信息]} 超时={超时秒}s 容差={容差}")
+
+        起始 = time.monotonic()
+        while time.monotonic() - 起始 < 超时秒:
+            全部到位 = True
+            for name, axis_no, target in 轴信息:
+                当前位置 = await adapter.读_dpos(axis_no)
+                if abs(当前位置 - target) > 容差:
+                    全部到位 = False
+                    break
+            if 全部到位:
+                日志.info(f"等待轴到位 → 全部到位")
+                return True
+            await asyncio.sleep(轮询间隔秒)
+
+        # 超时：做一次最终位置快照，记录未到位轴
+        未到位快照: list[str] = []
+        for name, axis_no, target in 轴信息:
+            当前位置 = await adapter.读_dpos(axis_no)
+            if abs(当前位置 - target) > 容差:
+                未到位快照.append(f"{name}(目标={target}, 当前={当前位置:.4f})")
+        日志.warning(f"等待轴到位 → 超时，未到位轴: {未到位快照}")
+        return False
 
     async def 取_xy_实际位置(self) -> tuple[float, float]:
         self._保证已启动()

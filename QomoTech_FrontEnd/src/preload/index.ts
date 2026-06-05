@@ -22,7 +22,7 @@ type BackendRuntimeStatus = {
 /** 与主进程 `app:save-json-file` 约定一致 */
 export type SaveJsonPreset =
   | 'controller-settings'
-  | 'rs232-workbench'
+  | 'rs232-session'
   | 'main-recipe-details'
 
 type RendererApi = {

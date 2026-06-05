@@ -246,7 +246,7 @@ async function handleSaveToLocalFile(): Promise<void> {
       )
       return
     }
-    const res = await save('rs232-workbench', json)
+    const res = await save('rs232-session', json)
     if (res.ok) {
       success('已保存', res.filePath)
       return

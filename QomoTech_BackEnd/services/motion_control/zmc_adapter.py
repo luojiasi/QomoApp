@@ -27,7 +27,7 @@
                             continuous_interpolation_move / getAxisisMoving /
                             控制器执行缓存在线命令
   core ZMotionAdapter:      get_status / open_output / absolute_move / absolute_move_speed /
-                            U轴旋转的角度 / U轴旋转角度 / U轴是否到达旋转角度 /
+                            U轴旋转的角度参数 / U轴旋转角度 / U轴是否到达旋转角度 /
                             R轴旋转的圈数 / R轴一直进行旋转 / 获取R轴的当前位置 /
                             get_notIsMoving / get_xy_dpos_mm / get_z_mpos_mm /
                             stop_axis_motion / continuous_interpolation_move_adapter
@@ -1338,7 +1338,7 @@ class ZMC适配器:
     # U 轴角度旋转（业务级换算）
     # ------------------------------------------------------------------
 
-    async def U轴旋转的角度(self, 旋转参数: Dict[str, Any]) -> Dict[str, Any]:
+    async def U轴旋转的角度参数(self, 旋转参数: Dict[str, Any]) -> Dict[str, Any]:
         """对应 core ZMotionAdapter.U轴旋转的角度，参数 dict 含：
           旋转角度        必填，浮点
           旋转速度        必填，> 0
@@ -1355,7 +1355,7 @@ class ZMC适配器:
             return {"success": False, "message": "旋转参数必须是对象"}
         try:
             旋转角度 = float(旋转参数.get("旋转角度", 0))
-            旋转速度 = float(旋转参数.get("旋转速度", 0.1))
+            # 旋转速度 = float(旋转参数.get("旋转速度", 1))
             每圈脉冲数 = float(旋转参数.get("每圈脉冲数", _U轴默认_每圈脉冲数))
             电子齿轮比 = float(旋转参数.get("电子齿轮比", _U轴默认_电子齿轮比))
             减速比 = float(旋转参数.get("减速比", _U轴默认_减速比))
@@ -1366,8 +1366,8 @@ class ZMC适配器:
         except (TypeError, ValueError):
             return {"success": False, "message": "旋转参数格式错误（角度/速度/脉冲数/齿轮比/减速比/限位）"}
 
-        if 旋转速度 <= 0:
-            return {"success": False, "message": "旋转速度必须大于 0"}
+        # if 旋转速度 <= 0:
+        #     return {"success": False, "message": "旋转速度必须大于 0"}
         if 每圈脉冲数 <= 0 or 电子齿轮比 <= 0 or 减速比 <= 0:
             return {"success": False, "message": "每圈脉冲数/电子齿轮比/减速比必须大于 0"}
         if 角度下限 is not None and 角度上限 is not None and 角度下限 > 角度上限:
@@ -1382,10 +1382,10 @@ class ZMC适配器:
 
         # 角度 → 工程位移的换算口径与历史实现保持一致
         有效每圈脉冲数 = 每圈脉冲数 * 电子齿轮比 * 减速比
-        try:
-            await self.设置速度(轴_U, float(旋转速度))
-        except ZMCError as exc:
-            return {"success": False, "message": f"设置 U 轴速度失败: {exc}"}
+        # try:
+        #     await self.设置速度(轴_U, float(旋转速度))
+        # except ZMCError as exc:
+        #     return {"success": False, "message": f"设置 U 轴速度失败: {exc}"}
 
         try:
             axis_units = float((await self.读全部轴状态()).get(str(轴_U), {}).get("units", 0.0))
@@ -1439,7 +1439,7 @@ class ZMC适配器:
 
     async def U轴旋转角度(self, 旋转角度: float) -> Dict[str, Any]:
         """简化版 U 轴绝对旋转 —— 正数顺时针、负数逆时针。"""
-        return await self.U轴旋转的角度({
+        return await self.U轴旋转的角度参数({
             "旋转角度": abs(float(旋转角度)),
             "旋转方向": "顺时针" if float(旋转角度) >= 0 else "逆时针",
             "运动模式": "absolute",
@@ -1449,7 +1449,7 @@ class ZMC适配器:
         """对应 core ZMotionAdapter.U轴是否到达旋转角度。
 
         判定：轴静止 + |当前 mpos - 目标工程位移| ≤ 容差。
-        机械参数与 U轴旋转的角度() 默认值一致。
+        机械参数与 U轴旋转的角度参数() 默认值一致。
         """
         try:
             空闲 = await self.读_idle(轴_U)
@@ -1466,9 +1466,7 @@ class ZMC适配器:
         axis_units = float(u状态.get("units", 0.0))
         if axis_units <= 0:
             return False
-        有效每圈脉冲数 = (
-            _U轴默认_每圈脉冲数 * _U轴默认_电子齿轮比 * _U轴默认_减速比
-        )
+        有效每圈脉冲数 = (_U轴默认_每圈脉冲数 * _U轴默认_电子齿轮比 * _U轴默认_减速比)
         目标工程位移 = (float(旋转角度) / 360.0) * 有效每圈脉冲数 / axis_units
         mpos = float(u状态.get("mpos", 0.0))
         return abs(mpos - 目标工程位移) <= float(容差)

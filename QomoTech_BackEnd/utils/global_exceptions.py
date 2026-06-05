@@ -131,6 +131,14 @@ def _处理追踪异常(arg):
     if isinstance(exc_value, (KeyboardInterrupt, SystemExit, StopIteration, GeneratorExit)):
         return
 
+    # 跳过 asyncio 队列满/空——正常的控制流异常，总是被正确处理
+    try:
+        from asyncio import QueueFull as _QF, QueueEmpty as _QE
+    except ImportError:
+        _QF = _QE = None  # type: ignore[assignment]
+    if _QF is not None and isinstance(exc_value, (_QF, _QE)):
+        return
+
     # 跳过 asyncio/WebSocket 的正常流程控制异常（Cancel / 断开 非错误）
     try:
         from asyncio import CancelledError as _CE

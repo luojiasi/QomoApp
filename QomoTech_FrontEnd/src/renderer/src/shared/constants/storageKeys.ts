@@ -6,7 +6,7 @@ export const HOME_STATE_KEY = 'HOME_STATE'
 export const CAMERA_SETTINGS_STORAGE_KEY = 'qomotech-camera-settings'
 
 // ─── RS232 ──────────────────────────────────────
-export const RS232_WORKBENCH_STORAGE_KEY = 'qomotech-rs232-workbench'
+export const RS232_WORKBENCH_STORAGE_KEY = 'qomotech-rs232-session'
 
 // ─── 控制器 ─────────────────────────────────────
 // v2: 字段重构对齐后端 motion_config（snake_case + merge_params 嵌套），旧 v1 数据自动失效

@@ -407,17 +407,17 @@ type SaveJsonResult = { ok: true; filePath: string } | { ok: false; canceled: tr
 /** 与渲染层 `SaveJsonPreset` 保持一致，用于保存到本地 JSON 时的对话框配置 */
 type SaveJsonPreset =
   | 'controller-settings'
-  | 'rs232-workbench'
+  | 'rs232-session'
   | 'main-recipe-details'
 
 const SAVE_JSON_DIALOG: Record<SaveJsonPreset, { title: string; defaultPath: string }> = {
   'controller-settings': {
     title: '保存控制器参数',
-    defaultPath: 'controller-parameters.json'
+    defaultPath: 'controller-settings.json'
   },
-  'rs232-workbench': {
+  'rs232-session': {
     title: '保存 RS232 工作台配置',
-    defaultPath: 'rs232-workbench.json'
+    defaultPath: 'rs232-session.json'
   },
   'main-recipe-details': {
     title: '保存主配方详情',

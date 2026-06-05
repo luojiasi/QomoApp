@@ -625,9 +625,9 @@ async def 急停():
 
 
 @路由.post("/u/rotate-by-params", summary="U 轴按业务参数旋转角度")
-async def U轴旋转的角度(req: UR轴参数请求模型):
+async def U轴旋转的角度参数(req: UR轴参数请求模型):
     try:
-        return _ok("OK", await _service().U轴旋转的角度(req.params))
+        return _ok("OK", await _service().U轴旋转的角度参数(req.params))
     except Exception as exc:
         raise _handle_exc(exc) from exc
 

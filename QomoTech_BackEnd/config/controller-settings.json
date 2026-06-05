@@ -1,7 +1,6 @@
 {
   "communication": {
     "controller_model": "QomoTech406V2",
-    "transport": "ethernet",
     "controller_ip": "192.168.0.11",
     "connect_timeout_s": 5,
     "enable_axes": [
@@ -21,13 +20,13 @@
       "units": 2000,
       "speed": 20,
       "lspeed": 0,
-      "accel": 200,
-      "decel": 200,
+      "accel": 500000,
+      "decel": 500000,
       "sramp": 200,
       "creep": 10,
       "merge": 0,
-      "fwd_in": 0,
-      "rev_in": 1,
+      "fwd_in": -1,
+      "rev_in": -1,
       "merge_params": {
         "corner_mode": 0,
         "decel_angle": 15,
@@ -35,25 +34,7 @@
         "zxmooth": 0
       },
       "backlash": 5,
-      "backlash_enable": false,
-      "dpos": 0,
-      "mpos": 0,
-      "endmove": 0,
-      "fs_limit": 0,
-      "rs_limit": 0,
-      "idle": 0,
-      "mspeed": 0,
-      "mtype": 0,
-      "ntype": 0,
-      "vp_speed": 0,
-      "axisstatus": 0,
-      "move_mark": 0,
-      "move_curmark": 0,
-      "axis_stopforeason": 0,
-      "move_buffered": 0,
-      "force_speed": 0,
-      "startmove_speed": 0,
-      "endmove_speed": 0
+      "backlash_enable": false
     },
     {
       "axis_no": 1,
@@ -61,88 +42,6 @@
       "axis_type": 1,
       "units": 2000,
       "speed": 20,
-      "lspeed": 0,
-      "accel": 200,
-      "decel": 200,
-      "sramp": 200,
-      "creep": 10,
-      "merge": 0,
-      "fwd_in": 3,
-      "rev_in": 2,
-      "merge_params": {
-        "corner_mode": 0,
-        "decel_angle": 15,
-        "stop_angle": 45,
-        "zxmooth": 0
-      },
-      "backlash": 5,
-      "backlash_enable": false,
-      "dpos": 0,
-      "mpos": 0,
-      "endmove": 0,
-      "fs_limit": 0,
-      "rs_limit": 0,
-      "idle": 0,
-      "mspeed": 0,
-      "mtype": 0,
-      "ntype": 0,
-      "vp_speed": 0,
-      "axisstatus": 0,
-      "move_mark": 0,
-      "move_curmark": 0,
-      "axis_stopforeason": 0,
-      "move_buffered": 0,
-      "force_speed": 0,
-      "startmove_speed": 0,
-      "endmove_speed": 0
-    },
-    {
-      "axis_no": 2,
-      "axis_name": "Z",
-      "axis_type": 1,
-      "units": 2000,
-      "speed": 20,
-      "lspeed": 0,
-      "accel": 200,
-      "decel": 200,
-      "sramp": 200,
-      "creep": 10,
-      "merge": 0,
-      "fwd_in": 4,
-      "rev_in": 5,
-      "merge_params": {
-        "corner_mode": 0,
-        "decel_angle": 15,
-        "stop_angle": 45,
-        "zxmooth": 0
-      },
-      "backlash": 5,
-      "backlash_enable": false,
-      "dpos": 0,
-      "mpos": 0,
-      "endmove": 0,
-      "fs_limit": 0,
-      "rs_limit": 0,
-      "idle": 0,
-      "mspeed": 0,
-      "mtype": 0,
-      "ntype": 0,
-      "vp_speed": 0,
-      "axisstatus": 0,
-      "move_mark": 0,
-      "move_curmark": 0,
-      "axis_stopforeason": 0,
-      "move_buffered": 0,
-      "force_speed": 0,
-      "startmove_speed": 0,
-      "endmove_speed": 0
-    },
-    {
-      "axis_no": 3,
-      "axis_name": "U",
-      "axis_type": 1,
-      "units": 10000,
-      "speed": 0.1,
       "lspeed": 0,
       "accel": 500000,
       "decel": 500000,
@@ -158,25 +57,53 @@
         "zxmooth": 0
       },
       "backlash": 5,
-      "backlash_enable": false,
-      "dpos": 0,
-      "mpos": 0,
-      "endmove": 0,
-      "fs_limit": 0,
-      "rs_limit": 0,
-      "idle": 0,
-      "mspeed": 0,
-      "mtype": 0,
-      "ntype": 0,
-      "vp_speed": 0,
-      "axisstatus": 0,
-      "move_mark": 0,
-      "move_curmark": 0,
-      "axis_stopforeason": 0,
-      "move_buffered": 0,
-      "force_speed": 0,
-      "startmove_speed": 0,
-      "endmove_speed": 0
+      "backlash_enable": false
+    },
+    {
+      "axis_no": 2,
+      "axis_name": "Z",
+      "axis_type": 1,
+      "units": 2000,
+      "speed": 20,
+      "lspeed": 0,
+      "accel": 500000,
+      "decel": 500000,
+      "sramp": 200,
+      "creep": 10,
+      "merge": 0,
+      "fwd_in": -1,
+      "rev_in": -1,
+      "merge_params": {
+        "corner_mode": 0,
+        "decel_angle": 15,
+        "stop_angle": 45,
+        "zxmooth": 0
+      },
+      "backlash": 5,
+      "backlash_enable": false
+    },
+    {
+      "axis_no": 3,
+      "axis_name": "U",
+      "axis_type": 1,
+      "units": 10000,
+      "speed": 10,
+      "lspeed": 0,
+      "accel": 500000,
+      "decel": 500000,
+      "sramp": 200,
+      "creep": 10,
+      "merge": 0,
+      "fwd_in": -1,
+      "rev_in": -1,
+      "merge_params": {
+        "corner_mode": 0,
+        "decel_angle": 15,
+        "stop_angle": 45,
+        "zxmooth": 0
+      },
+      "backlash": 5,
+      "backlash_enable": false
     },
     {
       "axis_no": 4,
@@ -199,63 +126,7 @@
         "zxmooth": 0
       },
       "backlash": 5,
-      "backlash_enable": false,
-      "dpos": 0,
-      "mpos": 0,
-      "endmove": 0,
-      "fs_limit": 0,
-      "rs_limit": 0,
-      "idle": 0,
-      "mspeed": 0,
-      "mtype": 0,
-      "ntype": 0,
-      "vp_speed": 0,
-      "axisstatus": 0,
-      "move_mark": 0,
-      "move_curmark": 0,
-      "axis_stopforeason": 0,
-      "move_buffered": 0,
-      "force_speed": 0,
-      "startmove_speed": 0,
-      "endmove_speed": 0
-    }
-  ],
-  "ioMap": [
-    {
-      "digitalIn": false,
-      "digitalOut": false
-    },
-    {
-      "digitalIn": false,
-      "digitalOut": false
-    },
-    {
-      "digitalIn": false,
-      "digitalOut": false
-    },
-    {
-      "digitalIn": false,
-      "digitalOut": false
-    },
-    {
-      "digitalIn": false,
-      "digitalOut": false
-    },
-    {
-      "digitalIn": false,
-      "digitalOut": false
-    },
-    {
-      "digitalIn": false,
-      "digitalOut": false
-    },
-    {
-      "digitalIn": false,
-      "digitalOut": false
-    },
-    {
-      "digitalIn": false,
-      "digitalOut": false
+      "backlash_enable": false
     }
   ]
 }

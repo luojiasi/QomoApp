@@ -9,7 +9,7 @@ export type OpenDocumentResult = { ok: true } | { ok: false; error: string }
 
 export type SaveJsonPreset =
   | 'controller-settings'
-  | 'rs232-workbench'
+  | 'rs232-session'
   | 'main-recipe-details'
 
 export type BackendRuntimeState = 'running' | 'starting' | 'restarting' | 'error' | 'missing' | 'stopped'

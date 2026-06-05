@@ -210,8 +210,8 @@ function onDraw(): void {
     const n = row.divisions === 0 ? 360 : row.divisions
     const radius = row.diameter / 2
 
-    // 倾斜角：使用行指定的角度
-    const tiltAngleDeg = row.angle
+    // 倾斜角：angle=0 表示水平（垂直壁），angle 增大表示向内侧倾斜
+    const tiltAngleDeg = 90 -row.angle
 
     // 计算圆周上的 n 个顶点
     const points: Array<{ X: number; Y: number }> = []
