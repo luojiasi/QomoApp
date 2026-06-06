@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import ApiTestPanel from '@/modules/settings/ApiTestPanel.vue'
 import ManualMotionPanel from '../panels/ManualMotionPanel.vue'
-import { useControllerSettingsPageLogic } from './ControllerSettingsPage.logic'
+import { useControllerSettingsPageLogic } from './ControllerSettingsPage.logic.js'
 
 const props = defineProps<{
   embedded?: boolean

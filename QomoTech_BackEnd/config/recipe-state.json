@@ -81,7 +81,7 @@
       },
       "lowerOpeningFormula": {
         "k": 5,
-        "b": 35
+        "b": 60
       },
       "depthCompensationFormula": {
         "k": 2,
@@ -94,7 +94,7 @@
       },
       "focusCompensation": 0.08,
       "id": "horizontal-formula-1",
-      "updatedAt": "2026-6-3 16:29:40"
+      "updatedAt": "2026-6-6 14:33:56"
     }
   ],
   "verticalFormulaRecipes": [
@@ -121,16 +121,16 @@
         }
       },
       "descentCutting": {
-        "speed": 0.075,
+        "speed": 0.15,
         "zFeed": 0.002,
         "change": {
           "k": 10,
-          "b": 0.075
+          "b": 0.15
         }
       },
       "id": "vertical-formula-1",
       "name": "1",
-      "updatedAt": "2026-6-3 16:29:42"
+      "updatedAt": "2026-6-6 14:24:09"
     }
   ],
   "machiningRecipes": [

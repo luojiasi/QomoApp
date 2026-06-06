@@ -62,8 +62,8 @@ class MotionAxisConfig(BaseModel):
     pulses_per_rev: float = Field(default=10000.0, gt=0)            # 每圈脉冲数（伺服用）
     electronic_gear_ratio: float = Field(default=1.0, gt=0)         # 电子齿轮比（伺服用）
     gear_ratio: float = Field(default=1.0, gt=0)                    # 减速比
-    step_angle: float = Field(default=1.8, gt=0)                    # 步进角度（步进电机用）
-    microsteps: float = Field(default=32.0, gt=0)                   # 细分数（步进电机用）
+    step_angle: float = Field(default=1.8, ge=0)                    # 步进角度（步进电机用，直轴填0）
+    microsteps: float = Field(default=32.0, ge=0)                   # 细分数（步进电机用，直轴填0）
 
     merge_params: MergeParams = Field(default_factory=MergeParams)
 
