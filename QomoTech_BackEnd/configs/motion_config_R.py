@@ -58,12 +58,10 @@ class MotionAxisConfig(BaseModel):
     fwd_in: int = -1                                                # 正限位输入口（-1=禁用）
     rev_in: int = -1                                                # 负限位输入口（-1=禁用）
 
-    # U/R 轴机械参数（用于角度↔位移换算）
-    pulses_per_rev: float = Field(default=10000.0, gt=0)            # 每圈脉冲数（伺服用）
-    electronic_gear_ratio: float = Field(default=1.0, gt=0)         # 电子齿轮比（伺服用）
+    # U/R 轴伺服机械参数（用于角度↔位移换算）
+    pulses_per_rev: float = Field(default=10000.0, gt=0)            # 每圈脉冲数
+    electronic_gear_ratio: float = Field(default=1.0, gt=0)         # 电子齿轮比
     gear_ratio: float = Field(default=1.0, gt=0)                    # 减速比
-    step_angle: float = Field(default=1.8, gt=0)                    # 步进角度（步进电机用）
-    microsteps: float = Field(default=32.0, gt=0)                   # 细分数（步进电机用）
 
     merge_params: MergeParams = Field(default_factory=MergeParams)
 
@@ -88,7 +86,7 @@ class MotionConfig(BaseModel):
     )
     r_axis: MotionAxisConfig = MotionAxisConfig(
         axis_no=4, axis_name="R",
-        step_angle=1.8, microsteps=32.0, gear_ratio=1.0,
+        pulses_per_rev=10000.0, electronic_gear_ratio=1.0, gear_ratio=1.0,
     )
 
     @property

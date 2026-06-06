@@ -59,8 +59,6 @@ export function buildControllerDriverSyncSignature(value: ControllerParameters):
       pulses_per_rev: a.pulses_per_rev,
       electronic_gear_ratio: a.electronic_gear_ratio,
       gear_ratio: a.gear_ratio,
-      step_angle: a.step_angle,
-      microsteps: a.microsteps,
       merge_params: { ...a.merge_params }
     }))
   })

@@ -65,8 +65,6 @@ export interface ControllerAxisUserInput {
   pulses_per_rev: number
   electronic_gear_ratio: number
   gear_ratio: number
-  step_angle: number
-  microsteps: number
   merge_params: AxisMergeParams
   backlash: number
   backlash_enable: boolean

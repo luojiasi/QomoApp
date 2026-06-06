@@ -15,7 +15,7 @@ const USER_AXIS_KEYS = [
   'axis_no', 'axis_name', 'axis_type', 'units', 'speed', 'lspeed',
   'creep', 'accel', 'decel', 'merge', 'sramp',
   'fwd_in', 'rev_in', 'pulses_per_rev', 'electronic_gear_ratio', 'gear_ratio',
-  'step_angle', 'microsteps', 'backlash', 'backlash_enable'
+  'backlash', 'backlash_enable'
 ] as const satisfies readonly (keyof ControllerAxisUserInput)[]
 
 const MERGE_PARAM_KEYS = ['corner_mode', 'decel_angle', 'stop_angle', 'zxmooth'] as const
