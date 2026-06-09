@@ -24,12 +24,10 @@ from services.camera_control.CGcamera_adapter import (
     设备信息,
 )
 from services.camera_control import camera_persistence
+from configs.camera_config import camera_config
 from utils.logger import 获取日志记录器
 
 日志 = 获取日志记录器("相机服务")
-
-_默认推流质量 = 85
-_默认推流超时毫秒 = 1000
 
 
 class CameraService:
@@ -170,8 +168,8 @@ class CameraService:
 
     async def 取_jpeg(
         self,
-        timeout_ms: int = 1000,
-        quality: int = 90,
+        timeout_ms: int = camera_config.frame.default_timeout_ms,
+        quality: int = camera_config.frame.default_quality,
     ) -> bytes:
         async with self._服务锁:
             self._准入(相机状态.CONNECTED)
@@ -298,8 +296,8 @@ class CameraService:
     @staticmethod
     def 取_推流默认值() -> Dict[str, Any]:
         return {
-            "quality": _默认推流质量,
-            "timeout_ms": _默认推流超时毫秒,
+            "quality": camera_config.frame.ws_push_quality,
+            "timeout_ms": camera_config.frame.ws_push_timeout_ms,
         }
 
     # ==================================================================

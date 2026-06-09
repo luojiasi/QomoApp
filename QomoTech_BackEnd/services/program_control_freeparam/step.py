@@ -12,6 +12,8 @@ class ProgramFreeParamsStep(enum.IntEnum):
     切割直线 =60 
     等待X轴和Y轴插补结束 =70
     更新开口偏移值 =80
+    旋转时关闭激光 = 81
+    旋转时打开激光 = 82
     判断R轴是否转动一圈 =90
     计算下一层开口 =100
     

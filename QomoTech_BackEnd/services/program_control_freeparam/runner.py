@@ -135,7 +135,7 @@ class ProgramRunnerFreeParam:
                     # 当前平面的Z轴位置：往上逐个累加前面任务的高度
                     累计高度 = sum(float(实体数据[k].get("height", 0)) for k in range(序号))
                     直径所在平面的Z高度 = abs(当前Z) + 累计高度
-                    执行任务的参数 = 构建执行任务的参数(该序号的参数, 直径所在平面的Z高度)
+                    执行任务的参数 = 构建执行任务的参数(该序号的参数, 直径所在平面的Z高度, 累计高度)
                     try:
                         await self._切割(配方数据=该序号的配方,执行任务的参数=执行任务的参数)
                     except Exception as e:
@@ -303,10 +303,15 @@ class ProgramRunnerFreeParam:
 
                 case ProgramFreeParamsStep.判断高度是否满足:
                     if 累计下降量 <= 产品的高度:
-                        当前步骤 = ProgramFreeParamsStep.切割直线
+                        if 执行任务的参数.get("是否启用R轴旋转"):
+                            当前步骤 = ProgramFreeParamsStep.切割R轴
+                        else:   
+                            当前步骤 = ProgramFreeParamsStep.切割直线
                     else:
                         当前步骤 = ProgramFreeParamsStep.清理所有状态
 
+                case ProgramFreeParamsStep.切割R轴:
+                    当前步骤 = ProgramFreeParamsStep.等待R轴旋转一圈
                 
                 case ProgramFreeParamsStep.切割直线:
 
@@ -324,6 +329,9 @@ class ProgramRunnerFreeParam:
                         当前步骤 = ProgramFreeParamsStep.等待X轴和Y轴插补结束
                     else:
                         当前步骤 = ProgramFreeParamsStep.清理所有状态
+
+                case ProgramFreeParamsStep.等待R轴旋转一圈:
+                    当前步骤 = ProgramFreeParamsStep.更新开口偏移值
 
 
                 case ProgramFreeParamsStep.等待X轴和Y轴插补结束:
@@ -365,9 +373,11 @@ class ProgramRunnerFreeParam:
                     if 当前开口值是否在范围内 or (是否在边缘位置 and 准备开始切割下一次的第一次 and not 切割完成之后去跳转):
                         当前步骤 = ProgramFreeParamsStep.切割直线
                     else:
-                        当前步骤 = ProgramFreeParamsStep.判断R轴是否转动一圈
+                        当前步骤 = ProgramFreeParamsStep.旋转时关闭激光
+                case ProgramFreeParamsStep.旋转时关闭激光:
 
-
+                    await self._自由编辑参数的运动.关闭激光()
+                    当前步骤 = ProgramFreeParamsStep.判断R轴是否转动一圈
 
                 case ProgramFreeParamsStep.判断R轴是否转动一圈:
                     if 当前R轴旋转分割数 > (旋转任务的的分割数-1):
@@ -379,6 +389,8 @@ class ProgramRunnerFreeParam:
                         R轴旋转圈数 = float(1 / 旋转任务的的分割数) 
                         await self._运动.R轴旋转的圈数(R轴旋转圈数)
                         当前步骤 = ProgramFreeParamsStep.切割直线
+
+                    await self._自由编辑参数的运动.开启激光()
 
 
 
