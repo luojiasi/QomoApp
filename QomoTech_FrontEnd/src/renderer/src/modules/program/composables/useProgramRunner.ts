@@ -8,6 +8,7 @@ import { useProgramControl } from './useProgramControl'
 // 旧版 editor
 import { useQomo5PStore } from '@/modules/editor/useQomo5PStore'
 import type { QomoEntityWithSurface } from '@/modules/editor/qomo5pTypes'
+import { usePositionTable } from '@/shared/composables/usePositionTable'
 // 新版 entitiesEditor
 import type { EditorEntity, SurfaceEntity } from '@/modules/entitiesEditor/commons/types'
 import { exportEntitiesWithCalculated } from '@/modules/entitiesEditor/utils/entitiesWithCalculated'
@@ -24,6 +25,7 @@ export function useProgramRunner() {
   const { error, success } = useNotification()
   const qomo5pStore = useQomo5PStore()
   const { mposition: wsMposition } = useHardwareState()
+  const { enabledRows, chooseOptionsTypes } = usePositionTable()
 
   const {
     dialogVisible: show4PDialogVisible,
@@ -219,10 +221,56 @@ export function useProgramRunner() {
     const source = detectEntitySource()
     if (!source) return
 
-    if (source === 'qomo5p') {
-      await runQomo5P()
-    } else {
-      await runEntitiesEditor()
+    if (chooseOptionsTypes.value === 'matrix-process') {
+      await runMatrixProcess()
+      return
+    }else{
+      if (source === 'qomo5p') {
+        await runQomo5P()
+      } else {
+        await runEntitiesEditor()
+      }
+    }
+
+
+  }
+
+  async function runMatrixProcess(): Promise<void> {
+    const positions = enabledRows.value
+    if (positions.length === 0) {
+      error('运行失败：矩阵加工模式下至少需要一个启用点位。')
+      return
+    }
+
+    const source = detectEntitySource()
+    if (!source) return
+
+    try {
+      runTrigger.value = true
+
+      if (source === 'qomo5p') {
+        const rawEntities = qomo5pStore.exportEntitiesToHomeVue()
+        const allOffsetEntities: QomoEntityWithSurface[] = []
+
+        for (const pos of positions) {
+          const offsetEntity = offsetEntitiesByXYMpos(rawEntities, pos.x, pos.y)
+          allOffsetEntities.push(...offsetEntity)
+        }
+
+        // const payload = {
+        //   recipe_payload: currentRunRecipePayload.value,
+        //   entities: allOffsetEntities,
+        //   stop_percents: positions.map((p) => p.stopPercent)
+        // }
+        const payload = {
+          recipe_payload: currentRunRecipePayload.value,
+          entities: allOffsetEntities,
+        }
+        const result = await startProgram(payload)
+        applyRunResult(result)
+      }
+    } catch {
+      error('运行失败：无法连接后端。')
     }
   }
 

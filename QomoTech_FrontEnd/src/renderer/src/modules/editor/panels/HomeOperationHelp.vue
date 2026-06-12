@@ -4,6 +4,9 @@ import { useRouter } from 'vue-router'
 import CollapsiblePanelHeader from '@/shared/components/CollapsiblePanelHeader.vue'
 import UseHelpContent from '@/modules/editor/panels/UseHelpContent.vue'
 import RadioGroup from '@/shared/components/RadioGroup.vue'
+import PositionTable from '@/shared/components/PositionTable.vue'
+import { usePositionTable } from '@/shared/composables/usePositionTable'
+import type { CreateFlowType } from '@/shared/composables/usePositionTable'
 import { useNotification } from '@/shared/composables/useNotification'
 import { useQomo5PStore } from '../useQomo5PStore'
 import { storeToRefs } from 'pinia'
@@ -69,11 +72,9 @@ const handleModifyImage = async () => {
 }
 
 // =========================================================================================
-// 创建图像的步骤 
+// 创建图像的步骤
 type CreateWizardStep = 'ready' | 'create' | 'choose'| 'position'
 const createWizardStep = ref<CreateWizardStep>('ready')
-type CreateFlowType = 'image-process' | 'matrix-process'
-const chooseOptionsTypes = ref<CreateFlowType>('image-process')
 const createWizardStepDict: Record<CreateWizardStep, { stepNo: number; text: string }> = {
   ready: { stepNo: 1, text: '准备阶段' },
   create: { stepNo: 2, text: '创建图形' },
@@ -111,8 +112,8 @@ watch(() => entities.value.length, (entityLen) => {entityLen > 0 ? createWizardS
 
 
 
-// =========================================================================================
-// 当导入/加载后，store 内如果还没有选中项，则默认选中第一个实体，
+const { rows, addRow, removeRow, toggleEnabled, setStopPercent, recordCurrentPosition, chooseOptionsTypes } =
+  usePositionTable()
 // 以便 overlay 高亮 + 本卡片能显示数据。
 // 默认不选中任何实体：避免切回首页时自动高亮第一个实体
 const userSelectedNone = ref(true)
@@ -210,8 +211,15 @@ const getArcEndPoint = (e: QomoArcSurfacesEntity) => e.endPoint ?? polarToCartes
         <RadioGroup v-model="chooseOptionsTypes" :options="chooseOptions" />
       </div>
 
-      <div v-if="currentCreateStepMeta.stepNo == 4 && chooseOptionsTypes == 'matrix-process'" class="flex items-start justify-center gap-2">
-        准备开始
+      <div v-if="currentCreateStepMeta.stepNo == 4 && chooseOptionsTypes == 'matrix-process'" class="space-y-2">
+        <PositionTable
+          :rows="rows"
+          @add="addRow"
+          @record="recordCurrentPosition"
+          @remove="removeRow"
+          @toggle-enabled="toggleEnabled"
+          @update-stop-percent="(id, v) => setStopPercent(id, v)"
+        />
       </div>
 
       <div v-if="currentCreateStepMeta.stepNo >=2">
