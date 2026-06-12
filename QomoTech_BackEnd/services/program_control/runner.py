@@ -167,8 +167,6 @@ class ProgramRunner(ProgramContext):
             if not self._是否运行中:
                 return {"success": False, "message": "当前没有运行中的程序"}
             self._是否跳过请求 = True
-        if self._运动.适配器 and self._运动.适配器.已连接:
-            await self._运动.急停()
         self._广播状态变更(force=True)
         return {"success": True, "message": "已请求跳过当前任务"}
 
@@ -356,6 +354,9 @@ class ProgramRunner(ProgramContext):
                 return await self._运动原语.跳过任务并回Z轴(z轴目标=首次目标Z轴位置, 速度=切割速度)
             if self._是否急停请求:
                 当前步骤 = ProgramStep.清理所有状态
+            if self._是否已暂停:
+                await asyncio.sleep(0.05)
+                continue
 
             match 当前步骤:
                 case ProgramStep.检查控制器是否连接:
@@ -922,6 +923,9 @@ class ProgramRunner(ProgramContext):
                 return await self._运动原语.跳过任务并回Z轴(z轴目标=Z轴原始初始位置, 速度=切割速度)
             if self._是否急停请求:
                 当前步骤 = ProgramStep.结束程序运行
+            if self._是否已暂停:
+                await asyncio.sleep(0.05)
+                continue
 
             match 当前步骤:
                 case ProgramStep.检查控制器是否连接:

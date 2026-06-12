@@ -311,7 +311,18 @@ class ProgramRunnerFreeParam:
                         当前步骤 = ProgramFreeParamsStep.清理所有状态
 
                 case ProgramFreeParamsStep.切割R轴:
-                    当前步骤 = ProgramFreeParamsStep.等待R轴旋转一圈
+                    
+                    构建切割直线的坐标X = 执行任务的参数.get("切割中点的坐标").get("X") + 当前开口值
+                    构建切割直线的坐标Y起点 = float(执行任务的参数.get("切割中点的坐标").get("Y"))
+                    插补运行的路径点= [{"x": 构建切割直线的坐标X, "y": 构建切割直线的坐标Y起点}]
+                    当前速度百分比 = 边缘切割速度百分比 if 是否在边缘位置 else 中间切割速度百分比
+                    目标运行速度 = 插补的运行速度 * 当前速度百分比
+                    切割直线的结果 = await self._运动.连续插补XY(路径点=插补运行的路径点,速度=目标运行速度)
+                    
+                    if 切割直线的结果:
+                        当前步骤 = ProgramFreeParamsStep.等待R轴旋转一圈
+                    else:
+                        当前步骤 = ProgramFreeParamsStep.清理所有状态
                 
                 case ProgramFreeParamsStep.切割直线:
 
@@ -331,6 +342,7 @@ class ProgramRunnerFreeParam:
                         当前步骤 = ProgramFreeParamsStep.清理所有状态
 
                 case ProgramFreeParamsStep.等待R轴旋转一圈:
+                    await self._运动.R轴旋转的圈数(1.0)
                     当前步骤 = ProgramFreeParamsStep.更新开口偏移值
 
 
@@ -370,10 +382,18 @@ class ProgramRunnerFreeParam:
                         是否在边缘位置 = True
                         准备开始切割下一次的第一次 = True
 
-                    if 当前开口值是否在范围内 or (是否在边缘位置 and 准备开始切割下一次的第一次 and not 切割完成之后去跳转):
-                        当前步骤 = ProgramFreeParamsStep.切割直线
+                    if not 执行任务的参数.get("是否启用R轴旋转"):
+                        if 当前开口值是否在范围内 or (是否在边缘位置 and 准备开始切割下一次的第一次 and not 切割完成之后去跳转):
+                            当前步骤 = ProgramFreeParamsStep.切割直线
+                        else:
+                            当前步骤 = ProgramFreeParamsStep.旋转时关闭激光
                     else:
-                        当前步骤 = ProgramFreeParamsStep.旋转时关闭激光
+                        if 当前开口值是否在范围内  or (是否在边缘位置 and 准备开始切割下一次的第一次 and 切割完成之后去跳转):
+                            当前步骤 = ProgramFreeParamsStep.切割R轴
+                        else:
+                            准备开始切割下一次的第一次 = False
+                            当前步骤 = ProgramFreeParamsStep.计算下一层开口
+
                 case ProgramFreeParamsStep.旋转时关闭激光:
 
                     await self._自由编辑参数的运动.关闭激光()

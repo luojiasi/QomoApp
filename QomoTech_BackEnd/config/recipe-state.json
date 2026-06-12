@@ -81,11 +81,11 @@
       },
       "lowerOpeningFormula": {
         "k": 5,
-        "b": 60
+        "b": 200
       },
       "depthCompensationFormula": {
-        "k": 2,
-        "b": 0.5
+        "k": 3,
+        "b": 1
       },
       "upperOpeningFormula": "由系统自动计算",
       "compensationAngleFormula": {
@@ -94,7 +94,7 @@
       },
       "focusCompensation": 0.08,
       "id": "horizontal-formula-1",
-      "updatedAt": "2026-6-6 14:33:56"
+      "updatedAt": "2026-6-10 15:03:28"
     }
   ],
   "verticalFormulaRecipes": [
@@ -121,7 +121,7 @@
         }
       },
       "descentCutting": {
-        "speed": 0.15,
+        "speed": 0.08,
         "zFeed": 0.002,
         "change": {
           "k": 10,
@@ -130,7 +130,7 @@
       },
       "id": "vertical-formula-1",
       "name": "1",
-      "updatedAt": "2026-6-6 14:24:09"
+      "updatedAt": "2026-6-10 14:14:59"
     }
   ],
   "machiningRecipes": [

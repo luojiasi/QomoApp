@@ -613,6 +613,7 @@ class ZMC适配器:
         正软限位: Optional[float] = None,
         负软限位: Optional[float] = None,
         使能: Optional[bool] = None,
+        **_忽略: Any,  # 接收 pulses_per_rev / electronic_gear_ratio / gear_ratio / step_angle / microsteps 等非驱动参数
     ) -> None:
         """选择性下发某轴的多个参数 —— 仅传非 None 的字段在同一把 IO 任务里串行写入。
 

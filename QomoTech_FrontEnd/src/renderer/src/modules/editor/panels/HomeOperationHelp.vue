@@ -3,6 +3,7 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import CollapsiblePanelHeader from '@/shared/components/CollapsiblePanelHeader.vue'
 import UseHelpContent from '@/modules/editor/panels/UseHelpContent.vue'
+import RadioGroup from '@/shared/components/RadioGroup.vue'
 import { useNotification } from '@/shared/composables/useNotification'
 import { useQomo5PStore } from '../useQomo5PStore'
 import { storeToRefs } from 'pinia'
@@ -68,17 +69,28 @@ const handleModifyImage = async () => {
 }
 
 // =========================================================================================
-// 创建图像的步骤
-type CreateWizardStep = 'ready' | 'chooseMachineXY' | 'setParams'
+// 创建图像的步骤 
+type CreateWizardStep = 'ready' | 'create' | 'choose'| 'position'
 const createWizardStep = ref<CreateWizardStep>('ready')
+type CreateFlowType = 'image-process' | 'matrix-process'
+const chooseOptionsTypes = ref<CreateFlowType>('image-process')
 const createWizardStepDict: Record<CreateWizardStep, { stepNo: number; text: string }> = {
-  ready: { stepNo: 1, text: '准备创建图像' },
-  chooseMachineXY: { stepNo: 2, text: '选择加工点位' },
-  setParams: { stepNo: 3, text: '进行图像调整' },
+  ready: { stepNo: 1, text: '准备阶段' },
+  create: { stepNo: 2, text: '创建图形' },
+  choose: { stepNo: 3, text: '选择类型' },
+  position: { stepNo: 4, text: '精选点位'},
 }
 const createWizardTotalSteps = Object.keys(createWizardStepDict).length
 const currentCreateStepMeta = computed(() => createWizardStepDict[createWizardStep.value])
 const createWizardHeaderTitle = computed(() => `当前步骤:${currentCreateStepMeta.value.stepNo} ${currentCreateStepMeta.value.text}/${createWizardTotalSteps}步`)
+
+
+const chooseOptions: { value: CreateFlowType; label: string }[] = [
+  { value: 'image-process', label: '完整图像套图加工' },
+  { value: 'matrix-process', label: '图像单元矩阵加工' },
+]
+
+
 // 上一步和下一步的功能实现
 const createWizardStepOrder = (Object.keys(createWizardStepDict) as CreateWizardStep[]).sort((a, b) => createWizardStepDict[a].stepNo - createWizardStepDict[b].stepNo)
 const handlePreviousStep = () => {
@@ -92,7 +104,7 @@ const handleNextStep = () => {
   createWizardStep.value = createWizardStepOrder[currentIndex + 1]
 }
 // 始终监听实体数量，自动切换步骤
-watch(() => entities.value.length, (entityLen) => {entityLen > 0 ? createWizardStep.value = 'chooseMachineXY':createWizardStep.value = 'ready'}, { immediate: true })
+watch(() => entities.value.length, (entityLen) => {entityLen > 0 ? createWizardStep.value = 'create':createWizardStep.value = 'ready'}, { immediate: true })
 
 
 
@@ -191,6 +203,15 @@ const getArcEndPoint = (e: QomoArcSurfacesEntity) => e.endPoint ?? polarToCartes
         >
           导入…
         </button>
+
+      </div>
+
+      <div v-if="currentCreateStepMeta.stepNo == 3" class="flex items-start justify-center gap-2">
+        <RadioGroup v-model="chooseOptionsTypes" :options="chooseOptions" />
+      </div>
+
+      <div v-if="currentCreateStepMeta.stepNo == 4 && chooseOptionsTypes == 'matrix-process'" class="flex items-start justify-center gap-2">
+        准备开始
       </div>
 
       <div v-if="currentCreateStepMeta.stepNo >=2">
@@ -214,11 +235,8 @@ const getArcEndPoint = (e: QomoArcSurfacesEntity) => e.endPoint ?? polarToCartes
         </div>
       </div>
 
-      <div
-        class="rounded-xl border border-(--app-border) bg-(--app-card-soft) p-2 shadow-sm shadow-slate-900/5 ring-1 ring-slate-950/4 dark:shadow-md dark:shadow-black/25 dark:ring-white/5"
-      >
+      <div class="rounded-xl border border-(--app-border) bg-(--app-card-soft) p-2 shadow-sm shadow-slate-900/5 ring-1 ring-slate-950/4 dark:shadow-md dark:shadow-black/25 dark:ring-white/5" >
         <div class="mt-1">
-          
           <div class="flex items-center gap-3" v-if="selectableEntities.length > 0">
             <select
               v-model="dropdownSelectedEntityId"
