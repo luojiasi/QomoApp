@@ -10,6 +10,7 @@ import asyncio
 from typing import Any, Protocol
 
 from services.MotionService import MotionService
+from services.motion_control.safe_controller import SafetyViolation
 from utils.logger import 获取日志记录器
 
 日志 = 获取日志记录器("运动原子操作")
@@ -122,10 +123,13 @@ class MotionPrimitives:
         """停止运动并关闭输出 0 和 2。"""
         try:
             await self._运动.停止运动()
+        except Exception:
+            日志.exception("清除运行输出 停止运动失败")
+        try:
             await self._运动.设置输出(0, False)
             await self._运动.设置输出(2, False)
         except Exception:
-            日志.exception("清除运行输出 失败")
+            日志.exception("清除运行输出 关闭输出失败")
 
     # ------------------------------------------------------------------
     # 跳过任务 → 回到目标 Z 轴
@@ -156,6 +160,8 @@ class MotionPrimitives:
                         break
                     等待计数 += 1
                     await asyncio.sleep(0.01)
+            except SafetyViolation:
+                日志.warning("跳过任务 → Z轴回位被安全闸拒绝（可能处于ESTOP），跳过Z轴移动")
             except Exception:
                 日志.exception("跳过任务 → Z轴复位 失败")
         self._上下文.清除跳过请求()

@@ -131,6 +131,40 @@
       "id": "vertical-formula-1",
       "name": "1",
       "updatedAt": "2026-6-10 14:14:59"
+    },
+    {
+      "cuttingAxis": "R",
+      "changePercent": 10,
+      "xFeed": 0.01,
+      "xSpeed": 20,
+      "edgeCutting": {
+        "speed": 50,
+        "cutTimes": 2,
+        "cutSpeedNums": 5,
+        "change": {
+          "k": 1,
+          "b": 5
+        }
+      },
+      "middleCutting": {
+        "speed": 100,
+        "cutTimes": 1,
+        "change": {
+          "k": 0,
+          "b": 50
+        }
+      },
+      "descentCutting": {
+        "speed": 0.075,
+        "zFeed": 0.002,
+        "change": {
+          "k": 10,
+          "b": 0.075
+        }
+      },
+      "id": "vertical-formula-2",
+      "name": "垂直工艺配方 2",
+      "updatedAt": "2026-6-13 14:07:20"
     }
   ],
   "machiningRecipes": [

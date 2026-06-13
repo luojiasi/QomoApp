@@ -6,11 +6,14 @@ import icon from '../../resources/icon.png?asset'
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
-    width: 1400,
-    height: 900,
+    width: 1920,
+    height: 1080,
+    minWidth: 1024,
+    minHeight: 720,
+    title: '科猛碳极',
     show: false,
     autoHideMenuBar: true,
-    ...(process.platform === 'linux' ? { icon } : {}),
+    icon,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false
@@ -39,6 +42,7 @@ function createWindow(): void {
 
   autoUpdater.on('update-available', (info) => {
     mainWindow.webContents.send('update:update-available', info)
+    // DO NOT auto-download — user must click the button in UpdateModal
   })
 
   autoUpdater.on('update-not-available', (info) => {
@@ -65,19 +69,48 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  // IPC: renderer requests update check
+  // IPC: renderer queries system info
+  ipcMain.handle('system:info', () => {
+    const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
+    const bounds = win?.getBounds()
+    return {
+      appName: app.getName(),
+      appVersion: app.getVersion(),
+      appId: 'com.qomotech.app',
+      electron: process.versions.electron ?? '',
+      chrome: process.versions.chrome ?? '',
+      node: process.versions.node ?? '',
+      platform: process.platform,
+      arch: process.arch,
+      windowWidth: bounds?.width ?? 0,
+      windowHeight: bounds?.height ?? 0,
+      updateUrl: 'http://localhost:3000'
+    }
+  })
+
+  // IPC: renderer requests update check (check only, no auto-download)
   ipcMain.handle('update:check', async () => {
     try {
+      autoUpdater.autoDownload = false
       const result = await autoUpdater.checkForUpdates()
-      return { success: true, updateInfo: result?.updateInfo ?? null }
+      const updateInfo = result?.updateInfo ?? null
+      // Compare versions: only return updateInfo if server version is strictly newer
+      if (updateInfo && updateInfo.version) {
+        const current = app.getVersion()
+        if (updateInfo.version === current) {
+          return { success: true, updateInfo: null }
+        }
+      }
+      return { success: true, updateInfo }
     } catch (error) {
       return { success: false, error: String(error) }
     }
   })
 
-  // IPC: renderer requests download update
+  // IPC: renderer explicitly requests download (user clicked the button)
   ipcMain.handle('update:download', async () => {
     try {
+      autoUpdater.autoDownload = false
       await autoUpdater.downloadUpdate()
       return { success: true }
     } catch (error) {
@@ -95,12 +128,6 @@ app.whenReady().then(() => {
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
-
-  // Auto-check for updates on launch (production only)
-  if (!is.dev) {
-    autoUpdater.autoDownload = false
-    autoUpdater.checkForUpdates()
-  }
 })
 
 app.on('window-all-closed', () => {

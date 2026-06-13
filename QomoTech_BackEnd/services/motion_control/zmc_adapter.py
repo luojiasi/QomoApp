@@ -187,12 +187,12 @@ class ZMC适配器:
         return float(self._配置.u_axis.gear_ratio)
 
     @property
-    def _R轴步进角度(self) -> float:
-        return float(self._配置.r_axis.step_angle)
+    def _R轴每圈脉冲数(self) -> float:
+        return float(self._配置.r_axis.pulses_per_rev)
 
     @property
-    def _R轴细分数(self) -> float:
-        return float(self._配置.r_axis.microsteps)
+    def _R轴电子齿轮比(self) -> float:
+        return float(self._配置.r_axis.electronic_gear_ratio)
 
     @property
     def _R轴减速比(self) -> float:
@@ -1499,13 +1499,8 @@ class ZMC适配器:
         if 旋转圈数 <= 0:
             return {"success": False, "message": "旋转圈数必须大于 0"}
 
-        步进角度 = self._R轴步进角度
-        细分数 = self._R轴细分数
-        减速比 = self._R轴减速比
+        每圈脉冲数 = self._R轴每圈脉冲数 * self._R轴电子齿轮比 * self._R轴减速比
         方向归一 = 1  # 顺时针
-
-        电机每圈整步数 = 360.0 / 步进角度
-        每圈脉冲数 = 电机每圈整步数 * 细分数 * 减速比
         try:
             状态 = await self.读全部轴状态()
         except ZMCError as exc:
@@ -1530,7 +1525,7 @@ class ZMC适配器:
         }
     
     async def R轴旋转的圈数带参数(self, 旋转参数: Dict[str, Any]) -> Dict[str, Any]:
-        """对应 core ZMotionAdapter.R轴旋转的圈数。步进电机：(360/步进角)*细分*减速比。"""
+        """对应 core ZMotionAdapter.R轴旋转的圈数。伺服电机：脉冲每圈*电子齿轮比*减速比。"""
         if not isinstance(旋转参数, dict):
             return {"success": False, "message": "旋转参数必须是对象"}
         try:
@@ -1552,21 +1547,20 @@ class ZMC适配器:
             return {"success": False, "message": "运动模式仅支持 relative/absolute"}
 
         try:
-            步进角度 = float(旋转参数.get("步进角度", self._R轴步进角度))
-            细分数 = float(旋转参数.get("细分数", self._R轴细分数))
+            每圈脉冲数_param = float(旋转参数.get("每圈脉冲数", self._R轴每圈脉冲数))
+            电子齿轮比 = float(旋转参数.get("电子齿轮比", self._R轴电子齿轮比))
             减速比 = float(旋转参数.get("减速比", self._R轴减速比))
         except (TypeError, ValueError):
-            return {"success": False, "message": "步进角度/细分数/减速比参数格式错误"}
-        if 步进角度 <= 0 or 细分数 <= 0 or 减速比 <= 0:
-            return {"success": False, "message": "步进角度/细分数/减速比必须大于 0"}
+            return {"success": False, "message": "每圈脉冲数/电子齿轮比/减速比参数格式错误"}
+        if 每圈脉冲数_param <= 0 or 电子齿轮比 <= 0 or 减速比 <= 0:
+            return {"success": False, "message": "每圈脉冲数/电子齿轮比/减速比必须大于 0"}
 
         try:
             await self.设置速度(轴_R, float(旋转速度))
         except ZMCError as exc:
             return {"success": False, "message": f"设置 R 轴速度失败: {exc}"}
 
-        电机每圈整步数 = 360.0 / 步进角度
-        每圈脉冲数 = 电机每圈整步数 * 细分数 * 减速比
+        每圈脉冲数 = 每圈脉冲数_param * 电子齿轮比 * 减速比
         try:
             状态 = await self.读全部轴状态()
         except ZMCError as exc:
@@ -1655,7 +1649,7 @@ class ZMC适配器:
         axis_units = float(r状态.get("units", 0.0))
         if axis_units <= 0: return 0.0
         每圈脉冲数 = (
-            (360.0 / self._R轴步进角度) * self._R轴细分数 * self._R轴减速比
+            self._R轴每圈脉冲数 * self._R轴电子齿轮比 * self._R轴减速比
         )
         return 当前工程位移 * axis_units / 每圈脉冲数
 

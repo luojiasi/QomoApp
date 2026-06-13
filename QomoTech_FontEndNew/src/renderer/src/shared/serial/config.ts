@@ -1,0 +1,21 @@
+import type { Rs232WorkbenchState } from './types'
+
+export const defaultRs232WorkbenchState: Rs232WorkbenchState = {
+  port: {
+    portName: 'COM4', baudRate: 9600, dataBits: 8, parity: 'none',
+    stopBits: 1, flowControl: 'none', timeoutMs: 200, encoding: 'utf-8'
+  },
+  send: {
+    mode: 'ascii', payload: '', appendCr: true, appendLf: true,
+    autoSend: false, autoSendIntervalMs: 1000
+  },
+  receive: {
+    mode: 'ascii', maxBufferLines: 500, showTimestamp: true, autoScroll: true
+  },
+  receiveBuffer: '',
+  quickCommands: [
+    { id: 'send-current', title: '发送电流', description: '发送电流指令', mode: 'ascii', payload: 'LD1CS 100' },
+    { id: 'send-power', title: '发送功率', description: '发送功率指令', mode: 'ascii', payload: 'POW 100' },
+    { id: 'send-frequency', title: '发送频率', description: '发送频率指令', mode: 'ascii', payload: 'REPF 100' }
+  ]
+}

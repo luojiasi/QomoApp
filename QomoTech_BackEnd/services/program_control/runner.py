@@ -241,8 +241,12 @@ class ProgramRunner(ProgramContext):
                     加工轴 = 垂直公式.get("cuttingAxis")
                     是否圆或圆弧 = 判断是否都是圆或者圆弧(实体数据=实体数据)
 
-                    if 加工轴 == 'R' and 是否圆或圆弧:结果 = await self._R轴切圆(原始任务序号=当前任务索引,配方数据=配方数据,实体数据=实体数据,配方集=配方集)
-                    elif 加工轴 == 'XY':结果 = await self._修面和切片(原始任务序号=当前任务索引,配方数据=配方数据,实体数据=实体数据,配方集=配方集)
+                    if 加工轴 == 'R' and 是否圆或圆弧:
+                        结果 = await self._R轴切圆(原始任务序号=当前任务索引,配方数据=配方数据,实体数据=实体数据,配方集=配方集)
+                    elif 加工轴 == 'XY':
+                        结果 = await self._修面和切片(原始任务序号=当前任务索引,配方数据=配方数据,实体数据=实体数据,配方集=配方集)
+                    else:
+                        结果 = False
 
                     if 结果 == "skip":continue
                     if 结果 == "abort":return {"success": False, "message": "程序已急停", "data": None}
@@ -551,8 +555,15 @@ class ProgramRunner(ProgramContext):
                         await self._运动原语.安全拉取xy轴是否空闲()
                         await self._运动.绝对运动并设速度("Z", 返回最原始的Z轴焦距位置, 切割速度)
                         当前步骤 = ProgramStep.等待Z轴回指定位置
+                    except SafetyViolation as exc:
+                        if "ESTOP" in str(exc):
+                            当前步骤 = ProgramStep.终止任务
+                        else:
+                            日志.exception("清理所有状态 Z轴回位 SafetyViolation")
+                            当前步骤 = ProgramStep.终止任务
                     except Exception:
                         日志.exception("清理所有状态 Z轴回位失败")
+                        当前步骤 = ProgramStep.终止任务
 
                 case ProgramStep.等待Z轴回指定位置:
                     跳转计数 = 0
@@ -1116,8 +1127,15 @@ class ProgramRunner(ProgramContext):
                     try:
                         await self._运动.绝对运动并设速度("Z", Z轴原始初始位置, 切割速度)
                         当前步骤 = ProgramStep.等待Z轴回指定位置
+                    except SafetyViolation as exc:
+                        if "ESTOP" in str(exc):
+                            当前步骤 = ProgramStep.结束程序运行
+                        else:
+                            日志.exception("4P 清理Z轴回位 SafetyViolation")
+                            当前步骤 = ProgramStep.结束程序运行
                     except Exception:
-                        pass
+                        日志.exception("4P 清理Z轴回位失败")
+                        当前步骤 = ProgramStep.结束程序运行
 
                 case ProgramStep.等待Z轴回指定位置:
                     跳转计数 = 0

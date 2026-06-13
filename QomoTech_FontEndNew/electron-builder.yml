@@ -1,5 +1,5 @@
-appId: com.electron.app
-productName: qomotech-fontendnew
+appId: com.qomotech.app
+productName: QomoTech
 directories:
   buildResources: build
 files:
@@ -12,7 +12,7 @@ files:
 asarUnpack:
   - resources/**
 win:
-  executableName: qomotech-fontendnew
+  executableName: QomoTech
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}
@@ -33,13 +33,13 @@ linux:
     - AppImage
     - snap
     - deb
-  maintainer: electronjs.org
+  maintainer: qomotech.com
   category: Utility
 appImage:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: false
 publish:
   provider: generic
-  url: https://example.com/auto-updates
+  url: http://localhost:3000
 electronDownload:
   mirror: https://npmmirror.com/mirrors/electron/
