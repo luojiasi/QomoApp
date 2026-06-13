@@ -17,6 +17,7 @@ const userInputFields = (
   { key: 'merge', label: '连续插补(0/1)', value: axis.merge },
   { key: 'fwd_in', label: '正限位输入(-1=禁用)', value: axis.fwd_in },
   { key: 'rev_in', label: '负限位输入(-1=禁用)', value: axis.rev_in },
+  { key: 'motor_type', label: '电机类型(servo/stepper)', value: axis.motor_type },
   { key: 'pulses_per_rev', label: '每圈脉冲数', value: axis.pulses_per_rev },
   { key: 'electronic_gear_ratio', label: '电子齿轮比', value: axis.electronic_gear_ratio },
   { key: 'gear_ratio', label: '减速比', value: axis.gear_ratio },

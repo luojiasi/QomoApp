@@ -62,6 +62,8 @@ export interface ControllerAxisUserInput {
   merge: number
   fwd_in: number
   rev_in: number
+  /** 电机类型：servo=伺服，stepper=步进 */
+  motor_type: 'servo' | 'stepper'
   pulses_per_rev: number
   electronic_gear_ratio: number
   gear_ratio: number

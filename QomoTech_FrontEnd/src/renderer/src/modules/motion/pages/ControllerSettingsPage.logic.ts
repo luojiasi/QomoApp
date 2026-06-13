@@ -39,6 +39,10 @@ function isBacklashEnableField(field: ParameterField): boolean {
   return field.key === 'backlash_enable'
 }
 
+function isMotorTypeField(field: ParameterField): boolean {
+  return field.key === 'motor_type'
+}
+
 /** 控制器设置页面逻辑：通讯参数、轴配置、连接/急停、IO 控制、在线命令。 */
 export function useControllerSettingsPageLogic() {
   const controllerStore = useControllerSettingsStore()
@@ -209,6 +213,7 @@ export function useControllerSettingsPageLogic() {
     mergeParamKey,
     userNumberKey,
     isBacklashEnableField,
+    isMotorTypeField,
     // save / reset
     saving,
     handleSaveToFile,

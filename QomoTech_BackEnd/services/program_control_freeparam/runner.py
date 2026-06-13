@@ -1,4 +1,3 @@
-from ast import Or
 import math
 from typing import Any
 import asyncio
@@ -137,7 +136,7 @@ class ProgramRunnerFreeParam:
                     直径所在平面的Z高度 = abs(当前Z) + 累计高度
                     执行任务的参数 = 构建执行任务的参数(该序号的参数, 直径所在平面的Z高度, 累计高度)
                     try:
-                        await self._切割(配方数据=该序号的配方,执行任务的参数=执行任务的参数)
+                        await self._切割(配方数据=该序号的配方,执行任务的参数=执行任务的参数 ,起始点的位置 = {"x":当前X,"y":当前Y,"z":当前Z})
                     except Exception as e:
                         日志.error(f"任务 {当前序号} 执行失败: {e}")
                         return {"success": False, "message": f"任务 {当前序号} 执行失败: {e}"}
@@ -161,7 +160,7 @@ class ProgramRunnerFreeParam:
                 return True
         return False
 
-    async def _切割(self,配方数据:dict[str, Any],执行任务的参数:dict[str, Any])->bool:
+    async def _切割(self,配方数据:dict[str, Any],执行任务的参数:dict[str, Any],起始点的位置:dict[str, Any])->bool:
         是否完成切割 = False
         当前步骤 = ProgramFreeParamsStep.准备开始
 
@@ -442,7 +441,10 @@ class ProgramRunnerFreeParam:
                     await self._自由编辑参数的运动.关闭激光()
                     # 不重复调急停——急停已在外部控制指令中触发
                     # TODO:回到台面的位置
-
+                    await self._运动.绝对运动("Z", 起始点的位置.get("z"))
+                    其实坐标的路径点 = [{"x": 起始点的位置.get("x"), "y": 起始点的位置.get("y")}]
+                    await self._运动.连续插补XY(路径点=其实坐标的路径点,速度=10)
+                    await self._运动.U轴旋转角度(0)
                     当前步骤 = ProgramFreeParamsStep.结束当前任务
 
 

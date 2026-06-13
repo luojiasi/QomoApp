@@ -22,6 +22,7 @@ const {
   mergeParamKey,
   userNumberKey,
   isBacklashEnableField,
+  isMotorTypeField,
   saving,
   handleSaveToFile,
   resetAllAxes,
@@ -306,6 +307,15 @@ const {
                     >
                       <option :value="false">否</option>
                       <option :value="true">是</option>
+                    </select>
+                    <!-- motor_type：下拉 -->
+                    <select
+                      v-else-if="isMotorTypeField(field)"
+                      v-model="controllerStore.controllerSettings.axes[axisIdx].motor_type"
+                      class="w-full rounded-md border border-(--app-border) bg-(--app-input-bg) px-2 py-1 text-xs outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2 text-center"
+                    >
+                      <option value="servo">servo</option>
+                      <option value="stepper">stepper</option>
                     </select>
                     <!-- merge_params 子字段 -->
                     <input

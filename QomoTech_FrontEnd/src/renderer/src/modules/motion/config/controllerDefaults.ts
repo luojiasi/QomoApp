@@ -76,6 +76,7 @@ function makeDefaultAxis(
     merge: 0,
     fwd_in: -1,
     rev_in: -1,
+    motor_type: 'servo' as const,
     pulses_per_rev: 10000.0,
     electronic_gear_ratio: 1.0,
     gear_ratio: 1.0,

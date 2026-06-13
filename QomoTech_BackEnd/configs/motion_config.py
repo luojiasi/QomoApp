@@ -18,6 +18,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+MotorType = Literal["servo", "stepper"]
+
 
 class MergeParams(BaseModel):
     """连续轨迹合并参数 —— 仅在 axis.merge=1 时生效。
@@ -58,10 +60,18 @@ class MotionAxisConfig(BaseModel):
     fwd_in: int = -1                                                # 正限位输入口（-1=禁用）
     rev_in: int = -1                                                # 负限位输入口（-1=禁用）
 
-    # U/R 轴伺服机械参数（用于角度↔位移换算）
-    pulses_per_rev: float = Field(default=10000.0, gt=0)            # 每圈脉冲数
-    electronic_gear_ratio: float = Field(default=1.0, gt=0)         # 电子齿轮比
+    # U/R 轴机械参数（伺服用 pulses_per_rev/electronic_gear_ratio/gear_ratio，步进用 step_angle/microsteps/gear_ratio）
+    # 电机类型：servo = 伺服，stepper = 步进。根据 motor_type 选择对应公式计算每圈脉冲数
+    motor_type: MotorType = Field(default="servo")
+
+    # 伺服参数
+    pulses_per_rev: float = Field(default=10000.0, gt=0)            # 每圈脉冲数（伺服用）
+    electronic_gear_ratio: float = Field(default=1.0, gt=0)         # 电子齿轮比（伺服用）
     gear_ratio: float = Field(default=1.0, gt=0)                    # 减速比
+
+    # 步进参数
+    step_angle: float = Field(default=1.8, ge=0)                    # 步进角度（步进电机用，直轴填0）
+    microsteps: float = Field(default=32.0, ge=0)                   # 细分数（步进电机用，直轴填0）
 
     merge_params: MergeParams = Field(default_factory=MergeParams)
 
@@ -85,7 +95,7 @@ class MotionConfig(BaseModel):
         pulses_per_rev=10000.0, electronic_gear_ratio=1.0, gear_ratio=1.0,
     )
     r_axis: MotionAxisConfig = MotionAxisConfig(
-        axis_no=4, axis_name="R",
+        axis_no=4, axis_name="R", motor_type="servo",
         pulses_per_rev=10000.0, electronic_gear_ratio=1.0, gear_ratio=1.0,
     )
 

@@ -188,11 +188,19 @@ class ZMC适配器:
 
     @property
     def _R轴每圈脉冲数(self) -> float:
-        return float(self._配置.r_axis.pulses_per_rev)
+        cfg = self._配置.r_axis
+        if cfg.motor_type == "stepper":
+            step_angle = float(cfg.step_angle)
+            microsteps = float(cfg.microsteps)
+            gear_ratio = float(cfg.gear_ratio)
+            if step_angle <= 0:
+                return 0.0
+            return (360.0 / step_angle) * microsteps * gear_ratio
+        return float(cfg.pulses_per_rev) * float(cfg.electronic_gear_ratio) * float(cfg.gear_ratio)
 
     @property
     def _R轴电子齿轮比(self) -> float:
-        return float(self._配置.r_axis.electronic_gear_ratio)
+        return 1.0  # 步进模式下电子齿轮比不适用，返回 1.0; 伺服模式下读配置
 
     @property
     def _R轴减速比(self) -> float:
@@ -1525,7 +1533,10 @@ class ZMC适配器:
         }
     
     async def R轴旋转的圈数带参数(self, 旋转参数: Dict[str, Any]) -> Dict[str, Any]:
-        """对应 core ZMotionAdapter.R轴旋转的圈数。伺服电机：脉冲每圈*电子齿轮比*减速比。"""
+        """R轴旋转。根据 motor_type 自动选择公式：
+        - servo: pulses_per_rev * electronic_gear_ratio * gear_ratio
+        - stepper: (360/step_angle) * microsteps * gear_ratio
+        """
         if not isinstance(旋转参数, dict):
             return {"success": False, "message": "旋转参数必须是对象"}
         try:
