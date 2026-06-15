@@ -91,8 +91,8 @@ function openSocket() {
   ws.onmessage = (ev: MessageEvent) => {
     try {
       const data = JSON.parse(ev.data) as MotionStatusSnapshot
-      if ((data as Record<string, unknown>).error) {
-        lastError.value = String((data as Record<string, unknown>).error)
+      if (data.error) {
+        lastError.value = String(data.error)
         return
       }
       controllerState.value = data.state

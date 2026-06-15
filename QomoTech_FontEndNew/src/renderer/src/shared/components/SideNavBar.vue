@@ -15,13 +15,14 @@ interface NavItem {
 const mainNavItems: NavItem[] = [
   { path: '/monitor', icon: 'videocam', labelKey: 'nav.monitor' },
   { path: '/control', icon: 'settings_input_component', labelKey: 'nav.control' },
+  { path: '/controller-settings', icon: 'precision_manufacturing', labelKey: 'nav.controllerSettings' },
   { path: '/recipes', icon: 'description', labelKey: 'nav.recipes' },
   { path: '/serial', icon: 'terminal', labelKey: 'nav.serial' }
 ]
 
 const bottomNavItems: NavItem[] = [
   { path: '/settings', icon: 'settings', labelKey: 'nav.settings' },
-  { path: '/diagnostics', icon: 'precision_manufacturing', labelKey: 'nav.diagnostics' }
+  { path: '/diagnostics', icon: 'diagnostics', labelKey: 'nav.diagnostics' }
 ]
 
 function isActive(path: string): boolean {

@@ -102,6 +102,7 @@ async function checkUpdate() {
           </div>
           <select v-model="selectedLocale" class="setting-select">
             <option value="zh-CN">{{ t('settings.languageOptions.zhCN') }}</option>
+            <option value="zh-TW">{{ t('settings.languageOptions.zhTW') }}</option>
             <option value="en">{{ t('settings.languageOptions.en') }}</option>
             <option value="ja">{{ t('settings.languageOptions.ja') }}</option>
             <option value="ko">{{ t('settings.languageOptions.ko') }}</option>

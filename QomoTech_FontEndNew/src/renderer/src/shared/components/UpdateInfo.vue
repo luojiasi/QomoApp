@@ -17,6 +17,12 @@ interface VersionRelease {
 }
 
 const changes: Record<string, VersionChange[]> = {
+  '0.2.12': [
+    { type: 'feature', textKey: 'update.v0212.c1' },
+    { type: 'feature', textKey: 'update.v0212.c2' },
+    { type: 'feature', textKey: 'update.v0212.c3' },
+    { type: 'improve', textKey: 'update.v0212.c4' }
+  ],
   '0.2.11': [
     { type: 'feature', textKey: 'update.v0211.c1' },
     { type: 'feature', textKey: 'update.v0211.c2' },
@@ -37,7 +43,7 @@ const changes: Record<string, VersionChange[]> = {
   ]
 }
 
-const releaseOrder = ['0.2.11', '0.2.10', '0.2.9']
+const releaseOrder = ['0.2.12', '0.2.11', '0.2.10', '0.2.9']
 
 const changelog: VersionRelease[] = releaseOrder.map((v) => ({
   version: v,

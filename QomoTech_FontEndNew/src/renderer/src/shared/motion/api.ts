@@ -108,3 +108,56 @@ export const getIoInput = (io: number) =>
 
 export const getIoInputs = (start = 0, end = 8) =>
   apiCall<Record<string, boolean>>('motion/io/input', 'GET', null, { start, end })
+
+// Axis params
+export const getMotionPosition = (axis: string) =>
+  apiCall<number>(`motion/dpos/${axis}`, 'GET')
+
+export const zeroMotionAxis = (axis: string) =>
+  apiCall('motion/axis/zero', 'POST', { axis })
+
+export const setMotionAllAxesParams = (payload: { table: Record<string, Record<string, number>> }) =>
+  apiCall('motion/axis/params/batch', 'POST', payload)
+
+// U/R rotation
+export const rotateUAxisByAngle = (angle: number, speed: number, direction?: string) =>
+  apiCall('motion/u/rotate-by-params', 'POST', { params: { 旋转角度: angle, 旋转速度: speed, 旋转方向: direction } })
+
+export const isUAxisAtTargetAngle = (angle: number, tolerance = 0.001) =>
+  apiCall<boolean>('motion/u/at-angle', 'GET', null, { angle, tolerance })
+
+export const rotateRAxisByTurns = (turns: number, speed: number, direction?: string) =>
+  apiCall('motion/r/rotate-turns', 'POST', { params: { 旋转圈数: turns, 旋转速度: speed, 旋转方向: direction } })
+
+// Online command
+export const sendOnlineCommand = (command: string) =>
+  apiCall<string>('motion/cmd', 'POST', { command })
+
+// Controller settings persistence
+export const getControllerSettings = () =>
+  apiCall<unknown>('motion/controller-settings', 'GET')
+
+export const saveControllerSettings = (payload: unknown) =>
+  apiCall('motion/controller-settings', 'POST', payload)
+
+// Bootstrap helpers
+export const connectMotionWithControllerSettings = (settings: { communication: { controller_ip: string } }) =>
+  connectMotion(settings.communication.controller_ip)
+
+export const buildMotionAllAxesParamsPayload = (settings: { axes: Array<{ axis_name: string; units: number; speed: number; lspeed: number; accel: number; decel: number; sramp: number; merge: number; fwd_in: number; rev_in: number }> }) => {
+  const table: Record<string, Record<string, number>> = {}
+  for (const axis of settings.axes) {
+    table[axis.axis_name] = {
+      units: axis.units,
+      speed: axis.speed,
+      lspeed: axis.lspeed,
+      accel: axis.accel,
+      decel: axis.decel,
+      sramp: axis.sramp,
+      merge: axis.merge,
+      fwd_in: axis.fwd_in,
+      rev_in: axis.rev_in
+    }
+  }
+  return { table }
+}

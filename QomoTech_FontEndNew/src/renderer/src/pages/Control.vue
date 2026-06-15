@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
-import { useL10n } from '../shared/l10n'
 import {
   startHardwareMonitor,
   stopHardwareMonitor,
@@ -9,10 +8,13 @@ import {
   jogStop,
   estop,
   connectMotion,
-  disconnectMotion
+  disconnectMotion,
+  setMotionAllAxesParams,
+  buildMotionAllAxesParamsPayload,
+  getControllerSettings,
+  defaultControllerParameters
 } from '../shared/motion'
-
-const { t } = useL10n()
+import type { ControllerParameters } from '../shared/motion'
 
 const {
   controllerConnected,
@@ -69,7 +71,32 @@ async function toggleConnection() {
     if (controllerConnected.value) {
       await disconnectMotion()
     } else {
-      await connectMotion('192.168.0.11')
+      // Load controller settings and use saved IP (fallback to default IP)
+      let ip = '192.168.0.11'
+      try {
+        const res = await getControllerSettings()
+        if (res.success && res.data) {
+          const data = res.data as ControllerParameters
+          if (data.communication?.controller_ip) {
+            ip = data.communication.controller_ip
+          }
+        }
+      } catch { /* use default IP */ }
+      await connectMotion(ip)
+      // Bootstrap: push axis params after connecting
+      try {
+        const settingsRes = await getControllerSettings()
+        if (settingsRes.success && settingsRes.data) {
+          const settings = settingsRes.data as ControllerParameters
+          if (settings.axes?.length > 0) {
+            const payload = buildMotionAllAxesParamsPayload(settings)
+            await setMotionAllAxesParams(payload)
+          }
+        } else {
+          const payload = buildMotionAllAxesParamsPayload(defaultControllerParameters)
+          await setMotionAllAxesParams(payload)
+        }
+      } catch { /* params push is best-effort */ }
     }
   } catch { /* ignore */ }
   isConnecting.value = false

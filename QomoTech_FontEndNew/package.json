@@ -1,6 +1,6 @@
 {
   "name": "qomotech-fontendnew",
-  "version": "0.2.11",
+  "version": "0.2.12",
   "description": "An Electron application with Vue and TypeScript",
   "main": "./out/main/index.js",
   "author": "example.com",

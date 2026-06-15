@@ -1,15 +1,17 @@
 import { ref } from 'vue'
 import { zhCN } from './zh-CN'
+import { zhTW } from './zh-TW'
 import { en } from './en'
 import { ja } from './ja'
 import { ko } from './ko'
 
-export type Locale = 'zh-CN' | 'en' | 'ja' | 'ko'
+export type Locale = 'zh-CN' | 'zh-TW' | 'en' | 'ja' | 'ko'
 
 export type Messages = typeof zhCN
 
 const messages: Record<Locale, Messages> = {
   'zh-CN': zhCN,
+  'zh-TW': zhTW,
   en,
   ja,
   ko
