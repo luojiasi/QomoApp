@@ -188,6 +188,12 @@ class ZMC适配器:
 
     @property
     def _R轴每圈脉冲数(self) -> float:
+        """R轴每圈脉冲数。
+
+        伺服模式：pulses_per_rev * electronic_gear_ratio * gear_ratio
+        步进模式：(360 / step_angle) * microsteps * gear_ratio
+        （步进模式不在外部再乘电子齿轮比，此处直接返回最终结果）
+        """
         cfg = self._配置.r_axis
         if cfg.motor_type == "stepper":
             step_angle = float(cfg.step_angle)
@@ -200,7 +206,13 @@ class ZMC适配器:
 
     @property
     def _R轴电子齿轮比(self) -> float:
-        return 1.0  # 步进模式下电子齿轮比不适用，返回 1.0; 伺服模式下读配置
+        """伺服模式读取配置，步进模式电子齿轮比不适用，返回 1.0。
+
+        _R轴每圈脉冲数 在步进模式下已直接返回最终结果，此处返回 1.0
+        是为了 `每圈脉冲数 = _R轴每圈脉冲数 * _R轴电子齿轮比 * _R轴减速比`
+        在两种模式下都能正确工作。
+        """
+        return float(self._配置.r_axis.electronic_gear_ratio if self._配置.r_axis.motor_type == "servo" else 1.0)
 
     @property
     def _R轴减速比(self) -> float:
