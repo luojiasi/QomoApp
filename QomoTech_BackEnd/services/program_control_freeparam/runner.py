@@ -133,8 +133,8 @@ class ProgramRunnerFreeParam:
                     该序号的配方 = 构建配方数据(配方数据,该序号的参数.get("配方ID"))
                     # 当前平面的Z轴位置：往上逐个累加前面任务的高度
                     累计高度 = sum(float(实体数据[k].get("height", 0)) for k in range(序号))
-                    直径所在平面的Z高度 = abs(当前Z) + 累计高度
-                    执行任务的参数 = 构建执行任务的参数(该序号的参数, 直径所在平面的Z高度, 累计高度)
+                    所有高度总和 = sum(float(实体数据[k].get("height", 0)) for k in range(len(实体数据)))
+                    执行任务的参数 = 构建执行任务的参数(该序号的参数,当前Z, 所有高度总和, 累计高度)
                     try:
                         await self._切割(配方数据=该序号的配方,执行任务的参数=执行任务的参数 ,起始点的位置 = {"x":当前X,"y":当前Y,"z":当前Z})
                     except Exception as e:
@@ -304,6 +304,7 @@ class ProgramRunnerFreeParam:
                     if 累计下降量 <= 产品的高度:
                         if 执行任务的参数.get("是否启用R轴旋转"):
                             当前步骤 = ProgramFreeParamsStep.切割R轴
+                            await self._自由编辑参数的运动.开启激光()
                         else:   
                             当前步骤 = ProgramFreeParamsStep.切割直线
                     else:
@@ -320,6 +321,7 @@ class ProgramRunnerFreeParam:
                     
                     if 切割直线的结果:
                         当前步骤 = ProgramFreeParamsStep.等待R轴旋转一圈
+                        
                     else:
                         当前步骤 = ProgramFreeParamsStep.清理所有状态
                 
