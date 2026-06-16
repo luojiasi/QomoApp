@@ -54,9 +54,17 @@ class ProgramServiceFreeParam:
 
     async def 执行自由编辑参数(self, *, 配方数据: dict[str, Any], 实体数据: list[dict[str, Any]]) -> dict[str, Any]:
         """启动程序执行（创建新的 ProgramRunnerFreeParam 实例）。"""
+        self._loop = asyncio.get_running_loop()
         self.程序执行器 = ProgramRunnerFreeParam()
         self.程序执行器._广播回调 = self._广播状态  # type: ignore[attr-defined]
-        return await self.程序执行器.执行自由编辑参数(配方数据=配方数据, 实体数据=实体数据)
+        # 先广播 running=true 让前端感知
+        self._广播状态(force=True)
+        try:
+            return await self.程序执行器.执行自由编辑参数(配方数据=配方数据, 实体数据=实体数据)
+        finally:
+            self.程序执行器 = None
+            # 广播 running=false
+            self._广播状态(force=True)
 
     # ==================================================================
     # 控制指令

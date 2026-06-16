@@ -8,6 +8,7 @@ import { sendFreeParams } from '@/modules/program/api'
 import { useEditorStore } from '../stores/editorStore'
 import { generateId } from '../utils/idgen'
 import { drawnEntityIds } from '../composables/useFreeParamTask'
+import { useProgramRunner } from '@/modules/program/composables/useProgramRunner'
 import type { SurfaceEntity, EditorEntity } from '../commons/types'
 
 const { isOpen, open: _open, close } = useFreeParamDialog()
@@ -16,15 +17,21 @@ const editorStore = useEditorStore()
 
 const recipeStore = useRecipeSettingsStore()
 
-const activeMainRecipes = computed(() =>
-  recipeStore.recipeState.mainRecipes.filter((recipe) => recipe.status === 'active')
-)
+const {
+  programRunning,
+  programPaused,
+  programTaskCount,
+} = useProgramRunner()
 
 const { warning, success, error } = useNotification()
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const sendConfirming = ref(false)
 const riskConfirmed = ref(false)
 const riskShake = ref(false)
+
+const activeMainRecipes = computed(() =>
+  recipeStore.recipeState.mainRecipes.filter((recipe) => recipe.status === 'active')
+)
 
 async function open(): Promise<void> {
   await recipeStore.loadRecipeState()
@@ -161,6 +168,12 @@ async function onSendToBackend(): Promise<void> {
   try {
     const result = await sendFreeParams(payload as unknown as Record<string, unknown>)
     if (result?.success) {
+      const data = result?.data as { task_count?: number } | undefined
+      const tc = typeof data?.task_count === 'number' ? data.task_count : 0
+      programTaskCount.value = tc
+      programRunning.value = true
+      programPaused.value = false
+      localStorage.setItem('qomo.startProgram.startedAtMs', String(Date.now()))
       success(result?.message || '自由编辑参数已发送至后端')
     } else {
       error(result?.message || '发送失败：后端未提供失败原因')

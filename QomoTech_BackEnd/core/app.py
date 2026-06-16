@@ -18,7 +18,10 @@ async def 应用生命周期(app: FastAPI):
     """应用启动/关闭时的生命周期管理。"""
     
     from services.PragramService import PragramService
-    PragramService.获取实例().设置事件循环(asyncio.get_running_loop())
+    from services.ProgramServiceFreeParam import ProgramServiceFreeParam
+    loop = asyncio.get_running_loop()
+    PragramService.获取实例().设置事件循环(loop)
+    ProgramServiceFreeParam.获取实例().设置事件循环(loop)
 
     日志.info("QomoTech 服务启动中...")
 

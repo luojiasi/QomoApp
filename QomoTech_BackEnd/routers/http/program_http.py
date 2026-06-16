@@ -57,6 +57,11 @@ class 自由编辑参数请求模型(BaseModel):
 @路由.post("/startProgram", summary="启动程序")
 async def start_program(payload: 开始程序参数请求模型):
     """接收配方 + 实体，启动后台任务执行程序。"""
+    旧在跑 = _svc().获取运行状态().get("running", False)
+    新在跑 = _freeparam_svc().获取运行状态().get("running", False)
+    if 旧在跑 or 新在跑:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="已有程序正在运行，请停止后再启动")
+
     tasks = OffsetEndpointCalculator.calc_xy_points(payload.entities, 0)
     if not tasks: raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="没有可执行的任务，请检查实体几何")
     async def _run_program() -> None:
@@ -85,6 +90,11 @@ async def start_program(payload: 开始程序参数请求模型):
 @路由.post("/startProgram/entitiesEditFreeparam", summary="自由编辑参数切割")
 async def send_free_params(payload: 自由编辑参数请求模型):
     """接收自由编辑参数，启动后台切割任务。"""
+    旧在跑 = _svc().获取运行状态().get("running", False)
+    新在跑 = _freeparam_svc().获取运行状态().get("running", False)
+    if 旧在跑 or 新在跑:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="已有程序正在运行，请停止后再启动")
+
     async def _run() -> None:
         try:
             await ProgramServiceFreeParam.获取实例().执行自由编辑参数(配方数据=payload.recipes,实体数据=payload.rows)
@@ -123,27 +133,22 @@ async def _dispatch_program_control(action: str) -> Dict[str, Any]:
     svc = _svc()
     freeparam_svc = _freeparam_svc()
     if action == "reset":
-        result  = await svc.复位() or await freeparam_svc.复位()
+        result = await svc.复位() or await freeparam_svc.复位()
         return result
 
-    if svc.获取实例().获取运行状态().get("running"):
-        if action == "pause":
-            return await svc.暂停()
-        elif action == "resume":
-            return await svc.恢复()
-        elif action == "estop":
-            return await svc.急停()
-        elif action == "skip":
-            return await svc.跳过任务()
-        else:
-            return {"success": False, "message": f"未知操作: {action}"}
-    elif freeparam_svc.获取实例().获取运行状态().get("running"):
-        if action == "pause":
-            return await freeparam_svc.暂停()
-        elif action == "resume":
-            return await freeparam_svc.恢复()
-        elif action == "estop":
-            return await freeparam_svc.急停()
+    旧在跑 = svc.获取运行状态().get("running", False)
+    新在跑 = freeparam_svc.获取运行状态().get("running", False)
+    if 旧在跑:
+        if action == "pause": return await svc.暂停()
+        elif action == "resume": return await svc.恢复()
+        elif action == "estop": return await svc.急停()
+        elif action == "skip": return await svc.跳过任务()
+        else: return {"success": False, "message": f"未知操作: {action}"}
+    elif 新在跑:
+        if action == "pause": return await freeparam_svc.暂停()
+        elif action == "resume": return await freeparam_svc.恢复()
+        elif action == "estop": return await freeparam_svc.急停()
+        else: return {"success": False, "message": f"未知操作: {action}"}
     else:
         return {"success": False, "message": "没有正在运行的程序"}
 

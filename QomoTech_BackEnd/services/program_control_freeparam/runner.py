@@ -33,6 +33,11 @@ class ProgramRunnerFreeParam:
         # ── 广播回调（由 ProgramServiceFreeParam 注入） ──
         self._广播回调 = None
 
+        # ── 进度追踪 ──
+        self._任务总数: int = 0
+        self._当前任务序号: int = 0
+        self._进度百分比: float = 0.0
+
     # ==================================================================
     # 运行状态快照
     # ==================================================================
@@ -41,10 +46,17 @@ class ProgramRunnerFreeParam:
         return {
             "running": self._是否运行中,
             "paused": self._是否已暂停,
-            "total_tasks": 0,
-            "current_task_index": 0,
-            "进度百分比": 0.0,
+            "total_tasks": self._任务总数,
+            "current_task_index": self._当前任务序号,
+            "进度百分比": self._进度百分比,
         }
+
+    def 更新进度(self, *, total_tasks: int | None = None, current_task_index: int | None = None,
+                  current_task_jindubaifenbi: float | None = None) -> None:
+        if total_tasks is not None: self._任务总数 = max(0, int(total_tasks))
+        if current_task_index is not None: self._当前任务序号 = max(0, int(current_task_index))
+        if current_task_jindubaifenbi is not None: self._进度百分比 = max(0.0, min(100.0, float(current_task_jindubaifenbi)))
+        self._广播状态变更()
 
     def _广播状态变更(self, *, force: bool = False) -> None:
         if self._广播回调 is not None:
@@ -59,37 +71,41 @@ class ProgramRunnerFreeParam:
             if not self._是否运行中:
                 return {"success": False, "message": "当前没有运行中的程序"}
             self._是否已暂停 = True
+        self._广播状态变更(force=True)
         if self._运动.适配器 and self._运动.适配器.已连接:
             try:
                 await self._运动.设置输出(2, False)
                 await self._运动.暂停()
             except Exception:
                 pass
-        self._广播状态变更(force=True)
         return {"success": True, "message": "已暂停"}
 
     async def 恢复(self) -> dict[str, Any]:
         async with self._控制锁:
             if not self._是否运行中:return {"success": False, "message": "当前没有运行中的程序"}
             self._是否已暂停 = False
+        self._广播状态变更(force=True)
         if self._运动.适配器 and self._运动.适配器.已连接:
             try:
                 await self._运动.继续()
                 await self._运动.设置输出(2, True)
             except Exception:
                 pass
-        self._广播状态变更(force=True)
         return {"success": True, "message": "已继续运行"}
 
     async def 急停(self) -> dict[str, Any]:
         async with self._控制锁:
             self._是否急停请求 = True
             self._是否已暂停 = False
-        if self._运动.适配器 and self._运动.适配器.已连接:
-            await self._运动.设置输出(0, False)
-            await self._运动.设置输出(2, False)
-            await self._运动.急停()
+        # 先广播状态让前端感知，再执行耗时操作
         self._广播状态变更(force=True)
+        if self._运动.适配器 and self._运动.适配器.已连接:
+            await self._运动.急停()
+            try:
+                await self._运动.设置输出(0, False)
+                await self._运动.设置输出(2, False)
+            except Exception:
+                pass
         return {"success": True, "message": "已急停"}
 
     async def 复位(self) -> dict[str, Any]:
@@ -120,6 +136,7 @@ class ProgramRunnerFreeParam:
                 self._是否急停请求 = False
             try:
                 任务总数 = len(实体数据)
+                self.更新进度(total_tasks=任务总数, current_task_index=0, current_task_jindubaifenbi=0)
                 日志.info(f"[FreeParam] ====== 开始执行，共 {任务总数} 个任务 ======")
 
                 # 循环前获取当前 XYZ 轴位置
@@ -135,12 +152,18 @@ class ProgramRunnerFreeParam:
                     累计高度 = sum(float(实体数据[k].get("height", 0)) for k in range(序号))
                     所有高度总和 = sum(float(实体数据[k].get("height", 0)) for k in range(len(实体数据)))
                     执行任务的参数 = 构建执行任务的参数(该序号的参数,当前Z, 所有高度总和, 累计高度)
+                    self.更新进度(current_task_index=当前序号, current_task_jindubaifenbi=0)
                     try:
                         await self._切割(配方数据=该序号的配方,执行任务的参数=执行任务的参数 ,起始点的位置 = {"x":当前X,"y":当前Y,"z":当前Z})
                     except Exception as e:
                         日志.error(f"任务 {当前序号} 执行失败: {e}")
                         return {"success": False, "message": f"任务 {当前序号} 执行失败: {e}"}
 
+                await self._运动.绝对运动("Z", 当前Z)
+                起始坐标的路径点 = [{"x": 当前X, "y": 当前Y}]
+                await self._运动.连续插补XY(路径点=起始坐标的路径点,速度=10)
+                await self._运动.U轴旋转角度(0)
+                
                 日志.info(f"\n[FreeParam] ====== 全部完成，共处理 {任务总数} 个任务 =====")
                 return {"success": True, "task_count": 任务总数}
             finally:
@@ -247,6 +270,7 @@ class ProgramRunnerFreeParam:
             # 每步开始时检查急停/暂停
             if await self._检查是否应中止():
                 当前步骤 = ProgramFreeParamsStep.清理所有状态
+
 
             match 当前步骤:
 
@@ -427,6 +451,9 @@ class ProgramRunnerFreeParam:
                     上层量 = 当前量
                     累计下降量 += round(垂直的每次下降步长量, 6)
 
+                    self.更新进度(current_task_jindubaifenbi=进度百分比)
+                    print("进度百分比",进度百分比)
+
 
                     # 当前大区间索引 = int(进度百分比 // 垂直的变化百分比) if 垂直的变化百分比 > 0 else 0
                     # 段内进度 = (进度百分比 % 垂直的变化百分比) // (垂直的变化百分比 // 垂直的每次下降步长量减少量) if 垂直的变化百分比 > 0 and 垂直的每次下降步长量减少量 > 0 else 0
@@ -443,10 +470,10 @@ class ProgramRunnerFreeParam:
                     await self._自由编辑参数的运动.关闭激光()
                     # 不重复调急停——急停已在外部控制指令中触发
                     # TODO:回到台面的位置
-                    await self._运动.绝对运动("Z", 起始点的位置.get("z"))
-                    其实坐标的路径点 = [{"x": 起始点的位置.get("x"), "y": 起始点的位置.get("y")}]
-                    await self._运动.连续插补XY(路径点=其实坐标的路径点,速度=10)
-                    await self._运动.U轴旋转角度(0)
+                    # await self._运动.绝对运动("Z", 起始点的位置.get("z"))
+                    # 其实坐标的路径点 = [{"x": 起始点的位置.get("x"), "y": 起始点的位置.get("y")}]
+                    # await self._运动.连续插补XY(路径点=其实坐标的路径点,速度=10)
+                    # await self._运动.U轴旋转角度(0)
                     当前步骤 = ProgramFreeParamsStep.结束当前任务
 
 

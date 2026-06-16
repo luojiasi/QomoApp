@@ -777,7 +777,7 @@ class MotionService:
         日志.info(f"U轴旋转到角度={旋转角度}° → {结果.get('message', 'OK')}")
         return 结果
 
-    async def U轴是否到达旋转角度(self, 旋转角度: float, 容差: float = 0.001, 超时秒: float = 40.0) -> bool:
+    async def U轴是否到达旋转角度(self, 旋转角度: float, 容差: float = 0.01, 超时秒: float = 40.0) -> bool:
         """轮询直到 U 轴到达目标角度，暂停/急停/超时返回 False。"""
         self._保证已启动()
         adapter = self._断言adapter()
