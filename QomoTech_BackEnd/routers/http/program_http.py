@@ -148,6 +148,7 @@ async def _dispatch_program_control(action: str) -> Dict[str, Any]:
         if action == "pause": return await freeparam_svc.暂停()
         elif action == "resume": return await freeparam_svc.恢复()
         elif action == "estop": return await freeparam_svc.急停()
+        elif action == "skip": return await freeparam_svc.跳过任务()
         else: return {"success": False, "message": f"未知操作: {action}"}
     else:
         return {"success": False, "message": "没有正在运行的程序"}

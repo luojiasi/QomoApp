@@ -126,7 +126,7 @@ def 构建执行任务的参数(数据: dict[str, Any],当前平面Z的位置, �
     分割数 = int(数据.get("分割数", 0))
     角度 = float(数据.get("角度", 0))
     高度 = float(数据.get("高度", 0))
-    是否启用R轴旋转 = True if 分割数 == 0 or 分割数 >= 24 else False
+    是否启用R轴旋转 = True if 分割数 == 0 or 分割数 >= 48 else False
     R轴旋转角度 = 360 / 分割数 if 分割数 > 0 else 0.0
     U轴的旋转角度 = 90 - 角度 if 角度 > 0 else -90 - 角度
 

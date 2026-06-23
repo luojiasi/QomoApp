@@ -26,6 +26,7 @@ class ProgramRunnerFreeParam:
         self._是否运行中 = False
         self._是否已暂停 = False
         self._是否急停请求 = False
+        self._是否跳过请求 = False
 
         self._控制锁 = asyncio.Lock()
         self._执行锁 = asyncio.Lock()
@@ -106,7 +107,14 @@ class ProgramRunnerFreeParam:
                 await self._运动.设置输出(2, False)
             except Exception:
                 pass
-        return {"success": True, "message": "已急停"}
+
+    async def 跳过任务(self) -> dict[str, Any]:
+        async with self._控制锁:
+            if not self._是否运行中:
+                return {"success": False, "message": "当前没有运行中的程序"}
+            self._是否跳过请求 = True
+        self._广播状态变更(force=True)
+        return {"success": True, "message": "已请求跳过当前任务"}
 
     async def 复位(self) -> dict[str, Any]:
         if not self._运动.适配器 or not self._运动.适配器.已连接: return {"success": False, "message": "motion 控制器未连接"}
@@ -134,6 +142,7 @@ class ProgramRunnerFreeParam:
                 self._是否运行中 = True
                 self._是否已暂停 = False
                 self._是否急停请求 = False
+                self._是否跳过请求 = False
             try:
                 任务总数 = len(实体数据)
                 self.更新进度(total_tasks=任务总数, current_task_index=0, current_task_jindubaifenbi=0)
@@ -159,6 +168,13 @@ class ProgramRunnerFreeParam:
                         日志.error(f"任务 {当前序号} 执行失败: {e}")
                         return {"success": False, "message": f"任务 {当前序号} 执行失败: {e}"}
 
+                    if self._是否急停请求:
+                        await self._自由编辑参数的运动.关闭吹风()
+                        await self._自由编辑参数的运动.关闭激光()
+                        return {"success": False, "message": "程序已急停"}
+                    if self._是否跳过请求:
+                        # 跳过标记由 _切割() 内的清理所有状态 清除
+                        continue
                 await self._运动.绝对运动("Z", 当前Z)
                 起始坐标的路径点 = [{"x": 当前X, "y": 当前Y}]
                 await self._运动.连续插补XY(路径点=起始坐标的路径点,速度=10)
@@ -171,11 +187,14 @@ class ProgramRunnerFreeParam:
                     self._是否运行中 = False
                     self._是否已暂停 = False
                     self._是否急停请求 = False
+                    self._是否跳过请求 = False
                 self._广播状态变更(force=True)
 
     async def _检查是否应中止(self) -> bool:
-        """检查急停/暂停状态。急停时返回 True，暂停时阻塞等待恢复。"""
+        """检查急停/跳过/暂停状态。急停或跳过时返回 True，暂停时阻塞等待恢复。"""
         if self._是否急停请求:
+            return True
+        if self._是否跳过请求:
             return True
         while self._是否已暂停:
             await asyncio.sleep(0.05)
@@ -470,6 +489,7 @@ class ProgramRunnerFreeParam:
 
 
                 case ProgramFreeParamsStep.清理所有状态:
+                    self._是否跳过请求 = False
                     await self._自由编辑参数的运动.关闭吹风()
                     await self._自由编辑参数的运动.关闭激光()
                     # 不重复调急停——急停已在外部控制指令中触发

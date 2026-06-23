@@ -85,6 +85,12 @@ class ProgramServiceFreeParam:
             return {"success": False, "message": "当前没有运行中的程序"}
         return await self.程序执行器.急停()
 
+
+    async def 跳过任务(self) -> dict[str, Any]:
+        if self.程序执行器 is None:
+            return {"success": False, "message": "当前没有运行中的程序"}
+        return await self.程序执行器.跳过任务()
+
     async def 复位(self) -> dict[str, Any]:
         执行器 = self.程序执行器 or ProgramRunnerFreeParam()
         return await 执行器.复位()
