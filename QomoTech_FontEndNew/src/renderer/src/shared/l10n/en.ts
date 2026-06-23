@@ -1,7 +1,7 @@
 export const en = {
   app: {
-    brand: 'LASER-CORE V5',
-    statusReady: 'Vision System Ready',
+    brand: 'QOMO_LASER V5',
+    statusReady: 'QomoTech System Ready',
     operator: 'OPERATOR_05'
   },
   nav: {

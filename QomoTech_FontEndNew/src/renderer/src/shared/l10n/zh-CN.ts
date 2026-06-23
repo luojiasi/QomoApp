@@ -1,7 +1,7 @@
 export const zhCN = {
   app: {
-    brand: 'LASER-CORE V5',
-    statusReady: '视觉系统就绪',
+    brand: 'QOMO_LASER V5',
+    statusReady: '科猛碳极准备就绪',
     operator: 'OPERATOR_05'
   },
   nav: {

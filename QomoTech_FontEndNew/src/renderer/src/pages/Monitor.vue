@@ -89,6 +89,7 @@ async function handleConnect() {
     if (res.success) {
       cameraStatus.value = res.data ?? null
       statusMsg.value = 'connected'
+      startCameraReceiver()
     } else {
       statusMsg.value = res.message ?? 'connect failed'
     }
@@ -105,6 +106,7 @@ async function handleDisconnect() {
     if (res.success && res.data) {
       cameraStatus.value = res.data as CameraStatusPayload
     }
+    stopCameraReceiver()
   } catch { /* ignore */ }
   busy.value = false
 }
@@ -152,7 +154,6 @@ async function applyWhiteBalanceOnce() {
 const isConnected = computed(() => cameraStatus.value?.connected ?? false)
 
 onMounted(() => {
-  startCameraReceiver()
   startHardwareMonitor()
   refreshDevices()
   refreshStatus()
@@ -334,6 +335,7 @@ onUnmounted(() => {
         </div>
         <button class="btn-sm btn-secondary" @click="applyMirror">{{ t('monitor.apply') }}</button>
       </div>
+      
 
       <!-- White Balance -->
       <div class="param-group">
@@ -375,6 +377,7 @@ onUnmounted(() => {
       </div>
     </aside>
   </div>
+  
 </template>
 
 <style scoped>
@@ -623,11 +626,11 @@ onUnmounted(() => {
 
 /* Camera sidebar */
 .camera-sidebar {
-  width: 320px;
+  width: 400px;
   background: rgba(28, 32, 39, 0.6);
   backdrop-filter: blur(12px);
   border-left: 1px solid var(--color-outline-variant);
-  padding: 24px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 20px;

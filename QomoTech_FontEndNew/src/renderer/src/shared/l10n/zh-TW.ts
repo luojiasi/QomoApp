@@ -1,7 +1,7 @@
 export const zhTW = {
   app: {
-    brand: 'LASER-CORE V5',
-    statusReady: '視覺系統就緒',
+    brand: 'QOMO_LASER V5',
+    statusReady: '科猛碳極準備就緒',
     operator: 'OPERATOR_05'
   },
   nav: {

@@ -22,7 +22,7 @@ const mainNavItems: NavItem[] = [
 
 const bottomNavItems: NavItem[] = [
   { path: '/settings', icon: 'settings', labelKey: 'nav.settings' },
-  { path: '/diagnostics', icon: 'diagnostics', labelKey: 'nav.diagnostics' }
+  { path: '/diagnostics', icon: 'monitor_heart', labelKey: 'nav.diagnostics' }
 ]
 
 function isActive(path: string): boolean {
@@ -79,7 +79,7 @@ function navigate(path: string): void {
 .sidenav {
   display: flex;
   flex-direction: column;
-  width: 256px;
+  width: 280px;
   background: var(--color-surface-container-high);
   border-right: 1px solid var(--color-outline-variant);
   padding: 24px 0;

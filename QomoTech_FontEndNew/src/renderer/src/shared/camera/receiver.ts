@@ -132,7 +132,9 @@ function stopStreamWs(): void {
     ws.onmessage = null
     ws.onerror = null
     ws.onclose = null
-    try { ws.close() } catch { /* ignore */ }
+    if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+      try { ws.close() } catch { /* ignore */ }
+    }
     ws = null
   }
 }
@@ -143,6 +145,7 @@ function connectStreamWs(): void {
 
   try {
     ws = new WebSocket(getWsUrl())
+    ws.binaryType = 'blob'
   } catch {
     scheduleReconnect()
     return
@@ -168,10 +171,7 @@ function connectStreamWs(): void {
       return
     }
 
-    const blob =
-      ev.data instanceof Blob
-        ? ev.data
-        : new Blob([ev.data as ArrayBuffer], { type: 'image/jpeg' })
+    const blob = ev.data instanceof Blob ? ev.data : new Blob([ev.data as ArrayBuffer], { type: 'image/jpeg' })
     enqueueDecodedFrame(blob)
   }
 
