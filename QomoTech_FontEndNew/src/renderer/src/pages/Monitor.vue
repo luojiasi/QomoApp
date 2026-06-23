@@ -14,7 +14,9 @@ import {
   setCameraFrameSpeed,
   setCameraMirror,
   setCameraWhiteBalance,
-  bootstrapCameraSettings
+  bootstrapCameraSettings,
+  getCameraSettings,
+  saveCameraSettings
 } from '../shared/camera'
 import type { CameraDeviceInfo, CameraFrameSpeedLevel, CameraStatusPayload } from '../shared/camera'
 import {
@@ -33,7 +35,7 @@ const devices = ref<CameraDeviceInfo[]>([])
 const busy = ref(false)
 const statusMsg = ref('')
 
-// Editable params (live, not saved until Apply)
+// Editable params — loaded from backend settings on mount
 const editExposure = ref(1000)
 const editAutoExposure = ref(true)
 const editSpeedLevel = ref<CameraFrameSpeedLevel>(1)
@@ -45,6 +47,47 @@ const editAutoWB = ref(true)
 const editRGain = ref(21)
 const editGGain = ref(22)
 const editBGain = ref(16)
+
+function applySettingsToEdits(settings: Record<string, unknown>): void {
+  if (settings.exposure_time !== undefined) editExposure.value = settings.exposure_time as number
+  if (settings.auto_exposure !== undefined) editAutoExposure.value = settings.auto_exposure as boolean
+  if (settings.speed_level !== undefined) editSpeedLevel.value = (settings.speed_level as CameraFrameSpeedLevel) ?? 1
+  if (settings.auto_tune !== undefined) editAutoTune.value = settings.auto_tune as boolean
+  if (settings.tune !== undefined) editTune.value = settings.tune as number
+  if (settings.mirror_horizontal !== undefined) editMirrorH.value = settings.mirror_horizontal as boolean
+  if (settings.mirror_vertical !== undefined) editMirrorV.value = settings.mirror_vertical as boolean
+  if (settings.auto_white_balance !== undefined) editAutoWB.value = settings.auto_white_balance as boolean
+  if (settings.r_gain !== undefined) editRGain.value = settings.r_gain as number
+  if (settings.g_gain !== undefined) editGGain.value = settings.g_gain as number
+  if (settings.b_gain !== undefined) editBGain.value = settings.b_gain as number
+}
+
+function collectSettings(): Record<string, unknown> {
+  return {
+    auto_exposure: editAutoExposure.value,
+    exposure_time: editExposure.value,
+    speed_level: editSpeedLevel.value,
+    auto_tune: editAutoTune.value,
+    tune: editTune.value,
+    mirror_horizontal: editMirrorH.value,
+    mirror_vertical: editMirrorV.value,
+    auto_white_balance: editAutoWB.value,
+    r_gain: editRGain.value,
+    g_gain: editGGain.value,
+    b_gain: editBGain.value
+  }
+}
+
+async function loadSettingsFromBackend(): Promise<void> {
+  const res = await getCameraSettings()
+  if (res.success && res.data) {
+    applySettingsToEdits(res.data as Record<string, unknown>)
+  }
+}
+
+async function persistSettingsToBackend(): Promise<void> {
+  await saveCameraSettings(collectSettings())
+}
 
 const selectedDeviceIndex = ref(0)
 
@@ -116,6 +159,7 @@ async function applyExposure() {
     auto_exposure: editAutoExposure.value,
     exposure_time: editExposure.value
   })
+  await persistSettingsToBackend()
   await refreshStatus()
 }
 
@@ -125,6 +169,7 @@ async function applyFrameSpeed() {
     auto_tune: editAutoTune.value,
     tune: editTune.value
   })
+  await persistSettingsToBackend()
   await refreshStatus()
 }
 
@@ -133,6 +178,7 @@ async function applyMirror() {
     horizontal: editMirrorH.value,
     vertical: editMirrorV.value
   })
+  await persistSettingsToBackend()
   await refreshStatus()
 }
 
@@ -143,6 +189,7 @@ async function applyWhiteBalance() {
     g_gain: editGGain.value,
     b_gain: editBGain.value
   })
+  await persistSettingsToBackend()
   await refreshStatus()
 }
 
@@ -153,7 +200,8 @@ async function applyWhiteBalanceOnce() {
 
 const isConnected = computed(() => cameraStatus.value?.connected ?? false)
 
-onMounted(() => {
+onMounted(async () => {
+  await loadSettingsFromBackend()
   startHardwareMonitor()
   refreshDevices()
   refreshStatus()
