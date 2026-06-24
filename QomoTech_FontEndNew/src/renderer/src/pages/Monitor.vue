@@ -342,28 +342,6 @@ onUnmounted(() => {
         <button class="btn-sm btn-secondary" @click="applyExposure">{{ t('monitor.apply') }}</button>
       </div>
 
-      <!-- Frame Speed -->
-      <div class="param-group">
-        <div class="param-header">
-          <label class="param-label">{{ t('monitor.frameSpeed') }}</label>
-          <span class="param-value">Lv{{ editSpeedLevel }}</span>
-        </div>
-        <select v-model.number="editSpeedLevel" class="field-input">
-          <option :value="0">0 — HIGHEST</option>
-          <option :value="1">1 — HIGH</option>
-          <option :value="2">2 — LOW</option>
-          <option :value="3">3 — LOWEST</option>
-        </select>
-        <div class="param-row">
-          <label class="checkbox-label">
-            <input v-model="editAutoTune" type="checkbox" />
-            {{ t('monitor.autoTune') }}
-          </label>
-        </div>
-        <input v-model.number="editTune" type="range" min="0" max="1" step="0.01" class="param-slider" :disabled="editAutoTune" />
-        <button class="btn-sm btn-secondary" @click="applyFrameSpeed">{{ t('monitor.apply') }}</button>
-      </div>
-
       <!-- Mirror -->
       <div class="param-group">
         <div class="param-header">
@@ -384,37 +362,6 @@ onUnmounted(() => {
         <button class="btn-sm btn-secondary" @click="applyMirror">{{ t('monitor.apply') }}</button>
       </div>
       
-
-      <!-- White Balance -->
-      <div class="param-group">
-        <div class="param-header">
-          <label class="param-label">{{ t('monitor.whiteBalance') }}</label>
-        </div>
-        <div class="param-row">
-          <label class="checkbox-label">
-            <input v-model="editAutoWB" type="checkbox" />
-            {{ t('monitor.autoWhiteBalance') }}
-          </label>
-        </div>
-        <div v-if="!editAutoWB" class="wb-gains">
-          <div class="field">
-            <label class="field-label">R</label>
-            <input v-model.number="editRGain" type="number" class="field-input" min="0" max="65535" />
-          </div>
-          <div class="field">
-            <label class="field-label">G</label>
-            <input v-model.number="editGGain" type="number" class="field-input" min="0" max="65535" />
-          </div>
-          <div class="field">
-            <label class="field-label">B</label>
-            <input v-model.number="editBGain" type="number" class="field-input" min="0" max="65535" />
-          </div>
-        </div>
-        <div class="wb-actions">
-          <button class="btn-sm btn-secondary" @click="applyWhiteBalance">{{ t('monitor.apply') }}</button>
-          <button class="btn-sm btn-outline" @click="applyWhiteBalanceOnce">{{ t('monitor.onceWhiteBalance') }}</button>
-        </div>
-      </div>
 
       <!-- Actions -->
       <div class="sidebar-actions">
