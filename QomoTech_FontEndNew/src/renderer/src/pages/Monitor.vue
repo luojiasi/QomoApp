@@ -11,14 +11,12 @@ import {
   fetchCameraDevices,
   getCameraStatus,
   setCameraExposure,
-  setCameraFrameSpeed,
   setCameraMirror,
-  setCameraWhiteBalance,
   bootstrapCameraSettings,
   getCameraSettings,
   saveCameraSettings
 } from '../shared/camera'
-import type { CameraDeviceInfo, CameraFrameSpeedLevel, CameraStatusPayload } from '../shared/camera'
+import type { CameraDeviceInfo, CameraStatusPayload } from '../shared/camera'
 import {
   useHardwareState,
   startHardwareMonitor,
@@ -38,43 +36,22 @@ const statusMsg = ref('')
 // Editable params — loaded from backend settings on mount
 const editExposure = ref(1000)
 const editAutoExposure = ref(true)
-const editSpeedLevel = ref<CameraFrameSpeedLevel>(1)
-const editAutoTune = ref(true)
-const editTune = ref(1)
 const editMirrorH = ref(false)
 const editMirrorV = ref(false)
-const editAutoWB = ref(true)
-const editRGain = ref(21)
-const editGGain = ref(22)
-const editBGain = ref(16)
 
 function applySettingsToEdits(settings: Record<string, unknown>): void {
   if (settings.exposure_time !== undefined) editExposure.value = settings.exposure_time as number
   if (settings.auto_exposure !== undefined) editAutoExposure.value = settings.auto_exposure as boolean
-  if (settings.speed_level !== undefined) editSpeedLevel.value = (settings.speed_level as CameraFrameSpeedLevel) ?? 1
-  if (settings.auto_tune !== undefined) editAutoTune.value = settings.auto_tune as boolean
-  if (settings.tune !== undefined) editTune.value = settings.tune as number
   if (settings.mirror_horizontal !== undefined) editMirrorH.value = settings.mirror_horizontal as boolean
   if (settings.mirror_vertical !== undefined) editMirrorV.value = settings.mirror_vertical as boolean
-  if (settings.auto_white_balance !== undefined) editAutoWB.value = settings.auto_white_balance as boolean
-  if (settings.r_gain !== undefined) editRGain.value = settings.r_gain as number
-  if (settings.g_gain !== undefined) editGGain.value = settings.g_gain as number
-  if (settings.b_gain !== undefined) editBGain.value = settings.b_gain as number
 }
 
 function collectSettings(): Record<string, unknown> {
   return {
     auto_exposure: editAutoExposure.value,
     exposure_time: editExposure.value,
-    speed_level: editSpeedLevel.value,
-    auto_tune: editAutoTune.value,
-    tune: editTune.value,
     mirror_horizontal: editMirrorH.value,
-    mirror_vertical: editMirrorV.value,
-    auto_white_balance: editAutoWB.value,
-    r_gain: editRGain.value,
-    g_gain: editGGain.value,
-    b_gain: editBGain.value
+    mirror_vertical: editMirrorV.value
   }
 }
 
@@ -118,15 +95,8 @@ async function handleConnect() {
     await bootstrapCameraSettings({
       auto_exposure: editAutoExposure.value,
       exposure_time: editExposure.value,
-      speed_level: editSpeedLevel.value,
-      auto_tune: editAutoTune.value,
-      tune: editTune.value,
       mirror_horizontal: editMirrorH.value,
-      mirror_vertical: editMirrorV.value,
-      auto_white_balance: editAutoWB.value,
-      r_gain: editRGain.value,
-      g_gain: editGGain.value,
-      b_gain: editBGain.value
+      mirror_vertical: editMirrorV.value
     })
     const res = await connectCamera(selectedDeviceIndex.value)
     if (res.success) {
@@ -163,38 +133,12 @@ async function applyExposure() {
   await refreshStatus()
 }
 
-async function applyFrameSpeed() {
-  await setCameraFrameSpeed({
-    speed_level: editSpeedLevel.value,
-    auto_tune: editAutoTune.value,
-    tune: editTune.value
-  })
-  await persistSettingsToBackend()
-  await refreshStatus()
-}
-
 async function applyMirror() {
   await setCameraMirror({
     horizontal: editMirrorH.value,
     vertical: editMirrorV.value
   })
   await persistSettingsToBackend()
-  await refreshStatus()
-}
-
-async function applyWhiteBalance() {
-  await setCameraWhiteBalance({
-    auto_white_balance: editAutoWB.value,
-    r_gain: editRGain.value,
-    g_gain: editGGain.value,
-    b_gain: editBGain.value
-  })
-  await persistSettingsToBackend()
-  await refreshStatus()
-}
-
-async function applyWhiteBalanceOnce() {
-  await setCameraWhiteBalance({ once: true })
   await refreshStatus()
 }
 
