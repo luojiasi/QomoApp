@@ -2,6 +2,7 @@ export const en = {
   app: {
     brand: 'QOMO_LASER V5',
     statusReady: 'QomoTech System Ready',
+    statusDisconnected: 'Backend Offline',
     operator: 'OPERATOR_05'
   },
   nav: {

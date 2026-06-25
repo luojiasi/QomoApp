@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useL10n } from '../l10n'
 import UpdateInfo from './UpdateInfo.vue'
 
@@ -15,6 +15,31 @@ function openUpdates() {
   showUpdateBadge.value = false
   updateInfoRef.value?.toggle()
 }
+
+// Backend reachability polling
+const backendReachable = ref(false)
+let pollTimer: ReturnType<typeof setInterval> | null = null
+
+async function checkBackend() {
+  try {
+    const res = await fetch('http://127.0.0.1:5000/api/camera/status')
+    backendReachable.value = res.ok
+  } catch {
+    backendReachable.value = false
+  }
+}
+
+onMounted(() => {
+  checkBackend()
+  pollTimer = setInterval(checkBackend, 3000)
+})
+
+onUnmounted(() => {
+  if (pollTimer !== null) clearInterval(pollTimer)
+})
+
+const dotClass = computed(() => backendReachable.value ? 'dot-connected' : 'dot-disconnected')
+const statusText = computed(() => backendReachable.value ? t('app.statusReady') : t('app.statusDisconnected'))
 </script>
 
 <template>
@@ -22,8 +47,8 @@ function openUpdates() {
     <div class="topnav-left">
       <span class="topnav-brand">{{ t('app.brand') }}</span>
       <div class="topnav-status">
-        <span class="status-dot"></span>
-        <span class="status-label">{{ t('app.statusReady') }}</span>
+        <span class="status-dot" :class="dotClass"></span>
+        <span class="status-label">{{ statusText }}</span>
       </div>
     </div>
     <div class="topnav-right">
@@ -87,8 +112,15 @@ function openUpdates() {
   width: 8px;
   height: 8px;
   border-radius: 50%;
+}
+
+.dot-connected {
   background: #22c55e;
   animation: pulse-dot 2s infinite ease-in-out;
+}
+
+.dot-disconnected {
+  background: var(--color-error);
 }
 
 @keyframes pulse-dot {

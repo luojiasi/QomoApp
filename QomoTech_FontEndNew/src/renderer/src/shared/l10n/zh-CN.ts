@@ -2,6 +2,7 @@ export const zhCN = {
   app: {
     brand: 'QOMO_LASER V5',
     statusReady: '科猛碳极准备就绪',
+    statusDisconnected: '未连接后台',
     operator: 'OPERATOR_05'
   },
   nav: {

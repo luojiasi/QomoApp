@@ -2,6 +2,7 @@ export const zhTW = {
   app: {
     brand: 'QOMO_LASER V5',
     statusReady: '科猛碳極準備就緒',
+    statusDisconnected: '未連線後台',
     operator: 'OPERATOR_05'
   },
   nav: {
