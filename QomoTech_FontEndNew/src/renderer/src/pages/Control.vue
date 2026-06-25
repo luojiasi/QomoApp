@@ -338,6 +338,36 @@ const ioOutput2 = computed(() => ioOut.value[2] ?? false)
           </div>
         </div>
 
+        <!-- X/Y button jog -->
+        <div class="z-jog-row">
+          <button class="z-jog-btn" :class="{ active: jogDir.X < 0 }"
+            @mousedown="startJog('X', -1)" @mouseup="stopJog('X')"
+            @mouseleave="jogDir.X < 0 ? stopJog('X') : undefined"
+            :disabled="!controllerConnected">
+            <span class="material-symbols-outlined">arrow_back</span> X-
+          </button>
+          <button class="z-jog-btn" :class="{ active: jogDir.Y > 0 }"
+            @mousedown="startJog('Y', 1)" @mouseup="stopJog('Y')"
+            @mouseleave="jogDir.Y > 0 ? stopJog('Y') : undefined"
+            :disabled="!controllerConnected">
+            Y+ <span class="material-symbols-outlined">arrow_upward</span>
+          </button>
+        </div>
+        <div class="z-jog-row">
+          <button class="z-jog-btn" :class="{ active: jogDir.X > 0 }"
+            @mousedown="startJog('X', 1)" @mouseup="stopJog('X')"
+            @mouseleave="jogDir.X > 0 ? stopJog('X') : undefined"
+            :disabled="!controllerConnected">
+            <span class="material-symbols-outlined">arrow_forward</span> X+
+          </button>
+          <button class="z-jog-btn" :class="{ active: jogDir.Y < 0 }"
+            @mousedown="startJog('Y', -1)" @mouseup="stopJog('Y')"
+            @mouseleave="jogDir.Y < 0 ? stopJog('Y') : undefined"
+            :disabled="!controllerConnected">
+            Y- <span class="material-symbols-outlined">arrow_downward</span>
+          </button>
+        </div>
+
         <!-- Z axis jog -->
         <div class="z-jog-row">
           <button
