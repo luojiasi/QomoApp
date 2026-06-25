@@ -152,7 +152,6 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  stopCameraReceiver()
   stopHardwareMonitor()
 })
 </script>
@@ -189,8 +188,6 @@ onUnmounted(() => {
           <div class="hud-value">{{ cameraStatus?.streaming ? 'LIVE' : '--' }}</div>
         </div>
         <div class="hud-card">
-          <div class="hud-label">{{ t('monitor.resolution') }}</div>
-          <div class="hud-value">--</div>
         </div>
       </div>
 
