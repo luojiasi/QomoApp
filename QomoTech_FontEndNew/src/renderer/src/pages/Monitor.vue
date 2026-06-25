@@ -219,16 +219,8 @@ onUnmounted(() => {
       <!-- Bottom-right status -->
       <div class="hud-bottom-right">
         <div class="status-group">
-          <div class="status-label">{{ t('monitor.laserStatus') }}</div>
-          <div class="status-row">
-            <span class="status-dot" :class="{ on: isConnected }"></span>
-            <span class="status-text">{{ isConnected ? t('monitor.connected') : t('monitor.disconnected') }}</span>
-          </div>
-        </div>
-        <div class="status-divider"></div>
-        <div class="status-group">
-          <div class="status-label">{{ t('monitor.gasPressure') }}</div>
-          <div class="status-value">-- BAR</div>
+          <div class="status-label">{{ t('monitor.temperature') }}</div>
+          <div class="status-value">22°C</div>
         </div>
       </div>
 
