@@ -183,7 +183,7 @@ onUnmounted(() => {
       <div class="hud-top-left">
         <div class="hud-card">
           <div class="hud-label">{{ t('monitor.cameraFeed') }}</div>
-          <div class="hud-value">{{ cameraStatus?.streaming ? 'LIVE' : '--' }}</div>
+          <div class="hud-value">{{ cameraStatus?.connected ? 'ACTIVE' : '--' }}</div>
         </div>
       </div>
 
