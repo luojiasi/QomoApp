@@ -3,7 +3,6 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useL10n } from '../shared/l10n'
 import {
   startCameraReceiver,
-  stopCameraReceiver,
   refreshCameraStream,
   useCameraReceiverState,
   connectCamera,
@@ -102,7 +101,6 @@ async function handleConnect() {
     if (res.success) {
       cameraStatus.value = res.data ?? null
       statusMsg.value = 'connected'
-      startCameraReceiver()
     } else {
       statusMsg.value = res.message ?? 'connect failed'
     }
@@ -119,7 +117,6 @@ async function handleDisconnect() {
     if (res.success && res.data) {
       cameraStatus.value = res.data as CameraStatusPayload
     }
-    stopCameraReceiver()
   } catch { /* ignore */ }
   busy.value = false
 }
@@ -146,6 +143,7 @@ const isConnected = computed(() => cameraStatus.value?.connected ?? false)
 
 onMounted(async () => {
   await loadSettingsFromBackend()
+  startCameraReceiver()
   startHardwareMonitor()
   refreshDevices()
   refreshStatus()
@@ -186,8 +184,6 @@ onUnmounted(() => {
         <div class="hud-card">
           <div class="hud-label">{{ t('monitor.cameraFeed') }}</div>
           <div class="hud-value">{{ cameraStatus?.streaming ? 'LIVE' : '--' }}</div>
-        </div>
-        <div class="hud-card">
         </div>
       </div>
 
