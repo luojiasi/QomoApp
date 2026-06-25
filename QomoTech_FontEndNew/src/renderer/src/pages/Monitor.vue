@@ -224,12 +224,13 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <!-- Bottom-right status -->
+      <!-- Bottom-right temperature -->
       <div class="hud-bottom-right">
-        <div class="status-group">
-          <div class="status-label">{{ t('monitor.temperature') }}</div>
-          <div class="status-value">22°C</div>
+        <div class="coord-header-right">
+          <span class="material-symbols-outlined coords-icon">device_thermostat</span>
+          <span class="coords-title">{{ t('monitor.temperature') }}</span>
         </div>
+        <div class="coord-value">22°C</div>
       </div>
 
       <!-- Error overlay -->
@@ -486,10 +487,8 @@ onUnmounted(() => {
 .hud-bottom-right {
   position: absolute;
   bottom: 24px;
-  right: 340px;
-  display: flex;
-  align-items: center;
-  gap: 24px;
+  right: 24px;
+  width: max-content;
   background: rgba(28, 32, 39, 0.7);
   backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -497,58 +496,11 @@ onUnmounted(() => {
   border-radius: 4px;
 }
 
-.status-group {
-  display: flex;
-  flex-direction: column;
-}
-
-.status-label {
-  font-size: 10px;
-  color: var(--color-on-surface-variant);
-  font-family: 'JetBrains Mono', monospace;
-  text-transform: uppercase;
-  margin-bottom: 4px;
-}
-
-.status-row {
+.coord-header-right {
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-.status-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--color-outline-variant);
-}
-
-.status-dot.on {
-  background: #22c55e;
-  box-shadow: 0 0 6px rgba(34, 197, 94, 0.5);
-  animation: pulse-dot 2s infinite ease-in-out;
-}
-
-.status-text {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--color-error);
-}
-
-.status-text.on { color: #22c55e; }
-
-.status-value {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--color-primary);
-}
-
-.status-divider {
-  width: 1px;
-  height: 32px;
-  background: var(--color-outline-variant);
+  margin-bottom: 4px;
 }
 
 .error-overlay {
