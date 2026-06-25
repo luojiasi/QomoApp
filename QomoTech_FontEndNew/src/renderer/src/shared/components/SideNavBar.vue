@@ -104,9 +104,10 @@ function navigate(path: string): void {
 
 .sidenav-title {
   font-family: 'Inter', sans-serif;
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--color-on-surface);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-primary);
+  letter-spacing: -0.02em;
 }
 
 .sidenav-subtitle {
