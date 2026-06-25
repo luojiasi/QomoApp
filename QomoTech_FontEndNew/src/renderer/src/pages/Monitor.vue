@@ -213,6 +213,14 @@ onUnmounted(() => {
             <div class="coord-label">Z</div>
             <div class="coord-value">{{ formatPosition(mposition['Z']) }}</div>
           </div>
+          <div class="coord">
+            <div class="coord-label">U</div>
+            <div class="coord-value">{{ formatPosition(mposition['U']) }}</div>
+          </div>
+          <div class="coord">
+            <div class="coord-label">R</div>
+            <div class="coord-value">{{ formatPosition(mposition['R']) }}</div>
+          </div>
         </div>
       </div>
 
@@ -458,19 +466,19 @@ onUnmounted(() => {
 
 .coords-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
 }
 
 .coord-label {
-  font-size: 10px;
+  font-size: 9px;
   color: var(--color-on-surface-variant);
   font-family: 'JetBrains Mono', monospace;
 }
 
 .coord-value {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--color-on-surface);
 }
