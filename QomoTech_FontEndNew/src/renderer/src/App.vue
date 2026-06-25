@@ -4,7 +4,9 @@ import TopNavBar from './shared/components/TopNavBar.vue'
 import SideNavBar from './shared/components/SideNavBar.vue'
 import UpdateModal from './shared/components/UpdateModal.vue'
 import { themes, applyTheme } from './shared/theme'
-import { startKeyboardJog, stopKeyboardJog } from './shared/motion'
+import { startKeyboardJog, stopKeyboardJog, useKeyboardJogState, closeStepDialog } from './shared/motion'
+
+const { showStepDialog, customStepInput, applyCustomStep } = useKeyboardJogState()
 
 onMounted(() => {
   const saved = localStorage.getItem('qomotech:theme') ?? themes[0].id
@@ -28,6 +30,20 @@ onUnmounted(() => {
     </div>
 
     <UpdateModal />
+
+    <!-- Global step dialog — visible from any page -->
+    <div v-if="showStepDialog" class="step-dialog-overlay" @click.self="closeStepDialog()">
+      <div class="step-dialog">
+        <span class="step-dialog-title">自定义步长</span>
+        <input v-model="customStepInput" type="number" min="0.001" step="0.001"
+          class="step-dialog-input" placeholder="输入数值..."
+          @keydown.enter="applyCustomStep()" @keydown.stop />
+        <div class="step-dialog-btns">
+          <button class="btn-sm btn-primary" @click="applyCustomStep()">OK</button>
+          <button class="btn-sm btn-secondary" @click="closeStepDialog()">取消</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -129,5 +145,56 @@ html, body, #app {
 ::-webkit-scrollbar-thumb {
   background: var(--color-outline-variant);
   border-radius: 3px;
+}
+
+/* Step dialog (global, unscoped) */
+.step-dialog-overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(0,0,0,0.5);
+  display: flex; align-items: center; justify-content: center;
+}
+.step-dialog {
+  background: var(--color-surface-container-highest);
+  border: 1px solid var(--color-outline-variant);
+  border-radius: 8px;
+  padding: 20px 24px;
+  display: flex; flex-direction: column; gap: 12px;
+  min-width: 280px;
+}
+.step-dialog-title {
+  font-family: 'Inter', sans-serif;
+  font-size: 16px; font-weight: 600;
+  color: var(--color-on-surface);
+}
+.step-dialog-input {
+  padding: 8px 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-outline-variant);
+  border-radius: 4px;
+  color: var(--color-on-surface);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  outline: none;
+}
+.step-dialog-input:focus { border-color: var(--color-primary); }
+.step-dialog-btns {
+  display: flex; gap: 8px; justify-content: flex-end;
+}
+.btn-sm {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-primary {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+.btn-secondary {
+  background: var(--color-surface-variant);
+  color: var(--color-on-surface);
 }
 </style>

@@ -159,7 +159,7 @@ async function handleZeroAxis(axis: AxisKey) {
 }
 
 // Keyboard shortcuts — global, registered in App.vue. Use shared step state.
-const { stepLabel, showStepDialog, customStepInput, openStepDialog, applyCustomStep, jogSpeed: kbdSpeed } = useKeyboardJogState()
+const { stepLabel, openStepDialog, jogSpeed: kbdSpeed } = useKeyboardJogState()
 
 // Sync jogSpeed slider → keyboard relative-move speed
 watch(jogSpeed, v => { kbdSpeed.value = v }, { immediate: true })
@@ -470,24 +470,12 @@ const ioOutput2 = computed(() => ioOut.value[2] ?? false)
           </button>
         </div>
 
-        <!-- Step distance indicator + custom dialog -->
+        <!-- Step distance indicator -->
         <div class="step-info">
           <span class="step-label">STEP</span>
           <span class="step-value">{{ stepLabel }}</span>
           <span class="step-unit">mm/deg</span>
           <button class="step-f5-btn" @click="openStepDialog">F5</button>
-        </div>
-        <div v-if="showStepDialog" class="step-dialog-overlay" @click.self="showStepDialog = false">
-          <div class="step-dialog">
-            <span class="step-dialog-title">自定义步长</span>
-            <input v-model="customStepInput" type="number" min="0.001" step="0.001"
-              class="step-dialog-input" placeholder="输入数值..."
-              @keydown.enter="applyCustomStep" @keydown.stop />
-            <div class="step-dialog-btns">
-              <button class="btn-sm btn-primary" @click="applyCustomStep">OK</button>
-              <button class="btn-sm btn-secondary" @click="showStepDialog = false">取消</button>
-            </div>
-          </div>
         </div>
         <!-- Speed slider -->
         <div class="jog-speed">
@@ -1005,40 +993,6 @@ const ioOutput2 = computed(() => ioOut.value[2] ?? false)
   transition: background 0.15s;
 }
 .step-f5-btn:hover { background: rgba(255,255,255,0.06); }
-
-/* Step dialog overlay */
-.step-dialog-overlay {
-  position: fixed; inset: 0; z-index: 9999;
-  background: rgba(0,0,0,0.5);
-  display: flex; align-items: center; justify-content: center;
-}
-.step-dialog {
-  background: var(--color-surface-container-highest);
-  border: 1px solid var(--color-outline-variant);
-  border-radius: 8px;
-  padding: 20px 24px;
-  display: flex; flex-direction: column; gap: 12px;
-  min-width: 280px;
-}
-.step-dialog-title {
-  font-family: 'Inter', sans-serif;
-  font-size: 16px; font-weight: 600;
-  color: var(--color-on-surface);
-}
-.step-dialog-input {
-  padding: 8px 12px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-outline-variant);
-  border-radius: 4px;
-  color: var(--color-on-surface);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 14px;
-  outline: none;
-}
-.step-dialog-input:focus { border-color: var(--color-primary); }
-.step-dialog-btns {
-  display: flex; gap: 8px; justify-content: flex-end;
-}
 
 /* Home & Zero buttons */
 .jog-actions {

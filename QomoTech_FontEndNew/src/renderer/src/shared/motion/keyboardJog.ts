@@ -22,6 +22,9 @@ function openStepDialog() {
   customStepInput.value = ''
   showStepDialog.value = true
 }
+export function closeStepDialog() {
+  showStepDialog.value = false
+}
 function applyCustomStep() {
   const v = parseFloat(customStepInput.value)
   if (!isNaN(v) && v > 0) stepDist.value = v

@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useL10n } from '../l10n'
-import { useHardwareState, startHardwareMonitor, stopHardwareMonitor } from '../motion'
+import { useHardwareState, startHardwareMonitor, stopHardwareMonitor, useKeyboardJogState } from '../motion'
 import UpdateInfo from './UpdateInfo.vue'
 
 const { t } = useL10n()
 const { controllerConnected } = useHardwareState()
+const { stepLabel } = useKeyboardJogState()
 
 const SEEN_KEY = 'qomotech:updateSeen'
 
@@ -62,6 +63,10 @@ const controllerStatusText = computed(() =>
       <div class="topnav-status">
         <span class="status-dot" :class="controllerDotClass"></span>
         <span class="status-label">{{ controllerStatusText }}</span>
+      </div>
+      <div class="topnav-status">
+        <span class="status-label">STEP</span>
+        <span class="step-value">{{ stepLabel }}</span>
       </div>
     </div>
     <div class="topnav-right">
@@ -203,5 +208,14 @@ const controllerStatusText = computed(() =>
   font-family: 'JetBrains Mono', monospace;
   font-size: 12px;
   font-weight: 500;
+}
+
+.step-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-tertiary);
+  min-width: 28px;
+  text-align: right;
 }
 </style>
