@@ -338,33 +338,34 @@ const ioOutput2 = computed(() => ioOut.value[2] ?? false)
           </div>
         </div>
 
-        <!-- X/Y button jog -->
+        <!-- X/Y button jog: X- Y+ -->
         <div class="z-jog-row">
           <button class="z-jog-btn" :class="{ active: jogDir.X < 0 }"
             @mousedown="startJog('X', -1)" @mouseup="stopJog('X')"
             @mouseleave="jogDir.X < 0 ? stopJog('X') : undefined"
             :disabled="!controllerConnected">
-            <span class="material-symbols-outlined">arrow_back</span> X-
+            <span class="material-symbols-outlined">keyboard_arrow_left</span> X-
           </button>
           <button class="z-jog-btn" :class="{ active: jogDir.Y > 0 }"
             @mousedown="startJog('Y', 1)" @mouseup="stopJog('Y')"
             @mouseleave="jogDir.Y > 0 ? stopJog('Y') : undefined"
             :disabled="!controllerConnected">
-            Y+ <span class="material-symbols-outlined">arrow_upward</span>
+            Y+ <span class="material-symbols-outlined">keyboard_arrow_up</span>
           </button>
         </div>
+        <!-- X/Y button jog: X+ Y- -->
         <div class="z-jog-row">
           <button class="z-jog-btn" :class="{ active: jogDir.X > 0 }"
             @mousedown="startJog('X', 1)" @mouseup="stopJog('X')"
             @mouseleave="jogDir.X > 0 ? stopJog('X') : undefined"
             :disabled="!controllerConnected">
-            <span class="material-symbols-outlined">arrow_forward</span> X+
+            <span class="material-symbols-outlined">keyboard_arrow_right</span> X+
           </button>
           <button class="z-jog-btn" :class="{ active: jogDir.Y < 0 }"
             @mousedown="startJog('Y', -1)" @mouseup="stopJog('Y')"
             @mouseleave="jogDir.Y < 0 ? stopJog('Y') : undefined"
             :disabled="!controllerConnected">
-            Y- <span class="material-symbols-outlined">arrow_downward</span>
+            Y- <span class="material-symbols-outlined">keyboard_arrow_down</span>
           </button>
         </div>
 
@@ -378,7 +379,7 @@ const ioOutput2 = computed(() => ioOut.value[2] ?? false)
             @mouseleave="jogDir.Z > 0 ? stopJog('Z') : undefined"
             :disabled="!controllerConnected"
           >
-            <span class="material-symbols-outlined">arrow_upward</span>
+            <span class="material-symbols-outlined">keyboard_arrow_up</span>
             Z+
           </button>
           <button
@@ -390,7 +391,7 @@ const ioOutput2 = computed(() => ioOut.value[2] ?? false)
             :disabled="!controllerConnected"
           >
             Z-
-            <span class="material-symbols-outlined">arrow_downward</span>
+            <span class="material-symbols-outlined">keyboard_arrow_down</span>
           </button>
         </div>
 
@@ -404,7 +405,7 @@ const ioOutput2 = computed(() => ioOut.value[2] ?? false)
             @mouseleave="jogDir.U > 0 ? stopJog('U') : undefined"
             :disabled="!controllerConnected"
           >
-            <span class="material-symbols-outlined">arrow_upward</span>
+            <span class="material-symbols-outlined">keyboard_arrow_up</span>
             U+
           </button>
           <button
@@ -416,7 +417,7 @@ const ioOutput2 = computed(() => ioOut.value[2] ?? false)
             :disabled="!controllerConnected"
           >
             U-
-            <span class="material-symbols-outlined">arrow_downward</span>
+            <span class="material-symbols-outlined">keyboard_arrow_down</span>
           </button>
         </div>
          <!-- R axis jog -->
@@ -429,7 +430,7 @@ const ioOutput2 = computed(() => ioOut.value[2] ?? false)
             @mouseleave="jogDir.R > 0 ? stopJog('R') : undefined"
             :disabled="!controllerConnected"
           >
-            <span class="material-symbols-outlined">arrow_upward</span>
+            <span class="material-symbols-outlined">keyboard_arrow_up</span>
             R+
           </button>
           <button
@@ -441,7 +442,7 @@ const ioOutput2 = computed(() => ioOut.value[2] ?? false)
             :disabled="!controllerConnected"
           >
             R-
-            <span class="material-symbols-outlined">arrow_downward</span>
+            <span class="material-symbols-outlined">keyboard_arrow_down</span>
           </button>
         </div>
 
