@@ -1,10 +1,20 @@
 <script setup lang="ts">
+import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useL10n } from '../l10n'
 
 const { t } = useL10n()
 const router = useRouter()
 const route = useRoute()
+
+const appVersion = ref('')
+
+onMounted(async () => {
+  try {
+    const info = await window.api.system.getInfo()
+    appVersion.value = info.appVersion
+  } catch { /* ignore */ }
+})
 
 interface NavItem {
   path: string
@@ -37,8 +47,8 @@ function navigate(path: string): void {
 <template>
   <nav class="sidenav">
     <div class="sidenav-header">
-      <h2 class="sidenav-title">{{ t('common.station') }}</h2>
-      <p class="sidenav-subtitle">{{ t('app.statusReady') }}</p>
+      <h2 class="sidenav-title">{{ t('app.brand') }}</h2>
+      <p class="sidenav-subtitle">v{{ appVersion }}</p>
     </div>
 
     <div class="sidenav-main">
