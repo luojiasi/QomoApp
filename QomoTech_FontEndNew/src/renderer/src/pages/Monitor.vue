@@ -498,8 +498,8 @@ onUnmounted(() => {
 
 .coords-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 12px;
+  grid-template-columns: repeat(5, auto);
+  gap: 12px 20px;
 }
 
 .coord-label {
@@ -513,6 +513,9 @@ onUnmounted(() => {
   font-size: 16px;
   font-weight: 600;
   color: var(--color-on-surface);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .hud-bottom-right {
