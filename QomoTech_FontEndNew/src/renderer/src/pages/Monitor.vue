@@ -529,10 +529,7 @@ onUnmounted(() => {
   font-weight: 600;
   color: var(--color-on-surface);
   white-space: nowrap;
-  overflow-x: auto;
-  scrollbar-width: none;
 }
-.coord-value::-webkit-scrollbar { display: none; }
 
 .hud-bottom-right {
   position: absolute;
