@@ -389,111 +389,69 @@ const ioOutput2 = computed(() => ioOut.value[2] ?? false)
           </div>
         </div>
 
-        <!-- X/Y button jog: X- Y+ -->
-        <div class="z-jog-row">
+        <!-- === Axis jog buttons: compact grid === -->
+        <div class="jog-grid-cnt">
+          <!-- Z line -->
+          <div></div>
+          <button class="z-jog-btn" :class="{ active: jogDir.Z > 0 }"
+            @mousedown="startJog('Z',1)" @mouseup="stopJog('Z')"
+            @mouseleave="jogDir.Z>0?stopJog('Z'):undefined" :disabled="!controllerConnected">
+            <span class="material-symbols-outlined">keyboard_arrow_up</span>Z+
+          </button>
+          <div></div>
+
+          <!-- Y+ and center -->
           <button class="z-jog-btn" :class="{ active: jogDir.X < 0 }"
-            @mousedown="startJog('X', -1)" @mouseup="stopJog('X')"
-            @mouseleave="jogDir.X < 0 ? stopJog('X') : undefined"
-            :disabled="!controllerConnected">
-            <span class="material-symbols-outlined">keyboard_arrow_left</span> X-
+            @mousedown="startJog('X',-1)" @mouseup="stopJog('X')"
+            @mouseleave="jogDir.X<0?stopJog('X'):undefined" :disabled="!controllerConnected">
+            <span class="material-symbols-outlined">keyboard_arrow_left</span>X-
           </button>
           <button class="z-jog-btn" :class="{ active: jogDir.Y > 0 }"
-            @mousedown="startJog('Y', 1)" @mouseup="stopJog('Y')"
-            @mouseleave="jogDir.Y > 0 ? stopJog('Y') : undefined"
-            :disabled="!controllerConnected">
-            Y+ <span class="material-symbols-outlined">keyboard_arrow_up</span>
+            @mousedown="startJog('Y',1)" @mouseup="stopJog('Y')"
+            @mouseleave="jogDir.Y>0?stopJog('Y'):undefined" :disabled="!controllerConnected">
+            Y+<span class="material-symbols-outlined">keyboard_arrow_up</span>
           </button>
-        </div>
-        <!-- X/Y button jog: X+ Y- -->
-        <div class="z-jog-row">
           <button class="z-jog-btn" :class="{ active: jogDir.X > 0 }"
-            @mousedown="startJog('X', 1)" @mouseup="stopJog('X')"
-            @mouseleave="jogDir.X > 0 ? stopJog('X') : undefined"
-            :disabled="!controllerConnected">
-            <span class="material-symbols-outlined">keyboard_arrow_right</span> X+
+            @mousedown="startJog('X',1)" @mouseup="stopJog('X')"
+            @mouseleave="jogDir.X>0?stopJog('X'):undefined" :disabled="!controllerConnected">
+            <span class="material-symbols-outlined">keyboard_arrow_right</span>X+
+          </button>
+
+          <!-- Z- and Y- -->
+          <div></div>
+          <button class="z-jog-btn" :class="{ active: jogDir.Z < 0 }"
+            @mousedown="startJog('Z',-1)" @mouseup="stopJog('Z')"
+            @mouseleave="jogDir.Z<0?stopJog('Z'):undefined" :disabled="!controllerConnected">
+            Z-<span class="material-symbols-outlined">keyboard_arrow_down</span>
           </button>
           <button class="z-jog-btn" :class="{ active: jogDir.Y < 0 }"
-            @mousedown="startJog('Y', -1)" @mouseup="stopJog('Y')"
-            @mouseleave="jogDir.Y < 0 ? stopJog('Y') : undefined"
-            :disabled="!controllerConnected">
-            Y- <span class="material-symbols-outlined">keyboard_arrow_down</span>
+            @mousedown="startJog('Y',-1)" @mouseup="stopJog('Y')"
+            @mouseleave="jogDir.Y<0?stopJog('Y'):undefined" :disabled="!controllerConnected">
+            Y-<span class="material-symbols-outlined">keyboard_arrow_down</span>
           </button>
         </div>
 
-        <!-- Z axis jog -->
+        <!-- U / R line -->
         <div class="z-jog-row">
-          <button
-            class="z-jog-btn"
-            :class="{ active: jogDir.Z > 0 }"
-            @mousedown="startJog('Z', 1)"
-            @mouseup="stopJog('Z')"
-            @mouseleave="jogDir.Z > 0 ? stopJog('Z') : undefined"
-            :disabled="!controllerConnected"
-          >
-            <span class="material-symbols-outlined">keyboard_arrow_up</span>
-            Z+
+          <button class="z-jog-btn" :class="{ active: jogDir.U > 0 }"
+            @mousedown="startJog('U',1)" @mouseup="stopJog('U')"
+            @mouseleave="jogDir.U>0?stopJog('U'):undefined" :disabled="!controllerConnected">
+            <span class="material-symbols-outlined">keyboard_arrow_up</span>U+
           </button>
-          <button
-            class="z-jog-btn"
-            :class="{ active: jogDir.Z < 0 }"
-            @mousedown="startJog('Z', -1)"
-            @mouseup="stopJog('Z')"
-            @mouseleave="jogDir.Z < 0 ? stopJog('Z') : undefined"
-            :disabled="!controllerConnected"
-          >
-            Z-
-            <span class="material-symbols-outlined">keyboard_arrow_down</span>
+          <button class="z-jog-btn" :class="{ active: jogDir.U < 0 }"
+            @mousedown="startJog('U',-1)" @mouseup="stopJog('U')"
+            @mouseleave="jogDir.U<0?stopJog('U'):undefined" :disabled="!controllerConnected">
+            U-<span class="material-symbols-outlined">keyboard_arrow_down</span>
           </button>
-        </div>
-
-         <!-- U axis jog -->
-         <div class="z-jog-row">
-          <button
-            class="z-jog-btn"
-            :class="{ active: jogDir.U > 0 }"
-            @mousedown="startJog('U', 1)"
-            @mouseup="stopJog('U')"
-            @mouseleave="jogDir.U > 0 ? stopJog('U') : undefined"
-            :disabled="!controllerConnected"
-          >
-            <span class="material-symbols-outlined">keyboard_arrow_up</span>
-            U+
+          <button class="z-jog-btn" :class="{ active: jogDir.R > 0 }"
+            @mousedown="startJog('R',1)" @mouseup="stopJog('R')"
+            @mouseleave="jogDir.R>0?stopJog('R'):undefined" :disabled="!controllerConnected">
+            <span class="material-symbols-outlined">keyboard_arrow_up</span>R+
           </button>
-          <button
-            class="z-jog-btn"
-            :class="{ active: jogDir.U < 0 }"
-            @mousedown="startJog('U', -1)"
-            @mouseup="stopJog('U')"
-            @mouseleave="jogDir.U < 0 ? stopJog('U') : undefined"
-            :disabled="!controllerConnected"
-          >
-            U-
-            <span class="material-symbols-outlined">keyboard_arrow_down</span>
-          </button>
-        </div>
-         <!-- R axis jog -->
-         <div class="z-jog-row">
-          <button
-            class="z-jog-btn"
-            :class="{ active: jogDir.R > 0 }"
-            @mousedown="startJog('R', 1)"
-            @mouseup="stopJog('R')"
-            @mouseleave="jogDir.R > 0 ? stopJog('R') : undefined"
-            :disabled="!controllerConnected"
-          >
-            <span class="material-symbols-outlined">keyboard_arrow_up</span>
-            R+
-          </button>
-          <button
-            class="z-jog-btn"
-            :class="{ active: jogDir.R < 0 }"
-            @mousedown="startJog('R', -1)"
-            @mouseup="stopJog('R')"
-            @mouseleave="jogDir.R < 0 ? stopJog('R') : undefined"
-            :disabled="!controllerConnected"
-          >
-            R-
-            <span class="material-symbols-outlined">keyboard_arrow_down</span>
+          <button class="z-jog-btn" :class="{ active: jogDir.R < 0 }"
+            @mousedown="startJog('R',-1)" @mouseup="stopJog('R')"
+            @mouseleave="jogDir.R<0?stopJog('R'):undefined" :disabled="!controllerConnected">
+            R-<span class="material-symbols-outlined">keyboard_arrow_down</span>
           </button>
         </div>
 
@@ -947,6 +905,16 @@ const ioOutput2 = computed(() => ioOut.value[2] ?? false)
 .stick-speed  { color: var(--color-on-surface-variant); min-width: 40px; }
 
 /* Z jog */
+.jog-grid-cnt {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 4px;
+  width: 100%;
+}
+.jog-grid-cnt .z-jog-btn {
+  justify-content: center;
+}
+
 .z-jog-row {
   display: flex;
   gap: 12px;
