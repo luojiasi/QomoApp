@@ -48,6 +48,72 @@ function formatPosition(val: number | undefined | null): string {
 const jogDir = reactive<Record<AxisKey, number>>({ X: 0, Y: 0, Z: 0, U: 0, R: 0 })
 const activeJogAxis = ref<AxisKey | null>(null)
 
+// Joystick — XY 360° drag
+const joystickAngle = ref(0)
+const joystickRadius = ref(0)
+const joystickDragging = ref(false)
+const joystickEl = ref<HTMLElement | null>(null)
+const STICK_RANGE = 56
+
+function stickStyle() {
+  const rad = (joystickAngle.value * Math.PI) / 180
+  const r = joystickRadius.value * STICK_RANGE
+  return { transform: `translate(${Math.cos(rad) * r}px, ${-Math.sin(rad) * r}px)` }
+}
+
+function onStickDown(e: PointerEvent) {
+  if (!controllerConnected.value) return
+  joystickDragging.value = true
+  ;(e.currentTarget as HTMLElement)?.setPointerCapture?.(e.pointerId)
+  updateStick(e)
+}
+
+function onStickMove(e: PointerEvent) {
+  if (!joystickDragging.value) return
+  updateStick(e)
+}
+
+function onStickUp() {
+  if (!joystickDragging.value) return
+  joystickDragging.value = false
+  joystickAngle.value = 0
+  joystickRadius.value = 0
+  if (jogDir.X !== 0) { jogDir.X = 0; jogStop('X') }
+  if (jogDir.Y !== 0) { jogDir.Y = 0; jogStop('Y') }
+}
+
+function updateStick(e: PointerEvent) {
+  const el = joystickEl.value
+  if (!el) return
+  const r = el.getBoundingClientRect()
+  const cx = r.left + r.width / 2
+  const cy = r.top + r.height / 2
+  const dx = e.clientX - cx
+  const dy = e.clientY - cy
+  const dist = Math.min(STICK_RANGE, Math.sqrt(dx * dx + dy * dy))
+  const deg = ((Math.atan2(-dy, dx) * 180) / Math.PI + 360) % 360
+  const pct = dist / STICK_RANGE
+
+  joystickAngle.value = Math.round(deg)
+  joystickRadius.value = Math.round(pct * 100) / 100
+
+  const cosA = Math.cos((deg * Math.PI) / 180)
+  const sinA = Math.sin((deg * Math.PI) / 180)
+  const spd = Math.max(1, Math.round(pct * jogSpeed.value))
+
+  // X
+  if (Math.abs(cosA) > 0.1) {
+    const d = cosA > 0 ? 1 : -1
+    if (jogDir.X !== d) { if (jogDir.X) jogStop('X'); jogDir.X = d; jogAxis('X', d, spd) }
+  } else if (jogDir.X) { jogDir.X = 0; jogStop('X') }
+
+  // Y
+  if (Math.abs(sinA) > 0.1) {
+    const d = sinA > 0 ? 1 : -1
+    if (jogDir.Y !== d) { if (jogDir.Y) jogStop('Y'); jogDir.Y = d; jogAxis('Y', d, spd) }
+  } else if (jogDir.Y) { jogDir.Y = 0; jogStop('Y') }
+}
+
 async function startJog(axis: AxisKey, dir: number) {
   if (!controllerConnected.value) return
   jogDir[axis] = dir
@@ -223,54 +289,39 @@ const ioOutput2 = computed(() => ioOut.value[2] ?? false)
         <h4 class="jog-title">Jog Controller</h4>
 
         <div class="jog-dial-container">
+          <!-- outer ring -->
           <div class="jog-dial-outer">
-            <div class="jog-dial-ring"></div>
+            <svg class="jog-outer-svg" viewBox="0 0 220 220">
+              <circle cx="110" cy="110" r="108" fill="none" stroke="rgba(65,71,84,0.25)" stroke-width="2"/>
+              <g v-for="d in [0,15,30,45,60,75,90,105,120,135,150,165,180,195,210,225,240,255,270,285,300,315,330,345]" :key="d" :transform="`rotate(${d} 110 110)`">
+                <line v-if="d%90===0" x1="110" y1="4" x2="110" y2="18" stroke="rgba(173,199,255,0.5)" stroke-width="2" stroke-linecap="round"/>
+                <line v-else-if="d%45===0" x1="110" y1="4" x2="110" y2="14" stroke="rgba(173,199,255,0.3)" stroke-width="1.5" stroke-linecap="round"/>
+                <line v-else-if="d%15===0" x1="110" y1="4" x2="110" y2="10" stroke="rgba(255,255,255,0.1)" stroke-width="1" stroke-linecap="round"/>
+              </g>
+            </svg>
           </div>
-          <div class="jog-dial-inner">
-            <div class="jog-glow"></div>
-            <div class="jog-grid">
-              <button
-                class="jog-btn jog-top"
-                :class="{ active: jogDir.Y > 0 }"
-                @mousedown="startJog('Y', 1)"
-                @mouseup="stopJog('Y')"
-                @mouseleave="jogDir.Y > 0 ? stopJog('Y') : undefined"
-                :disabled="!controllerConnected"
-              >
-                <span class="material-symbols-outlined jog-arrow">arrow_drop_up</span>
-              </button>
-              <button
-                class="jog-btn jog-left"
-                :class="{ active: jogDir.X < 0 }"
-                @mousedown="startJog('X', -1)"
-                @mouseup="stopJog('X')"
-                @mouseleave="jogDir.X < 0 ? stopJog('X') : undefined"
-                :disabled="!controllerConnected"
-              >
-                <span class="material-symbols-outlined jog-arrow">arrow_left</span>
-              </button>
-              <div class="jog-center"><div class="jog-center-dot"></div></div>
-              <button
-                class="jog-btn jog-right"
-                :class="{ active: jogDir.X > 0 }"
-                @mousedown="startJog('X', 1)"
-                @mouseup="stopJog('X')"
-                @mouseleave="jogDir.X > 0 ? stopJog('X') : undefined"
-                :disabled="!controllerConnected"
-              >
-                <span class="material-symbols-outlined jog-arrow">arrow_right</span>
-              </button>
-              <button
-                class="jog-btn jog-bottom"
-                :class="{ active: jogDir.Y < 0 }"
-                @mousedown="startJog('Y', -1)"
-                @mouseup="stopJog('Y')"
-                @mouseleave="jogDir.Y < 0 ? stopJog('Y') : undefined"
-                :disabled="!controllerConnected"
-              >
-                <span class="material-symbols-outlined jog-arrow">arrow_drop_down</span>
-              </button>
+          <!-- inner well -->
+          <div
+            ref="joystickEl"
+            class="jog-dial-inner"
+            :class="{ dragging: joystickDragging }"
+            @pointerdown="onStickDown"
+            @pointermove="onStickMove"
+            @pointerup="onStickUp"
+            @pointerleave="onStickUp"
+            @pointercancel="onStickUp"
+          >
+            <div class="jog-guide-ring"></div>
+            <div class="jog-cross-h"></div>
+            <div class="jog-cross-v"></div>
+            <div class="jog-ripple" :class="{ active: joystickDragging }"></div>
+            <div class="jog-knob" :style="stickStyle()">
+              <div class="jog-knob-core"></div>
             </div>
+          <!-- knob readout -->
+          <div class="jog-stick-info">
+            <span class="stick-degree">{{ joystickRadius > 0.05 ? joystickAngle + '°' : '' }}</span>
+            <span class="stick-speed">{{ joystickRadius > 0.05 ? Math.round(joystickRadius * jogSpeed) + '%' : '' }}</span>
           </div>
         </div>
 
@@ -675,107 +726,102 @@ const ioOutput2 = computed(() => ioOut.value[2] ?? false)
   position: relative;
   width: 220px;
   height: 220px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   margin-bottom: 16px;
+  flex-shrink: 0;
 }
 
+/* outer ring — absolute center */
 .jog-dial-outer {
   position: absolute;
   inset: 0;
-  border-radius: 50%;
-  border: 4px solid rgba(65, 71, 84, 0.3);
   display: flex;
   align-items: center;
   justify-content: center;
+  pointer-events: none;
 }
+.jog-outer-svg { width: 100%; height: 100%; }
 
-.jog-dial-ring {
-  position: absolute;
-  inset: 8px;
-  border-radius: 50%;
-  background: conic-gradient(from 0deg, transparent, var(--color-primary), transparent);
-  animation: spin-ring 4s linear infinite;
-  opacity: 0.2;
-}
-
-@keyframes spin-ring {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
+/* inner well — absolute center, same parent */
 .jog-dial-inner {
-  position: relative;
-  width: 160px;
-  height: 160px;
-  background: var(--color-surface-container-highest);
-  border: 2px solid var(--color-outline-variant);
-  border-radius: 50%;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.jog-glow {
   position: absolute;
-  width: 48px;
-  height: 48px;
-  background: var(--color-primary);
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 170px;
+  height: 170px;
   border-radius: 50%;
-  filter: blur(24px);
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-
-.jog-dial-inner:hover .jog-glow { opacity: 0.2; }
-
-.jog-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: repeat(3, 1fr);
-  gap: 12px;
-  z-index: 1;
-}
-
-.jog-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
+  background: radial-gradient(circle at center, rgba(36,39,42,0.9), rgba(26,29,34,0.96));
+  border: 2px solid rgba(65,71,84,0.35);
+  box-shadow: 0 0 0 6px rgba(28,30,36,0.55), 0 4px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.03);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 4px;
-  border-radius: 4px;
-  transition: background 0.15s;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  transition: border-color 0.25s, box-shadow 0.25s;
+}
+.jog-dial-inner:active { cursor: grabbing; }
+.jog-dial-inner.dragging {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 6px rgba(28,30,36,0.55), 0 4px 32px rgba(0,0,0,0.5), 0 0 24px rgba(173,199,255,0.22), inset 0 1px 0 rgba(255,255,255,0.03);
 }
 
-.jog-btn:hover:not(:disabled) { background: rgba(173, 199, 255, 0.1); }
-.jog-btn.active { background: rgba(173, 199, 255, 0.2); }
-.jog-btn.active .jog-arrow { color: var(--color-primary); }
-.jog-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-
-.jog-top { grid-column: 2; }
-.jog-left { grid-column: 1; grid-row: 2; }
-.jog-center { grid-column: 2; grid-row: 2; display: flex; align-items: center; justify-content: center; }
-.jog-right { grid-column: 3; grid-row: 2; }
-.jog-bottom { grid-column: 2; grid-row: 3; }
-
-.jog-arrow {
-  color: var(--color-on-surface);
-  cursor: pointer;
-  transition: color 0.2s;
-  font-size: 28px;
-}
-
-.jog-center-dot {
-  width: 20px;
-  height: 20px;
-  background: var(--color-primary);
+/* guides */
+.jog-guide-ring {
+  position: absolute;
+  inset: 20px;
   border-radius: 50%;
-  border: 3px solid var(--color-surface-container-high);
+  border: 1px solid rgba(255,255,255,0.06);
+  pointer-events: none;
 }
+.jog-cross-h, .jog-cross-v {
+  position: absolute;
+  background: rgba(255,255,255,0.05);
+  pointer-events: none;
+}
+.jog-cross-h { width: 65%; height: 1px; }
+.jog-cross-v { width: 1px; height: 65%; }
+
+/* ripple */
+.jog-ripple {
+  position: absolute; inset: 20px; border-radius: 50%;
+  border: 2px solid transparent; opacity: 0; pointer-events: none; transition: opacity 0.3s;
+}
+.jog-ripple.active {
+  border-color: rgba(173,199,255,0.18); opacity: 1;
+  animation: ripple-out 1.2s ease-out infinite;
+}
+@keyframes ripple-out {
+  0%   { inset: 20px; border-color: rgba(173,199,255,0.25); }
+  50%  { inset: 10px; border-color: rgba(173,199,255,0.06); }
+  100% { inset: 0;    border-color: transparent; }
+}
+
+/* knob */
+.jog-knob {
+  position: absolute; z-index: 2; pointer-events: none;
+  transition: transform 0.05s ease-out;
+  display: flex; align-items: center; justify-content: center;
+}
+.jog-knob-core {
+  width: 30px; height: 30px;
+  background: radial-gradient(circle at 40% 35%, rgba(210,222,255,0.95), var(--color-primary));
+  border-radius: 50%;
+  box-shadow: 0 0 14px rgba(173,199,255,0.55), 0 2px 6px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.2);
+  transition: width 0.2s, height 0.2s, box-shadow 0.2s;
+}
+.jog-dial-inner.dragging .jog-knob-core {
+  width: 34px; height: 34px;
+  box-shadow: 0 0 26px rgba(173,199,255,0.85), 0 4px 10px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.25);
+}
+
+/* readout */
+.jog-stick-info {
+  display: flex; justify-content: center; gap: 16px; margin-top: 8px;
+  font-family: 'JetBrains Mono', monospace; font-size: 13px; height: 18px;
+}
+.stick-degree { color: var(--color-primary); font-weight: 600; min-width: 36px; text-align: right; }
+.stick-speed  { color: var(--color-on-surface-variant); min-width: 40px; }
 
 /* Z jog */
 .z-jog-row {
