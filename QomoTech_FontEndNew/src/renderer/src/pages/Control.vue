@@ -102,19 +102,21 @@ function updateStick(e: PointerEvent) {
 
   const cosA = Math.cos((deg * Math.PI) / 180)
   const sinA = Math.sin((deg * Math.PI) / 180)
-  // joystick speed: radius % × jogSpeed %, but at least 1
-  const spd = Math.max(1, Math.round(pct * jogSpeed.value))
+  // X/Y 各自的速度按分量比例分配，但至少 1
+  const totalSpd = Math.max(1, Math.round(pct * jogSpeed.value))
+  const xSpd = Math.max(1, Math.round(Math.abs(cosA) * totalSpd))
+  const ySpd = Math.max(1, Math.round(Math.abs(sinA) * totalSpd))
 
-  // X
+  // X — 无 await，独立发送
   if (Math.abs(cosA) > 0.1) {
     const d = cosA > 0 ? 1 : -1
-    if (jogDir.X !== d) { if (jogDir.X) jogStop('X'); jogDir.X = d; jogAxis('X', d, spd) }
+    if (jogDir.X !== d) { if (jogDir.X) jogStop('X'); jogDir.X = d; jogAxis('X', d, xSpd) }
   } else if (jogDir.X) { jogDir.X = 0; jogStop('X') }
 
-  // Y
+  // Y — 无 await，独立发送
   if (Math.abs(sinA) > 0.1) {
     const d = sinA > 0 ? 1 : -1
-    if (jogDir.Y !== d) { if (jogDir.Y) jogStop('Y'); jogDir.Y = d; jogAxis('Y', d, spd) }
+    if (jogDir.Y !== d) { if (jogDir.Y) jogStop('Y'); jogDir.Y = d; jogAxis('Y', d, ySpd) }
   } else if (jogDir.Y) { jogDir.Y = 0; jogStop('Y') }
 }
 
