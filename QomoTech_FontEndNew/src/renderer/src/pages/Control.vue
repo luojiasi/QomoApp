@@ -50,7 +50,7 @@ function formatPosition(val: number | undefined | null): string {
 const jogDir = reactive<Record<AxisKey, number>>({ X: 0, Y: 0, Z: 0, U: 0, R: 0 })
 const activeJogAxis = ref<AxisKey | null>(null)
 
-// Joystick — XY 360° drag
+// Joystick — XY 360° drag (speed matches jogSpeed slider)
 const joystickAngle = ref(0)
 const joystickRadius = ref(0)
 const joystickDragging = ref(false)
@@ -101,6 +101,7 @@ function updateStick(e: PointerEvent) {
 
   const cosA = Math.cos((deg * Math.PI) / 180)
   const sinA = Math.sin((deg * Math.PI) / 180)
+  // joystick speed: radius % × jogSpeed %, but at least 1
   const spd = Math.max(1, Math.round(pct * jogSpeed.value))
 
   // X
