@@ -82,6 +82,16 @@ function formatPosition(val: number | undefined | null): string {
   return val.toFixed(3)
 }
 
+/** Adaptive font size clamp: shrinks long numbers, caps short ones at 28px */
+function coordFontSize(val: number | undefined | null): string {
+  if (val === null || val === undefined) return '20px'
+  const s = val.toFixed(3)
+  if (s.length <= 6) return '28px'
+  if (s.length <= 8) return '22px'
+  if (s.length <= 10) return '18px'
+  return '14px'
+}
+
 async function refreshDevices() {
   const res = await fetchCameraDevices()
   if (res.success && res.data) {
@@ -214,23 +224,23 @@ onUnmounted(() => {
         <div class="coords-grid">
           <div class="coord">
             <div class="coord-label">X</div>
-            <div class="coord-value">{{ formatPosition(mposition['X']) }}</div>
+            <div class="coord-value" :style="{ fontSize: coordFontSize(mposition['X']) }">{{ formatPosition(mposition['X']) }}</div>
           </div>
           <div class="coord">
             <div class="coord-label">Y</div>
-            <div class="coord-value">{{ formatPosition(mposition['Y']) }}</div>
+            <div class="coord-value" :style="{ fontSize: coordFontSize(mposition['Y']) }">{{ formatPosition(mposition['Y']) }}</div>
           </div>
           <div class="coord">
             <div class="coord-label">Z</div>
-            <div class="coord-value">{{ formatPosition(mposition['Z']) }}</div>
+            <div class="coord-value" :style="{ fontSize: coordFontSize(mposition['Z']) }">{{ formatPosition(mposition['Z']) }}</div>
           </div>
           <div class="coord">
             <div class="coord-label">U</div>
-            <div class="coord-value">{{ formatPosition(mposition['U']) }}</div>
+            <div class="coord-value" :style="{ fontSize: coordFontSize(mposition['U']) }">{{ formatPosition(mposition['U']) }}</div>
           </div>
           <div class="coord">
             <div class="coord-label">R</div>
-            <div class="coord-value">{{ formatPosition(mposition['R']) }}</div>
+            <div class="coord-value" :style="{ fontSize: coordFontSize(mposition['R']) }">{{ formatPosition(mposition['R']) }}</div>
           </div>
         </div>
       </div>
@@ -497,9 +507,15 @@ onUnmounted(() => {
 }
 
 .coords-grid {
-  display: grid;
-  grid-template-columns: repeat(5, auto);
-  gap: 12px 20px;
+  display: flex;
+  gap: 20px;
+}
+
+.coord {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex-shrink: 0;
 }
 
 .coord-label {
@@ -510,13 +526,13 @@ onUnmounted(() => {
 
 .coord-value {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 16px;
   font-weight: 600;
   color: var(--color-on-surface);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
+.coord-value::-webkit-scrollbar { display: none; }
 
 .hud-bottom-right {
   position: absolute;
