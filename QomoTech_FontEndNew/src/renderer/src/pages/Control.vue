@@ -355,7 +355,8 @@ const ioOutput2 = computed(() => ioOut.value[2] ?? false)
           <!-- outer ring -->
           <div class="jog-dial-outer">
             <svg class="jog-outer-svg" viewBox="0 0 220 220">
-              <circle cx="110" cy="110" r="108" fill="none" stroke="rgba(65,71,84,0.25)" stroke-width="2"/>
+              <circle cx="110" cy="110" r="108" fill="none" stroke="rgba(65,71,84,0.3)" stroke-width="2"/>
+              <circle cx="110" cy="110" r="104" fill="none" stroke="rgba(65,71,84,0.12)" stroke-width="1"/>
               <g v-for="d in [0,15,30,45,60,75,90,105,120,135,150,165,180,195,210,225,240,255,270,285,300,315,330,345]" :key="d" :transform="`rotate(${d} 110 110)`">
                 <line v-if="d%90===0" x1="110" y1="4" x2="110" y2="18" stroke="rgba(173,199,255,0.5)" stroke-width="2" stroke-linecap="round"/>
                 <line v-else-if="d%45===0" x1="110" y1="4" x2="110" y2="14" stroke="rgba(173,199,255,0.3)" stroke-width="1.5" stroke-linecap="round"/>
