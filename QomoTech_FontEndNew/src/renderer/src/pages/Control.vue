@@ -61,6 +61,9 @@ const STICK_RANGE = 56
 function stickStyle() {
   const rad = (joystickAngle.value * Math.PI) / 180
   const r = joystickRadius.value * STICK_RANGE
+  // atan2(dy,dx) already matches screen coords: dx right +, dy down +
+  // knob should follow the pointer, so translate(dx, dy) = translate(cos*r, sin*r)
+  // display angle = atan2(-dy,dx) → knob pos = (cos(deg)*r, -sin(deg)*r) in screen space
   return { transform: `translate(${Math.cos(rad) * r}px, ${-Math.sin(rad) * r}px)` }
 }
 
@@ -94,17 +97,16 @@ function updateStick(e: PointerEvent) {
   const dx = e.clientX - cx
   const dy = e.clientY - cy
   const dist = Math.min(STICK_RANGE, Math.sqrt(dx * dx + dy * dy))
-  // atan2(y,x): dy>0=down=负Y, so yDir = -sin
-  const rad = Math.atan2(dy, dx)
-  const deg = ((rad * 180) / Math.PI + 360) % 360
+  // screen deg: 0°=right, 90°=up, 180°=left, 270°=down
+  const deg = ((Math.atan2(-dy, dx) * 180) / Math.PI + 360) % 360
   const pct = dist / STICK_RANGE
 
   joystickAngle.value = Math.round(deg)
   joystickRadius.value = Math.round(pct * 100) / 100
 
-  // screen-space decomposition: dx→X, dy→Y (dy>0=down=Y-)
-  const xNorm = dist > 0 ? dx / dist : 0   // -1..1, right=+
-  const yNorm = dist > 0 ? -dy / dist : 0  // -1..1, up=+ (screen Y inverted)
+  // direction from dx,dy directly (NOT from deg)
+  const xNorm = dist > 0.01 ? dx / dist : 0
+  const yNorm = dist > 0.01 ? -dy / dist : 0
 
   const totalSpd = Math.max(1, Math.round(pct * jogSpeed.value))
   const xSpd = Math.max(1, Math.round(Math.abs(xNorm) * totalSpd))

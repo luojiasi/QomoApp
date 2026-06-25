@@ -187,13 +187,13 @@ class 安全控制器:
             raise SafetyViolation(f"当前状态 {当前.value} 不允许下发运动指令")
 
     def 准入_点动(self, 当前: 运动状态) -> None:
-        """点动只允许在 IDLE 下开始 —— 避免与缓冲指令冲突。"""
+        """点动只允许在 IDLE / MOVING 下开始。MOVING 允许是因为多轴同时 jog。"""
         if 当前 == 运动状态.DISCONNECTED:
             raise SafetyViolation("控制器未连接")
         if 当前 in (运动状态.ESTOP, 运动状态.ALARM):
             raise SafetyViolation(f"当前状态 {当前.value}，需先调用 复位 清除")
-        if 当前 != 运动状态.IDLE:
-            raise SafetyViolation(f"点动只能从 IDLE 开始，当前 {当前.value}")
+        if 当前 not in (运动状态.IDLE, 运动状态.MOVING):
+            raise SafetyViolation(f"点动只能从 IDLE/MOVING 开始，当前 {当前.value}")
 
     def 准入_回零(self, 当前: 运动状态) -> None:
         if 当前 == 运动状态.DISCONNECTED:
