@@ -94,28 +94,31 @@ function updateStick(e: PointerEvent) {
   const dx = e.clientX - cx
   const dy = e.clientY - cy
   const dist = Math.min(STICK_RANGE, Math.sqrt(dx * dx + dy * dy))
-  const deg = ((Math.atan2(-dy, dx) * 180) / Math.PI + 360) % 360
+  // atan2(y,x): dy>0=down=负Y, so yDir = -sin
+  const rad = Math.atan2(dy, dx)
+  const deg = ((rad * 180) / Math.PI + 360) % 360
   const pct = dist / STICK_RANGE
 
   joystickAngle.value = Math.round(deg)
   joystickRadius.value = Math.round(pct * 100) / 100
 
-  const cosA = Math.cos((deg * Math.PI) / 180)
-  const sinA = Math.sin((deg * Math.PI) / 180)
-  // X/Y 各自的速度按分量比例分配，但至少 1
-  const totalSpd = Math.max(1, Math.round(pct * jogSpeed.value))
-  const xSpd = Math.max(1, Math.round(Math.abs(cosA) * totalSpd))
-  const ySpd = Math.max(1, Math.round(Math.abs(sinA) * totalSpd))
+  // screen-space decomposition: dx→X, dy→Y (dy>0=down=Y-)
+  const xNorm = dist > 0 ? dx / dist : 0   // -1..1, right=+
+  const yNorm = dist > 0 ? -dy / dist : 0  // -1..1, up=+ (screen Y inverted)
 
-  // X — 无 await，独立发送
-  if (Math.abs(cosA) > 0.1) {
-    const d = cosA > 0 ? 1 : -1
+  const totalSpd = Math.max(1, Math.round(pct * jogSpeed.value))
+  const xSpd = Math.max(1, Math.round(Math.abs(xNorm) * totalSpd))
+  const ySpd = Math.max(1, Math.round(Math.abs(yNorm) * totalSpd))
+
+  // X
+  if (Math.abs(xNorm) > 0.08) {
+    const d = xNorm > 0 ? 1 : -1
     if (jogDir.X !== d) { if (jogDir.X) jogStop('X'); jogDir.X = d; jogAxis('X', d, xSpd) }
   } else if (jogDir.X) { jogDir.X = 0; jogStop('X') }
 
-  // Y — 无 await，独立发送
-  if (Math.abs(sinA) > 0.1) {
-    const d = sinA > 0 ? 1 : -1
+  // Y
+  if (Math.abs(yNorm) > 0.08) {
+    const d = yNorm > 0 ? 1 : -1
     if (jogDir.Y !== d) { if (jogDir.Y) jogStop('Y'); jogDir.Y = d; jogAxis('Y', d, ySpd) }
   } else if (jogDir.Y) { jogDir.Y = 0; jogStop('Y') }
 }
