@@ -59,6 +59,27 @@ export const ja = {
     license: 'ライセンス',
     licenseValue: 'プロプライエタリ'
   },
+  kbd: {
+    title: 'キーボードショートカット',
+    desc: '相対移動のキー設定をカスタマイズします。項目をクリックして新しいキーを押してください。',
+    reset: 'デフォルトに戻す',
+    recording: 'キーを押してください...',
+    yUp: 'Y軸 上',
+    yDown: 'Y軸 下',
+    xLeft: 'X軸 左',
+    xRight: 'X軸 右',
+    uLeft: 'U軸 左回転',
+    uRight: 'U軸 右回転',
+    rUp: 'R軸 左回転',
+    rDown: 'R軸 右回転',
+    zUp: 'Z軸 上昇',
+    zDown: 'Z軸 下降',
+    stepF1: '刻み 0.01',
+    stepF2: '刻み 0.1',
+    stepF3: '刻み 1',
+    stepF4: '刻み 5',
+    stepF5: 'カスタム刻み'
+  },
   update: {
     title: '更新のお知らせ',
     latestVersion: '最新バージョン',

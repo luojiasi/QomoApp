@@ -59,6 +59,27 @@ export const zhTW = {
     license: '授權',
     licenseValue: '專有軟體'
   },
+  kbd: {
+    title: '鍵盤快速鍵',
+    desc: '自訂相對移動鍵位設定。點擊項目後按下新按鍵即可變更。',
+    reset: '恢復預設',
+    recording: '請按下按鍵...',
+    yUp: 'Y軸 上移',
+    yDown: 'Y軸 下移',
+    xLeft: 'X軸 左移',
+    xRight: 'X軸 右移',
+    uLeft: 'U軸 左旋',
+    uRight: 'U軸 右旋',
+    rUp: 'R軸 上旋',
+    rDown: 'R軸 下旋',
+    zUp: 'Z軸 上升',
+    zDown: 'Z軸 下降',
+    stepF1: '步長 0.01',
+    stepF2: '步長 0.1',
+    stepF3: '步長 1',
+    stepF4: '步長 5',
+    stepF5: '自訂步長'
+  },
   update: {
     title: '更新公告',
     latestVersion: '最新版本',

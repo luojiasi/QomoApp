@@ -59,6 +59,27 @@ export const zhCN = {
     license: '许可证',
     licenseValue: '专有软件'
   },
+  kbd: {
+    title: '键盘快捷键',
+    desc: '自定义相对运动键盘绑定。点击绑定后按下新按键即可更改。',
+    reset: '恢复默认',
+    recording: '按下按键...',
+    yUp: 'Y轴 上移',
+    yDown: 'Y轴 下移',
+    xLeft: 'X轴 左移',
+    xRight: 'X轴 右移',
+    uLeft: 'U轴 左旋',
+    uRight: 'U轴 右旋',
+    rUp: 'R轴 上旋',
+    rDown: 'R轴 下旋',
+    zUp: 'Z轴 上升',
+    zDown: 'Z轴 下降',
+    stepF1: '步长 0.01',
+    stepF2: '步长 0.1',
+    stepF3: '步长 1',
+    stepF4: '步长 5',
+    stepF5: '自定义步长'
+  },
   update: {
     title: '更新公告',
     latestVersion: '最新版本',

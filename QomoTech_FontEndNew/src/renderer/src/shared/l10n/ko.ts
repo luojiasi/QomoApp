@@ -59,6 +59,27 @@ export const ko = {
     license: '라이선스',
     licenseValue: '독점 소프트웨어'
   },
+  kbd: {
+    title: '키보드 단축키',
+    desc: '상대 이동 키 설정을 사용자 정의합니다. 항목을 클릭하고 새 키를 누르세요.',
+    reset: '기본값 복원',
+    recording: '키를 누르세요...',
+    yUp: 'Y축 위',
+    yDown: 'Y축 아래',
+    xLeft: 'X축 왼쪽',
+    xRight: 'X축 오른쪽',
+    uLeft: 'U축 좌회전',
+    uRight: 'U축 우회전',
+    rUp: 'R축 좌회전',
+    rDown: 'R축 우회전',
+    zUp: 'Z축 상승',
+    zDown: 'Z축 하강',
+    stepF1: '스텝 0.01',
+    stepF2: '스텝 0.1',
+    stepF3: '스텝 1',
+    stepF4: '스텝 5',
+    stepF5: '사용자 정의 스텝'
+  },
   update: {
     title: '업데이트 공지',
     latestVersion: '최신 버전',

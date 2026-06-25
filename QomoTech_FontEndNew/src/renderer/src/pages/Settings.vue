@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useL10n, getLocale, setLocale, type Locale } from '../shared/l10n'
 import { themes, applyTheme } from '../shared/theme'
+import { useKeyboardBindings, type KeyBinding } from '../shared/motion'
 
 const { t } = useL10n()
+const { bindings, resetToDefaults, updateBinding } = useKeyboardBindings()
 
 const appVersion = ref('')
 const appName = ref('')
@@ -38,6 +40,11 @@ onMounted(async () => {
   windowWidth.value = info.windowWidth
   windowHeight.value = info.windowHeight
   updateUrl.value = info.updateUrl
+  window.addEventListener('keydown', onRecordKeydown)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', onRecordKeydown)
 })
 
 // Update status
@@ -59,6 +66,37 @@ async function checkUpdate() {
   } finally {
     checkingUpdate.value = false
   }
+}
+
+// === Keyboard shortcut recording ===
+const recordingId = ref<string | null>(null)
+
+function formatKey(b: KeyBinding): string {
+  if (!b.key) return '—'
+  const parts: string[] = []
+  if (b.ctrl) parts.push('Ctrl')
+  if (b.shift) parts.push('Shift')
+  parts.push(b.key.length > 1 ? b.key.replace('Arrow', '').replace('Page', 'Pg') : b.key.toUpperCase())
+  return parts.join(' + ')
+}
+
+function startRecord(id: string) {
+  recordingId.value = id
+}
+
+function onRecordKeydown(e: KeyboardEvent) {
+  if (!recordingId.value) return
+  e.preventDefault()
+  e.stopPropagation()
+  const key = e.key
+  if (key === 'Escape') { recordingId.value = null; return }
+  if (['Control', 'Shift', 'Alt', 'Meta', 'Tab'].includes(key)) return
+  updateBinding(recordingId.value, {
+    key,
+    ctrl: e.ctrlKey || e.metaKey,
+    shift: e.shiftKey
+  })
+  recordingId.value = null
 }
 </script>
 
@@ -176,6 +214,33 @@ async function checkUpdate() {
           </div>
           <div class="setting-value mono">{{ windowWidth }} × {{ windowHeight }}</div>
         </div>
+      </section>
+
+      <!-- Keyboard Shortcuts -->
+      <section class="settings-section">
+        <h2 class="section-title">
+          <span class="material-symbols-outlined">keyboard</span>
+          {{ t('kbd.title') }}
+        </h2>
+        <p class="kbd-desc">{{ t('kbd.desc') }}</p>
+
+        <div class="kbd-grid">
+          <div v-for="b in bindings" :key="b.id" class="kbd-row">
+            <span class="kbd-label">{{ t(b.label) }}</span>
+            <button
+              class="kbd-key"
+              :class="{ recording: recordingId === b.id }"
+              @click="startRecord(b.id)"
+            >
+              {{ recordingId === b.id ? t('kbd.recording') : formatKey(b) }}
+            </button>
+          </div>
+        </div>
+
+        <button class="setting-btn secondary" @click="resetToDefaults">
+          <span class="material-symbols-outlined">restart_alt</span>
+          {{ t('kbd.reset') }}
+        </button>
       </section>
 
       <!-- System Info -->
@@ -464,5 +529,67 @@ async function checkUpdate() {
 .about-value.mono {
   font-family: 'JetBrains Mono', monospace;
   font-size: 12px;
+}
+
+/* Keyboard bindings */
+.kbd-desc {
+  font-size: 12px;
+  color: var(--color-on-surface-variant);
+  margin-bottom: 16px;
+}
+
+.kbd-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 24px;
+  margin-bottom: 16px;
+}
+
+.kbd-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(65, 71, 84, 0.2);
+}
+
+.kbd-label {
+  font-size: 13px;
+  color: var(--color-on-surface);
+}
+
+.kbd-key {
+  padding: 4px 12px;
+  min-width: 100px;
+  text-align: center;
+  background: var(--color-surface-container-highest);
+  border: 1px solid var(--color-outline-variant);
+  border-radius: 4px;
+  color: var(--color-primary);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.kbd-key:hover {
+  border-color: var(--color-primary);
+}
+
+.kbd-key.recording {
+  border-color: var(--color-tertiary);
+  color: var(--color-tertiary);
+  animation: kbd-pulse 0.8s ease-in-out infinite;
+}
+
+@keyframes kbd-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.setting-btn.secondary {
+  background: var(--color-surface-variant);
+  color: var(--color-on-surface);
 }
 </style>

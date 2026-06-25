@@ -59,6 +59,27 @@ export const en = {
     license: 'License',
     licenseValue: 'Proprietary'
   },
+  kbd: {
+    title: 'Keyboard Shortcuts',
+    desc: 'Customize relative-motion key bindings. Click a binding then press the new key.',
+    reset: 'Reset Defaults',
+    recording: 'Press a key...',
+    yUp: 'Y Axis Up',
+    yDown: 'Y Axis Down',
+    xLeft: 'X Axis Left',
+    xRight: 'X Axis Right',
+    uLeft: 'U Axis CCW',
+    uRight: 'U Axis CW',
+    rUp: 'R Axis CCW',
+    rDown: 'R Axis CW',
+    zUp: 'Z Axis Up',
+    zDown: 'Z Axis Down',
+    stepF1: 'Step 0.01',
+    stepF2: 'Step 0.1',
+    stepF3: 'Step 1',
+    stepF4: 'Step 5',
+    stepF5: 'Custom Step'
+  },
   update: {
     title: 'Update Announcements',
     latestVersion: 'Latest Version',
