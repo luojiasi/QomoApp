@@ -918,7 +918,7 @@ const ioOutput2 = computed(() => ioOut.value[2] ?? false)
 .jog-axis-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 24px;
   margin-bottom: 10px;
   width: 100%;
   justify-content: center;
