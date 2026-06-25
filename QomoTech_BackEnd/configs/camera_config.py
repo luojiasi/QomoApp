@@ -40,7 +40,7 @@ class CameraFrameConfig(BaseModel):
         default=85, ge=1, le=100, description="WebSocket 推流默认 JPEG 质量"
     )
     ws_push_timeout_ms: int = Field(
-        default=1000, ge=1, le=10_000, description="WebSocket 推流单帧超时"
+        default=600, ge=1, le=10_000, description="WebSocket 推流单帧超时"
     )
 
 
@@ -54,7 +54,7 @@ class CameraBootstrap(BaseModel):
     exposure_time: Optional[int] = Field(default=None, ge=0)
 
     speed_level: int = Field(
-        default=1,
+        default=0,
         ge=0,
         le=3,
         description="0=HIGHEST 1=HIGH 2=LOW 3=LOWEST",

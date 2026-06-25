@@ -110,14 +110,7 @@ const feedRate = ref('12,400')
 
 // G-code log
 interface GCmdLine { line: string; code: string; active: boolean }
-const gcodeLines = ref<GCmdLine[]>([
-  { line: 'N120', code: 'G00 X0.00 Y0.00', active: false },
-  { line: 'N125', code: 'G43 H01 Z50.00', active: false },
-  { line: 'N130', code: 'G01 Z-5.00 F1000', active: true },
-  { line: 'N135', code: 'G02 X20.00 Y20.00 R10.00', active: false },
-  { line: 'N140', code: 'G01 X50.00', active: false },
-  { line: 'N145', code: 'M08', active: false }
-])
+const gcodeLines = ref<GCmdLine[]>([])
 
 onMounted(() => {
   startHardwareMonitor()
@@ -303,6 +296,57 @@ const ioOutput2 = computed(() => ioOut.value[2] ?? false)
             :disabled="!controllerConnected"
           >
             Z-
+            <span class="material-symbols-outlined">arrow_downward</span>
+          </button>
+        </div>
+
+         <!-- U axis jog -->
+         <div class="z-jog-row">
+          <button
+            class="z-jog-btn"
+            :class="{ active: jogDir.U > 0 }"
+            @mousedown="startJog('U', 1)"
+            @mouseup="stopJog('U')"
+            @mouseleave="jogDir.U > 0 ? stopJog('U') : undefined"
+            :disabled="!controllerConnected"
+          >
+            <span class="material-symbols-outlined">arrow_upward</span>
+            U+
+          </button>
+          <button
+            class="z-jog-btn"
+            :class="{ active: jogDir.U < 0 }"
+            @mousedown="startJog('U', -1)"
+            @mouseup="stopJog('U')"
+            @mouseleave="jogDir.U < 0 ? stopJog('U') : undefined"
+            :disabled="!controllerConnected"
+          >
+            U-
+            <span class="material-symbols-outlined">arrow_downward</span>
+          </button>
+        </div>
+         <!-- R axis jog -->
+         <div class="z-jog-row">
+          <button
+            class="z-jog-btn"
+            :class="{ active: jogDir.R > 0 }"
+            @mousedown="startJog('R', 1)"
+            @mouseup="stopJog('R')"
+            @mouseleave="jogDir.R > 0 ? stopJog('R') : undefined"
+            :disabled="!controllerConnected"
+          >
+            <span class="material-symbols-outlined">arrow_upward</span>
+            R+
+          </button>
+          <button
+            class="z-jog-btn"
+            :class="{ active: jogDir.R < 0 }"
+            @mousedown="startJog('R', -1)"
+            @mouseup="stopJog('R')"
+            @mouseleave="jogDir.R < 0 ? stopJog('R') : undefined"
+            :disabled="!controllerConnected"
+          >
+            R-
             <span class="material-symbols-outlined">arrow_downward</span>
           </button>
         </div>

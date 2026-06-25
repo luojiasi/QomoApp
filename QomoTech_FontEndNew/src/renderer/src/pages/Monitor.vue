@@ -10,12 +10,13 @@ import {
   fetchCameraDevices,
   getCameraStatus,
   setCameraExposure,
+  setCameraFrameSpeed,
   setCameraMirror,
   bootstrapCameraSettings,
   getCameraSettings,
   saveCameraSettings
 } from '../shared/camera'
-import type { CameraDeviceInfo, CameraStatusPayload } from '../shared/camera'
+import type { CameraDeviceInfo, CameraStatusPayload, CameraFrameSpeedLevel } from '../shared/camera'
 import {
   useHardwareState,
   startHardwareMonitor,
@@ -37,6 +38,15 @@ const editExposure = ref(1000)
 const editAutoExposure = ref(true)
 const editMirrorH = ref(false)
 const editMirrorV = ref(false)
+const editSpeedLevel = ref<CameraFrameSpeedLevel>(1)
+const editSpeedAutoTune = ref(true)
+
+const speedLabels: Record<number, string> = {
+  0: 'monitor.frameSpeedHighest',
+  1: 'monitor.frameSpeedHigh',
+  2: 'monitor.frameSpeedLow',
+  3: 'monitor.frameSpeedLowest'
+}
 
 function applySettingsToEdits(settings: Record<string, unknown>): void {
   if (settings.exposure_time !== undefined) editExposure.value = settings.exposure_time as number
@@ -136,6 +146,14 @@ async function applyMirror() {
     vertical: editMirrorV.value
   })
   await persistSettingsToBackend()
+  await refreshStatus()
+}
+
+async function applyFrameSpeed() {
+  await setCameraFrameSpeed({
+    speed_level: editSpeedLevel.value,
+    auto_tune: editSpeedAutoTune.value
+  })
   await refreshStatus()
 }
 
@@ -278,6 +296,26 @@ onUnmounted(() => {
           <span>65535</span>
         </div>
         <button class="btn-sm btn-secondary" @click="applyExposure">{{ t('monitor.apply') }}</button>
+      </div>
+
+      <!-- Frame Speed -->
+      <div class="param-group">
+        <div class="param-header">
+          <label class="param-label">{{ t('monitor.frameSpeed') }}</label>
+          <span class="param-value">{{ t(speedLabels[editSpeedLevel]) }}</span>
+        </div>
+        <div class="param-row">
+          <label class="checkbox-label">
+            <input v-model="editSpeedAutoTune" type="checkbox" />
+            {{ t('monitor.autoTune') }}
+          </label>
+        </div>
+        <select v-model.number="editSpeedLevel" class="field-input speed-select">
+          <option v-for="n in 4" :key="n - 1" :value="n - 1">
+            {{ t(speedLabels[n - 1]) }}
+          </option>
+        </select>
+        <button class="btn-sm btn-secondary" @click="applyFrameSpeed">{{ t('monitor.apply') }}</button>
       </div>
 
       <!-- Mirror -->
@@ -703,6 +741,10 @@ onUnmounted(() => {
   background: transparent;
   color: var(--color-on-surface-variant);
   border: 1px solid var(--color-outline-variant);
+}
+
+.speed-select {
+  width: 100%;
 }
 
 .sidebar-actions {

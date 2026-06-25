@@ -19,8 +19,12 @@ export const defaultCameraSettings: CameraSettingsState = {
 
 export const DEFAULT_TIMEOUT_MS = 1200
 export const DEFAULT_QUALITY = 50
-export const TARGET_DISPLAY_FPS = 120
-export const DISPLAY_FRAME_INTERVAL_MS = Math.floor(1000 / TARGET_DISPLAY_FPS)
 export const WS_RECONNECT_MS = 120
-export const FRAME_QUEUE_SIZE = 3
+export const FRAME_QUEUE_SIZE = 10
 export const URL_CACHE_SIZE = 32
+
+// Adaptive display timing — matches display to actual frame arrival rate
+export const DISPLAY_INTERVAL_MIN_MS = 8    // 120fps cap
+export const DISPLAY_INTERVAL_MAX_MS = 50   // 20fps floor
+export const DISPLAY_INTERVAL_DEFAULT_MS = 16 // ~60fps start
+export const ARRIVAL_WINDOW_SIZE = 8        // frames to average for FPS estimation

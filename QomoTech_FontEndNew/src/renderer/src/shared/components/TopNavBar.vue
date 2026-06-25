@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useL10n } from '../l10n'
+import { useHardwareState, startHardwareMonitor, stopHardwareMonitor } from '../motion'
 import UpdateInfo from './UpdateInfo.vue'
 
 const { t } = useL10n()
+const { controllerConnected } = useHardwareState()
 
 const SEEN_KEY = 'qomotech:updateSeen'
 
@@ -32,14 +34,21 @@ async function checkBackend() {
 onMounted(() => {
   checkBackend()
   pollTimer = setInterval(checkBackend, 3000)
+  startHardwareMonitor()
 })
 
 onUnmounted(() => {
   if (pollTimer !== null) clearInterval(pollTimer)
+  stopHardwareMonitor()
 })
 
 const dotClass = computed(() => backendReachable.value ? 'dot-connected' : 'dot-disconnected')
 const statusText = computed(() => backendReachable.value ? t('app.statusReady') : t('app.statusDisconnected'))
+
+const controllerDotClass = computed(() => controllerConnected.value ? 'dot-connected' : 'dot-disconnected')
+const controllerStatusText = computed(() =>
+  controllerConnected.value ? t('controllerSettings.controllerConnected') : t('controllerSettings.controllerDisconnected')
+)
 </script>
 
 <template>
@@ -49,6 +58,10 @@ const statusText = computed(() => backendReachable.value ? t('app.statusReady') 
       <div class="topnav-status">
         <span class="status-dot" :class="dotClass"></span>
         <span class="status-label">{{ statusText }}</span>
+      </div>
+      <div class="topnav-status">
+        <span class="status-dot" :class="controllerDotClass"></span>
+        <span class="status-label">{{ controllerStatusText }}</span>
       </div>
     </div>
     <div class="topnav-right">

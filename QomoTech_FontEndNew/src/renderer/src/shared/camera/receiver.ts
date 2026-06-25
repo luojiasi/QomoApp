@@ -7,8 +7,11 @@ import {
   DEFAULT_TIMEOUT_MS,
   URL_CACHE_SIZE,
   WS_RECONNECT_MS,
-  DISPLAY_FRAME_INTERVAL_MS,
-  FRAME_QUEUE_SIZE
+  FRAME_QUEUE_SIZE,
+  DISPLAY_INTERVAL_MIN_MS,
+  DISPLAY_INTERVAL_MAX_MS,
+  DISPLAY_INTERVAL_DEFAULT_MS,
+  ARRIVAL_WINDOW_SIZE
 } from './configDefaults'
 
 const frameUrl = ref('')
@@ -23,6 +26,11 @@ const loadedFrameQueue: string[] = []
 const staleFrameUrlCache: string[] = []
 let currentFrameObjectUrl = ''
 let lastDisplayTs = 0
+let displayIntervalMs = DISPLAY_INTERVAL_DEFAULT_MS
+
+// Adaptive timing — track when frames arrive to match display rate to source
+const arrivalTimestamps: number[] = []
+let lastArrivalTs = 0
 let ws: WebSocket | null = null
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -85,6 +93,9 @@ function cleanupDisplayFrameState(): void {
     if (stale) URL.revokeObjectURL(stale)
   }
   lastDisplayTs = 0
+  displayIntervalMs = DISPLAY_INTERVAL_DEFAULT_MS
+  arrivalTimestamps.length = 0
+  lastArrivalTs = 0
   clearLoadedFrameQueue()
 }
 
@@ -99,12 +110,31 @@ function enqueueFrameObjectUrl(url: string): void {
 function enqueueDecodedFrame(blob: Blob): void {
   const objectUrl = URL.createObjectURL(blob)
   enqueueFrameObjectUrl(objectUrl)
+
+  // Track arrival for adaptive display timing
+  const now = performance.now()
+  if (lastArrivalTs > 0) {
+    const gap = now - lastArrivalTs
+    arrivalTimestamps.push(gap)
+    if (arrivalTimestamps.length > ARRIVAL_WINDOW_SIZE) {
+      arrivalTimestamps.shift()
+    }
+    // Compute average inter-frame gap, clamp to min/max bounds
+    const avgGap =
+      arrivalTimestamps.reduce((s, v) => s + v, 0) / arrivalTimestamps.length
+    // Set display interval to roughly match arrival rate (slightly faster to drain queue)
+    displayIntervalMs = Math.max(
+      DISPLAY_INTERVAL_MIN_MS,
+      Math.min(DISPLAY_INTERVAL_MAX_MS, avgGap * 0.9)
+    )
+  }
+  lastArrivalTs = now
 }
 
 function displayLoopTick(ts: number): void {
   if (!displayLoopActive) return
 
-  if (loadedFrameQueue.length > 0 && ts - lastDisplayTs >= DISPLAY_FRAME_INTERVAL_MS) {
+  if (loadedFrameQueue.length > 0 && ts - lastDisplayTs >= displayIntervalMs) {
     const nextFrameUrl = loadedFrameQueue.shift()
     if (nextFrameUrl) {
       if (currentFrameObjectUrl) {
