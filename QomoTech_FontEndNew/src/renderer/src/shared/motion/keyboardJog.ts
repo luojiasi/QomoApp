@@ -119,6 +119,8 @@ export function startKeyboardJog() {
   _registered = true
 
   function handler(e: KeyboardEvent) {
+    // Ignore OS key-repeat events — only fire once per press
+    if (e.repeat) return
     const { controllerConnected } = useHardwareState()
     if (!controllerConnected.value) return
     if (showStepDialog.value) return
