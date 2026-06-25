@@ -1,13 +1,19 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, onUnmounted } from 'vue'
 import TopNavBar from './shared/components/TopNavBar.vue'
 import SideNavBar from './shared/components/SideNavBar.vue'
 import UpdateModal from './shared/components/UpdateModal.vue'
 import { themes, applyTheme } from './shared/theme'
+import { startKeyboardJog, stopKeyboardJog } from './shared/motion'
 
 onMounted(() => {
   const saved = localStorage.getItem('qomotech:theme') ?? themes[0].id
   applyTheme(saved)
+  startKeyboardJog()
+})
+
+onUnmounted(() => {
+  stopKeyboardJog()
 })
 </script>
 

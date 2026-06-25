@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import {
   startHardwareMonitor,
   stopHardwareMonitor,
@@ -15,7 +15,8 @@ import {
   homeAxes,
   zeroMotionAxis,
   getControllerSettings,
-  defaultControllerParameters
+  defaultControllerParameters,
+  useKeyboardJogState
 } from '../shared/motion'
 import type { ControllerParameters } from '../shared/motion'
 
@@ -156,6 +157,12 @@ async function handleZeroAxis(axis: AxisKey) {
   if (!controllerConnected.value) return
   await zeroMotionAxis(axis)
 }
+
+// Keyboard shortcuts — global, registered in App.vue. Use shared step state.
+const { stepLabel, showStepDialog, customStepInput, openStepDialog, applyCustomStep, jogSpeed: kbdSpeed } = useKeyboardJogState()
+
+// Sync jogSpeed slider → keyboard relative-move speed
+watch(jogSpeed, v => { kbdSpeed.value = v }, { immediate: true })
 
 async function toggleConnection() {
   isConnecting.value = true
@@ -463,6 +470,25 @@ const ioOutput2 = computed(() => ioOut.value[2] ?? false)
           </button>
         </div>
 
+        <!-- Step distance indicator + custom dialog -->
+        <div class="step-info">
+          <span class="step-label">STEP</span>
+          <span class="step-value">{{ stepLabel }}</span>
+          <span class="step-unit">mm/deg</span>
+          <button class="step-f5-btn" @click="openStepDialog">F5</button>
+        </div>
+        <div v-if="showStepDialog" class="step-dialog-overlay" @click.self="showStepDialog = false">
+          <div class="step-dialog">
+            <span class="step-dialog-title">自定义步长</span>
+            <input v-model="customStepInput" type="number" min="0.001" step="0.001"
+              class="step-dialog-input" placeholder="输入数值..."
+              @keydown.enter="applyCustomStep" @keydown.stop />
+            <div class="step-dialog-btns">
+              <button class="btn-sm btn-primary" @click="applyCustomStep">OK</button>
+              <button class="btn-sm btn-secondary" @click="showStepDialog = false">取消</button>
+            </div>
+          </div>
+        </div>
         <!-- Speed slider -->
         <div class="jog-speed">
           <div class="speed-header">
@@ -936,8 +962,82 @@ const ioOutput2 = computed(() => ioOut.value[2] ?? false)
 
 .jog-speed {
   width: 100%;
-  padding-top: 24px;
+  padding-top: 12px;
   border-top: 1px solid var(--color-outline-variant);
+}
+
+/* Step distance */
+.step-info {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0 4px;
+}
+.step-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--color-on-surface-variant);
+}
+.step-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-tertiary);
+  min-width: 40px;
+}
+.step-unit {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--color-on-surface-variant);
+}
+.step-f5-btn {
+  margin-left: auto;
+  padding: 2px 10px;
+  border: 1px solid var(--color-tertiary);
+  border-radius: 4px;
+  background: none;
+  color: var(--color-tertiary);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.step-f5-btn:hover { background: rgba(255,255,255,0.06); }
+
+/* Step dialog overlay */
+.step-dialog-overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(0,0,0,0.5);
+  display: flex; align-items: center; justify-content: center;
+}
+.step-dialog {
+  background: var(--color-surface-container-highest);
+  border: 1px solid var(--color-outline-variant);
+  border-radius: 8px;
+  padding: 20px 24px;
+  display: flex; flex-direction: column; gap: 12px;
+  min-width: 280px;
+}
+.step-dialog-title {
+  font-family: 'Inter', sans-serif;
+  font-size: 16px; font-weight: 600;
+  color: var(--color-on-surface);
+}
+.step-dialog-input {
+  padding: 8px 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-outline-variant);
+  border-radius: 4px;
+  color: var(--color-on-surface);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  outline: none;
+}
+.step-dialog-input:focus { border-color: var(--color-primary); }
+.step-dialog-btns {
+  display: flex; gap: 8px; justify-content: flex-end;
 }
 
 /* Home & Zero buttons */
