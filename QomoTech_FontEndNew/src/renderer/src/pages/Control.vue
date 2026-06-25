@@ -389,50 +389,53 @@ const ioOutput2 = computed(() => ioOut.value[2] ?? false)
           </div>
         </div>
 
-        <!-- === Axis jog buttons: compact grid === -->
-        <div class="jog-grid-cnt">
-          <!-- Z line -->
+        <!-- === XY D-pad === -->
+        <div class="jog-dpad">
           <div></div>
+          <button class="jog-dpad-btn" :class="{ active: jogDir.Y > 0 }"
+            @mousedown="startJog('Y',1)" @mouseup="stopJog('Y')"
+            @mouseleave="jogDir.Y>0?stopJog('Y'):undefined" :disabled="!controllerConnected">
+            <span class="material-symbols-outlined">keyboard_arrow_up</span>
+          </button>
+          <div></div>
+
+          <button class="jog-dpad-btn" :class="{ active: jogDir.X < 0 }"
+            @mousedown="startJog('X',-1)" @mouseup="stopJog('X')"
+            @mouseleave="jogDir.X<0?stopJog('X'):undefined" :disabled="!controllerConnected">
+            <span class="material-symbols-outlined">keyboard_arrow_left</span>
+          </button>
+          <div class="jog-dpad-axis">XY</div>
+          <button class="jog-dpad-btn" :class="{ active: jogDir.X > 0 }"
+            @mousedown="startJog('X',1)" @mouseup="stopJog('X')"
+            @mouseleave="jogDir.X>0?stopJog('X'):undefined" :disabled="!controllerConnected">
+            <span class="material-symbols-outlined">keyboard_arrow_right</span>
+          </button>
+
+          <div></div>
+          <button class="jog-dpad-btn" :class="{ active: jogDir.Y < 0 }"
+            @mousedown="startJog('Y',-1)" @mouseup="stopJog('Y')"
+            @mouseleave="jogDir.Y<0?stopJog('Y'):undefined" :disabled="!controllerConnected">
+            <span class="material-symbols-outlined">keyboard_arrow_down</span>
+          </button>
+          <div></div>
+        </div>
+
+        <!-- === Z / U / R rows === -->
+        <div class="jog-row-group">
+          <span class="jog-row-axis">Z</span>
           <button class="z-jog-btn" :class="{ active: jogDir.Z > 0 }"
             @mousedown="startJog('Z',1)" @mouseup="stopJog('Z')"
             @mouseleave="jogDir.Z>0?stopJog('Z'):undefined" :disabled="!controllerConnected">
             <span class="material-symbols-outlined">keyboard_arrow_up</span>Z+
           </button>
-          <div></div>
-
-          <!-- Y+ and center -->
-          <button class="z-jog-btn" :class="{ active: jogDir.X < 0 }"
-            @mousedown="startJog('X',-1)" @mouseup="stopJog('X')"
-            @mouseleave="jogDir.X<0?stopJog('X'):undefined" :disabled="!controllerConnected">
-            <span class="material-symbols-outlined">keyboard_arrow_left</span>X-
-          </button>
-          <button class="z-jog-btn" :class="{ active: jogDir.Y > 0 }"
-            @mousedown="startJog('Y',1)" @mouseup="stopJog('Y')"
-            @mouseleave="jogDir.Y>0?stopJog('Y'):undefined" :disabled="!controllerConnected">
-            Y+<span class="material-symbols-outlined">keyboard_arrow_up</span>
-          </button>
-          <button class="z-jog-btn" :class="{ active: jogDir.X > 0 }"
-            @mousedown="startJog('X',1)" @mouseup="stopJog('X')"
-            @mouseleave="jogDir.X>0?stopJog('X'):undefined" :disabled="!controllerConnected">
-            <span class="material-symbols-outlined">keyboard_arrow_right</span>X+
-          </button>
-
-          <!-- Z- and Y- -->
-          <div></div>
           <button class="z-jog-btn" :class="{ active: jogDir.Z < 0 }"
             @mousedown="startJog('Z',-1)" @mouseup="stopJog('Z')"
             @mouseleave="jogDir.Z<0?stopJog('Z'):undefined" :disabled="!controllerConnected">
             Z-<span class="material-symbols-outlined">keyboard_arrow_down</span>
           </button>
-          <button class="z-jog-btn" :class="{ active: jogDir.Y < 0 }"
-            @mousedown="startJog('Y',-1)" @mouseup="stopJog('Y')"
-            @mouseleave="jogDir.Y<0?stopJog('Y'):undefined" :disabled="!controllerConnected">
-            Y-<span class="material-symbols-outlined">keyboard_arrow_down</span>
-          </button>
         </div>
-
-        <!-- U / R line -->
-        <div class="z-jog-row">
+        <div class="jog-row-group">
+          <span class="jog-row-axis">U</span>
           <button class="z-jog-btn" :class="{ active: jogDir.U > 0 }"
             @mousedown="startJog('U',1)" @mouseup="stopJog('U')"
             @mouseleave="jogDir.U>0?stopJog('U'):undefined" :disabled="!controllerConnected">
@@ -443,6 +446,9 @@ const ioOutput2 = computed(() => ioOut.value[2] ?? false)
             @mouseleave="jogDir.U<0?stopJog('U'):undefined" :disabled="!controllerConnected">
             U-<span class="material-symbols-outlined">keyboard_arrow_down</span>
           </button>
+        </div>
+        <div class="jog-row-group">
+          <span class="jog-row-axis">R</span>
           <button class="z-jog-btn" :class="{ active: jogDir.R > 0 }"
             @mousedown="startJog('R',1)" @mouseup="stopJog('R')"
             @mouseleave="jogDir.R>0?stopJog('R'):undefined" :disabled="!controllerConnected">
@@ -904,15 +910,63 @@ const ioOutput2 = computed(() => ioOut.value[2] ?? false)
 .stick-degree { color: var(--color-primary); font-weight: 600; min-width: 36px; text-align: right; }
 .stick-speed  { color: var(--color-on-surface-variant); min-width: 40px; }
 
-/* Z jog */
-.jog-grid-cnt {
+/* XY D-pad */
+.jog-dpad {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
   gap: 4px;
+  width: 140px;
+  height: 140px;
+  margin-bottom: 12px;
+}
+.jog-dpad-btn {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-surface-container-highest);
+  border: 1px solid var(--color-outline-variant);
+  border-radius: 6px;
+  color: var(--color-on-surface);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.jog-dpad-btn:hover:not(:disabled) { background: var(--color-surface-variant); }
+.jog-dpad-btn.active { border-color: var(--color-primary); color: var(--color-primary); background: rgba(173,199,255,0.12); }
+.jog-dpad-btn:disabled { opacity: 0.25; cursor: not-allowed; }
+.jog-dpad-btn .material-symbols-outlined { font-size: 24px; }
+
+.jog-dpad-axis {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-on-surface-variant);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* Z/U/R rows */
+.jog-row-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
   width: 100%;
 }
-.jog-grid-cnt .z-jog-btn {
-  justify-content: center;
+.jog-row-axis {
+  width: 20px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-on-surface-variant);
+  opacity: 0.5;
+  text-align: right;
+  flex-shrink: 0;
 }
 
 .z-jog-row {
