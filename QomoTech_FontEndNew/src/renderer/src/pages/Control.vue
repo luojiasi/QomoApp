@@ -176,6 +176,7 @@ async function toggleConnection() {
   isConnecting.value = true
   try {
     if (controllerConnected.value) {
+      pushLog('DISCONNECT', '断开控制器连接')
       await disconnectMotion()
     } else {
       // Load controller settings and use saved IP (fallback to default IP)
@@ -189,6 +190,7 @@ async function toggleConnection() {
           }
         }
       } catch { /* use default IP */ }
+      pushLog('CONNECT', `连接控制器 ${ip}`)
       await connectMotion(ip)
       // Bootstrap: push axis params after connecting
       try {
