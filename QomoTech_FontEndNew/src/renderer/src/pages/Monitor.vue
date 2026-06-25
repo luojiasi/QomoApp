@@ -438,7 +438,7 @@ onUnmounted(() => {
   position: absolute;
   bottom: 24px;
   left: 24px;
-  max-width: 240px;
+  max-width: 320px;
   background: rgba(28, 32, 39, 0.7);
   backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.1);
