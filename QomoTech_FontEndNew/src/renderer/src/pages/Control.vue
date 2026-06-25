@@ -7,6 +7,7 @@ import {
   jogAxis,
   jogStop,
   estop,
+  stop,
   connectMotion,
   disconnectMotion,
   setMotionAllAxesParams,
@@ -134,6 +135,11 @@ async function handleEstop() {
   await estop()
 }
 
+async function handleStopToIdle() {
+  if (!controllerConnected.value) return
+  await stop()
+}
+
 async function handleHomeAll() {
   if (!controllerConnected.value) return
   await homeAxes()
@@ -239,6 +245,9 @@ const ioOutput2 = computed(() => ioOut.value[2] ?? false)
             <span class="material-symbols-outlined">
               {{ controllerConnected ? 'link_off' : 'link' }}
             </span>
+          </button>
+          <button class="tool-btn" @click="handleStopToIdle" :disabled="!controllerConnected" title="Stop → IDLE">
+            <span class="material-symbols-outlined" style="color: var(--color-warning)">stop</span>
           </button>
           <button class="tool-btn" @click="handleEstop" :disabled="!controllerConnected">
             <span class="material-symbols-outlined" style="color: var(--color-error)">emergency</span>
