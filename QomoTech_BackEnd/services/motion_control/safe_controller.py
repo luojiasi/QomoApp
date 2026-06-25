@@ -131,6 +131,7 @@ class 安全控制器:
 
           None       → 用配置 axis.speed 兜底
           <= 0       → 抛 SafetyViolation（速度必须 > 0）
+          1 ~ 100    → 百分比模式：axis.speed * 速度 / 100
           > axis.speed → clamp 到 axis.speed（视为最大速度上限）
         """
         cfg = self.校验轴名(轴名)
@@ -138,6 +139,8 @@ class 安全控制器:
             return float(cfg.speed)
         if 速度 <= 0:
             raise SafetyViolation(f"轴 {轴名} 速度必须 > 0，收到 {速度}")
+        if 1 <= 速度 <= 100:
+            return max(1.0, float(cfg.speed) * float(速度) / 100.0)
         return min(float(速度), float(cfg.speed))
 
     def 归一化多轴速度(

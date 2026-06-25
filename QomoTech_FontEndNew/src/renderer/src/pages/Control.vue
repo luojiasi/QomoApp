@@ -11,6 +11,8 @@ import {
   disconnectMotion,
   setMotionAllAxesParams,
   buildMotionAllAxesParamsPayload,
+  homeAxes,
+  zeroMotionAxis,
   getControllerSettings,
   defaultControllerParameters
 } from '../shared/motion'
@@ -129,6 +131,16 @@ async function stopJog(axis: AxisKey) {
 
 async function handleEstop() {
   await estop()
+}
+
+async function handleHomeAll() {
+  if (!controllerConnected.value) return
+  await homeAxes()
+}
+
+async function handleZeroAxis(axis: AxisKey) {
+  if (!controllerConnected.value) return
+  await zeroMotionAxis(axis)
 }
 
 async function toggleConnection() {
@@ -318,6 +330,7 @@ const ioOutput2 = computed(() => ioOut.value[2] ?? false)
             <div class="jog-knob" :style="stickStyle()">
               <div class="jog-knob-core"></div>
             </div>
+          </div>
           <!-- knob readout -->
           <div class="jog-stick-info">
             <span class="stick-degree">{{ joystickRadius > 0.05 ? joystickAngle + '°' : '' }}</span>
@@ -414,6 +427,28 @@ const ioOutput2 = computed(() => ioOut.value[2] ?? false)
             <span>50%</span>
             <span>MAX</span>
           </div>
+        </div>
+        <!-- Home & Zero actions -->
+        <div class="jog-actions">
+          <button class="action-btn home" @click="handleHomeAll" :disabled="!controllerConnected">
+            <span class="material-symbols-outlined">home</span>
+            HOME ALL
+          </button>
+          <button class="action-btn zero" @click="handleZeroAxis('X')" :disabled="!controllerConnected">
+            X0
+          </button>
+          <button class="action-btn zero" @click="handleZeroAxis('Y')" :disabled="!controllerConnected">
+            Y0
+          </button>
+          <button class="action-btn zero" @click="handleZeroAxis('Z')" :disabled="!controllerConnected">
+            Z0
+          </button>
+          <button class="action-btn zero" @click="handleZeroAxis('U')" :disabled="!controllerConnected">
+            U0
+          </button>
+          <button class="action-btn zero" @click="handleZeroAxis('R')" :disabled="!controllerConnected">
+            R0
+          </button>
         </div>
       </div>
 
@@ -853,10 +888,52 @@ const ioOutput2 = computed(() => ioOut.value[2] ?? false)
 
 .jog-speed {
   width: 100%;
-  margin-top: auto;
   padding-top: 24px;
   border-top: 1px solid var(--color-outline-variant);
 }
+
+/* Home & Zero buttons */
+.jog-actions {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-outline-variant);
+}
+
+.action-btn {
+  padding: 6px 10px;
+  border: 1px solid var(--color-outline-variant);
+  border-radius: 4px;
+  background: var(--color-surface-container-highest);
+  color: var(--color-on-surface);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: background 0.15s, border-color 0.15s;
+}
+.action-btn:hover:not(:disabled) { background: var(--color-surface-variant); }
+.action-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.action-btn.home {
+  width: 100%;
+  justify-content: center;
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+.action-btn.home:hover:not(:disabled) {
+  background: rgba(173,199,255,0.12);
+}
+.action-btn.zero {
+  flex: 1;
+  min-width: 0;
+  justify-content: center;
+}
+.action-btn .material-symbols-outlined { font-size: 14px; }
 
 .speed-header {
   display: flex;

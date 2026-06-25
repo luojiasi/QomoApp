@@ -62,7 +62,7 @@ class 点动请求模型(BaseModel):
     axis: str = Field(..., examples=["X"], description="轴名 X/Y/Z/U/R")
     direction: int = Field(..., ge=-1, le=1, description="方向：1=正向，-1=负向")
     speed: Optional[float] = Field(
-        default=None, gt=0, description="点动速度，不填使用配置默认"
+        default=None, gt=0, description="点动速度，不填使用配置默认。1-100 视为百分比，按 axis.speed 换算"
     )
 
 
