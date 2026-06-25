@@ -16,7 +16,8 @@ import {
   zeroMotionAxis,
   getControllerSettings,
   defaultControllerParameters,
-  useKeyboardJogState
+  useKeyboardJogState,
+  setKeyboardJogLogger
 } from '../shared/motion'
 import type { ControllerParameters } from '../shared/motion'
 
@@ -130,31 +131,38 @@ async function startJog(axis: AxisKey, dir: number) {
   if (!controllerConnected.value) return
   jogDir[axis] = dir
   activeJogAxis.value = axis
+  const dirLabel = dir > 0 ? '+' : '-'
+  pushLog(`JOG ${axis}${dirLabel}`, `speed=${jogSpeed.value}%  pos=${formatPosition(mposition[axis])}`)
   await jogAxis(axis, dir, jogSpeed.value)
 }
 
 async function stopJog(axis: AxisKey) {
   jogDir[axis] = 0
   activeJogAxis.value = null
+  pushLog(`JOG ${axis} STOP`, `pos=${formatPosition(mposition[axis])}`)
   await jogStop(axis)
 }
 
 async function handleEstop() {
+  pushLog('E-STOP', '紧急停止触发')
   await estop()
 }
 
 async function handleStopToIdle() {
   if (!controllerConnected.value) return
+  pushLog('STOP', '停止 → IDLE')
   await stop()
 }
 
 async function handleHomeAll() {
   if (!controllerConnected.value) return
+  pushLog('HOME ALL', '全轴回零')
   await homeAxes()
 }
 
 async function handleZeroAxis(axis: AxisKey) {
   if (!controllerConnected.value) return
+  pushLog(`ZERO ${axis}`, `清零前 pos=${formatPosition(mposition[axis])}`)
   await zeroMotionAxis(axis)
 }
 
@@ -207,16 +215,35 @@ const programElapsed = ref('00:42:15')
 const laserPower = ref('3.5')
 const feedRate = ref('12,400')
 
-// G-code log
-interface GCmdLine { line: string; code: string; active: boolean }
-const gcodeLines = ref<GCmdLine[]>([])
+// Drive event log
+interface DriveLogEntry {
+  id: number
+  time: string
+  event: string
+  detail: string
+}
+const driveLog = ref<DriveLogEntry[]>([])
+let logSeq = 0
+const MAX_LOG_ENTRIES = 100
+
+function nowStr(): string {
+  const d = new Date()
+  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`
+}
+
+function pushLog(event: string, detail: string) {
+  driveLog.value.unshift({ id: ++logSeq, time: nowStr(), event, detail })
+  if (driveLog.value.length > MAX_LOG_ENTRIES) driveLog.value.length = MAX_LOG_ENTRIES
+}
 
 onMounted(() => {
   startHardwareMonitor()
+  setKeyboardJogLogger((event, detail) => pushLog(event, detail))
 })
 
 onUnmounted(() => {
   stopHardwareMonitor()
+  setKeyboardJogLogger(null)
 })
 
 // IO status
@@ -514,21 +541,20 @@ const ioOutput2 = computed(() => ioOut.value[2] ?? false)
         </div>
       </div>
 
-      <!-- G-code monitor -->
+      <!-- Drive event log -->
       <div class="gcode-card">
         <div class="gcode-header">
-          <span class="gcode-title">ACTIVE G-CODE</span>
-          <span class="material-symbols-outlined gcode-icon">code</span>
+          <span class="gcode-title">DRIVE LOG</span>
+          <span class="material-symbols-outlined gcode-icon">list_alt</span>
         </div>
         <div class="gcode-list">
-          <div
-            v-for="line in gcodeLines"
-            :key="line.line"
-            class="gcode-line"
-            :class="{ active: line.active, dim: !line.active }"
-          >
-            <span>{{ line.line }}</span>
-            <span>{{ line.code }}</span>
+          <div v-for="entry in driveLog" :key="entry.id" class="gcode-line">
+            <span class="log-time">{{ entry.time }}</span>
+            <span class="log-event">{{ entry.event }}</span>
+            <span class="log-detail">{{ entry.detail }}</span>
+          </div>
+          <div v-if="driveLog.length === 0" class="gcode-line dim">
+            <span>— 等待操作 —</span>
           </div>
         </div>
       </div>
@@ -1132,7 +1158,14 @@ const ioOutput2 = computed(() => ioOut.value[2] ?? false)
 
 .gcode-line {
   display: flex;
-  gap: 16px;
+  gap: 8px;
+  align-items: baseline;
+  padding: 2px 4px;
+  border-radius: 2px;
+}
+
+.gcode-line:first-child {
+  color: var(--color-primary);
 }
 
 .gcode-line.dim {
@@ -1140,11 +1173,26 @@ const ioOutput2 = computed(() => ioOut.value[2] ?? false)
   opacity: 0.4;
 }
 
-.gcode-line.active {
+.log-time {
+  flex-shrink: 0;
+  width: 56px;
+  color: var(--color-on-surface-variant);
+  opacity: 0.6;
+  font-size: 10px;
+}
+
+.log-event {
+  flex-shrink: 0;
+  min-width: 80px;
+  font-weight: 600;
   color: var(--color-primary);
-  background: rgba(173, 199, 255, 0.1);
-  padding: 0 4px;
-  border-radius: 2px;
+}
+
+.log-detail {
+  color: var(--color-on-surface-variant);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 @keyframes pulse {

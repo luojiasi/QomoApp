@@ -31,10 +31,18 @@ function applyCustomStep() {
   showStepDialog.value = false
 }
 
+// ===== Log callback (set by consumer) =====
+let logCb: ((event: string, detail: string) => void) | null = null
+export function setKeyboardJogLogger(cb: ((event: string, detail: string) => void) | null) {
+  logCb = cb
+}
+
 async function kbdMove(axis: string, dir: number) {
   const { controllerConnected } = useHardwareState()
   if (!controllerConnected.value) return
   const dist = stepDist.value * dir
+  const dirLabel = dir > 0 ? '+' : '-'
+  if (logCb) logCb(`KBD ${axis}${dirLabel}`, `dist=${dist} speed=${jogSpeed.value}%`)
   await moveRel(axis, dist, jogSpeed.value)
 }
 
