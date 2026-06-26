@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useL10n } from '../shared/l10n'
 import { useRecipes } from '../shared/recipe'
-import type { MainRecipe } from '../shared/recipe'
+import type { MainRecipe, LaserPowerRecipe, BlackeningRecipe, MachiningRecipe, HorizontalFormulaRecipe, VerticalFormulaRecipe } from '../shared/recipe'
 
 const { t } = useL10n()
 const {
@@ -10,7 +10,16 @@ const {
   load, save, selectRecipe, updateField
 } = useRecipes()
 
-const activeTab = ref<'main' | 'laser' | 'blackening' | 'machining' | 'horizontal' | 'vertical'>('main')
+// ---- browse mode: which sub-recipe list to show in the center ----
+type BrowseMode = 'main' | 'laser' | 'blackening' | 'machining' | 'horizontal' | 'vertical'
+const browseMode = ref<BrowseMode>('main')
+// which item is selected in each sub-recipe list
+const selectedLaserId = ref<string | null>(null)
+const selectedBlackeningId = ref<string | null>(null)
+const selectedMachiningId = ref<string | null>(null)
+const selectedHorizontalId = ref<string | null>(null)
+const selectedVerticalId = ref<string | null>(null)
+
 const editingMainId = ref<string | null>(null)
 const statusMsg = ref('')
 const sidebarSearch = ref('')
@@ -26,14 +35,61 @@ const filteredRecipes = computed(() => {
 function findById<T>(arr: readonly T[] | T[] | undefined, id: string): T | undefined {
   return (arr as T[] | undefined)?.find((r: any) => r.id === id)
 }
-const hasSelection = computed(() => !!selectedRecipe.value)
-const selBlackening = computed(() => hasSelection.value ? findById(state.value.blackeningRecipes ?? [], selectedRecipe.value!.blackeningRecipeId) : undefined)
-const selMachining = computed(() => hasSelection.value ? findById(state.value.machiningRecipes ?? [], selectedRecipe.value!.machiningRecipeId) : undefined)
-const selMachLaser = computed(() => selMachining.value ? findById(state.value.laserPowerRecipes ?? [], selMachining.value.laserPowerRecipeId) : undefined)
-const selBlackLaser = computed(() => selBlackening.value ? findById(state.value.laserPowerRecipes ?? [], selBlackening.value.laserPowerRecipeId) : undefined)
-const selHorizontal = computed(() => selMachining.value ? findById(state.value.horizontalFormulaRecipes ?? [], selMachining.value.horizontalFormulaId) : undefined)
-const selVertical = computed(() => selMachining.value ? findById(state.value.verticalFormulaRecipes ?? [], selMachining.value.verticalFormulaId) : undefined)
 
+// ----  flattened sub-recipe arrays  ----
+const laserList = computed(() => (state.value.laserPowerRecipes ?? []) as LaserPowerRecipe[])
+const blackeningList = computed(() => (state.value.blackeningRecipes ?? []) as BlackeningRecipe[])
+const machiningList = computed(() => (state.value.machiningRecipes ?? []) as MachiningRecipe[])
+const horizontalList = computed(() => (state.value.horizontalFormulaRecipes ?? []) as HorizontalFormulaRecipe[])
+const verticalList = computed(() => (state.value.verticalFormulaRecipes ?? []) as VerticalFormulaRecipe[])
+
+// selected sub item from each list
+const selLaser = computed(() => selectedLaserId.value ? findById(laserList.value, selectedLaserId.value) : undefined)
+const selBlackening = computed(() => selectedBlackeningId.value ? findById(blackeningList.value, selectedBlackeningId.value) : undefined)
+const selMachining = computed(() => selectedMachiningId.value ? findById(machiningList.value, selectedMachiningId.value) : undefined)
+const selHorizontal = computed(() => selectedHorizontalId.value ? findById(horizontalList.value, selectedHorizontalId.value) : undefined)
+const selVertical = computed(() => selectedVerticalId.value ? findById(verticalList.value, selectedVerticalId.value) : undefined)
+
+// ----  NEW / CLONE / DELETE for sub-recipe types  ----
+function handleNewSub(type: BrowseMode) {
+  const id = `${type}-${Date.now()}`
+  const empty: Record<string, unknown> = { id }
+  const keyMap: Record<string, string> = {
+    laser: 'laserPowerRecipes', blackening: 'blackeningRecipes',
+    machining: 'machiningRecipes', horizontal: 'horizontalFormulaRecipes', vertical: 'verticalFormulaRecipes'
+  }
+  const arr = [...(state.value as any)[keyMap[type]] ?? [], empty]
+  updateField(keyMap[type], arr)
+  if (type === 'laser') selectedLaserId.value = id
+  if (type === 'blackening') selectedBlackeningId.value = id
+  if (type === 'machining') selectedMachiningId.value = id
+  if (type === 'horizontal') selectedHorizontalId.value = id
+  if (type === 'vertical') selectedVerticalId.value = id
+  statusMsg.value = `已创建新${type}配方`
+}
+
+function handleDeleteSub(type: BrowseMode) {
+  const selectedId = type === 'laser' ? selectedLaserId.value
+    : type === 'blackening' ? selectedBlackeningId.value
+    : type === 'machining' ? selectedMachiningId.value
+    : type === 'horizontal' ? selectedHorizontalId.value
+    : selectedVerticalId.value
+  if (!selectedId) return
+  const keyMap: Record<string, string> = {
+    laser: 'laserPowerRecipes', blackening: 'blackeningRecipes',
+    machining: 'machiningRecipes', horizontal: 'horizontalFormulaRecipes', vertical: 'verticalFormulaRecipes'
+  }
+  const arr = ((state.value as any)[keyMap[type]] ?? []).filter((r: any) => r.id !== selectedId)
+  updateField(keyMap[type], arr)
+  if (type === 'laser') { selectedLaserId.value = null; if (arr.length > 0) selectedLaserId.value = arr[0].id }
+  if (type === 'blackening') { selectedBlackeningId.value = null; if (arr.length > 0) selectedBlackeningId.value = arr[0].id }
+  if (type === 'machining') { selectedMachiningId.value = null; if (arr.length > 0) selectedMachiningId.value = arr[0].id }
+  if (type === 'horizontal') { selectedHorizontalId.value = null; if (arr.length > 0) selectedHorizontalId.value = arr[0].id }
+  if (type === 'vertical') { selectedVerticalId.value = null; if (arr.length > 0) selectedVerticalId.value = arr[0].id }
+  statusMsg.value = '已标记删除'
+}
+
+// ----  main recipe actions  ----
 function handleNew() { newRecipeName.value = ''; showNewDialog.value = true }
 function confirmNew() {
   const name = newRecipeName.value.trim() || '新配方'
@@ -68,6 +124,11 @@ async function handleSave() {
 onMounted(async () => {
   await load()
   if (mainRecipes.value.length > 0 && !selectedMainRecipeId.value) selectRecipe(mainRecipes.value[0].id)
+  if (laserList.value.length > 0) selectedLaserId.value = laserList.value[0].id
+  if (blackeningList.value.length > 0) selectedBlackeningId.value = blackeningList.value[0].id
+  if (machiningList.value.length > 0) selectedMachiningId.value = machiningList.value[0].id
+  if (horizontalList.value.length > 0) selectedHorizontalId.value = horizontalList.value[0].id
+  if (verticalList.value.length > 0) selectedVerticalId.value = verticalList.value[0].id
 })
 </script>
 
@@ -87,7 +148,7 @@ onMounted(async () => {
       </div>
     </Teleport>
 
-    <!-- SIDEBAR -->
+    <!-- LEFT SIDEBAR — main recipe list -->
     <aside class="recipe-sidebar">
       <div class="sidebar-head">
         <div class="search-box">
@@ -101,7 +162,8 @@ onMounted(async () => {
         </div>
       </div>
       <div class="recipe-list">
-        <button v-for="r in filteredRecipes" :key="r.id" class="recipe-item" :class="{ active: r.id === selectedMainRecipeId }" @click="selectRecipe(r.id)">
+        <button v-for="r in filteredRecipes" :key="r.id" class="recipe-item" :class="{ active: r.id === selectedMainRecipeId }"
+          @click="selectRecipe(r.id); browseMode = 'main'">
           <div class="ri-top"><span class="ri-name">{{ r.name }}</span><span class="ri-status" :class="r.status">{{ r.status }}</span></div>
           <div class="ri-sub">{{ r.id }}</div>
         </button>
@@ -119,35 +181,20 @@ onMounted(async () => {
       </div>
     </aside>
 
-    <!-- EDITOR -->
-    <div class="recipe-editor">
-      <div v-if="!selectedRecipe" class="editor-empty">
-        <span class="material-symbols-outlined ee-icon">science</span>
-        <span>选择或新建一个配方</span>
-      </div>
-      <div v-else class="editor-inner">
-        <div class="editor-header">
-          <div>
-            <h2 class="ed-title">
-              <input v-if="editingMainId === selectedMainRecipeId" :value="selectedRecipe.name" class="ed-title-input"
-                @input="updateMainField('name', ($event.target as HTMLInputElement).value)"
-                @blur="editingMainId = null" @keydown.enter="editingMainId = null" />
-              <span v-else @dblclick="editingMainId = selectedMainRecipeId">{{ selectedRecipe.name }}</span>
-              <span class="ed-id">{{ selectedRecipe.id }}</span>
-            </h2>
-          </div>
-          <div class="editor-toolbar">
-            <button class="tbar-btn" :class="{ on: activeTab === 'main' }" @click="activeTab = 'main'">主配方</button>
-            <button class="tbar-btn" :class="{ on: activeTab === 'machining' }" @click="activeTab = 'machining'">加工</button>
-            <button class="tbar-btn" :class="{ on: activeTab === 'blackening' }" @click="activeTab = 'blackening'">扫黑</button>
-            <button class="tbar-btn" :class="{ on: activeTab === 'laser' }" @click="activeTab = 'laser'">激光</button>
-            <button class="tbar-btn" :class="{ on: activeTab === 'horizontal' }" @click="activeTab = 'horizontal'">水平</button>
-            <button class="tbar-btn" :class="{ on: activeTab === 'vertical' }" @click="activeTab = 'vertical'">垂直</button>
-          </div>
+    <!-- CENTER — browse list of sub-recipes + editor -->
+    <div class="recipe-center">
+      <!-- Main recipe editor -->
+      <div v-if="browseMode === 'main' && selectedRecipe" class="center-editor">
+        <div class="center-header">
+          <h2 class="ed-title">
+            <input v-if="editingMainId === selectedMainRecipeId" :value="selectedRecipe.name" class="ed-title-input"
+              @input="updateMainField('name', ($event.target as HTMLInputElement).value)"
+              @blur="editingMainId = null" @keydown.enter="editingMainId = null" />
+            <span v-else @dblclick="editingMainId = selectedMainRecipeId">{{ selectedRecipe.name }}</span>
+            <span class="ed-id">{{ selectedRecipe.id }}</span>
+          </h2>
         </div>
-
-        <!-- MAIN tab -->
-        <section v-show="activeTab === 'main'" class="edit-section">
+        <section class="edit-section">
           <div class="field-grid">
             <div class="field"><label class="fl">名称</label><input class="fi" :value="selectedRecipe.name" @input="updateMainField('name', ($event.target as HTMLInputElement).value)" /></div>
             <div class="field"><label class="fl">状态</label><select class="fi" :value="selectedRecipe.status" @change="updateMainField('status', ($event.target as HTMLSelectElement).value)"><option value="active">active</option><option value="draft">draft</option></select></div>
@@ -155,161 +202,241 @@ onMounted(async () => {
             <div class="field"><label class="fl">加工配方 ID</label><input class="fi mono" :value="selectedRecipe.machiningRecipeId" @input="updateMainField('machiningRecipeId', ($event.target as HTMLInputElement).value)" /></div>
           </div>
         </section>
+      </div>
 
-        <!-- MACHINING tab -->
-        <section v-show="activeTab === 'machining'" class="edit-section">
-          <template v-if="selMachining">
-            <div class="sec-sub">{{ selMachining.id }}</div>
-            <div class="field-grid">
-              <div class="field"><label class="fl">水平公式 ID</label><input class="fi mono" :value="selMachining.horizontalFormulaId" @input="updateField(`machiningRecipes.${selMachining.id}.horizontalFormulaId`, ($event.target as HTMLInputElement).value)" /></div>
-              <div class="field"><label class="fl">垂直公式 ID</label><input class="fi mono" :value="selMachining.verticalFormulaId" @input="updateField(`machiningRecipes.${selMachining.id}.verticalFormulaId`, ($event.target as HTMLInputElement).value)" /></div>
-              <div class="field"><label class="fl">激光配方 ID</label><input class="fi mono" :value="selMachining.laserPowerRecipeId" @input="updateField(`machiningRecipes.${selMachining.id}.laserPowerRecipeId`, ($event.target as HTMLInputElement).value)" /></div>
-            </div>
-          </template>
-          <div v-else class="empty-note">未关联加工配方</div>
-        </section>
-
-        <!-- BLACKENING tab -->
-        <section v-show="activeTab === 'blackening'" class="edit-section">
-          <template v-if="selBlackening">
-            <div class="sec-sub">{{ selBlackening.id }}</div>
-            <div class="field-grid">
-              <div class="field"><label class="fl">启用</label><select class="fi" :value="selBlackening.enabled" @change="updateField(`blackeningRecipes.${selBlackening.id}.enabled`, ($event.target as HTMLSelectElement).value === 'true')"><option :value="true">是</option><option :value="false">否</option></select></div>
-              <div class="field"><label class="fl">下降步长</label><input class="fi" type="number" step="0.01" :value="selBlackening.descentStep" @input="updateField(`blackeningRecipes.${selBlackening.id}.descentStep`, Number(($event.target as HTMLInputElement).value))" /></div>
-              <div class="field"><label class="fl">下降次数</label><input class="fi" type="number" :value="selBlackening.descentCount" @input="updateField(`blackeningRecipes.${selBlackening.id}.descentCount`, Number(($event.target as HTMLInputElement).value))" /></div>
-              <div class="field"><label class="fl">扫黑速度</label><input class="fi" type="number" :value="selBlackening.blackeningSpeed" @input="updateField(`blackeningRecipes.${selBlackening.id}.blackeningSpeed`, Number(($event.target as HTMLInputElement).value))" /></div>
-              <div class="field"><label class="fl">扫黑步长</label><input class="fi" type="number" step="0.001" :value="selBlackening.blackeningStep" @input="updateField(`blackeningRecipes.${selBlackening.id}.blackeningStep`, Number(($event.target as HTMLInputElement).value))" /></div>
-              <div class="field"><label class="fl">焦距补偿</label><input class="fi" type="number" :value="selBlackening.jiaojubuchang" @input="updateField(`blackeningRecipes.${selBlackening.id}.jiaojubuchang`, Number(($event.target as HTMLInputElement).value))" /></div>
-              <div class="field"><label class="fl">激光配方 ID</label><input class="fi mono" :value="selBlackening.laserPowerRecipeId" @input="updateField(`blackeningRecipes.${selBlackening.id}.laserPowerRecipeId`, ($event.target as HTMLInputElement).value)" /></div>
-            </div>
-          </template>
-          <div v-else class="empty-note">未关联扫黑配方</div>
-        </section>
-
-        <!-- LASER tab -->
-        <section v-show="activeTab === 'laser'" class="edit-section">
-          <template v-if="selBlackLaser">
-            <div class="sec-sub">扫黑激光 · {{ selBlackLaser.id }}</div>
-            <div class="field-grid">
-              <div class="field"><label class="fl">厂家</label><input class="fi mono" :value="selBlackLaser.laserManufacturer" @input="updateField(`laserPowerRecipes.${selBlackLaser.id}.laserManufacturer`, ($event.target as HTMLInputElement).value)" /></div>
-              <div class="field"><label class="fl">功率 (W)</label><input class="fi" type="number" :value="selBlackLaser.laserPower" @input="updateField(`laserPowerRecipes.${selBlackLaser.id}.laserPower`, Number(($event.target as HTMLInputElement).value))" /></div>
-              <div class="field"><label class="fl">频率 (Hz)</label><input class="fi" type="number" :value="selBlackLaser.laserFrequency" @input="updateField(`laserPowerRecipes.${selBlackLaser.id}.laserFrequency`, Number(($event.target as HTMLInputElement).value))" /></div>
-              <div class="field"><label class="fl">电流 (A)</label><input class="fi" type="number" :value="selBlackLaser.laserCurrent" @input="updateField(`laserPowerRecipes.${selBlackLaser.id}.laserCurrent`, Number(($event.target as HTMLInputElement).value))" /></div>
-            </div>
-          </template>
-          <template v-if="selMachLaser && selMachLaser.id !== selBlackLaser?.id">
-            <div class="sec-sub" style="margin-top:16px">加工激光 · {{ selMachLaser.id }}</div>
-            <div class="field-grid">
-              <div class="field"><label class="fl">厂家</label><input class="fi mono" :value="selMachLaser.laserManufacturer" @input="updateField(`laserPowerRecipes.${selMachLaser.id}.laserManufacturer`, ($event.target as HTMLInputElement).value)" /></div>
-              <div class="field"><label class="fl">功率 (W)</label><input class="fi" type="number" :value="selMachLaser.laserPower" @input="updateField(`laserPowerRecipes.${selMachLaser.id}.laserPower`, Number(($event.target as HTMLInputElement).value))" /></div>
-              <div class="field"><label class="fl">频率 (Hz)</label><input class="fi" type="number" :value="selMachLaser.laserFrequency" @input="updateField(`laserPowerRecipes.${selMachLaser.id}.laserFrequency`, Number(($event.target as HTMLInputElement).value))" /></div>
-              <div class="field"><label class="fl">电流 (A)</label><input class="fi" type="number" :value="selMachLaser.laserCurrent" @input="updateField(`laserPowerRecipes.${selMachLaser.id}.laserCurrent`, Number(($event.target as HTMLInputElement).value))" /></div>
-            </div>
-          </template>
-          <div v-if="!selBlackLaser && !selMachLaser" class="empty-note">未关联激光配方</div>
-        </section>
-
-        <!-- HORIZONTAL tab -->
-        <section v-show="activeTab === 'horizontal'" class="edit-section">
-          <template v-if="selHorizontal">
-            <div class="sec-sub">{{ selHorizontal.id }}</div>
-            <div class="field-grid">
-              <div class="field"><label class="fl">开口形状</label><input class="fi" :value="selHorizontal.openingShape" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.openingShape`, ($event.target as HTMLInputElement).value)" /></div>
-              <div class="field"><label class="fl">角度公式 K</label><input class="fi" type="number" step="0.01" :value="selHorizontal.angleFormula?.k" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.angleFormula.k`, Number(($event.target as HTMLInputElement).value))" /></div>
-              <div class="field"><label class="fl">角度公式 B</label><input class="fi" type="number" step="0.01" :value="selHorizontal.angleFormula?.b" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.angleFormula.b`, Number(($event.target as HTMLInputElement).value))" /></div>
-              <div class="field"><label class="fl">下开口 K</label><input class="fi" type="number" step="0.01" :value="selHorizontal.lowerOpeningFormula?.k" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.lowerOpeningFormula.k`, Number(($event.target as HTMLInputElement).value))" /></div>
-              <div class="field"><label class="fl">下开口 B</label><input class="fi" type="number" step="0.01" :value="selHorizontal.lowerOpeningFormula?.b" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.lowerOpeningFormula.b`, Number(($event.target as HTMLInputElement).value))" /></div>
-              <div class="field"><label class="fl">深度补偿 K</label><input class="fi" type="number" step="0.01" :value="selHorizontal.depthCompensationFormula?.k" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.depthCompensationFormula.k`, Number(($event.target as HTMLInputElement).value))" /></div>
-              <div class="field"><label class="fl">深度补偿 B</label><input class="fi" type="number" step="0.01" :value="selHorizontal.depthCompensationFormula?.b" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.depthCompensationFormula.b`, Number(($event.target as HTMLInputElement).value))" /></div>
-              <div class="field"><label class="fl">焦距补偿</label><input class="fi" type="number" step="0.01" :value="selHorizontal.focusCompensation" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.focusCompensation`, Number(($event.target as HTMLInputElement).value))" /></div>
-            </div>
-          </template>
-          <div v-else class="empty-note">未关联水平配方</div>
-        </section>
-
-        <!-- VERTICAL tab -->
-        <section v-show="activeTab === 'vertical'" class="edit-section">
-          <template v-if="selVertical">
-            <div class="sec-sub">{{ selVertical.id }} · {{ selVertical.cuttingAxis }}</div>
-            <div class="field-grid">
-              <div class="field"><label class="fl">切割轴</label><input class="fi" :value="selVertical.cuttingAxis" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.cuttingAxis`, ($event.target as HTMLInputElement).value)" /></div>
-              <div class="field"><label class="fl">变化%</label><input class="fi" type="number" :value="selVertical.changePercent" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.changePercent`, Number(($event.target as HTMLInputElement).value))" /></div>
-              <div class="field"><label class="fl">X 进给</label><input class="fi" type="number" step="0.001" :value="selVertical.xFeed" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.xFeed`, Number(($event.target as HTMLInputElement).value))" /></div>
-              <div class="field"><label class="fl">X 速度</label><input class="fi" type="number" :value="selVertical.xSpeed" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.xSpeed`, Number(($event.target as HTMLInputElement).value))" /></div>
-              <div class="field"><label class="fl">切边速度</label><input class="fi" type="number" :value="selVertical.edgeCutting?.speed" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.edgeCutting.speed`, Number(($event.target as HTMLInputElement).value))" /></div>
-              <div class="field"><label class="fl">切边次数</label><input class="fi" type="number" :value="selVertical.edgeCutting?.cutTimes" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.edgeCutting.cutTimes`, Number(($event.target as HTMLInputElement).value))" /></div>
-              <div class="field"><label class="fl">中切速度</label><input class="fi" type="number" :value="selVertical.middleCutting?.speed" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.middleCutting.speed`, Number(($event.target as HTMLInputElement).value))" /></div>
-              <div class="field"><label class="fl">中切次数</label><input class="fi" type="number" :value="selVertical.middleCutting?.cutTimes" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.middleCutting.cutTimes`, Number(($event.target as HTMLInputElement).value))" /></div>
-              <div class="field"><label class="fl">下降速度</label><input class="fi" type="number" step="0.001" :value="selVertical.descentCutting?.speed" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.descentCutting.speed`, Number(($event.target as HTMLInputElement).value))" /></div>
-              <div class="field"><label class="fl">Z 下降进给</label><input class="fi" type="number" step="0.001" :value="selVertical.descentCutting?.zFeed" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.descentCutting.zFeed`, Number(($event.target as HTMLInputElement).value))" /></div>
-            </div>
-          </template>
-          <div v-else class="empty-note">未关联垂直配方</div>
+      <!-- Laser list + editor -->
+      <div v-if="browseMode === 'laser'" class="center-editor">
+        <div class="center-header">
+          <h2 class="ed-title">激光功率配方</h2>
+          <div class="center-actions">
+            <button class="act-sm" @click="handleNewSub('laser')"><span class="material-symbols-outlined">add</span></button>
+            <button class="act-sm danger" @click="handleDeleteSub('laser')" :disabled="!selLaser"><span class="material-symbols-outlined">delete</span></button>
+          </div>
+        </div>
+        <div class="sub-items-row">
+          <button v-for="item in laserList" :key="item.id" class="sub-item"
+            :class="{ active: item.id === selectedLaserId }" @click="selectedLaserId = item.id">
+            <span class="sub-item-name">{{ item.id }}</span>
+          </button>
+        </div>
+        <section v-if="selLaser" class="edit-section">
+          <div class="field-grid">
+            <div class="field"><label class="fl">厂家</label><input class="fi mono" :value="selLaser.laserManufacturer" @input="updateField(`laserPowerRecipes.${selLaser.id}.laserManufacturer`, ($event.target as HTMLInputElement).value)" /></div>
+            <div class="field"><label class="fl">功率 (W)</label><input class="fi" type="number" :value="selLaser.laserPower" @input="updateField(`laserPowerRecipes.${selLaser.id}.laserPower`, Number(($event.target as HTMLInputElement).value))" /></div>
+            <div class="field"><label class="fl">频率 (Hz)</label><input class="fi" type="number" :value="selLaser.laserFrequency" @input="updateField(`laserPowerRecipes.${selLaser.id}.laserFrequency`, Number(($event.target as HTMLInputElement).value))" /></div>
+            <div class="field"><label class="fl">电流 (A)</label><input class="fi" type="number" :value="selLaser.laserCurrent" @input="updateField(`laserPowerRecipes.${selLaser.id}.laserCurrent`, Number(($event.target as HTMLInputElement).value))" /></div>
+          </div>
         </section>
       </div>
+
+      <!-- Blackening list + editor -->
+      <div v-if="browseMode === 'blackening'" class="center-editor">
+        <div class="center-header">
+          <h2 class="ed-title">扫黑工艺配方</h2>
+          <div class="center-actions">
+            <button class="act-sm" @click="handleNewSub('blackening')"><span class="material-symbols-outlined">add</span></button>
+            <button class="act-sm danger" @click="handleDeleteSub('blackening')" :disabled="!selBlackening"><span class="material-symbols-outlined">delete</span></button>
+          </div>
+        </div>
+        <div class="sub-items-row">
+          <button v-for="item in blackeningList" :key="item.id" class="sub-item"
+            :class="{ active: item.id === selectedBlackeningId }" @click="selectedBlackeningId = item.id">
+            <span class="sub-item-name">{{ item.id }}</span>
+          </button>
+        </div>
+        <section v-if="selBlackening" class="edit-section">
+          <div class="field-grid">
+            <div class="field"><label class="fl">启用</label><select class="fi" :value="selBlackening.enabled" @change="updateField(`blackeningRecipes.${selBlackening.id}.enabled`, ($event.target as HTMLSelectElement).value === 'true')"><option :value="true">是</option><option :value="false">否</option></select></div>
+            <div class="field"><label class="fl">下降步长</label><input class="fi" type="number" step="0.01" :value="selBlackening.descentStep" @input="updateField(`blackeningRecipes.${selBlackening.id}.descentStep`, Number(($event.target as HTMLInputElement).value))" /></div>
+            <div class="field"><label class="fl">下降次数</label><input class="fi" type="number" :value="selBlackening.descentCount" @input="updateField(`blackeningRecipes.${selBlackening.id}.descentCount`, Number(($event.target as HTMLInputElement).value))" /></div>
+            <div class="field"><label class="fl">扫黑速度</label><input class="fi" type="number" :value="selBlackening.blackeningSpeed" @input="updateField(`blackeningRecipes.${selBlackening.id}.blackeningSpeed`, Number(($event.target as HTMLInputElement).value))" /></div>
+            <div class="field"><label class="fl">扫黑步长</label><input class="fi" type="number" step="0.001" :value="selBlackening.blackeningStep" @input="updateField(`blackeningRecipes.${selBlackening.id}.blackeningStep`, Number(($event.target as HTMLInputElement).value))" /></div>
+            <div class="field"><label class="fl">焦距补偿</label><input class="fi" type="number" :value="selBlackening.jiaojubuchang" @input="updateField(`blackeningRecipes.${selBlackening.id}.jiaojubuchang`, Number(($event.target as HTMLInputElement).value))" /></div>
+            <div class="field"><label class="fl">激光配方 ID</label><input class="fi mono" :value="selBlackening.laserPowerRecipeId" @input="updateField(`blackeningRecipes.${selBlackening.id}.laserPowerRecipeId`, ($event.target as HTMLInputElement).value)" /></div>
+          </div>
+        </section>
+      </div>
+
+      <!-- Machining list + editor -->
+      <div v-if="browseMode === 'machining'" class="center-editor">
+        <div class="center-header">
+          <h2 class="ed-title">加工工艺配方</h2>
+          <div class="center-actions">
+            <button class="act-sm" @click="handleNewSub('machining')"><span class="material-symbols-outlined">add</span></button>
+            <button class="act-sm danger" @click="handleDeleteSub('machining')" :disabled="!selMachining"><span class="material-symbols-outlined">delete</span></button>
+          </div>
+        </div>
+        <div class="sub-items-row">
+          <button v-for="item in machiningList" :key="item.id" class="sub-item"
+            :class="{ active: item.id === selectedMachiningId }" @click="selectedMachiningId = item.id">
+            <span class="sub-item-name">{{ item.id }}</span>
+          </button>
+        </div>
+        <section v-if="selMachining" class="edit-section">
+          <div class="field-grid">
+            <div class="field"><label class="fl">水平公式 ID</label><input class="fi mono" :value="selMachining.horizontalFormulaId" @input="updateField(`machiningRecipes.${selMachining.id}.horizontalFormulaId`, ($event.target as HTMLInputElement).value)" /></div>
+            <div class="field"><label class="fl">垂直公式 ID</label><input class="fi mono" :value="selMachining.verticalFormulaId" @input="updateField(`machiningRecipes.${selMachining.id}.verticalFormulaId`, ($event.target as HTMLInputElement).value)" /></div>
+            <div class="field"><label class="fl">激光配方 ID</label><input class="fi mono" :value="selMachining.laserPowerRecipeId" @input="updateField(`machiningRecipes.${selMachining.id}.laserPowerRecipeId`, ($event.target as HTMLInputElement).value)" /></div>
+          </div>
+        </section>
+      </div>
+
+      <!-- Horizontal list + editor -->
+      <div v-if="browseMode === 'horizontal'" class="center-editor">
+        <div class="center-header">
+          <h2 class="ed-title">水平工艺配方</h2>
+          <div class="center-actions">
+            <button class="act-sm" @click="handleNewSub('horizontal')"><span class="material-symbols-outlined">add</span></button>
+            <button class="act-sm danger" @click="handleDeleteSub('horizontal')" :disabled="!selHorizontal"><span class="material-symbols-outlined">delete</span></button>
+          </div>
+        </div>
+        <div class="sub-items-row">
+          <button v-for="item in horizontalList" :key="item.id" class="sub-item"
+            :class="{ active: item.id === selectedHorizontalId }" @click="selectedHorizontalId = item.id">
+            <span class="sub-item-name">{{ item.id }}</span>
+          </button>
+        </div>
+        <section v-if="selHorizontal" class="edit-section">
+          <div class="field-grid">
+            <div class="field"><label class="fl">开口形状</label><input class="fi" :value="selHorizontal.openingShape" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.openingShape`, ($event.target as HTMLInputElement).value)" /></div>
+            <div class="field"><label class="fl">角度公式 K</label><input class="fi" type="number" step="0.01" :value="selHorizontal.angleFormula?.k" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.angleFormula.k`, Number(($event.target as HTMLInputElement).value))" /></div>
+            <div class="field"><label class="fl">角度公式 B</label><input class="fi" type="number" step="0.01" :value="selHorizontal.angleFormula?.b" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.angleFormula.b`, Number(($event.target as HTMLInputElement).value))" /></div>
+            <div class="field"><label class="fl">下开口 K</label><input class="fi" type="number" step="0.01" :value="selHorizontal.lowerOpeningFormula?.k" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.lowerOpeningFormula.k`, Number(($event.target as HTMLInputElement).value))" /></div>
+            <div class="field"><label class="fl">下开口 B</label><input class="fi" type="number" step="0.01" :value="selHorizontal.lowerOpeningFormula?.b" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.lowerOpeningFormula.b`, Number(($event.target as HTMLInputElement).value))" /></div>
+            <div class="field"><label class="fl">深度补偿 K</label><input class="fi" type="number" step="0.01" :value="selHorizontal.depthCompensationFormula?.k" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.depthCompensationFormula.k`, Number(($event.target as HTMLInputElement).value))" /></div>
+            <div class="field"><label class="fl">深度补偿 B</label><input class="fi" type="number" step="0.01" :value="selHorizontal.depthCompensationFormula?.b" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.depthCompensationFormula.b`, Number(($event.target as HTMLInputElement).value))" /></div>
+            <div class="field"><label class="fl">焦距补偿</label><input class="fi" type="number" step="0.01" :value="selHorizontal.focusCompensation" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.focusCompensation`, Number(($event.target as HTMLInputElement).value))" /></div>
+          </div>
+        </section>
+      </div>
+
+      <!-- Vertical list + editor -->
+      <div v-if="browseMode === 'vertical'" class="center-editor">
+        <div class="center-header">
+          <h2 class="ed-title">垂直工艺配方</h2>
+          <div class="center-actions">
+            <button class="act-sm" @click="handleNewSub('vertical')"><span class="material-symbols-outlined">add</span></button>
+            <button class="act-sm danger" @click="handleDeleteSub('vertical')" :disabled="!selVertical"><span class="material-symbols-outlined">delete</span></button>
+          </div>
+        </div>
+        <div class="sub-items-row">
+          <button v-for="item in verticalList" :key="item.id" class="sub-item"
+            :class="{ active: item.id === selectedVerticalId }" @click="selectedVerticalId = item.id">
+            <span class="sub-item-name">{{ item.id }}</span>
+          </button>
+        </div>
+        <section v-if="selVertical" class="edit-section">
+          <div class="field-grid">
+            <div class="field"><label class="fl">切割轴</label><input class="fi" :value="selVertical.cuttingAxis" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.cuttingAxis`, ($event.target as HTMLInputElement).value)" /></div>
+            <div class="field"><label class="fl">变化%</label><input class="fi" type="number" :value="selVertical.changePercent" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.changePercent`, Number(($event.target as HTMLInputElement).value))" /></div>
+            <div class="field"><label class="fl">X 进给</label><input class="fi" type="number" step="0.001" :value="selVertical.xFeed" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.xFeed`, Number(($event.target as HTMLInputElement).value))" /></div>
+            <div class="field"><label class="fl">X 速度</label><input class="fi" type="number" :value="selVertical.xSpeed" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.xSpeed`, Number(($event.target as HTMLInputElement).value))" /></div>
+            <div class="field"><label class="fl">切边速度</label><input class="fi" type="number" :value="selVertical.edgeCutting?.speed" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.edgeCutting.speed`, Number(($event.target as HTMLInputElement).value))" /></div>
+            <div class="field"><label class="fl">切边次数</label><input class="fi" type="number" :value="selVertical.edgeCutting?.cutTimes" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.edgeCutting.cutTimes`, Number(($event.target as HTMLInputElement).value))" /></div>
+            <div class="field"><label class="fl">中切速度</label><input class="fi" type="number" :value="selVertical.middleCutting?.speed" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.middleCutting.speed`, Number(($event.target as HTMLInputElement).value))" /></div>
+            <div class="field"><label class="fl">中切次数</label><input class="fi" type="number" :value="selVertical.middleCutting?.cutTimes" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.middleCutting.cutTimes`, Number(($event.target as HTMLInputElement).value))" /></div>
+            <div class="field"><label class="fl">下降速度</label><input class="fi" type="number" step="0.001" :value="selVertical.descentCutting?.speed" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.descentCutting.speed`, Number(($event.target as HTMLInputElement).value))" /></div>
+            <div class="field"><label class="fl">Z 下降进给</label><input class="fi" type="number" step="0.001" :value="selVertical.descentCutting?.zFeed" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.descentCutting.zFeed`, Number(($event.target as HTMLInputElement).value))" /></div>
+          </div>
+        </section>
+      </div>
+
+      <!-- Empty state -->
+      <div v-if="browseMode === 'main' && !selectedRecipe" class="editor-empty">
+        <span class="material-symbols-outlined ee-icon">science</span>
+        <span>选择或新建一个配方</span>
+      </div>
     </div>
+
+    <!-- RIGHT TOOLBAR — quick nav to sub-recipe types -->
+    <aside class="recipe-toolbar">
+      <span class="tb-label">配方类型</span>
+      <button class="tb-btn" :class="{ on: browseMode === 'main' }" @click="browseMode = 'main'">
+        <span class="material-symbols-outlined">description</span>主配方
+      </button>
+      <button class="tb-btn" :class="{ on: browseMode === 'laser' }" @click="browseMode = 'laser'">
+        <span class="material-symbols-outlined">bolt</span>激光功率
+        <span class="tb-count">{{ laserList.length }}</span>
+      </button>
+      <button class="tb-btn" :class="{ on: browseMode === 'blackening' }" @click="browseMode = 'blackening'">
+        <span class="material-symbols-outlined">ink_eraser</span>扫黑工艺
+        <span class="tb-count">{{ blackeningList.length }}</span>
+      </button>
+      <button class="tb-btn" :class="{ on: browseMode === 'machining' }" @click="browseMode = 'machining'">
+        <span class="material-symbols-outlined">precision_manufacturing</span>加工工艺
+        <span class="tb-count">{{ machiningList.length }}</span>
+      </button>
+      <button class="tb-btn" :class="{ on: browseMode === 'horizontal' }" @click="browseMode = 'horizontal'">
+        <span class="material-symbols-outlined">horizontal_rule</span>水平公式
+        <span class="tb-count">{{ horizontalList.length }}</span>
+      </button>
+      <button class="tb-btn" :class="{ on: browseMode === 'vertical' }" @click="browseMode = 'vertical'">
+        <span class="material-symbols-outlined">vertical_align_bottom</span>垂直公式
+        <span class="tb-count">{{ verticalList.length }}</span>
+      </button>
+    </aside>
   </div>
 </template>
 
 <style scoped>
 .recipes-page { display: flex; flex: 1; overflow: hidden; }
 
-/* ---- SIDEBAR ---- */
+/* ---- LEFT SIDEBAR ---- */
 .recipe-sidebar {
-  width: 300px; background: var(--color-surface-container-low);
+  width: 280px; background: var(--color-surface-container-low);
   border-right: 1px solid var(--color-outline-variant);
   display: flex; flex-direction: column; flex-shrink: 0;
 }
-.sidebar-head { padding: 12px; }
-.search-box { position: relative; margin-bottom: 8px; }
-.search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--color-outline); font-size: 16px; }
+.sidebar-head { padding: 10px; }
+.search-box { position: relative; margin-bottom: 6px; }
+.search-icon { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); color: var(--color-outline); font-size: 15px; }
 .search-input {
   width: 100%; background: var(--color-surface-container-highest);
   border: 1px solid var(--color-outline-variant); border-radius: 4px;
-  padding: 7px 8px 7px 36px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--color-on-surface);
+  padding: 6px 8px 6px 32px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--color-on-surface);
 }
 .search-input:focus { outline: none; border-color: var(--color-primary); }
-.sidebar-actions { display: flex; gap: 4px; }
+.sidebar-actions { display: flex; gap: 3px; }
 .act-btn {
-  flex: 1; display: flex; align-items: center; justify-content: center; gap: 4px;
-  padding: 6px 4px; background: var(--color-surface-container-high);
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 3px;
+  padding: 5px 3px; background: var(--color-surface-container-high);
   border: 1px solid var(--color-outline-variant); border-radius: 4px; cursor: pointer;
-  font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--color-on-surface-variant);
+  font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--color-on-surface-variant);
   transition: background 0.15s;
 }
 .act-btn:hover:not(:disabled) { background: var(--color-surface-variant); }
 .act-btn:disabled { opacity: 0.35; cursor: not-allowed; }
-.act-btn .material-symbols-outlined { font-size: 16px; }
+.act-btn .material-symbols-outlined { font-size: 15px; }
 .act-btn.danger:hover:not(:disabled) { background: rgba(220,38,38,0.15); color: var(--color-error); }
 
-.recipe-list { flex: 1; overflow-y: auto; padding: 0 8px 8px; }
+.recipe-list { flex: 1; overflow-y: auto; padding: 0 6px 6px; }
 .recipe-item {
-  width: 100%; text-align: left; padding: 12px; border: none;
+  width: 100%; text-align: left; padding: 10px; border: none;
   border-left: 3px solid transparent; border-radius: 0 4px 4px 0;
-  background: none; cursor: pointer; margin-bottom: 2px; transition: background 0.15s;
+  background: none; cursor: pointer; margin-bottom: 1px; transition: background 0.15s;
 }
 .recipe-item:hover { background: var(--color-surface-variant); }
 .recipe-item.active { background: rgba(73,76,80,0.35); border-left-color: var(--color-primary); }
 .ri-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; }
-.ri-name { font-size: 14px; font-weight: 600; color: var(--color-on-surface); }
+.ri-name { font-size: 13px; font-weight: 600; color: var(--color-on-surface); }
 .ri-status {
-  font-family: 'JetBrains Mono', monospace; font-size: 9px; padding: 1px 6px; border-radius: 3px;
+  font-family: 'JetBrains Mono', monospace; font-size: 9px; padding: 1px 5px; border-radius: 3px;
   text-transform: uppercase; letter-spacing: 0.05em;
 }
 .ri-status.active { background: rgba(34,197,94,0.15); color: #22c55e; }
 .ri-status.draft { background: rgba(255,182,149,0.15); color: var(--color-tertiary); }
 .ri-sub { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--color-outline); }
 
-.recipe-empty { padding: 24px 12px; display: flex; flex-direction: column; align-items: center; gap: 8px; color: var(--color-on-surface-variant); }
-.empty-icon { font-size: 36px; opacity: 0.4; }
-.empty-text { font-family: 'JetBrains Mono', monospace; font-size: 12px; opacity: 0.5; }
+.recipe-empty { padding: 20px 10px; display: flex; flex-direction: column; align-items: center; gap: 6px; color: var(--color-on-surface-variant); }
+.empty-icon { font-size: 32px; opacity: 0.4; }
+.empty-text { font-family: 'JetBrains Mono', monospace; font-size: 11px; opacity: 0.5; }
 
-.sidebar-foot { padding: 12px; border-top: 1px solid var(--color-outline-variant); display: flex; flex-direction: column; gap: 6px; }
+.sidebar-foot { padding: 10px; border-top: 1px solid var(--color-outline-variant); display: flex; flex-direction: column; gap: 4px; }
 .save-btn {
-  width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;
-  padding: 10px; border: 1px solid var(--color-outline-variant); border-radius: 4px;
+  width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 8px; border: 1px solid var(--color-outline-variant); border-radius: 4px;
   background: var(--color-surface-container-high); cursor: pointer;
-  font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600;
+  font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600;
   color: var(--color-on-surface-variant); transition: all 0.2s;
 }
 .save-btn:hover:not(:disabled) { background: var(--color-surface-variant); }
@@ -319,47 +446,84 @@ onMounted(async () => {
 .status-msg { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--color-primary); text-align: center; }
 .status-msg.dim { color: var(--color-on-surface-variant); }
 
-/* ---- EDITOR ---- */
-.recipe-editor { flex: 1; background: var(--color-background); overflow-y: auto; }
-.editor-inner { padding: 32px 40px; max-width: 1000px; }
-.editor-empty {
-  height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 12px; color: var(--color-on-surface-variant); opacity: 0.5; font-family: 'JetBrains Mono', monospace; font-size: 14px;
+/* ---- CENTER ---- */
+.recipe-center { flex: 1; overflow-y: auto; }
+.center-editor { padding: 28px 36px; max-width: 960px; }
+.center-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--color-outline-variant); padding-bottom: 12px; margin-bottom: 16px; }
+.ed-title { font-size: 24px; font-weight: 700; color: var(--color-on-surface); display: flex; align-items: center; gap: 8px; }
+.ed-id { font-weight: 300; color: var(--color-outline); font-size: 16px; font-family: 'JetBrains Mono', monospace; }
+.ed-title-input { font-family: 'Inter', sans-serif; font-size: 24px; font-weight: 700; background: none; border: none; border-bottom: 2px solid var(--color-primary); color: var(--color-on-surface); outline: none; width: 220px; }
+.center-actions { display: flex; gap: 4px; }
+.act-sm {
+  display: flex; align-items: center; justify-content: center; width: 30px; height: 30px;
+  background: var(--color-surface-container-high); border: 1px solid var(--color-outline-variant);
+  border-radius: 4px; cursor: pointer; color: var(--color-on-surface-variant);
+  transition: background 0.15s;
 }
-.ee-icon { font-size: 48px; }
-.editor-header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid var(--color-outline-variant); padding-bottom: 14px; margin-bottom: 24px; }
-.ed-title { font-size: 28px; font-weight: 700; color: var(--color-on-surface); display: flex; align-items: center; gap: 10px; }
-.ed-id { font-weight: 300; color: var(--color-outline); font-size: 18px; font-family: 'JetBrains Mono', monospace; }
-.ed-title-input { font-family: 'Inter', sans-serif; font-size: 28px; font-weight: 700; background: none; border: none; border-bottom: 2px solid var(--color-primary); color: var(--color-on-surface); outline: none; width: 260px; }
-.editor-toolbar { display: flex; gap: 6px; }
-.tbar-btn {
-  padding: 6px 14px; border: 1px solid var(--color-outline-variant); border-radius: 4px;
-  background: none; cursor: pointer; font-family: 'JetBrains Mono', monospace; font-size: 11px;
+.act-sm:hover:not(:disabled) { background: var(--color-surface-variant); }
+.act-sm:disabled { opacity: 0.35; cursor: not-allowed; }
+.act-sm .material-symbols-outlined { font-size: 16px; }
+.act-sm.danger:hover:not(:disabled) { background: rgba(220,38,38,0.15); color: var(--color-error); }
+
+/* sub-item pills row */
+.sub-items-row {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px;
+}
+.sub-item {
+  padding: 5px 12px; background: var(--color-surface-container-high);
+  border: 1px solid var(--color-outline-variant); border-radius: 4px;
+  cursor: pointer; font-family: 'JetBrains Mono', monospace; font-size: 11px;
   color: var(--color-on-surface-variant); transition: all 0.15s;
 }
-.tbar-btn:hover { background: var(--color-surface-variant); }
-.tbar-btn.on { border-color: var(--color-primary); color: var(--color-primary); background: rgba(173,199,255,0.08); }
+.sub-item:hover { background: var(--color-surface-variant); }
+.sub-item.active { border-color: var(--color-primary); color: var(--color-primary); background: rgba(173,199,255,0.08); }
+.sub-item-name { white-space: nowrap; }
 
-.edit-section { animation: fadein 0.15s ease-out; }
-@keyframes fadein { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
-.sec-sub {
-  font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--color-primary);
-  margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--color-outline-variant);
-}
-.field-grid {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px 20px;
-}
-.field { display: flex; flex-direction: column; gap: 4px; }
-.fl { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--color-on-surface-variant); text-transform: uppercase; letter-spacing: 0.04em; }
+/* ---- editor common ---- */
+.edit-section { animation: fadein 0.12s ease-out; }
+@keyframes fadein { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
+.field-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 18px; }
+.field { display: flex; flex-direction: column; gap: 3px; }
+.fl { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--color-on-surface-variant); text-transform: uppercase; letter-spacing: 0.03em; }
 .fi {
-  padding: 7px 10px; background: var(--color-surface-container-highest);
+  padding: 6px 8px; background: var(--color-surface-container-highest);
   border: 1px solid var(--color-outline-variant); border-radius: 4px;
-  font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--color-on-surface); outline: none;
+  font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--color-on-surface); outline: none;
 }
 .fi:focus { border-color: var(--color-primary); }
 .fi.mono { font-size: 11px; }
 select.fi { cursor: pointer; appearance: none; -webkit-appearance: none; }
-.empty-note { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--color-on-surface-variant); opacity: 0.4; padding: 20px 0; }
+.editor-empty { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: var(--color-on-surface-variant); opacity: 0.5; font-family: 'JetBrains Mono', monospace; font-size: 13px; }
+.ee-icon { font-size: 44px; }
+
+/* ---- RIGHT TOOLBAR ---- */
+.recipe-toolbar {
+  width: 180px; background: var(--color-surface-container-low);
+  border-left: 1px solid var(--color-outline-variant);
+  padding: 14px 10px; display: flex; flex-direction: column; gap: 3px; flex-shrink: 0;
+}
+.tb-label {
+  font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--color-outline);
+  text-transform: uppercase; letter-spacing: 0.1em; padding: 4px 6px 8px;
+}
+.tb-btn {
+  width: 100%; display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+  background: none; border: 1px solid transparent; border-radius: 4px;
+  cursor: pointer; font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  color: var(--color-on-surface-variant); text-align: left;
+  transition: all 0.15s;
+}
+.tb-btn:hover { background: var(--color-surface-variant); }
+.tb-btn.on {
+  border-color: var(--color-outline-variant); background: var(--color-surface-container-high);
+  color: var(--color-primary); font-weight: 600;
+}
+.tb-btn .material-symbols-outlined { font-size: 18px; flex-shrink: 0; }
+.tb-count {
+  margin-left: auto; font-size: 10px; padding: 1px 6px;
+  background: var(--color-surface-container-highest); border-radius: 3px; color: var(--color-outline);
+}
+.tb-btn.on .tb-count { background: rgba(173,199,255,0.12); color: var(--color-primary); }
 
 /* ---- DIALOG ---- */
 .dlg-overlay { position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; }
