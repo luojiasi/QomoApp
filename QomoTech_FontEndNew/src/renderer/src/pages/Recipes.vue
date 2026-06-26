@@ -264,9 +264,6 @@ onMounted(async () => {
             <div class="field"><label class="fl">启用</label><select class="fi" :value="selBlackening.enabled" @change="updateField(`blackeningRecipes.${selBlackening.id}.enabled`, ($event.target as HTMLSelectElement).value === 'true')"><option :value="true">是</option><option :value="false">否</option></select></div>
             <div class="field"></div>
             <div class="field"></div>
-            <div class="field"><label class="fl">激光配方 ID</label><input class="fi mono" :value="selBlackening.laserPowerRecipeId" @input="updateField(`blackeningRecipes.${selBlackening.id}.laserPowerRecipeId`, ($event.target as HTMLInputElement).value)" /></div>
-            <div class="field"></div>
-            <div class="field"></div>
             <div class="field"><label class="fl">下降步长</label><input class="fi" type="number" step="0.01" :value="selBlackening.descentStep" @input="updateField(`blackeningRecipes.${selBlackening.id}.descentStep`, Number(($event.target as HTMLInputElement).value))" /></div>
             <div class="field"><label class="fl">下降次数</label><input class="fi" type="number" :value="selBlackening.descentCount" @input="updateField(`blackeningRecipes.${selBlackening.id}.descentCount`, Number(($event.target as HTMLInputElement).value))" /></div>
             <div class="field"><label class="fl">扫黑速度</label><input class="fi" type="number" :value="selBlackening.blackeningSpeed" @input="updateField(`blackeningRecipes.${selBlackening.id}.blackeningSpeed`, Number(($event.target as HTMLInputElement).value))" /></div>
@@ -279,7 +276,7 @@ onMounted(async () => {
       <!-- Machining list + editor -->
       <div v-if="browseMode === 'machining'" class="center-editor">
         <div class="center-header">
-          <h2 class="ed-title">加工工艺配方</h2>
+          <h2 class="ed-title">加工配方</h2>
           <div class="center-actions">
             <button class="act-sm" @click="handleNewSub('machining')"><span class="material-symbols-outlined">add</span></button>
             <button class="act-sm danger" @click="handleDeleteSub('machining')" :disabled="!selMachining"><span class="material-symbols-outlined">delete</span></button>
@@ -293,9 +290,24 @@ onMounted(async () => {
         </div>
         <section v-if="selMachining" class="edit-section">
           <div class="field-grid">
-            <div class="field"><label class="fl">水平公式 ID</label><input class="fi mono" :value="selMachining.horizontalFormulaId" @input="updateField(`machiningRecipes.${selMachining.id}.horizontalFormulaId`, ($event.target as HTMLInputElement).value)" /></div>
-            <div class="field"><label class="fl">垂直公式 ID</label><input class="fi mono" :value="selMachining.verticalFormulaId" @input="updateField(`machiningRecipes.${selMachining.id}.verticalFormulaId`, ($event.target as HTMLInputElement).value)" /></div>
-            <div class="field"><label class="fl">激光配方 ID</label><input class="fi mono" :value="selMachining.laserPowerRecipeId" @input="updateField(`machiningRecipes.${selMachining.id}.laserPowerRecipeId`, ($event.target as HTMLInputElement).value)" /></div>
+            <div class="field"><label class="fl">水平配方</label>
+              <select class="fi" :value="selMachining.horizontalFormulaId" @change="updateField(`machiningRecipes.${selMachining.id}.horizontalFormulaId`, ($event.target as HTMLSelectElement).value)">
+                <option value="">—</option>
+                <option v-for="h in horizontalList" :key="h.id" :value="h.id">{{ h.id }}</option>
+              </select>
+            </div>
+            <div class="field"><label class="fl">垂直配方</label>
+              <select class="fi" :value="selMachining.verticalFormulaId" @change="updateField(`machiningRecipes.${selMachining.id}.verticalFormulaId`, ($event.target as HTMLSelectElement).value)">
+                <option value="">—</option>
+                <option v-for="v in verticalList" :key="v.id" :value="v.id">{{ v.id }}</option>
+              </select>
+            </div>
+            <div class="field"><label class="fl">激光配方</label>
+              <select class="fi" :value="selMachining.laserPowerRecipeId" @change="updateField(`machiningRecipes.${selMachining.id}.laserPowerRecipeId`, ($event.target as HTMLSelectElement).value)">
+                <option value="">—</option>
+                <option v-for="l in laserList" :key="l.id" :value="l.id">{{ l.id }}</option>
+              </select>
+            </div>
           </div>
         </section>
       </div>
@@ -303,7 +315,7 @@ onMounted(async () => {
       <!-- Horizontal list + editor -->
       <div v-if="browseMode === 'horizontal'" class="center-editor">
         <div class="center-header">
-          <h2 class="ed-title">水平工艺配方</h2>
+          <h2 class="ed-title">水平配方</h2>
           <div class="center-actions">
             <button class="act-sm" @click="handleNewSub('horizontal')"><span class="material-symbols-outlined">add</span></button>
             <button class="act-sm danger" @click="handleDeleteSub('horizontal')" :disabled="!selHorizontal"><span class="material-symbols-outlined">delete</span></button>
@@ -324,16 +336,20 @@ onMounted(async () => {
               </select>
             </div>
             <div class="field"></div>
+            <div class="field"></div>
             <div class="field"><label class="fl">角度公式 K</label><input class="fi" type="number" step="0.01" :value="selHorizontal.angleFormula?.k" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.angleFormula.k`, Number(($event.target as HTMLInputElement).value))" /></div>
             <div class="field"><label class="fl">角度公式 B</label><input class="fi" type="number" step="0.01" :value="selHorizontal.angleFormula?.b" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.angleFormula.b`, Number(($event.target as HTMLInputElement).value))" /></div>
+            <div class="field"></div>
             <div class="field"><label class="fl">下开口 K</label><input class="fi" type="number" step="0.01" :value="selHorizontal.lowerOpeningFormula?.k" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.lowerOpeningFormula.k`, Number(($event.target as HTMLInputElement).value))" /></div>
             <div class="field"><label class="fl">下开口 B</label><input class="fi" type="number" step="0.01" :value="selHorizontal.lowerOpeningFormula?.b" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.lowerOpeningFormula.b`, Number(($event.target as HTMLInputElement).value))" /></div>
+            <div class="field"></div>
             <div class="field"><label class="fl">深度补偿 K</label><input class="fi" type="number" step="0.01" :value="selHorizontal.depthCompensationFormula?.k" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.depthCompensationFormula.k`, Number(($event.target as HTMLInputElement).value))" /></div>
             <div class="field"><label class="fl">深度补偿 B</label><input class="fi" type="number" step="0.01" :value="selHorizontal.depthCompensationFormula?.b" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.depthCompensationFormula.b`, Number(($event.target as HTMLInputElement).value))" /></div>
+            <div class="field"></div>
             <div class="field"><label class="fl">补偿角度 K</label><input class="fi" type="number" step="0.01" :value="selHorizontal.compensationAngleFormula?.k" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.compensationAngleFormula.k`, Number(($event.target as HTMLInputElement).value))" /></div>
             <div class="field"><label class="fl">补偿角度 B</label><input class="fi" type="number" step="0.01" :value="selHorizontal.compensationAngleFormula?.b" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.compensationAngleFormula.b`, Number(($event.target as HTMLInputElement).value))" /></div>
-            <div class="field"><label class="fl">焦距补偿</label><input class="fi" type="number" step="0.01" :value="selHorizontal.focusCompensation" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.focusCompensation`, Number(($event.target as HTMLInputElement).value))" /></div>
             <div class="field"></div>
+            <div class="field"><label class="fl">焦距补偿</label><input class="fi" type="number" step="0.01" :value="selHorizontal.focusCompensation" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.focusCompensation`, Number(($event.target as HTMLInputElement).value))" /></div>
           </div>
         </section>
       </div>
@@ -341,7 +357,7 @@ onMounted(async () => {
       <!-- Vertical list + editor -->
       <div v-if="browseMode === 'vertical'" class="center-editor">
         <div class="center-header">
-          <h2 class="ed-title">垂直工艺配方</h2>
+          <h2 class="ed-title">垂直配方</h2>
           <div class="center-actions">
             <button class="act-sm" @click="handleNewSub('vertical')"><span class="material-symbols-outlined">add</span></button>
             <button class="act-sm danger" @click="handleDeleteSub('vertical')" :disabled="!selVertical"><span class="material-symbols-outlined">delete</span></button>
@@ -421,15 +437,15 @@ onMounted(async () => {
         <span class="tb-count">{{ blackeningList.length }}</span>
       </button>
       <button class="tb-btn" :class="{ on: browseMode === 'machining' }" @click="browseMode = 'machining'">
-        <span class="material-symbols-outlined">precision_manufacturing</span>加工工艺
+        <span class="material-symbols-outlined">precision_manufacturing</span>加工配方
         <span class="tb-count">{{ machiningList.length }}</span>
       </button>
       <button class="tb-btn" :class="{ on: browseMode === 'horizontal' }" @click="browseMode = 'horizontal'">
-        <span class="material-symbols-outlined">horizontal_rule</span>水平公式
+        <span class="material-symbols-outlined">horizontal_rule</span>水平配方
         <span class="tb-count">{{ horizontalList.length }}</span>
       </button>
       <button class="tb-btn" :class="{ on: browseMode === 'vertical' }" @click="browseMode = 'vertical'">
-        <span class="material-symbols-outlined">vertical_align_bottom</span>垂直公式
+        <span class="material-symbols-outlined">vertical_align_bottom</span>垂直配方
         <span class="tb-count">{{ verticalList.length }}</span>
       </button>
     </aside>
