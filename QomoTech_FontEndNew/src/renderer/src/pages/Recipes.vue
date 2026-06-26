@@ -1,1011 +1,385 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useL10n } from '../shared/l10n'
+import { useRecipes } from '../shared/recipe'
+import type { MainRecipe } from '../shared/recipe'
 
-const activeRecipe = ref('Titanium Cutting')
-const laserPower = ref(3250)
+const { t } = useL10n()
+const {
+  state, mainRecipes, selectedMainRecipeId, selectedRecipe, loading, dirty, lastError,
+  load, save, selectRecipe, updateField
+} = useRecipes()
 
-interface Recipe {
-  name: string
-  version: string
-  type: string
-  active: boolean
+const activeTab = ref<'main' | 'laser' | 'blackening' | 'machining' | 'horizontal' | 'vertical'>('main')
+const editingMainId = ref<string | null>(null)
+const statusMsg = ref('')
+const sidebarSearch = ref('')
+const showNewDialog = ref(false)
+const newRecipeName = ref('')
+
+const filteredRecipes = computed(() => {
+  const q = sidebarSearch.value.toLowerCase()
+  if (!q) return mainRecipes.value
+  return mainRecipes.value.filter(r => r.name.toLowerCase().includes(q))
+})
+
+function findById<T>(arr: readonly T[] | T[] | undefined, id: string): T | undefined {
+  return (arr as T[] | undefined)?.find((r: any) => r.id === id)
 }
+const hasSelection = computed(() => !!selectedRecipe.value)
+const selBlackening = computed(() => hasSelection.value ? findById(state.value.blackeningRecipes ?? [], selectedRecipe.value!.blackeningRecipeId) : undefined)
+const selMachining = computed(() => hasSelection.value ? findById(state.value.machiningRecipes ?? [], selectedRecipe.value!.machiningRecipeId) : undefined)
+const selMachLaser = computed(() => selMachining.value ? findById(state.value.laserPowerRecipes ?? [], selMachining.value.laserPowerRecipeId) : undefined)
+const selBlackLaser = computed(() => selBlackening.value ? findById(state.value.laserPowerRecipes ?? [], selBlackening.value.laserPowerRecipeId) : undefined)
+const selHorizontal = computed(() => selMachining.value ? findById(state.value.horizontalFormulaRecipes ?? [], selMachining.value.horizontalFormulaId) : undefined)
+const selVertical = computed(() => selMachining.value ? findById(state.value.verticalFormulaRecipes ?? [], selMachining.value.verticalFormulaId) : undefined)
 
-const recipes: Recipe[] = [
-  { name: 'Titanium Cutting', version: 'v4.2', type: '5-Axis Fiber', active: true },
-  { name: 'Steel Engraving', version: 'v1.0', type: 'CO2 Marking', active: false },
-  { name: 'Aluminum Profiling', version: 'v2.1', type: 'High Precision', active: false },
-  { name: 'Copper Heat Sink', version: 'v3.5', type: 'High Reflective', active: false }
-]
+function handleNew() { newRecipeName.value = ''; showNewDialog.value = true }
+function confirmNew() {
+  const name = newRecipeName.value.trim() || '新配方'
+  const id = 'main-' + Date.now()
+  const m: MainRecipe = { id, name, status: 'draft', blackeningRecipeId: '', machiningRecipeId: '' }
+  updateField('mainRecipes', [...mainRecipes.value, m])
+  selectRecipe(id); editingMainId.value = id; showNewDialog.value = false
+  statusMsg.value = '已创建'
+}
+function handleClone() {
+  const src = selectedRecipe.value; if (!src) return
+  const id = 'main-' + Date.now()
+  const clone: MainRecipe = { ...src, id, name: src.name + ' (副本)', status: 'draft' }
+  updateField('mainRecipes', [...mainRecipes.value, clone])
+  selectRecipe(id); statusMsg.value = '已克隆'
+}
+function handleDelete() {
+  const id = selectedMainRecipeId.value; if (!id) return
+  const arr = mainRecipes.value.filter(r => r.id !== id)
+  updateField('mainRecipes', arr); selectRecipe(arr[0]?.id ?? '')
+  statusMsg.value = '已标记删除'
+}
+function updateMainField(key: keyof MainRecipe, value: string) {
+  const id = selectedMainRecipeId.value; if (!id) return
+  updateField('mainRecipes', mainRecipes.value.map(r => r.id === id ? { ...r, [key]: value } : r))
+}
+async function handleSave() {
+  statusMsg.value = '保存中...'; await save()
+  statusMsg.value = lastError.value ? `失败: ${lastError.value}` : '已保存'
+  if (!lastError.value) setTimeout(() => { statusMsg.value = '' }, 2000)
+}
+onMounted(async () => {
+  await load()
+  if (mainRecipes.value.length > 0 && !selectedMainRecipeId.value) selectRecipe(mainRecipes.value[0].id)
+})
 </script>
 
 <template>
   <div class="recipes-page">
-    <!-- Recipe list sidebar -->
-    <aside class="recipe-sidebar">
-      <div class="recipe-sidebar-header">
-        <div class="search-box">
-          <span class="material-symbols-outlined search-icon">search</span>
-          <input type="text" class="search-input" placeholder="SEARCH RECIPES..." />
-        </div>
-        <div class="recipe-actions">
-          <button class="recipe-action-btn">
-            <span class="material-symbols-outlined">add</span>
-            New
-          </button>
-          <button class="recipe-action-btn">
-            <span class="material-symbols-outlined">file_upload</span>
-            Import
-          </button>
+    <!-- NEW DIALOG -->
+    <Teleport to="body">
+      <div v-if="showNewDialog" class="dlg-overlay" @click.self="showNewDialog = false">
+        <div class="dlg-card">
+          <span class="dlg-title">新建主配方</span>
+          <input v-model="newRecipeName" class="dlg-input" placeholder="配方名称..." @keydown.enter="confirmNew" autofocus />
+          <div class="dlg-btns">
+            <button class="dlg-ok" @click="confirmNew">确定</button>
+            <button class="dlg-cancel" @click="showNewDialog = false">取消</button>
+          </div>
         </div>
       </div>
+    </Teleport>
 
-      <div class="recipe-list">
-        <button
-          v-for="recipe in recipes"
-          :key="recipe.name"
-          class="recipe-item"
-          :class="{ active: recipe.active }"
-          @click="activeRecipe = recipe.name"
-        >
-          <div class="recipe-item-header">
-            <span class="recipe-name" :class="{ 'text-primary': recipe.active }">{{ recipe.name }}</span>
-            <span class="recipe-version">{{ recipe.version }}</span>
-          </div>
-          <div class="recipe-type">
-            <span class="material-symbols-outlined recipe-type-icon">precision_manufacturing</span>
-            <span class="recipe-type-text">{{ recipe.type }}</span>
-          </div>
-        </button>
-
-        <div class="recipe-empty">
-          <div class="recipe-empty-box">
-            <span class="material-symbols-outlined empty-icon">add_circle</span>
-            <span class="empty-text">CREATE CUSTOM TEMPLATE</span>
-          </div>
+    <!-- SIDEBAR -->
+    <aside class="recipe-sidebar">
+      <div class="sidebar-head">
+        <div class="search-box">
+          <span class="material-symbols-outlined search-icon">search</span>
+          <input v-model="sidebarSearch" type="text" class="search-input" :placeholder="t('recipes.searchPlaceholder')" />
         </div>
+        <div class="sidebar-actions">
+          <button class="act-btn" @click="handleNew"><span class="material-symbols-outlined">add</span>{{ t('recipes.new') }}</button>
+          <button class="act-btn" @click="handleClone" :disabled="!selectedRecipe"><span class="material-symbols-outlined">content_copy</span>克隆</button>
+          <button class="act-btn danger" @click="handleDelete" :disabled="!selectedRecipe"><span class="material-symbols-outlined">delete</span></button>
+        </div>
+      </div>
+      <div class="recipe-list">
+        <button v-for="r in filteredRecipes" :key="r.id" class="recipe-item" :class="{ active: r.id === selectedMainRecipeId }" @click="selectRecipe(r.id)">
+          <div class="ri-top"><span class="ri-name">{{ r.name }}</span><span class="ri-status" :class="r.status">{{ r.status }}</span></div>
+          <div class="ri-sub">{{ r.id }}</div>
+        </button>
+        <div v-if="filteredRecipes.length === 0 && !loading" class="recipe-empty">
+          <span class="material-symbols-outlined empty-icon">science</span>
+          <span class="empty-text">暂无配方</span>
+        </div>
+      </div>
+      <div class="sidebar-foot">
+        <button class="save-btn" :class="{ pulse: dirty }" @click="handleSave" :disabled="!dirty">
+          <span class="material-symbols-outlined">save</span>{{ dirty ? t('recipes.saveChanges') : '已保存' }}
+        </button>
+        <span v-if="statusMsg" class="status-msg">{{ statusMsg }}</span>
+        <span v-if="loading" class="status-msg dim">加载中...</span>
       </div>
     </aside>
 
-    <!-- Parameter editor -->
+    <!-- EDITOR -->
     <div class="recipe-editor">
-      <div class="editor-inner">
-        <!-- Header -->
+      <div v-if="!selectedRecipe" class="editor-empty">
+        <span class="material-symbols-outlined ee-icon">science</span>
+        <span>选择或新建一个配方</span>
+      </div>
+      <div v-else class="editor-inner">
         <div class="editor-header">
           <div>
-            <nav class="breadcrumb">
-              <span>Library</span>
-              <span class="material-symbols-outlined breadcrumb-sep">chevron_right</span>
-              <span>Metal Fab</span>
-              <span class="material-symbols-outlined breadcrumb-sep">chevron_right</span>
-              <span class="text-primary">Titanium Cutting</span>
-            </nav>
-            <h2 class="editor-title">
-              {{ activeRecipe }}
-              <span class="editor-id">#TC-992-B</span>
+            <h2 class="ed-title">
+              <input v-if="editingMainId === selectedMainRecipeId" :value="selectedRecipe.name" class="ed-title-input"
+                @input="updateMainField('name', ($event.target as HTMLInputElement).value)"
+                @blur="editingMainId = null" @keydown.enter="editingMainId = null" />
+              <span v-else @dblclick="editingMainId = selectedMainRecipeId">{{ selectedRecipe.name }}</span>
+              <span class="ed-id">{{ selectedRecipe.id }}</span>
             </h2>
           </div>
           <div class="editor-toolbar">
-            <button class="toolbar-btn">
-              <span class="material-symbols-outlined">content_copy</span> CLONE
-            </button>
-            <button class="toolbar-btn">
-              <span class="material-symbols-outlined">download</span> LOAD
-            </button>
-            <button class="toolbar-btn primary">
-              <span class="material-symbols-outlined filled">save</span> SAVE CHANGES
-            </button>
+            <button class="tbar-btn" :class="{ on: activeTab === 'main' }" @click="activeTab = 'main'">主配方</button>
+            <button class="tbar-btn" :class="{ on: activeTab === 'machining' }" @click="activeTab = 'machining'">加工</button>
+            <button class="tbar-btn" :class="{ on: activeTab === 'blackening' }" @click="activeTab = 'blackening'">扫黑</button>
+            <button class="tbar-btn" :class="{ on: activeTab === 'laser' }" @click="activeTab = 'laser'">激光</button>
+            <button class="tbar-btn" :class="{ on: activeTab === 'horizontal' }" @click="activeTab = 'horizontal'">水平</button>
+            <button class="tbar-btn" :class="{ on: activeTab === 'vertical' }" @click="activeTab = 'vertical'">垂直</button>
           </div>
         </div>
 
-        <!-- Parameter grid -->
-        <div class="param-grid">
-          <div class="param-main">
-            <!-- Primary controls -->
-            <div class="param-cards">
-              <div class="param-card">
-                <div class="param-card-header">
-                  <div>
-                    <span class="param-card-label text-primary">Laser Power</span>
-                    <span class="param-card-desc">Continuous Wave Output</span>
-                  </div>
-                  <span class="material-symbols-outlined text-primary">bolt</span>
-                </div>
-                <div class="param-card-value">
-                  <span class="param-big-value">{{ laserPower }}</span>
-                  <span class="param-card-unit">WATTS</span>
-                </div>
-                <input v-model.number="laserPower" type="range" min="0" max="6000" class="param-slider" />
-                <div class="param-range-labels">
-                  <span>0W</span>
-                  <span>MAX 6.0kW</span>
-                </div>
-              </div>
-
-              <div class="param-card">
-                <div class="param-card-header">
-                  <div>
-                    <span class="param-card-label text-tertiary">Frequency</span>
-                    <span class="param-card-desc">Modulation Pulse Rate</span>
-                  </div>
-                  <span class="material-symbols-outlined text-tertiary">graphic_eq</span>
-                </div>
-                <div class="param-card-value">
-                  <span class="param-big-value">15.4</span>
-                  <span class="param-card-unit">KHZ</span>
-                </div>
-                <div class="freq-buttons">
-                  <button class="freq-btn">- 0.1</button>
-                  <button class="freq-btn">+ 0.1</button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Secondary -->
-            <div class="param-cards">
-              <div class="param-card">
-                <div class="param-card-header">
-                  <span class="param-card-label">Pulse Width</span>
-                  <div class="pulse-badge">
-                    <span>500</span>
-                    <span class="pulse-unit">µs</span>
-                  </div>
-                </div>
-                <div class="pulse-viz">
-                  <div class="pulse-bar"></div>
-                  <div class="pulse-active"></div>
-                  <div class="pulse-bar"></div>
-                  <div class="pulse-active"></div>
-                  <div class="pulse-bar"></div>
-                </div>
-                <p class="pulse-duty">CURRENT DUTY CYCLE: 42%</p>
-              </div>
-
-              <div class="param-card">
-                <div class="param-card-header">
-                  <span class="param-card-label">Feed Rate</span>
-                  <span class="material-symbols-outlined param-card-icon">speed</span>
-                </div>
-                <div class="feed-control">
-                  <button class="feed-btn"><span class="material-symbols-outlined">remove_circle_outline</span></button>
-                  <span class="feed-value">1,200</span>
-                  <button class="feed-btn"><span class="material-symbols-outlined">add_circle_outline</span></button>
-                </div>
-                <span class="feed-unit">MM / MIN</span>
-              </div>
-            </div>
-
-            <!-- Fine tuning table -->
-            <div class="param-table-card">
-              <div class="table-header">
-                <span class="table-title">Fine-Tuning Matrix</span>
-                <span class="material-symbols-outlined table-more">more_horiz</span>
-              </div>
-              <table class="param-table">
-                <thead>
-                  <tr>
-                    <th>Coordinate Path</th>
-                    <th class="text-right">Offset (mm)</th>
-                    <th class="text-right">Accel. (g)</th>
-                    <th class="text-center">Assist Gas</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>Inner Contour A</td>
-                    <td class="text-right">0.045</td>
-                    <td class="text-right">1.2</td>
-                    <td class="text-center"><span class="gas-tag">N2</span></td>
-                    <td><span class="status-optimal"></span>Optimal</td>
-                  </tr>
-                  <tr>
-                    <td>Outer Perimeter</td>
-                    <td class="text-right">0.120</td>
-                    <td class="text-right">0.8</td>
-                    <td class="text-center"><span class="gas-tag">O2</span></td>
-                    <td><span class="status-optimal"></span>Optimal</td>
-                  </tr>
-                  <tr>
-                    <td>Lead-in 01</td>
-                    <td class="text-right">-0.010</td>
-                    <td class="text-right">0.5</td>
-                    <td class="text-center"><span class="gas-tag">N2</span></td>
-                    <td><span class="status-warning"></span>Warning</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+        <!-- MAIN tab -->
+        <section v-show="activeTab === 'main'" class="edit-section">
+          <div class="field-grid">
+            <div class="field"><label class="fl">名称</label><input class="fi" :value="selectedRecipe.name" @input="updateMainField('name', ($event.target as HTMLInputElement).value)" /></div>
+            <div class="field"><label class="fl">状态</label><select class="fi" :value="selectedRecipe.status" @change="updateMainField('status', ($event.target as HTMLSelectElement).value)"><option value="active">active</option><option value="draft">draft</option></select></div>
+            <div class="field"><label class="fl">扫黑配方 ID</label><input class="fi mono" :value="selectedRecipe.blackeningRecipeId" @input="updateMainField('blackeningRecipeId', ($event.target as HTMLInputElement).value)" /></div>
+            <div class="field"><label class="fl">加工配方 ID</label><input class="fi mono" :value="selectedRecipe.machiningRecipeId" @input="updateMainField('machiningRecipeId', ($event.target as HTMLInputElement).value)" /></div>
           </div>
+        </section>
 
-          <!-- Material sidebar -->
-          <div class="param-sidebar">
-            <div class="material-card">
-              <span class="material-card-title">Material Specification</span>
-              <div class="material-info">
-                <div class="material-thumb">
-                  <div class="material-thumb-placeholder">Ti</div>
-                </div>
-                <div>
-                  <h4 class="material-name">Ti-6Al-4V</h4>
-                  <p class="material-desc">Grade 5 Aerospace Titanium</p>
-                </div>
-              </div>
-              <div class="material-specs">
-                <div class="spec-row">
-                  <span class="spec-label">Thickness</span>
-                  <span class="spec-value">6.35 mm</span>
-                </div>
-                <div class="spec-row">
-                  <span class="spec-label">Reflectivity</span>
-                  <span class="spec-value">Low (22%)</span>
-                </div>
-                <div class="spec-row">
-                  <span class="spec-label">Thermal Conductivity</span>
-                  <span class="spec-value">6.7 W/mK</span>
-                </div>
-              </div>
+        <!-- MACHINING tab -->
+        <section v-show="activeTab === 'machining'" class="edit-section">
+          <template v-if="selMachining">
+            <div class="sec-sub">{{ selMachining.id }}</div>
+            <div class="field-grid">
+              <div class="field"><label class="fl">水平公式 ID</label><input class="fi mono" :value="selMachining.horizontalFormulaId" @input="updateField(`machiningRecipes.${selMachining.id}.horizontalFormulaId`, ($event.target as HTMLInputElement).value)" /></div>
+              <div class="field"><label class="fl">垂直公式 ID</label><input class="fi mono" :value="selMachining.verticalFormulaId" @input="updateField(`machiningRecipes.${selMachining.id}.verticalFormulaId`, ($event.target as HTMLInputElement).value)" /></div>
+              <div class="field"><label class="fl">激光配方 ID</label><input class="fi mono" :value="selMachining.laserPowerRecipeId" @input="updateField(`machiningRecipes.${selMachining.id}.laserPowerRecipeId`, ($event.target as HTMLInputElement).value)" /></div>
             </div>
+          </template>
+          <div v-else class="empty-note">未关联加工配方</div>
+        </section>
 
-            <div class="viz-card">
-              <span class="viz-title">Path Visualization</span>
-              <div class="viz-canvas">
-                <div class="viz-placeholder">PATH VIEW</div>
-              </div>
-              <div class="viz-buttons">
-                <button class="viz-btn">TOP VIEW</button>
-                <button class="viz-btn">ISO</button>
-                <button class="viz-btn">G-CODE</button>
-              </div>
+        <!-- BLACKENING tab -->
+        <section v-show="activeTab === 'blackening'" class="edit-section">
+          <template v-if="selBlackening">
+            <div class="sec-sub">{{ selBlackening.id }}</div>
+            <div class="field-grid">
+              <div class="field"><label class="fl">启用</label><select class="fi" :value="selBlackening.enabled" @change="updateField(`blackeningRecipes.${selBlackening.id}.enabled`, ($event.target as HTMLSelectElement).value === 'true')"><option :value="true">是</option><option :value="false">否</option></select></div>
+              <div class="field"><label class="fl">下降步长</label><input class="fi" type="number" step="0.01" :value="selBlackening.descentStep" @input="updateField(`blackeningRecipes.${selBlackening.id}.descentStep`, Number(($event.target as HTMLInputElement).value))" /></div>
+              <div class="field"><label class="fl">下降次数</label><input class="fi" type="number" :value="selBlackening.descentCount" @input="updateField(`blackeningRecipes.${selBlackening.id}.descentCount`, Number(($event.target as HTMLInputElement).value))" /></div>
+              <div class="field"><label class="fl">扫黑速度</label><input class="fi" type="number" :value="selBlackening.blackeningSpeed" @input="updateField(`blackeningRecipes.${selBlackening.id}.blackeningSpeed`, Number(($event.target as HTMLInputElement).value))" /></div>
+              <div class="field"><label class="fl">扫黑步长</label><input class="fi" type="number" step="0.001" :value="selBlackening.blackeningStep" @input="updateField(`blackeningRecipes.${selBlackening.id}.blackeningStep`, Number(($event.target as HTMLInputElement).value))" /></div>
+              <div class="field"><label class="fl">焦距补偿</label><input class="fi" type="number" :value="selBlackening.jiaojubuchang" @input="updateField(`blackeningRecipes.${selBlackening.id}.jiaojubuchang`, Number(($event.target as HTMLInputElement).value))" /></div>
+              <div class="field"><label class="fl">激光配方 ID</label><input class="fi mono" :value="selBlackening.laserPowerRecipeId" @input="updateField(`blackeningRecipes.${selBlackening.id}.laserPowerRecipeId`, ($event.target as HTMLInputElement).value)" /></div>
             </div>
+          </template>
+          <div v-else class="empty-note">未关联扫黑配方</div>
+        </section>
 
-            <div class="safety-card">
-              <div class="safety-header">
-                <span class="material-symbols-outlined safety-icon">warning</span>
-                <span class="safety-title">Safety Constraints</span>
-              </div>
-              <p class="safety-text">
-                The current 3250W setting exceeds recommended air-cooled nozzle limit.
-                Ensure liquid cooling circuit 2 is active before cycle start.
-              </p>
-              <label class="safety-toggle">
-                <input type="checkbox" />
-                <span class="toggle-slider"></span>
-                <span class="toggle-label">Override Safety Interlock</span>
-              </label>
+        <!-- LASER tab -->
+        <section v-show="activeTab === 'laser'" class="edit-section">
+          <template v-if="selBlackLaser">
+            <div class="sec-sub">扫黑激光 · {{ selBlackLaser.id }}</div>
+            <div class="field-grid">
+              <div class="field"><label class="fl">厂家</label><input class="fi mono" :value="selBlackLaser.laserManufacturer" @input="updateField(`laserPowerRecipes.${selBlackLaser.id}.laserManufacturer`, ($event.target as HTMLInputElement).value)" /></div>
+              <div class="field"><label class="fl">功率 (W)</label><input class="fi" type="number" :value="selBlackLaser.laserPower" @input="updateField(`laserPowerRecipes.${selBlackLaser.id}.laserPower`, Number(($event.target as HTMLInputElement).value))" /></div>
+              <div class="field"><label class="fl">频率 (Hz)</label><input class="fi" type="number" :value="selBlackLaser.laserFrequency" @input="updateField(`laserPowerRecipes.${selBlackLaser.id}.laserFrequency`, Number(($event.target as HTMLInputElement).value))" /></div>
+              <div class="field"><label class="fl">电流 (A)</label><input class="fi" type="number" :value="selBlackLaser.laserCurrent" @input="updateField(`laserPowerRecipes.${selBlackLaser.id}.laserCurrent`, Number(($event.target as HTMLInputElement).value))" /></div>
             </div>
-          </div>
-        </div>
+          </template>
+          <template v-if="selMachLaser && selMachLaser.id !== selBlackLaser?.id">
+            <div class="sec-sub" style="margin-top:16px">加工激光 · {{ selMachLaser.id }}</div>
+            <div class="field-grid">
+              <div class="field"><label class="fl">厂家</label><input class="fi mono" :value="selMachLaser.laserManufacturer" @input="updateField(`laserPowerRecipes.${selMachLaser.id}.laserManufacturer`, ($event.target as HTMLInputElement).value)" /></div>
+              <div class="field"><label class="fl">功率 (W)</label><input class="fi" type="number" :value="selMachLaser.laserPower" @input="updateField(`laserPowerRecipes.${selMachLaser.id}.laserPower`, Number(($event.target as HTMLInputElement).value))" /></div>
+              <div class="field"><label class="fl">频率 (Hz)</label><input class="fi" type="number" :value="selMachLaser.laserFrequency" @input="updateField(`laserPowerRecipes.${selMachLaser.id}.laserFrequency`, Number(($event.target as HTMLInputElement).value))" /></div>
+              <div class="field"><label class="fl">电流 (A)</label><input class="fi" type="number" :value="selMachLaser.laserCurrent" @input="updateField(`laserPowerRecipes.${selMachLaser.id}.laserCurrent`, Number(($event.target as HTMLInputElement).value))" /></div>
+            </div>
+          </template>
+          <div v-if="!selBlackLaser && !selMachLaser" class="empty-note">未关联激光配方</div>
+        </section>
+
+        <!-- HORIZONTAL tab -->
+        <section v-show="activeTab === 'horizontal'" class="edit-section">
+          <template v-if="selHorizontal">
+            <div class="sec-sub">{{ selHorizontal.id }}</div>
+            <div class="field-grid">
+              <div class="field"><label class="fl">开口形状</label><input class="fi" :value="selHorizontal.openingShape" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.openingShape`, ($event.target as HTMLInputElement).value)" /></div>
+              <div class="field"><label class="fl">角度公式 K</label><input class="fi" type="number" step="0.01" :value="selHorizontal.angleFormula?.k" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.angleFormula.k`, Number(($event.target as HTMLInputElement).value))" /></div>
+              <div class="field"><label class="fl">角度公式 B</label><input class="fi" type="number" step="0.01" :value="selHorizontal.angleFormula?.b" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.angleFormula.b`, Number(($event.target as HTMLInputElement).value))" /></div>
+              <div class="field"><label class="fl">下开口 K</label><input class="fi" type="number" step="0.01" :value="selHorizontal.lowerOpeningFormula?.k" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.lowerOpeningFormula.k`, Number(($event.target as HTMLInputElement).value))" /></div>
+              <div class="field"><label class="fl">下开口 B</label><input class="fi" type="number" step="0.01" :value="selHorizontal.lowerOpeningFormula?.b" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.lowerOpeningFormula.b`, Number(($event.target as HTMLInputElement).value))" /></div>
+              <div class="field"><label class="fl">深度补偿 K</label><input class="fi" type="number" step="0.01" :value="selHorizontal.depthCompensationFormula?.k" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.depthCompensationFormula.k`, Number(($event.target as HTMLInputElement).value))" /></div>
+              <div class="field"><label class="fl">深度补偿 B</label><input class="fi" type="number" step="0.01" :value="selHorizontal.depthCompensationFormula?.b" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.depthCompensationFormula.b`, Number(($event.target as HTMLInputElement).value))" /></div>
+              <div class="field"><label class="fl">焦距补偿</label><input class="fi" type="number" step="0.01" :value="selHorizontal.focusCompensation" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.focusCompensation`, Number(($event.target as HTMLInputElement).value))" /></div>
+            </div>
+          </template>
+          <div v-else class="empty-note">未关联水平配方</div>
+        </section>
+
+        <!-- VERTICAL tab -->
+        <section v-show="activeTab === 'vertical'" class="edit-section">
+          <template v-if="selVertical">
+            <div class="sec-sub">{{ selVertical.id }} · {{ selVertical.cuttingAxis }}</div>
+            <div class="field-grid">
+              <div class="field"><label class="fl">切割轴</label><input class="fi" :value="selVertical.cuttingAxis" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.cuttingAxis`, ($event.target as HTMLInputElement).value)" /></div>
+              <div class="field"><label class="fl">变化%</label><input class="fi" type="number" :value="selVertical.changePercent" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.changePercent`, Number(($event.target as HTMLInputElement).value))" /></div>
+              <div class="field"><label class="fl">X 进给</label><input class="fi" type="number" step="0.001" :value="selVertical.xFeed" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.xFeed`, Number(($event.target as HTMLInputElement).value))" /></div>
+              <div class="field"><label class="fl">X 速度</label><input class="fi" type="number" :value="selVertical.xSpeed" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.xSpeed`, Number(($event.target as HTMLInputElement).value))" /></div>
+              <div class="field"><label class="fl">切边速度</label><input class="fi" type="number" :value="selVertical.edgeCutting?.speed" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.edgeCutting.speed`, Number(($event.target as HTMLInputElement).value))" /></div>
+              <div class="field"><label class="fl">切边次数</label><input class="fi" type="number" :value="selVertical.edgeCutting?.cutTimes" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.edgeCutting.cutTimes`, Number(($event.target as HTMLInputElement).value))" /></div>
+              <div class="field"><label class="fl">中切速度</label><input class="fi" type="number" :value="selVertical.middleCutting?.speed" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.middleCutting.speed`, Number(($event.target as HTMLInputElement).value))" /></div>
+              <div class="field"><label class="fl">中切次数</label><input class="fi" type="number" :value="selVertical.middleCutting?.cutTimes" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.middleCutting.cutTimes`, Number(($event.target as HTMLInputElement).value))" /></div>
+              <div class="field"><label class="fl">下降速度</label><input class="fi" type="number" step="0.001" :value="selVertical.descentCutting?.speed" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.descentCutting.speed`, Number(($event.target as HTMLInputElement).value))" /></div>
+              <div class="field"><label class="fl">Z 下降进给</label><input class="fi" type="number" step="0.001" :value="selVertical.descentCutting?.zFeed" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.descentCutting.zFeed`, Number(($event.target as HTMLInputElement).value))" /></div>
+            </div>
+          </template>
+          <div v-else class="empty-note">未关联垂直配方</div>
+        </section>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.recipes-page {
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-}
+.recipes-page { display: flex; flex: 1; overflow: hidden; }
 
-/* Recipe sidebar */
+/* ---- SIDEBAR ---- */
 .recipe-sidebar {
-  width: 320px;
-  background: var(--color-surface-container-low);
+  width: 300px; background: var(--color-surface-container-low);
   border-right: 1px solid var(--color-outline-variant);
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
+  display: flex; flex-direction: column; flex-shrink: 0;
 }
-
-.recipe-sidebar-header {
-  padding: 16px;
-}
-
-.search-box {
-  position: relative;
-  margin-bottom: 8px;
-}
-
-.search-icon {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--color-outline);
-  font-size: 16px;
-}
-
+.sidebar-head { padding: 12px; }
+.search-box { position: relative; margin-bottom: 8px; }
+.search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--color-outline); font-size: 16px; }
 .search-input {
-  width: 100%;
-  background: var(--color-surface-container-highest);
-  border: 1px solid var(--color-outline-variant);
-  border-radius: 4px;
-  padding: 8px 8px 8px 40px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
-  color: var(--color-on-surface);
+  width: 100%; background: var(--color-surface-container-highest);
+  border: 1px solid var(--color-outline-variant); border-radius: 4px;
+  padding: 7px 8px 7px 36px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--color-on-surface);
 }
-
-.search-input:focus {
-  outline: none;
-  border-color: var(--color-primary);
+.search-input:focus { outline: none; border-color: var(--color-primary); }
+.sidebar-actions { display: flex; gap: 4px; }
+.act-btn {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 4px;
+  padding: 6px 4px; background: var(--color-surface-container-high);
+  border: 1px solid var(--color-outline-variant); border-radius: 4px; cursor: pointer;
+  font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--color-on-surface-variant);
+  transition: background 0.15s;
 }
+.act-btn:hover:not(:disabled) { background: var(--color-surface-variant); }
+.act-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.act-btn .material-symbols-outlined { font-size: 16px; }
+.act-btn.danger:hover:not(:disabled) { background: rgba(220,38,38,0.15); color: var(--color-error); }
 
-.recipe-actions {
-  display: flex;
-  gap: 4px;
-}
-
-.recipe-action-btn {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  padding: 8px;
-  background: var(--color-surface-container-high);
-  border: 1px solid var(--color-outline-variant);
-  border-radius: 4px;
-  cursor: pointer;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
-  color: var(--color-on-surface-variant);
-  text-transform: uppercase;
-  transition: background 0.2s;
-}
-
-.recipe-action-btn:hover {
-  background: var(--color-surface-variant);
-}
-
-.recipe-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0 8px 16px;
-}
-
+.recipe-list { flex: 1; overflow-y: auto; padding: 0 8px 8px; }
 .recipe-item {
-  width: 100%;
-  text-align: left;
-  padding: 16px;
-  border: none;
-  border-left: 4px solid transparent;
-  border-radius: 0 4px 4px 0;
-  background: none;
-  cursor: pointer;
-  transition: background 0.2s;
-  margin-bottom: 4px;
-}
-
-.recipe-item:hover {
-  background: var(--color-surface-variant);
-}
-
-.recipe-item.active {
-  background: rgba(73, 76, 80, 0.3);
-  border-left-color: var(--color-primary);
-}
-
-.recipe-item-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 4px;
-}
-
-.recipe-name {
-  font-family: 'Inter', sans-serif;
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--color-on-surface);
-}
-
-.text-primary { color: var(--color-primary); }
-
-.recipe-version {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  padding: 2px 4px;
-  border-radius: 2px;
-  background: rgba(173, 199, 255, 0.1);
-  color: rgba(173, 199, 255, 0.7);
-}
-
-.recipe-type {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--color-on-surface-variant);
-}
-
-.recipe-type-icon { font-size: 12px; }
-
-.recipe-type-text {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
-  text-transform: uppercase;
-}
-
-.recipe-empty {
-  padding: 16px;
-}
-
-.recipe-empty-box {
-  height: 128px;
-  border: 2px dashed var(--color-outline-variant);
-  border-radius: 4px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  cursor: pointer;
-  transition: border-color 0.2s, color 0.2s;
-  color: var(--color-on-surface-variant);
-}
-
-.recipe-empty-box:hover {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-}
-
-.empty-icon { font-size: 32px; }
-
-.empty-text {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
-}
-
-/* Editor */
-.recipe-editor {
-  flex: 1;
-  background: var(--color-background);
-  overflow-y: auto;
-}
-
-.editor-inner {
-  padding: 32px;
-  max-width: 1280px;
-}
-
-.editor-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  border-bottom: 1px solid var(--color-outline-variant);
-  padding-bottom: 16px;
-  margin-bottom: 24px;
-}
-
-.breadcrumb {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  color: var(--color-on-surface-variant);
-  text-transform: uppercase;
-  margin-bottom: 4px;
-}
-
-.breadcrumb-sep { font-size: 10px; }
-
-.editor-title {
-  font-family: 'Inter', sans-serif;
-  font-size: 32px;
-  font-weight: 700;
-  color: var(--color-on-surface);
-}
-
-.editor-id {
-  font-weight: 300;
-  color: var(--color-outline);
-  margin-left: 8px;
-  font-size: 24px;
-}
-
-.editor-toolbar {
-  display: flex;
-  gap: 16px;
-}
-
-.toolbar-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  background: var(--color-surface-container-high);
-  border: 1px solid var(--color-outline-variant);
-  border-radius: 4px;
-  cursor: pointer;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
-  color: var(--color-on-surface-variant);
-  transition: background 0.2s;
-}
-
-.toolbar-btn:hover { background: var(--color-surface-variant); }
-
-.toolbar-btn.primary {
-  background: var(--color-primary);
-  color: var(--color-on-primary);
-  border-color: var(--color-primary);
-  font-weight: 700;
-  padding: 8px 32px;
-}
-
-.toolbar-btn .filled {
-  font-variation-settings: 'FILL' 1;
-}
-
-/* Param grid */
-.param-grid {
-  display: grid;
-  grid-template-columns: 1fr 380px;
-  gap: 24px;
-}
-
-.param-main {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.param-cards {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
-}
-
-.param-card {
-  background: rgba(36, 39, 42, 0.7);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 24px;
-  border-radius: 8px;
-}
-
-.param-card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 16px;
-}
-
-.param-card-label {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
-  font-weight: 500;
-  text-transform: uppercase;
-  display: block;
-}
-
-.text-primary { color: var(--color-primary); }
-.text-tertiary { color: var(--color-tertiary); }
-
-.param-card-desc {
-  font-size: 14px;
-  color: var(--color-on-surface-variant);
-}
-
-.param-card-value {
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-.param-big-value {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 48px;
-  font-weight: 600;
-  color: var(--color-on-surface);
-  line-height: 1;
-}
-
-.param-card-unit {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
-  color: var(--color-outline);
-  padding-bottom: 4px;
-}
-
-.param-slider {
-  width: 100%;
-  -webkit-appearance: none;
-  appearance: none;
-  background: var(--color-surface-container-highest);
-  height: 4px;
-  border-radius: 2px;
-  cursor: pointer;
-}
-
-.param-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 12px;
-  height: 12px;
-  background: var(--color-primary);
-  border-radius: 50%;
-}
-
-.param-range-labels {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 4px;
-  font-size: 10px;
-  color: var(--color-outline);
-  font-family: 'JetBrains Mono', monospace;
-}
-
-.freq-buttons {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px;
-}
-
-.freq-btn {
-  padding: 4px;
-  background: var(--color-surface-container-highest);
-  border: 1px solid var(--color-outline-variant);
-  border-radius: 4px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
-  color: var(--color-on-surface);
-  cursor: pointer;
-}
-
-.freq-btn:hover { background: var(--color-surface-variant); }
-
-.param-card-icon { color: var(--color-secondary); }
-
-.pulse-badge {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  background: var(--color-surface-container-highest);
-  border: 1px solid var(--color-outline-variant);
-  border-radius: 4px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
-  color: var(--color-on-surface);
-}
-
-.pulse-unit { color: var(--color-outline); font-size: 10px; }
-
-.pulse-viz {
-  height: 64px;
-  display: flex;
-  align-items: flex-end;
-  gap: 1px;
-  padding: 4px;
-}
-
-.pulse-bar {
-  flex: 1;
-  background: var(--color-outline-variant);
-  height: 8px;
-}
-
-.pulse-active {
-  width: 32px;
-  background: var(--color-primary);
-  height: 48px;
-}
-
-.pulse-duty {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  color: var(--color-outline);
-  text-align: center;
-  margin-top: 8px;
-}
-
-.feed-control {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin: 16px 0 8px;
-}
-
-.feed-btn {
-  background: none;
-  border: none;
-  color: var(--color-outline);
-  cursor: pointer;
-}
-
-.feed-btn:hover { color: var(--color-primary); }
-
-.feed-value {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 32px;
-  font-weight: 700;
-  color: var(--color-on-surface);
-}
-
-.feed-unit {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  color: var(--color-outline);
-  display: block;
-  text-align: center;
-}
-
-/* Table */
-.param-table-card {
-  background: rgba(36, 39, 42, 0.7);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.table-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 24px;
-  background: var(--color-surface-container-high);
-  border-bottom: 1px solid var(--color-outline-variant);
-}
-
-.table-title {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
-  text-transform: uppercase;
-}
-
-.table-more { color: var(--color-outline); font-size: 16px; }
-
-.param-table {
-  width: 100%;
-  text-align: left;
-  font-family: 'JetBrains Mono', monospace;
-}
-
-.param-table thead {
-  background: var(--color-surface-container);
-  color: var(--color-outline);
-  font-size: 11px;
-  text-transform: uppercase;
-}
-
-.param-table th {
-  padding: 12px 24px;
-  font-weight: 500;
-}
-
-.param-table td {
-  padding: 8px 24px;
-  font-size: 12px;
-  color: var(--color-on-surface);
-}
-
-.param-table tbody tr {
-  border-top: 1px solid rgba(65, 71, 84, 0.3);
-}
-
-.param-table tbody tr:hover {
-  background: rgba(49, 53, 61, 0.3);
-}
-
-.text-right { text-align: right; }
-.text-center { text-align: center; }
-
-.gas-tag {
-  background: rgba(196, 198, 203, 0.1);
-  color: var(--color-secondary);
-  border: 1px solid rgba(196, 198, 203, 0.3);
-  padding: 2px 4px;
-  border-radius: 2px;
-}
-
-.status-optimal, .status-warning {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  display: inline-block;
-  margin-right: 8px;
-}
-
-.status-optimal { background: var(--color-primary); }
-.status-warning { background: var(--color-tertiary); }
-
-/* Sidebar */
-.param-sidebar {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.material-card, .viz-card, .safety-card {
-  background: rgba(36, 39, 42, 0.7);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 24px;
-  border-radius: 8px;
-}
-
-.material-card-title {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
-  color: var(--color-on-surface);
-  text-transform: uppercase;
-  display: block;
-  border-bottom: 1px solid var(--color-outline-variant);
-  padding-bottom: 8px;
-  margin-bottom: 16px;
-}
-
-.material-info {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
-.material-thumb {
-  width: 64px;
-  height: 64px;
-  background: var(--color-surface-container-highest);
-  border: 1px solid var(--color-outline-variant);
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.material-thumb-placeholder {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--color-on-surface-variant);
-}
-
-.material-name {
-  font-family: 'Inter', sans-serif;
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--color-on-surface);
-}
-
-.material-desc {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
-  color: var(--color-on-surface-variant);
-}
-
-.material-specs {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.spec-row {
-  display: flex;
-  justify-content: space-between;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
-}
-
-.spec-label { color: var(--color-outline); }
-.spec-value { color: var(--color-on-surface); }
-
-.viz-title {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
-  color: var(--color-on-surface);
-  text-transform: uppercase;
-  display: block;
-  border-bottom: 1px solid var(--color-outline-variant);
-  padding-bottom: 8px;
-  margin-bottom: 16px;
-}
-
-.viz-canvas {
-  aspect-ratio: 1;
-  background: var(--color-surface-container-lowest);
-  border: 1px solid var(--color-outline-variant);
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 8px;
-}
-
-.viz-placeholder {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
-  color: var(--color-on-surface-variant);
-  letter-spacing: 0.1em;
-}
-
-.viz-buttons {
-  display: flex;
-  gap: 8px;
-}
-
-.viz-btn {
-  flex: 1;
-  padding: 4px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  background: var(--color-surface-container-high);
-  border: 1px solid var(--color-outline-variant);
-  border-radius: 4px;
-  color: var(--color-on-surface-variant);
-  cursor: pointer;
-}
-
-.viz-btn:hover { background: var(--color-surface-variant); }
-
-.safety-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.safety-icon { color: var(--color-error); }
-
-.safety-title {
-  font-family: 'Inter', sans-serif;
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--color-error);
-}
-
-.safety-text {
-  font-size: 14px;
-  color: var(--color-on-error-container);
-  margin-bottom: 16px;
-}
-
-.safety-toggle {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  cursor: pointer;
-}
-
-.safety-toggle input {
-  width: 44px;
-  height: 24px;
-  -webkit-appearance: none;
-  appearance: none;
-  background: var(--color-surface-container-highest);
-  border-radius: 12px;
-  position: relative;
-  cursor: pointer;
-  border: none;
-}
-
-.safety-toggle input:checked {
-  background: var(--color-primary);
-}
-
-.safety-toggle input::after {
-  content: '';
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 20px;
-  height: 20px;
-  background: white;
-  border-radius: 50%;
-}
-
-.safety-toggle input:checked::after {
-  transform: translateX(20px);
-}
-
-.toggle-label {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
-  color: var(--color-on-surface-variant);
-  text-transform: uppercase;
+  width: 100%; text-align: left; padding: 12px; border: none;
+  border-left: 3px solid transparent; border-radius: 0 4px 4px 0;
+  background: none; cursor: pointer; margin-bottom: 2px; transition: background 0.15s;
+}
+.recipe-item:hover { background: var(--color-surface-variant); }
+.recipe-item.active { background: rgba(73,76,80,0.35); border-left-color: var(--color-primary); }
+.ri-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; }
+.ri-name { font-size: 14px; font-weight: 600; color: var(--color-on-surface); }
+.ri-status {
+  font-family: 'JetBrains Mono', monospace; font-size: 9px; padding: 1px 6px; border-radius: 3px;
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.ri-status.active { background: rgba(34,197,94,0.15); color: #22c55e; }
+.ri-status.draft { background: rgba(255,182,149,0.15); color: var(--color-tertiary); }
+.ri-sub { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--color-outline); }
+
+.recipe-empty { padding: 24px 12px; display: flex; flex-direction: column; align-items: center; gap: 8px; color: var(--color-on-surface-variant); }
+.empty-icon { font-size: 36px; opacity: 0.4; }
+.empty-text { font-family: 'JetBrains Mono', monospace; font-size: 12px; opacity: 0.5; }
+
+.sidebar-foot { padding: 12px; border-top: 1px solid var(--color-outline-variant); display: flex; flex-direction: column; gap: 6px; }
+.save-btn {
+  width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 10px; border: 1px solid var(--color-outline-variant); border-radius: 4px;
+  background: var(--color-surface-container-high); cursor: pointer;
+  font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600;
+  color: var(--color-on-surface-variant); transition: all 0.2s;
+}
+.save-btn:hover:not(:disabled) { background: var(--color-surface-variant); }
+.save-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.save-btn.pulse { border-color: var(--color-primary); color: var(--color-primary); animation: save-pulse 1.5s ease-in-out infinite; }
+@keyframes save-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(173,199,255,0); } 50% { box-shadow: 0 0 8px 2px rgba(173,199,255,0.25); } }
+.status-msg { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--color-primary); text-align: center; }
+.status-msg.dim { color: var(--color-on-surface-variant); }
+
+/* ---- EDITOR ---- */
+.recipe-editor { flex: 1; background: var(--color-background); overflow-y: auto; }
+.editor-inner { padding: 32px 40px; max-width: 1000px; }
+.editor-empty {
+  height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px; color: var(--color-on-surface-variant); opacity: 0.5; font-family: 'JetBrains Mono', monospace; font-size: 14px;
+}
+.ee-icon { font-size: 48px; }
+.editor-header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid var(--color-outline-variant); padding-bottom: 14px; margin-bottom: 24px; }
+.ed-title { font-size: 28px; font-weight: 700; color: var(--color-on-surface); display: flex; align-items: center; gap: 10px; }
+.ed-id { font-weight: 300; color: var(--color-outline); font-size: 18px; font-family: 'JetBrains Mono', monospace; }
+.ed-title-input { font-family: 'Inter', sans-serif; font-size: 28px; font-weight: 700; background: none; border: none; border-bottom: 2px solid var(--color-primary); color: var(--color-on-surface); outline: none; width: 260px; }
+.editor-toolbar { display: flex; gap: 6px; }
+.tbar-btn {
+  padding: 6px 14px; border: 1px solid var(--color-outline-variant); border-radius: 4px;
+  background: none; cursor: pointer; font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  color: var(--color-on-surface-variant); transition: all 0.15s;
+}
+.tbar-btn:hover { background: var(--color-surface-variant); }
+.tbar-btn.on { border-color: var(--color-primary); color: var(--color-primary); background: rgba(173,199,255,0.08); }
+
+.edit-section { animation: fadein 0.15s ease-out; }
+@keyframes fadein { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+.sec-sub {
+  font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--color-primary);
+  margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--color-outline-variant);
+}
+.field-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px 20px;
+}
+.field { display: flex; flex-direction: column; gap: 4px; }
+.fl { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--color-on-surface-variant); text-transform: uppercase; letter-spacing: 0.04em; }
+.fi {
+  padding: 7px 10px; background: var(--color-surface-container-highest);
+  border: 1px solid var(--color-outline-variant); border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--color-on-surface); outline: none;
+}
+.fi:focus { border-color: var(--color-primary); }
+.fi.mono { font-size: 11px; }
+select.fi { cursor: pointer; appearance: none; -webkit-appearance: none; }
+.empty-note { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--color-on-surface-variant); opacity: 0.4; padding: 20px 0; }
+
+/* ---- DIALOG ---- */
+.dlg-overlay { position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; }
+.dlg-card {
+  background: var(--color-surface-container-highest); border: 1px solid var(--color-outline-variant);
+  border-radius: 8px; padding: 24px; display: flex; flex-direction: column; gap: 14px; min-width: 320px;
+}
+.dlg-title { font-family: 'Inter', sans-serif; font-size: 16px; font-weight: 600; color: var(--color-on-surface); }
+.dlg-input {
+  padding: 8px 12px; background: var(--color-surface); border: 1px solid var(--color-outline-variant);
+  border-radius: 4px; color: var(--color-on-surface); font-family: 'JetBrains Mono', monospace; font-size: 14px; outline: none;
+}
+.dlg-input:focus { border-color: var(--color-primary); }
+.dlg-btns { display: flex; gap: 8px; justify-content: flex-end; }
+.dlg-ok {
+  padding: 6px 20px; background: var(--color-primary); color: var(--color-on-primary);
+  border: none; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.dlg-cancel {
+  padding: 6px 20px; background: var(--color-surface-variant); color: var(--color-on-surface);
+  border: none; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 12px; cursor: pointer;
 }
 </style>
