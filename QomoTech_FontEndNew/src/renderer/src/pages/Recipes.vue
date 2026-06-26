@@ -229,7 +229,7 @@ onMounted(async () => {
         <div class="sub-items-row">
           <button v-for="item in laserList" :key="item.id" class="sub-item"
             :class="{ active: item.id === selectedLaserId }" @click="selectedLaserId = item.id">
-            <span class="sub-item-name">{{ item.id }}</span>
+            <span class="sub-item-name">{{ (item as any).name || item.id }}</span>
           </button>
         </div>
         <section v-if="selLaser" class="edit-section">
@@ -256,7 +256,7 @@ onMounted(async () => {
         <div class="sub-items-row">
           <button v-for="item in blackeningList" :key="item.id" class="sub-item"
             :class="{ active: item.id === selectedBlackeningId }" @click="selectedBlackeningId = item.id">
-            <span class="sub-item-name">{{ item.id }}</span>
+            <span class="sub-item-name">{{ (item as any).name || item.id }}</span>
           </button>
         </div>
         <section v-if="selBlackening" class="edit-section">
@@ -285,7 +285,7 @@ onMounted(async () => {
         <div class="sub-items-row">
           <button v-for="item in machiningList" :key="item.id" class="sub-item"
             :class="{ active: item.id === selectedMachiningId }" @click="selectedMachiningId = item.id">
-            <span class="sub-item-name">{{ item.id }}</span>
+            <span class="sub-item-name">{{ (item as any).name || item.id }}</span>
           </button>
         </div>
         <section v-if="selMachining" class="edit-section">
@@ -324,7 +324,7 @@ onMounted(async () => {
         <div class="sub-items-row">
           <button v-for="item in horizontalList" :key="item.id" class="sub-item"
             :class="{ active: item.id === selectedHorizontalId }" @click="selectedHorizontalId = item.id">
-            <span class="sub-item-name">{{ item.id }}</span>
+            <span class="sub-item-name">{{ (item as any).name || item.id }}</span>
           </button>
         </div>
         <section v-if="selHorizontal" class="edit-section">
@@ -366,7 +366,7 @@ onMounted(async () => {
         <div class="sub-items-row">
           <button v-for="item in verticalList" :key="item.id" class="sub-item"
             :class="{ active: item.id === selectedVerticalId }" @click="selectedVerticalId = item.id">
-            <span class="sub-item-name">{{ item.id }}</span>
+            <span class="sub-item-name">{{ (item as any).name || item.id }}</span>
           </button>
         </div>
         <section v-if="selVertical" class="edit-section">
