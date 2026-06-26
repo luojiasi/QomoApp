@@ -293,19 +293,19 @@ onMounted(async () => {
             <div class="field"><label class="fl">水平配方</label>
               <select class="fi" :value="selMachining.horizontalFormulaId" @change="updateField(`machiningRecipes.${selMachining.id}.horizontalFormulaId`, ($event.target as HTMLSelectElement).value)">
                 <option value="">—</option>
-                <option v-for="h in horizontalList" :key="h.id" :value="h.id">{{ h.id }}</option>
+                <option v-for="h in horizontalList" :key="h.id" :value="h.id">{{ h.name || h.id }}</option>
               </select>
             </div>
             <div class="field"><label class="fl">垂直配方</label>
               <select class="fi" :value="selMachining.verticalFormulaId" @change="updateField(`machiningRecipes.${selMachining.id}.verticalFormulaId`, ($event.target as HTMLSelectElement).value)">
                 <option value="">—</option>
-                <option v-for="v in verticalList" :key="v.id" :value="v.id">{{ v.id }}</option>
+                <option v-for="v in verticalList" :key="v.id" :value="v.id">{{ v.name || v.id }}</option>
               </select>
             </div>
             <div class="field"><label class="fl">激光配方</label>
               <select class="fi" :value="selMachining.laserPowerRecipeId" @change="updateField(`machiningRecipes.${selMachining.id}.laserPowerRecipeId`, ($event.target as HTMLSelectElement).value)">
                 <option value="">—</option>
-                <option v-for="l in laserList" :key="l.id" :value="l.id">{{ l.id }}</option>
+                <option v-for="l in laserList" :key="l.id" :value="l.id">{{ l.name || l.id }}</option>
               </select>
             </div>
           </div>
