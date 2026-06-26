@@ -50,10 +50,19 @@ const selMachining = computed(() => selectedMachiningId.value ? findById(machini
 const selHorizontal = computed(() => selectedHorizontalId.value ? findById(horizontalList.value, selectedHorizontalId.value) : undefined)
 const selVertical = computed(() => selectedVerticalId.value ? findById(verticalList.value, selectedVerticalId.value) : undefined)
 
-// ----  NEW / CLONE / DELETE for sub-recipe types  ----
+// ----  Defaults for each sub-recipe type  ----
+const SubDefaults: Record<string, Record<string, unknown>> = {
+  laser: { laserManufacturer: '', laserPower: 1000, laserFrequency: 5000, laserCurrent: 50 },
+  blackening: { enabled: true, descentStep: 0.1, descentCount: 2, blackeningSpeed: 20, blackeningStep: 0.01, jiaojubuchang: 300, saoheikaikou: { k: 0, b: 0 }, laserPowerRecipeId: '' },
+  machining: { horizontalFormulaId: '', verticalFormulaId: '', laserPowerRecipeId: '' },
+  horizontal: { openingShape: 'V型', angleFormula: { k: 0, b: 0.5 }, lowerOpeningFormula: { k: 5, b: 35 }, depthCompensationFormula: { k: 2, b: 0.5 }, compensationAngleFormula: { k: 0, b: 0 }, focusCompensation: 0.08 },
+  vertical: { cuttingAxis: 'XY', changePercent: 10, xFeed: 0.01, xSpeed: 20, edgeCutting: { speed: 50, cutTimes: 2, cutSpeedNums: 5, change: { k: 1, b: 5 } }, middleCutting: { speed: 100, cutTimes: 1, change: { k: 0, b: 50 } }, descentCutting: { speed: 0.075, zFeed: 0.002, change: { k: 10, b: 0.075 } } },
+}
+
 function handleNewSub(type: BrowseMode) {
   const id = `${type}-${Date.now()}`
-  const empty: Record<string, unknown> = { id }
+  const defaults = SubDefaults[type] ?? {}
+  const empty: Record<string, unknown> = { id, ...defaults }
   const keyMap: Record<string, string> = {
     laser: 'laserPowerRecipes', blackening: 'blackeningRecipes',
     machining: 'machiningRecipes', horizontal: 'horizontalFormulaRecipes', vertical: 'verticalFormulaRecipes'
