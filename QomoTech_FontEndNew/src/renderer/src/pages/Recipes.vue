@@ -247,18 +247,18 @@ onMounted(async () => {
       <!-- Blackening list + editor -->
       <div v-if="browseMode === 'blackening'" class="center-editor">
         <div class="center-header">
-          <h2 class="ed-title">扫黑工艺配方</h2>
+          <h2 class="ed-title">扫黑配方</h2>
           <div class="center-actions">
             <button class="act-sm" @click="handleNewSub('blackening')"><span class="material-symbols-outlined">add</span></button>
             <button class="act-sm danger" @click="handleDeleteSub('blackening')" :disabled="!selBlackening"><span class="material-symbols-outlined">delete</span></button>
           </div>
         </div>
-        <!-- <div class="sub-items-row">
+        <div class="sub-items-row">
           <button v-for="item in blackeningList" :key="item.id" class="sub-item"
             :class="{ active: item.id === selectedBlackeningId }" @click="selectedBlackeningId = item.id">
             <span class="sub-item-name">{{ item.id }}</span>
           </button>
-        </div> -->
+        </div>
         <section v-if="selBlackening" class="edit-section">
           <div class="field-grid">
             <div class="field"><label class="fl">启用</label><select class="fi" :value="selBlackening.enabled" @change="updateField(`blackeningRecipes.${selBlackening.id}.enabled`, ($event.target as HTMLSelectElement).value === 'true')"><option :value="true">是</option><option :value="false">否</option></select></div>
