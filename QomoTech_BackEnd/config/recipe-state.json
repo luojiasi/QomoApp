@@ -4,24 +4,16 @@
       "id": "main-1",
       "name": "主配方 1",
       "status": "active",
-      "updatedAt": "2026-6-23 15:05:56",
+      "updatedAt": "2026-6-25 15:37:11",
       "blackeningRecipeId": "blackening-1",
       "machiningRecipeId": "machining-1"
-    },
-    {
-      "id": "main-2",
-      "name": "主配方 2",
-      "status": "draft",
-      "updatedAt": "2026-6-23 15:05:56",
-      "blackeningRecipeId": "blackening-2",
-      "machiningRecipeId": "machining-2"
     }
   ],
   "laserPowerRecipes": [
     {
       "id": "laser-power-1",
       "name": "激光功率配方 1",
-      "updatedAt": "2026-6-23 15:05:56",
+      "updatedAt": "2026-6-25 15:37:11",
       "laserManufacturer": "默认厂家",
       "laserPower": 950,
       "laserFrequency": 7000,
@@ -30,7 +22,7 @@
     {
       "id": "laser-power-2",
       "name": "激光功率配方 2",
-      "updatedAt": "2026-6-23 15:05:56",
+      "updatedAt": "2026-6-25 15:37:11",
       "laserManufacturer": "默认厂家",
       "laserPower": 950,
       "laserFrequency": 7000,
@@ -41,7 +33,7 @@
     {
       "id": "blackening-1",
       "name": "扫黑工艺配方 1",
-      "updatedAt": "2026-6-23 15:05:56",
+      "updatedAt": "2026-6-25 15:37:11",
       "enabled": true,
       "descentStep": 0.1,
       "descentCount": 2,
@@ -57,7 +49,7 @@
     {
       "id": "blackening-2",
       "name": "扫黑工艺配方 2",
-      "updatedAt": "2026-6-23 15:05:56",
+      "updatedAt": "2026-6-25 15:37:11",
       "enabled": true,
       "descentStep": 0.1,
       "descentCount": 2,
@@ -94,7 +86,7 @@
       },
       "focusCompensation": 0.08,
       "id": "horizontal-formula-1",
-      "updatedAt": "2026-6-23 15:05:56"
+      "updatedAt": "2026-6-25 15:37:11"
     },
     {
       "name": "水平工艺配方 2",
@@ -118,7 +110,7 @@
       },
       "focusCompensation": 0.08,
       "id": "horizontal-formula-2",
-      "updatedAt": "2026-6-23 15:05:56"
+      "updatedAt": "2026-6-25 15:37:11"
     }
   ],
   "verticalFormulaRecipes": [
@@ -154,7 +146,7 @@
       },
       "id": "vertical-formula-1",
       "name": "垂直工艺配方 1",
-      "updatedAt": "2026-6-23 15:05:56"
+      "updatedAt": "2026-6-25 15:37:11"
     },
     {
       "cuttingAxis": "XY",
@@ -188,14 +180,14 @@
       },
       "id": "vertical-formula-2",
       "name": "垂直工艺配方 2",
-      "updatedAt": "2026-6-23 15:05:56"
+      "updatedAt": "2026-6-25 15:37:11"
     }
   ],
   "machiningRecipes": [
     {
       "id": "machining-1",
       "name": "加工工艺配方 1",
-      "updatedAt": "2026-6-23 15:05:56",
+      "updatedAt": "2026-6-25 15:37:11",
       "horizontalFormulaId": "horizontal-formula-1",
       "verticalFormulaId": "vertical-formula-1",
       "laserPowerRecipeId": "laser-power-1"
@@ -203,7 +195,7 @@
     {
       "id": "machining-2",
       "name": "加工工艺配方 2",
-      "updatedAt": "2026-6-23 15:05:56",
+      "updatedAt": "2026-6-25 15:37:11",
       "horizontalFormulaId": "horizontal-formula-2",
       "verticalFormulaId": "vertical-formula-2",
       "laserPowerRecipeId": "laser-power-2"
