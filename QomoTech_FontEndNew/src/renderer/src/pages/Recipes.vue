@@ -220,7 +220,7 @@ onMounted(async () => {
       <!-- Laser list + editor -->
       <div v-if="browseMode === 'laser'" class="center-editor">
         <div class="center-header">
-          <h2 class="ed-title">激光功率配方</h2>
+          <h2 class="ed-title">激光配方</h2>
           <div class="center-actions">
             <button class="act-sm" @click="handleNewSub('laser')"><span class="material-symbols-outlined">add</span></button>
             <button class="act-sm danger" @click="handleDeleteSub('laser')" :disabled="!selLaser"><span class="material-symbols-outlined">delete</span></button>
@@ -429,7 +429,7 @@ onMounted(async () => {
         <span class="material-symbols-outlined">description</span>主配方
       </button>
       <button class="tb-btn" :class="{ on: browseMode === 'laser' }" @click="browseMode = 'laser'">
-        <span class="material-symbols-outlined">bolt</span>激光功率
+        <span class="material-symbols-outlined">bolt</span>激光配方
         <span class="tb-count">{{ laserList.length }}</span>
       </button>
       <button class="tb-btn" :class="{ on: browseMode === 'blackening' }" @click="browseMode = 'blackening'">
