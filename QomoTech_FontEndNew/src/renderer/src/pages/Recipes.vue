@@ -253,12 +253,12 @@ onMounted(async () => {
             <button class="act-sm danger" @click="handleDeleteSub('blackening')" :disabled="!selBlackening"><span class="material-symbols-outlined">delete</span></button>
           </div>
         </div>
-        <div class="sub-items-row">
+        <!-- <div class="sub-items-row">
           <button v-for="item in blackeningList" :key="item.id" class="sub-item"
             :class="{ active: item.id === selectedBlackeningId }" @click="selectedBlackeningId = item.id">
             <span class="sub-item-name">{{ item.id }}</span>
           </button>
-        </div>
+        </div> -->
         <section v-if="selBlackening" class="edit-section">
           <div class="field-grid">
             <div class="field"><label class="fl">启用</label><select class="fi" :value="selBlackening.enabled" @change="updateField(`blackeningRecipes.${selBlackening.id}.enabled`, ($event.target as HTMLSelectElement).value === 'true')"><option :value="true">是</option><option :value="false">否</option></select></div>
@@ -433,7 +433,7 @@ onMounted(async () => {
         <span class="tb-count">{{ laserList.length }}</span>
       </button>
       <button class="tb-btn" :class="{ on: browseMode === 'blackening' }" @click="browseMode = 'blackening'">
-        <span class="material-symbols-outlined">ink_eraser</span>扫黑工艺
+        <span class="material-symbols-outlined">ink_eraser</span>扫黑配方
         <span class="tb-count">{{ blackeningList.length }}</span>
       </button>
       <button class="tb-btn" :class="{ on: browseMode === 'machining' }" @click="browseMode = 'machining'">
