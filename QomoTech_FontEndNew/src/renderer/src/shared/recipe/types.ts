@@ -33,18 +33,19 @@ export interface HorizontalFormulaRecipe {
   depthCompensationFormula: { k: number; b: number }
   compensationAngleFormula: { k: number; b: number }
   focusCompensation: number
+  upperOpeningFormula?: string
 }
 
 export interface VerticalFormulaRecipe {
   id: string
   name?: string
-  cuttingAxis: number
+  cuttingAxis: string
   changePercent: number
   xFeed: number
   xSpeed: number
-  edgeCutting: Record<string, number>
-  middleCutting: Record<string, number>
-  descentCutting: Record<string, number>
+  edgeCutting: { speed: number; cutTimes: number; cutSpeedNums?: number; change: { k: number; b: number } }
+  middleCutting: { speed: number; cutTimes: number; change: { k: number; b: number } }
+  descentCutting: { speed: number; zFeed: number; change: { k: number; b: number } }
 }
 
 export interface MachiningRecipe {

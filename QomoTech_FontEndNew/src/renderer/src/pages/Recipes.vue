@@ -206,7 +206,11 @@ onMounted(async () => {
         <section class="edit-section">
           <div class="field-grid">
             <div class="field"><label class="fl">名称</label><input class="fi" :value="selectedRecipe.name" @input="updateMainField('name', ($event.target as HTMLInputElement).value)" /></div>
+            <div class="field"></div>
+            <div class="field"></div>
             <div class="field"><label class="fl">状态</label><select class="fi" :value="selectedRecipe.status" @change="updateMainField('status', ($event.target as HTMLSelectElement).value)"><option value="active">active</option><option value="draft">draft</option></select></div>
+            <div class="field"></div>
+            <div class="field"></div>
             <div class="field"><label class="fl">扫黑配方 ID</label><input class="fi mono" :value="selectedRecipe.blackeningRecipeId" @input="updateMainField('blackeningRecipeId', ($event.target as HTMLInputElement).value)" /></div>
             <div class="field"><label class="fl">加工配方 ID</label><input class="fi mono" :value="selectedRecipe.machiningRecipeId" @input="updateMainField('machiningRecipeId', ($event.target as HTMLInputElement).value)" /></div>
           </div>
@@ -231,6 +235,8 @@ onMounted(async () => {
         <section v-if="selLaser" class="edit-section">
           <div class="field-grid">
             <div class="field"><label class="fl">厂家</label><input class="fi mono" :value="selLaser.laserManufacturer" @input="updateField(`laserPowerRecipes.${selLaser.id}.laserManufacturer`, ($event.target as HTMLInputElement).value)" /></div>
+            <div class="field"></div>
+            <div class="field"></div>
             <div class="field"><label class="fl">功率 (W)</label><input class="fi" type="number" :value="selLaser.laserPower" @input="updateField(`laserPowerRecipes.${selLaser.id}.laserPower`, Number(($event.target as HTMLInputElement).value))" /></div>
             <div class="field"><label class="fl">频率 (Hz)</label><input class="fi" type="number" :value="selLaser.laserFrequency" @input="updateField(`laserPowerRecipes.${selLaser.id}.laserFrequency`, Number(($event.target as HTMLInputElement).value))" /></div>
             <div class="field"><label class="fl">电流 (A)</label><input class="fi" type="number" :value="selLaser.laserCurrent" @input="updateField(`laserPowerRecipes.${selLaser.id}.laserCurrent`, Number(($event.target as HTMLInputElement).value))" /></div>
@@ -256,12 +262,16 @@ onMounted(async () => {
         <section v-if="selBlackening" class="edit-section">
           <div class="field-grid">
             <div class="field"><label class="fl">启用</label><select class="fi" :value="selBlackening.enabled" @change="updateField(`blackeningRecipes.${selBlackening.id}.enabled`, ($event.target as HTMLSelectElement).value === 'true')"><option :value="true">是</option><option :value="false">否</option></select></div>
+            <div class="field"></div>
+            <div class="field"></div>
+            <div class="field"><label class="fl">激光配方 ID</label><input class="fi mono" :value="selBlackening.laserPowerRecipeId" @input="updateField(`blackeningRecipes.${selBlackening.id}.laserPowerRecipeId`, ($event.target as HTMLInputElement).value)" /></div>
+            <div class="field"></div>
+            <div class="field"></div>
             <div class="field"><label class="fl">下降步长</label><input class="fi" type="number" step="0.01" :value="selBlackening.descentStep" @input="updateField(`blackeningRecipes.${selBlackening.id}.descentStep`, Number(($event.target as HTMLInputElement).value))" /></div>
             <div class="field"><label class="fl">下降次数</label><input class="fi" type="number" :value="selBlackening.descentCount" @input="updateField(`blackeningRecipes.${selBlackening.id}.descentCount`, Number(($event.target as HTMLInputElement).value))" /></div>
             <div class="field"><label class="fl">扫黑速度</label><input class="fi" type="number" :value="selBlackening.blackeningSpeed" @input="updateField(`blackeningRecipes.${selBlackening.id}.blackeningSpeed`, Number(($event.target as HTMLInputElement).value))" /></div>
             <div class="field"><label class="fl">扫黑步长</label><input class="fi" type="number" step="0.001" :value="selBlackening.blackeningStep" @input="updateField(`blackeningRecipes.${selBlackening.id}.blackeningStep`, Number(($event.target as HTMLInputElement).value))" /></div>
             <div class="field"><label class="fl">焦距补偿</label><input class="fi" type="number" :value="selBlackening.jiaojubuchang" @input="updateField(`blackeningRecipes.${selBlackening.id}.jiaojubuchang`, Number(($event.target as HTMLInputElement).value))" /></div>
-            <div class="field"><label class="fl">激光配方 ID</label><input class="fi mono" :value="selBlackening.laserPowerRecipeId" @input="updateField(`blackeningRecipes.${selBlackening.id}.laserPowerRecipeId`, ($event.target as HTMLInputElement).value)" /></div>
           </div>
         </section>
       </div>
@@ -314,16 +324,14 @@ onMounted(async () => {
               </select>
             </div>
             <div class="field"></div>
-            <div class="field"></div>
             <div class="field"><label class="fl">角度公式 K</label><input class="fi" type="number" step="0.01" :value="selHorizontal.angleFormula?.k" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.angleFormula.k`, Number(($event.target as HTMLInputElement).value))" /></div>
             <div class="field"><label class="fl">角度公式 B</label><input class="fi" type="number" step="0.01" :value="selHorizontal.angleFormula?.b" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.angleFormula.b`, Number(($event.target as HTMLInputElement).value))" /></div>
-            <div class="field"></div>
             <div class="field"><label class="fl">下开口 K</label><input class="fi" type="number" step="0.01" :value="selHorizontal.lowerOpeningFormula?.k" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.lowerOpeningFormula.k`, Number(($event.target as HTMLInputElement).value))" /></div>
             <div class="field"><label class="fl">下开口 B</label><input class="fi" type="number" step="0.01" :value="selHorizontal.lowerOpeningFormula?.b" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.lowerOpeningFormula.b`, Number(($event.target as HTMLInputElement).value))" /></div>
-            <div class="field"></div>
             <div class="field"><label class="fl">深度补偿 K</label><input class="fi" type="number" step="0.01" :value="selHorizontal.depthCompensationFormula?.k" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.depthCompensationFormula.k`, Number(($event.target as HTMLInputElement).value))" /></div>
             <div class="field"><label class="fl">深度补偿 B</label><input class="fi" type="number" step="0.01" :value="selHorizontal.depthCompensationFormula?.b" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.depthCompensationFormula.b`, Number(($event.target as HTMLInputElement).value))" /></div>
-            <div class="field"></div>
+            <div class="field"><label class="fl">补偿角度 K</label><input class="fi" type="number" step="0.01" :value="selHorizontal.compensationAngleFormula?.k" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.compensationAngleFormula.k`, Number(($event.target as HTMLInputElement).value))" /></div>
+            <div class="field"><label class="fl">补偿角度 B</label><input class="fi" type="number" step="0.01" :value="selHorizontal.compensationAngleFormula?.b" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.compensationAngleFormula.b`, Number(($event.target as HTMLInputElement).value))" /></div>
             <div class="field"><label class="fl">焦距补偿</label><input class="fi" type="number" step="0.01" :value="selHorizontal.focusCompensation" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.focusCompensation`, Number(($event.target as HTMLInputElement).value))" /></div>
             <div class="field"></div>
           </div>
@@ -346,6 +354,7 @@ onMounted(async () => {
           </button>
         </div>
         <section v-if="selVertical" class="edit-section">
+          <!-- Top row -->
           <div class="field-grid">
             <div class="field"><label class="fl">切割轴</label>
               <select class="fi" :value="selVertical.cuttingAxis" @change="updateField(`verticalFormulaRecipes.${selVertical.id}.cuttingAxis`, ($event.target as HTMLSelectElement).value)">
@@ -354,14 +363,38 @@ onMounted(async () => {
               </select>
             </div>
             <div class="field"><label class="fl">变化%</label><input class="fi" type="number" :value="selVertical.changePercent" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.changePercent`, Number(($event.target as HTMLInputElement).value))" /></div>
-            <div class="field"><label class="fl">X 进给</label><input class="fi" type="number" step="0.001" :value="selVertical.xFeed" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.xFeed`, Number(($event.target as HTMLInputElement).value))" /></div>
-            <div class="field"><label class="fl">X 速度</label><input class="fi" type="number" :value="selVertical.xSpeed" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.xSpeed`, Number(($event.target as HTMLInputElement).value))" /></div>
-            <div class="field"><label class="fl">切边速度</label><input class="fi" type="number" :value="selVertical.edgeCutting?.speed" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.edgeCutting.speed`, Number(($event.target as HTMLInputElement).value))" /></div>
-            <div class="field"><label class="fl">切边次数</label><input class="fi" type="number" :value="selVertical.edgeCutting?.cutTimes" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.edgeCutting.cutTimes`, Number(($event.target as HTMLInputElement).value))" /></div>
-            <div class="field"><label class="fl">中切速度</label><input class="fi" type="number" :value="selVertical.middleCutting?.speed" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.middleCutting.speed`, Number(($event.target as HTMLInputElement).value))" /></div>
-            <div class="field"><label class="fl">中切次数</label><input class="fi" type="number" :value="selVertical.middleCutting?.cutTimes" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.middleCutting.cutTimes`, Number(($event.target as HTMLInputElement).value))" /></div>
-            <div class="field"><label class="fl">下降速度</label><input class="fi" type="number" step="0.001" :value="selVertical.descentCutting?.speed" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.descentCutting.speed`, Number(($event.target as HTMLInputElement).value))" /></div>
-            <div class="field"><label class="fl">Z 下降进给</label><input class="fi" type="number" step="0.001" :value="selVertical.descentCutting?.zFeed" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.descentCutting.zFeed`, Number(($event.target as HTMLInputElement).value))" /></div>
+            <div class="field"><label class="fl">X_偏移量 (mm)</label><input class="fi" type="number" step="0.001" :value="selVertical.xFeed" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.xFeed`, Number(($event.target as HTMLInputElement).value))" /></div>
+            <div class="field"><label class="fl">插补运行速度 (mm/s)</label><input class="fi" type="number" :value="selVertical.xSpeed" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.xSpeed`, Number(($event.target as HTMLInputElement).value))" /></div>
+          </div>
+
+          <!-- Edge cutting -->
+          <div class="sec-sub-section">边缘切割</div>
+          <div class="field-grid">
+            <div class="field"><label class="fl">速度 (%)</label><input class="fi" type="number" :value="selVertical.edgeCutting?.speed" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.edgeCutting.speed`, Number(($event.target as HTMLInputElement).value))" /></div>
+            <div class="field"><label class="fl">次数</label><input class="fi" type="number" :value="selVertical.edgeCutting?.cutTimes" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.edgeCutting.cutTimes`, Number(($event.target as HTMLInputElement).value))" /></div>
+            <div class="field"><label class="fl">速量</label><input class="fi" type="number" :value="selVertical.edgeCutting?.cutSpeedNums" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.edgeCutting.cutSpeedNums`, Number(($event.target as HTMLInputElement).value))" /></div>
+            <div class="field"><label class="fl">变化率 K</label><input class="fi" type="number" step="0.01" :value="selVertical.edgeCutting?.change?.k" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.edgeCutting.change.k`, Number(($event.target as HTMLInputElement).value))" /></div>
+            <div class="field"><label class="fl">变化率 B</label><input class="fi" type="number" step="0.01" :value="selVertical.edgeCutting?.change?.b" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.edgeCutting.change.b`, Number(($event.target as HTMLInputElement).value))" /></div>
+          </div>
+
+          <!-- Middle cutting -->
+          <div class="sec-sub-section">中间切割</div>
+          <div class="field-grid">
+            <div class="field"><label class="fl">速度 (%)</label><input class="fi" type="number" :value="selVertical.middleCutting?.speed" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.middleCutting.speed`, Number(($event.target as HTMLInputElement).value))" /></div>
+            <div class="field"><label class="fl">次数</label><input class="fi" type="number" :value="selVertical.middleCutting?.cutTimes" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.middleCutting.cutTimes`, Number(($event.target as HTMLInputElement).value))" /></div>
+            <div class="field"></div>
+            <div class="field"><label class="fl">变化率 K</label><input class="fi" type="number" step="0.01" :value="selVertical.middleCutting?.change?.k" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.middleCutting.change.k`, Number(($event.target as HTMLInputElement).value))" /></div>
+            <div class="field"><label class="fl">变化率 B</label><input class="fi" type="number" step="0.01" :value="selVertical.middleCutting?.change?.b" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.middleCutting.change.b`, Number(($event.target as HTMLInputElement).value))" /></div>
+          </div>
+
+          <!-- Descent cutting -->
+          <div class="sec-sub-section">下降切割</div>
+          <div class="field-grid">
+            <div class="field"><label class="fl">下降量 (mm/层)</label><input class="fi" type="number" step="0.001" :value="selVertical.descentCutting?.speed" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.descentCutting.speed`, Number(($event.target as HTMLInputElement).value))" /></div>
+            <div class="field"><label class="fl">下降减少量 (mm/%)</label><input class="fi" type="number" step="0.001" :value="selVertical.descentCutting?.zFeed" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.descentCutting.zFeed`, Number(($event.target as HTMLInputElement).value))" /></div>
+            <div class="field"></div>
+            <div class="field"><label class="fl">变化率 K</label><input class="fi" type="number" step="0.01" :value="selVertical.descentCutting?.change?.k" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.descentCutting.change.k`, Number(($event.target as HTMLInputElement).value))" /></div>
+            <div class="field"><label class="fl">变化率 B</label><input class="fi" type="number" step="0.01" :value="selVertical.descentCutting?.change?.b" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.descentCutting.change.b`, Number(($event.target as HTMLInputElement).value))" /></div>
           </div>
         </section>
       </div>
@@ -506,6 +539,12 @@ onMounted(async () => {
 
 /* ---- editor common ---- */
 .edit-section { animation: fadein 0.12s ease-out; }
+.sec-sub-section {
+  font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600;
+  color: var(--color-tertiary); text-transform: uppercase; letter-spacing: 0.06em;
+  margin-top: 16px; margin-bottom: 6px; padding-bottom: 4px;
+  border-bottom: 1px solid rgba(255,182,149,0.2);
+}
 @keyframes fadein { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
 .field-grid-2col {
   grid-template-columns: 1fr 1fr;
