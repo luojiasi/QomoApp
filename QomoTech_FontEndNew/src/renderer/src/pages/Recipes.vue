@@ -25,6 +25,9 @@ const statusMsg = ref('')
 const sidebarSearch = ref('')
 const showNewDialog = ref(false)
 const newRecipeName = ref('')
+const renameDlgType = ref<string>('')
+const renameDlgId = ref('')
+const renameDlgName = ref('')
 
 const filteredRecipes = computed(() => {
   const q = sidebarSearch.value.toLowerCase()
@@ -98,6 +101,28 @@ function handleDeleteSub(type: BrowseMode) {
   statusMsg.value = '已标记删除'
 }
 
+// ----  right-click rename ----
+const typeToKey: Record<string, string> = {
+  laser: 'laserPowerRecipes', blackening: 'blackeningRecipes',
+  machining: 'machiningRecipes', horizontal: 'horizontalFormulaRecipes', vertical: 'verticalFormulaRecipes'
+}
+function openRenameDialog(type: string, id: string) {
+  renameDlgType.value = type
+  renameDlgId.value = id
+  const arr = (state.value as any)[typeToKey[type]] ?? []
+  const item = arr.find((r: any) => r.id === id)
+  renameDlgName.value = item?.name ?? item?.id ?? ''
+}
+function confirmRename() {
+  const type = renameDlgType.value; const id = renameDlgId.value
+  if (!type || !id) return
+  const key = typeToKey[type]
+  const arr = ((state.value as any)[key] ?? []).map((r: any) => r.id === id ? { ...r, name: renameDlgName.value } : r)
+  updateField(key, arr)
+  renameDlgType.value = ''; renameDlgId.value = ''
+  statusMsg.value = '已改名'
+}
+
 // ----  main recipe actions  ----
 function handleNew() { newRecipeName.value = ''; showNewDialog.value = true }
 function confirmNew() {
@@ -152,6 +177,20 @@ onMounted(async () => {
           <div class="dlg-btns">
             <button class="dlg-ok" @click="confirmNew">确定</button>
             <button class="dlg-cancel" @click="showNewDialog = false">取消</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- RENAME DIALOG -->
+    <Teleport to="body">
+      <div v-if="renameDlgType" class="dlg-overlay" @click.self="renameDlgType = ''">
+        <div class="dlg-card">
+          <span class="dlg-title">改名</span>
+          <input v-model="renameDlgName" class="dlg-input" @keydown.enter="confirmRename()" autofocus />
+          <div class="dlg-btns">
+            <button class="dlg-ok" @click="confirmRename()">确定</button>
+            <button class="dlg-cancel" @click="renameDlgType = ''">取消</button>
           </div>
         </div>
       </div>
@@ -236,7 +275,8 @@ onMounted(async () => {
         </div>
         <div class="sub-items-row">
           <button v-for="item in laserList" :key="item.id" class="sub-item"
-            :class="{ active: item.id === selectedLaserId }" @click="selectedLaserId = item.id">
+            :class="{ active: item.id === selectedLaserId }" @click="selectedLaserId = item.id"
+            @contextmenu.prevent="openRenameDialog('laser', item.id)">
             <span class="sub-item-name">{{ (item as any).name || item.id }}</span>
           </button>
         </div>
@@ -263,7 +303,8 @@ onMounted(async () => {
         </div>
         <div class="sub-items-row">
           <button v-for="item in blackeningList" :key="item.id" class="sub-item"
-            :class="{ active: item.id === selectedBlackeningId }" @click="selectedBlackeningId = item.id">
+            :class="{ active: item.id === selectedBlackeningId }" @click="selectedBlackeningId = item.id"
+            @contextmenu.prevent="openRenameDialog('blackening', item.id)">
             <span class="sub-item-name">{{ (item as any).name || item.id }}</span>
           </button>
         </div>
@@ -292,7 +333,8 @@ onMounted(async () => {
         </div>
         <div class="sub-items-row">
           <button v-for="item in machiningList" :key="item.id" class="sub-item"
-            :class="{ active: item.id === selectedMachiningId }" @click="selectedMachiningId = item.id">
+            :class="{ active: item.id === selectedMachiningId }" @click="selectedMachiningId = item.id"
+            @contextmenu.prevent="openRenameDialog('machining', item.id)">
             <span class="sub-item-name">{{ (item as any).name || item.id }}</span>
           </button>
         </div>
@@ -331,7 +373,8 @@ onMounted(async () => {
         </div>
         <div class="sub-items-row">
           <button v-for="item in horizontalList" :key="item.id" class="sub-item"
-            :class="{ active: item.id === selectedHorizontalId }" @click="selectedHorizontalId = item.id">
+            :class="{ active: item.id === selectedHorizontalId }" @click="selectedHorizontalId = item.id"
+            @contextmenu.prevent="openRenameDialog('horizontal', item.id)">
             <span class="sub-item-name">{{ (item as any).name || item.id }}</span>
           </button>
         </div>
@@ -373,7 +416,8 @@ onMounted(async () => {
         </div>
         <div class="sub-items-row">
           <button v-for="item in verticalList" :key="item.id" class="sub-item"
-            :class="{ active: item.id === selectedVerticalId }" @click="selectedVerticalId = item.id">
+            :class="{ active: item.id === selectedVerticalId }" @click="selectedVerticalId = item.id"
+            @contextmenu.prevent="openRenameDialog('vertical', item.id)">
             <span class="sub-item-name">{{ (item as any).name || item.id }}</span>
           </button>
         </div>
