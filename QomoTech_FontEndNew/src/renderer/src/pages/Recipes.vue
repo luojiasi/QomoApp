@@ -206,13 +206,21 @@ onMounted(async () => {
         <section class="edit-section">
           <div class="field-grid">
             <div class="field"><label class="fl">名称</label><input class="fi" :value="selectedRecipe.name" @input="updateMainField('name', ($event.target as HTMLInputElement).value)" /></div>
-            <div class="field"></div>
-            <div class="field"></div>
             <div class="field"><label class="fl">状态</label><select class="fi" :value="selectedRecipe.status" @change="updateMainField('status', ($event.target as HTMLSelectElement).value)"><option value="active">active</option><option value="draft">draft</option></select></div>
             <div class="field"></div>
+            <div class="field"><label class="fl">扫黑配方</label>
+              <select class="fi" :value="selectedRecipe.blackeningRecipeId" @change="updateMainField('blackeningRecipeId', ($event.target as HTMLSelectElement).value)">
+                <option value="">—</option>
+                <option v-for="b in blackeningList" :key="b.id" :value="b.id">{{ (b as any).name || b.id }}</option>
+              </select>
+            </div>
+            <div class="field"><label class="fl">加工配方</label>
+              <select class="fi" :value="selectedRecipe.machiningRecipeId" @change="updateMainField('machiningRecipeId', ($event.target as HTMLSelectElement).value)">
+                <option value="">—</option>
+                <option v-for="m in machiningList" :key="m.id" :value="m.id">{{ (m as any).name || m.id }}</option>
+              </select>
+            </div>
             <div class="field"></div>
-            <div class="field"><label class="fl">扫黑配方 ID</label><input class="fi mono" :value="selectedRecipe.blackeningRecipeId" @input="updateMainField('blackeningRecipeId', ($event.target as HTMLInputElement).value)" /></div>
-            <div class="field"><label class="fl">加工配方 ID</label><input class="fi mono" :value="selectedRecipe.machiningRecipeId" @input="updateMainField('machiningRecipeId', ($event.target as HTMLInputElement).value)" /></div>
           </div>
         </section>
       </div>
