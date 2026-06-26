@@ -306,15 +306,26 @@ onMounted(async () => {
           </button>
         </div>
         <section v-if="selHorizontal" class="edit-section">
-          <div class="field-grid">
-            <div class="field"><label class="fl">开口形状</label><input class="fi" :value="selHorizontal.openingShape" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.openingShape`, ($event.target as HTMLInputElement).value)" /></div>
+          <div class="field-grid field-grid-2col">
+            <div class="field"><label class="fl">开口形状</label>
+              <select class="fi" :value="selHorizontal.openingShape" @change="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.openingShape`, ($event.target as HTMLSelectElement).value)">
+                <option value="V型">V型</option>
+                <option value="||型">||型</option>
+              </select>
+            </div>
+            <div class="field"></div>
+            <div class="field"></div>
             <div class="field"><label class="fl">角度公式 K</label><input class="fi" type="number" step="0.01" :value="selHorizontal.angleFormula?.k" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.angleFormula.k`, Number(($event.target as HTMLInputElement).value))" /></div>
             <div class="field"><label class="fl">角度公式 B</label><input class="fi" type="number" step="0.01" :value="selHorizontal.angleFormula?.b" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.angleFormula.b`, Number(($event.target as HTMLInputElement).value))" /></div>
+            <div class="field"></div>
             <div class="field"><label class="fl">下开口 K</label><input class="fi" type="number" step="0.01" :value="selHorizontal.lowerOpeningFormula?.k" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.lowerOpeningFormula.k`, Number(($event.target as HTMLInputElement).value))" /></div>
             <div class="field"><label class="fl">下开口 B</label><input class="fi" type="number" step="0.01" :value="selHorizontal.lowerOpeningFormula?.b" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.lowerOpeningFormula.b`, Number(($event.target as HTMLInputElement).value))" /></div>
+            <div class="field"></div>
             <div class="field"><label class="fl">深度补偿 K</label><input class="fi" type="number" step="0.01" :value="selHorizontal.depthCompensationFormula?.k" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.depthCompensationFormula.k`, Number(($event.target as HTMLInputElement).value))" /></div>
             <div class="field"><label class="fl">深度补偿 B</label><input class="fi" type="number" step="0.01" :value="selHorizontal.depthCompensationFormula?.b" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.depthCompensationFormula.b`, Number(($event.target as HTMLInputElement).value))" /></div>
+            <div class="field"></div>
             <div class="field"><label class="fl">焦距补偿</label><input class="fi" type="number" step="0.01" :value="selHorizontal.focusCompensation" @input="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.focusCompensation`, Number(($event.target as HTMLInputElement).value))" /></div>
+            <div class="field"></div>
           </div>
         </section>
       </div>
@@ -336,7 +347,12 @@ onMounted(async () => {
         </div>
         <section v-if="selVertical" class="edit-section">
           <div class="field-grid">
-            <div class="field"><label class="fl">切割轴</label><input class="fi" :value="selVertical.cuttingAxis" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.cuttingAxis`, ($event.target as HTMLInputElement).value)" /></div>
+            <div class="field"><label class="fl">切割轴</label>
+              <select class="fi" :value="selVertical.cuttingAxis" @change="updateField(`verticalFormulaRecipes.${selVertical.id}.cuttingAxis`, ($event.target as HTMLSelectElement).value)">
+                <option value="XY">XY</option>
+                <option value="R">R</option>
+              </select>
+            </div>
             <div class="field"><label class="fl">变化%</label><input class="fi" type="number" :value="selVertical.changePercent" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.changePercent`, Number(($event.target as HTMLInputElement).value))" /></div>
             <div class="field"><label class="fl">X 进给</label><input class="fi" type="number" step="0.001" :value="selVertical.xFeed" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.xFeed`, Number(($event.target as HTMLInputElement).value))" /></div>
             <div class="field"><label class="fl">X 速度</label><input class="fi" type="number" :value="selVertical.xSpeed" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.xSpeed`, Number(($event.target as HTMLInputElement).value))" /></div>
@@ -491,6 +507,9 @@ onMounted(async () => {
 /* ---- editor common ---- */
 .edit-section { animation: fadein 0.12s ease-out; }
 @keyframes fadein { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
+.field-grid-2col {
+  grid-template-columns: 1fr 1fr;
+}
 .field-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 18px; }
 .field { display: flex; flex-direction: column; gap: 3px; }
 .fl { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--color-on-surface-variant); text-transform: uppercase; letter-spacing: 0.03em; }
