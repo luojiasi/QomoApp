@@ -320,7 +320,7 @@ onMounted(async () => {
             <div class="field"><label class="fl">开口形状</label>
               <select class="fi" :value="selHorizontal.openingShape" @change="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.openingShape`, ($event.target as HTMLSelectElement).value)">
                 <option value="V型">V型</option>
-                <option value="||型">||型</option>
+                <option value="//型">//型</option>
               </select>
             </div>
             <div class="field"></div>
