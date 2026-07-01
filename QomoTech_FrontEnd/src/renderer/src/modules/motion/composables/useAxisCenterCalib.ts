@@ -442,9 +442,9 @@ export function useAxisCenterCalib() {
 
       const samples = axisCenterCalibSamples.value
       const middleIndex = Math.floor(samples.length / 2)
-      const middleSample = samples[middleIndex]
-      const middleX = middleSample.machinePositions.X as number
-      const middleY = middleSample.machinePositions.Y as number
+      // const middleSample = samples[middleIndex]
+      // const middleX = middleSample.machinePositions.X as number
+      // const middleY = middleSample.machinePositions.Y as number
       // const middleZ = middleSample.machinePositions.Z as number
       const beforeMiddleSamples = samples.slice(0, middleIndex)
       const afterMiddleSamples = samples.slice(middleIndex + 1)
@@ -457,8 +457,8 @@ export function useAxisCenterCalib() {
       const afterMiddleYSum = afterMiddleSamples.reduce((sum, sample) => sum + (sample.machinePositions.Y as number), 0)
       const afterMiddleZSum = afterMiddleSamples.reduce((sum, sample) => sum + (sample.machinePositions.Z as number), 0)
 
-      const axisCenterCalibX = (middleX + beforeMiddleXSum + afterMiddleXSum) / 3
-      const axisCenterCalibY = (middleY + beforeMiddleYSum + afterMiddleYSum) / 3
+      const axisCenterCalibX = ((beforeMiddleXSum + afterMiddleXSum) / 2)
+      const axisCenterCalibY = ((beforeMiddleYSum + afterMiddleYSum) / 2)
       const axisCenterCalibZ = (beforeMiddleZSum + afterMiddleZSum) / 2
 
       const centerRotationResult:XYZ = {

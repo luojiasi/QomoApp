@@ -386,7 +386,7 @@ class ProgramRunnerFreeParam:
                         当前步骤 = ProgramFreeParamsStep.清理所有状态
 
                 case ProgramFreeParamsStep.等待R轴旋转一圈:
-                    await self._运动.R轴旋转的圈数(1.0)
+                    await self._运动.R轴旋转的圈数(2.0)
                     当前步骤 = ProgramFreeParamsStep.更新开口偏移值
 
 

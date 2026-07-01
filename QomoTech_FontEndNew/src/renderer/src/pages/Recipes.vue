@@ -245,19 +245,30 @@ onMounted(async () => {
         <section class="edit-section">
           <div class="field-grid">
             <div class="field"><label class="fl">名称</label><input class="fi" :value="selectedRecipe.name" @input="updateMainField('name', ($event.target as HTMLInputElement).value)" /></div>
-            <div class="field"><label class="fl">状态</label><select class="fi" :value="selectedRecipe.status" @change="updateMainField('status', ($event.target as HTMLSelectElement).value)"><option value="active">active</option><option value="draft">draft</option></select></div>
+            <div class="field"><label class="fl">状态</label>
+              <div class="select-wrap">
+                <select class="fi" :value="selectedRecipe.status" @change="updateMainField('status', ($event.target as HTMLSelectElement).value)"><option value="active">active</option><option value="draft">draft</option></select>
+                <span class="material-symbols-outlined select-arrow">expand_more</span>
+              </div>
+            </div>
             <div class="field"></div>
             <div class="field"><label class="fl">扫黑配方</label>
-              <select class="fi" :value="selectedRecipe.blackeningRecipeId" @change="updateMainField('blackeningRecipeId', ($event.target as HTMLSelectElement).value)">
-                <option value="">—</option>
-                <option v-for="b in blackeningList" :key="b.id" :value="b.id">{{ (b as any).name || b.id }}</option>
-              </select>
+              <div class="select-wrap">
+                <select class="fi" :value="selectedRecipe.blackeningRecipeId" @change="updateMainField('blackeningRecipeId', ($event.target as HTMLSelectElement).value)">
+                  <option value="">—</option>
+                  <option v-for="b in blackeningList" :key="b.id" :value="b.id">{{ (b as any).name || b.id }}</option>
+                </select>
+                <span class="material-symbols-outlined select-arrow">expand_more</span>
+              </div>
             </div>
             <div class="field"><label class="fl">加工配方</label>
-              <select class="fi" :value="selectedRecipe.machiningRecipeId" @change="updateMainField('machiningRecipeId', ($event.target as HTMLSelectElement).value)">
-                <option value="">—</option>
-                <option v-for="m in machiningList" :key="m.id" :value="m.id">{{ (m as any).name || m.id }}</option>
-              </select>
+              <div class="select-wrap">
+                <select class="fi" :value="selectedRecipe.machiningRecipeId" @change="updateMainField('machiningRecipeId', ($event.target as HTMLSelectElement).value)">
+                  <option value="">—</option>
+                  <option v-for="m in machiningList" :key="m.id" :value="m.id">{{ (m as any).name || m.id }}</option>
+                </select>
+                <span class="material-symbols-outlined select-arrow">expand_more</span>
+              </div>
             </div>
             <div class="field"></div>
           </div>
@@ -310,7 +321,12 @@ onMounted(async () => {
         </div>
         <section v-if="selBlackening" class="edit-section">
           <div class="field-grid">
-            <div class="field"><label class="fl">启用</label><select class="fi" :value="selBlackening.enabled" @change="updateField(`blackeningRecipes.${selBlackening.id}.enabled`, ($event.target as HTMLSelectElement).value === 'true')"><option :value="true">是</option><option :value="false">否</option></select></div>
+            <div class="field"><label class="fl">启用</label>
+              <div class="select-wrap">
+                <select class="fi" :value="selBlackening.enabled" @change="updateField(`blackeningRecipes.${selBlackening.id}.enabled`, ($event.target as HTMLSelectElement).value === 'true')"><option :value="true">是</option><option :value="false">否</option></select>
+                <span class="material-symbols-outlined select-arrow">expand_more</span>
+              </div>
+            </div>
             <div class="field"></div>
             <div class="field"></div>
             <div class="field"><label class="fl">下降步长</label><input class="fi" type="number" step="0.01" :value="selBlackening.descentStep" @input="updateField(`blackeningRecipes.${selBlackening.id}.descentStep`, Number(($event.target as HTMLInputElement).value))" /></div>
@@ -341,22 +357,31 @@ onMounted(async () => {
         <section v-if="selMachining" class="edit-section">
           <div class="field-grid">
             <div class="field"><label class="fl">水平配方</label>
-              <select class="fi" :value="selMachining.horizontalFormulaId" @change="updateField(`machiningRecipes.${selMachining.id}.horizontalFormulaId`, ($event.target as HTMLSelectElement).value)">
-                <option value="">—</option>
-                <option v-for="h in horizontalList" :key="h.id" :value="h.id">{{ h.name || h.id }}</option>
-              </select>
+              <div class="select-wrap">
+                <select class="fi" :value="selMachining.horizontalFormulaId" @change="updateField(`machiningRecipes.${selMachining.id}.horizontalFormulaId`, ($event.target as HTMLSelectElement).value)">
+                  <option value="">—</option>
+                  <option v-for="h in horizontalList" :key="h.id" :value="h.id">{{ h.name || h.id }}</option>
+                </select>
+                <span class="material-symbols-outlined select-arrow">expand_more</span>
+              </div>
             </div>
             <div class="field"><label class="fl">垂直配方</label>
-              <select class="fi" :value="selMachining.verticalFormulaId" @change="updateField(`machiningRecipes.${selMachining.id}.verticalFormulaId`, ($event.target as HTMLSelectElement).value)">
-                <option value="">—</option>
-                <option v-for="v in verticalList" :key="v.id" :value="v.id">{{ v.name || v.id }}</option>
-              </select>
+              <div class="select-wrap">
+                <select class="fi" :value="selMachining.verticalFormulaId" @change="updateField(`machiningRecipes.${selMachining.id}.verticalFormulaId`, ($event.target as HTMLSelectElement).value)">
+                  <option value="">—</option>
+                  <option v-for="v in verticalList" :key="v.id" :value="v.id">{{ v.name || v.id }}</option>
+                </select>
+                <span class="material-symbols-outlined select-arrow">expand_more</span>
+              </div>
             </div>
             <div class="field"><label class="fl">激光配方</label>
-              <select class="fi" :value="selMachining.laserPowerRecipeId" @change="updateField(`machiningRecipes.${selMachining.id}.laserPowerRecipeId`, ($event.target as HTMLSelectElement).value)">
-                <option value="">—</option>
-                <option v-for="l in laserList" :key="l.id" :value="l.id">{{ l.name || l.id }}</option>
-              </select>
+              <div class="select-wrap">
+                <select class="fi" :value="selMachining.laserPowerRecipeId" @change="updateField(`machiningRecipes.${selMachining.id}.laserPowerRecipeId`, ($event.target as HTMLSelectElement).value)">
+                  <option value="">—</option>
+                  <option v-for="l in laserList" :key="l.id" :value="l.id">{{ l.name || l.id }}</option>
+                </select>
+                <span class="material-symbols-outlined select-arrow">expand_more</span>
+              </div>
             </div>
           </div>
         </section>
@@ -381,10 +406,13 @@ onMounted(async () => {
         <section v-if="selHorizontal" class="edit-section">
           <div class="field-grid field-grid-2col">
             <div class="field"><label class="fl">开口形状</label>
-              <select class="fi" :value="selHorizontal.openingShape" @change="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.openingShape`, ($event.target as HTMLSelectElement).value)">
-                <option value="V型">V型</option>
-                <option value="//型">//型</option>
-              </select>
+              <div class="select-wrap">
+                <select class="fi" :value="selHorizontal.openingShape" @change="updateField(`horizontalFormulaRecipes.${selHorizontal.id}.openingShape`, ($event.target as HTMLSelectElement).value)">
+                  <option value="V型">V型</option>
+                  <option value="//型">//型</option>
+                </select>
+                <span class="material-symbols-outlined select-arrow">expand_more</span>
+              </div>
             </div>
             <div class="field"></div>
             <div class="field"></div>
@@ -425,10 +453,13 @@ onMounted(async () => {
           <!-- Top row -->
           <div class="field-grid">
             <div class="field"><label class="fl">切割轴</label>
-              <select class="fi" :value="selVertical.cuttingAxis" @change="updateField(`verticalFormulaRecipes.${selVertical.id}.cuttingAxis`, ($event.target as HTMLSelectElement).value)">
-                <option value="XY">XY</option>
-                <option value="R">R</option>
-              </select>
+              <div class="select-wrap">
+                <select class="fi" :value="selVertical.cuttingAxis" @change="updateField(`verticalFormulaRecipes.${selVertical.id}.cuttingAxis`, ($event.target as HTMLSelectElement).value)">
+                  <option value="XY">XY</option>
+                  <option value="R">R</option>
+                </select>
+                <span class="material-symbols-outlined select-arrow">expand_more</span>
+              </div>
             </div>
             <div class="field"><label class="fl">变化%</label><input class="fi" type="number" :value="selVertical.changePercent" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.changePercent`, Number(($event.target as HTMLInputElement).value))" /></div>
             <div class="field"><label class="fl">X_偏移量 (mm)</label><input class="fi" type="number" step="0.001" :value="selVertical.xFeed" @input="updateField(`verticalFormulaRecipes.${selVertical.id}.xFeed`, Number(($event.target as HTMLInputElement).value))" /></div>
@@ -517,11 +548,27 @@ onMounted(async () => {
 .search-box { position: relative; margin-bottom: 6px; }
 .search-icon { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); color: var(--color-outline); font-size: 15px; }
 .search-input {
-  width: 100%; background: var(--color-surface-container-highest);
-  border: 1px solid var(--color-outline-variant); border-radius: 4px;
-  padding: 6px 8px 6px 32px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--color-on-surface);
+  width: 100%;
+  background: color-mix(in srgb, var(--color-surface-container-highest) 60%, transparent);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  border: 1px solid color-mix(in srgb, var(--color-outline-variant) 80%, transparent);
+  border-radius: 6px;
+  padding: 7px 8px 7px 32px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--color-on-surface);
+  transition: border-color 0.2s ease, box-shadow 0.25s ease, background 0.2s ease;
 }
-.search-input:focus { outline: none; border-color: var(--color-primary); }
+.search-input:hover {
+  border-color: color-mix(in srgb, var(--color-outline) 60%, transparent);
+  background: color-mix(in srgb, var(--color-surface-container-highest) 75%, transparent);
+}
+.search-input:focus {
+  outline: none; border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-surface-container-highest) 80%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--color-primary) 35%, transparent),
+    0 0 0 4px color-mix(in srgb, var(--color-primary) 12%, transparent),
+    0 0 14px 2px color-mix(in srgb, var(--color-primary) 18%, transparent);
+}
 .sidebar-actions { display: flex; gap: 3px; }
 .act-btn {
   flex: 1; display: flex; align-items: center; justify-content: center; gap: 3px;
@@ -578,7 +625,20 @@ onMounted(async () => {
 .center-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--color-outline-variant); padding-bottom: 12px; margin-bottom: 16px; }
 .ed-title { font-size: 24px; font-weight: 700; color: var(--color-on-surface); display: flex; align-items: center; gap: 8px; }
 .ed-id { font-weight: 300; color: var(--color-outline); font-size: 16px; font-family: 'JetBrains Mono', monospace; }
-.ed-title-input { font-family: 'Inter', sans-serif; font-size: 24px; font-weight: 700; background: none; border: none; border-bottom: 2px solid var(--color-primary); color: var(--color-on-surface); outline: none; width: 220px; }
+.ed-title-input {
+  font-family: 'Inter', sans-serif; font-size: 24px; font-weight: 700;
+  background: color-mix(in srgb, var(--color-surface-container-highest) 50%, transparent);
+  backdrop-filter: blur(10px) saturate(140%);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+  border: none; border-bottom: 2px solid var(--color-primary);
+  border-radius: 4px 4px 0 0; padding: 2px 6px;
+  color: var(--color-on-surface); outline: none; width: 240px;
+  transition: box-shadow 0.25s ease, background 0.2s ease;
+}
+.ed-title-input:focus {
+  background: color-mix(in srgb, var(--color-surface-container-highest) 70%, transparent);
+  box-shadow: 0 4px 14px -4px color-mix(in srgb, var(--color-primary) 35%, transparent);
+}
 .center-actions { display: flex; gap: 4px; }
 .act-sm {
   display: flex; align-items: center; justify-content: center; width: 30px; height: 30px;
@@ -617,17 +677,71 @@ onMounted(async () => {
 .field-grid-2col {
   grid-template-columns: 1fr 1fr;
 }
-.field-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 18px; }
-.field { display: flex; flex-direction: column; gap: 3px; }
-.fl { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--color-on-surface-variant); text-transform: uppercase; letter-spacing: 0.03em; }
-.fi {
-  padding: 6px 8px; background: var(--color-surface-container-highest);
-  border: 1px solid var(--color-outline-variant); border-radius: 4px;
-  font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--color-on-surface); outline: none;
+.field-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px 18px; }
+.field { display: flex; flex-direction: column; gap: 5px; }
+
+/* ---- modern glass inputs ---- */
+.fl {
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  color: var(--color-on-surface-variant); opacity: 0.85;
+  text-transform: uppercase; letter-spacing: 0.04em;
+  padding-left: 2px;
+  transition: color 0.2s ease, opacity 0.2s ease;
 }
-.fi:focus { border-color: var(--color-primary); }
+.field:focus-within .fl { color: var(--color-primary); opacity: 1; }
+
+.fi {
+  padding: 8px 12px;
+  background: color-mix(in srgb, var(--color-surface-container-highest) 60%, transparent);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  border: 1px solid color-mix(in srgb, var(--color-outline-variant) 80%, transparent);
+  border-radius: 6px;
+  font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--color-on-surface);
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.25s ease, background 0.2s ease;
+}
+.fi:hover {
+  border-color: color-mix(in srgb, var(--color-outline) 60%, transparent);
+  background: color-mix(in srgb, var(--color-surface-container-highest) 75%, transparent);
+}
+.fi:focus {
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-surface-container-highest) 80%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--color-primary) 35%, transparent),
+    0 0 0 4px color-mix(in srgb, var(--color-primary) 12%, transparent),
+    0 0 14px 2px color-mix(in srgb, var(--color-primary) 18%, transparent);
+}
+.fi::placeholder { color: var(--color-outline); opacity: 0.6; }
 .fi.mono { font-size: 11px; }
-select.fi { cursor: pointer; appearance: none; -webkit-appearance: none; }
+
+/* number inputs: hide native spinner for a cleaner modern look */
+.fi[type="number"]::-webkit-outer-spin-button,
+.fi[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.fi[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+
+/* select wrapper: provides modern chevron + matched glass chrome */
+.select-wrap { position: relative; display: flex; }
+.select-wrap > select.fi {
+  width: 100%; cursor: pointer;
+  appearance: none; -webkit-appearance: none;
+  padding-right: 32px;
+}
+.select-wrap > select.fi option {
+  background: var(--color-surface-container-high);
+  color: var(--color-on-surface);
+}
+.select-arrow {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  font-size: 16px; color: var(--color-outline);
+  pointer-events: none; display: flex; align-items: center;
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+.select-wrap:focus-within .select-arrow {
+  color: var(--color-primary);
+  transform: translateY(-50%) rotate(180deg);
+}
 .editor-empty { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: var(--color-on-surface-variant); opacity: 0.5; font-family: 'JetBrains Mono', monospace; font-size: 13px; }
 .ee-icon { font-size: 44px; }
 
@@ -663,15 +777,34 @@ select.fi { cursor: pointer; appearance: none; -webkit-appearance: none; }
 /* ---- DIALOG ---- */
 .dlg-overlay { position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; }
 .dlg-card {
-  background: var(--color-surface-container-highest); border: 1px solid var(--color-outline-variant);
-  border-radius: 8px; padding: 24px; display: flex; flex-direction: column; gap: 14px; min-width: 320px;
+  background: color-mix(in srgb, var(--color-surface-container-highest) 80%, transparent);
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  border: 1px solid color-mix(in srgb, var(--color-outline-variant) 70%, transparent);
+  border-radius: 12px; padding: 24px;
+  display: flex; flex-direction: column; gap: 14px; min-width: 320px;
+  box-shadow: 0 24px 60px -16px rgba(0,0,0,0.55), 0 0 0 1px color-mix(in srgb, var(--color-primary) 8%, transparent);
 }
 .dlg-title { font-family: 'Inter', sans-serif; font-size: 16px; font-weight: 600; color: var(--color-on-surface); }
 .dlg-input {
-  padding: 8px 12px; background: var(--color-surface); border: 1px solid var(--color-outline-variant);
-  border-radius: 4px; color: var(--color-on-surface); font-family: 'JetBrains Mono', monospace; font-size: 14px; outline: none;
+  padding: 10px 14px;
+  background: color-mix(in srgb, var(--color-surface) 55%, transparent);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  border: 1px solid color-mix(in srgb, var(--color-outline-variant) 80%, transparent);
+  border-radius: 6px; color: var(--color-on-surface);
+  font-family: 'JetBrains Mono', monospace; font-size: 14px; outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.25s ease, background 0.2s ease;
 }
-.dlg-input:focus { border-color: var(--color-primary); }
+.dlg-input:hover { border-color: color-mix(in srgb, var(--color-outline) 60%, transparent); }
+.dlg-input:focus {
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-surface) 70%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--color-primary) 35%, transparent),
+    0 0 0 4px color-mix(in srgb, var(--color-primary) 12%, transparent),
+    0 0 18px 2px color-mix(in srgb, var(--color-primary) 22%, transparent);
+}
 .dlg-btns { display: flex; gap: 8px; justify-content: flex-end; }
 .dlg-ok {
   padding: 6px 20px; background: var(--color-primary); color: var(--color-on-primary);

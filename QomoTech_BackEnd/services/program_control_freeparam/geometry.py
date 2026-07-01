@@ -2,8 +2,11 @@
 
 import math
 from typing import Any
+from utils.logger import 获取日志记录器
 from services.SystemSettingService import 获取4P旋转中心的补偿值
 from core.calc_rotation import 计算点绕坐标轴旋转
+
+日志 = 获取日志记录器("freeparamgeometry")
 
 
 def 构建配方数据(配方数据: dict[str, Any], 配方ID: str) -> dict[str, Any]:
@@ -95,6 +98,7 @@ def 更新V型开口偏移(*,上开口值: float,正切角度: float,累计下�
     """V 型开口：根据累计下降量重新计算最小/最大偏移。"""
     新扫描长度 = 上开口值 - 正切角度 * 累计下降量 * 2 * 1000
     扫描长度差值 = (上开口值 - 新扫描长度) / 2
+    日志.log("新扫描长度",新扫描长度)
     return round(扫描长度差值, 6), round(上开口值 - 扫描长度差值, 6)
 
 def 更新平行型开口偏移(*,上开口值: float,正切角度: float,累计下降量: float) -> tuple[float, float]:
@@ -130,6 +134,10 @@ def 构建执行任务的参数(数据: dict[str, Any],当前平面Z的位置, �
     R轴旋转角度 = 360 / 分割数 if 分割数 > 0 else 0.0
     U轴的旋转角度 = 90 - 角度 if 角度 > 0 else -90 - 角度
 
+    X方向进行再补偿 = 0.0
+    Y方向进行再补偿 = 0.0
+    Z方向进行再补偿 = 0.0
+
     旋转中心的位置 = 获取4P旋转中心的补偿值()
 
     半径 = 直径 / 2
@@ -144,18 +152,22 @@ def 构建执行任务的参数(数据: dict[str, Any],当前平面Z的位置, �
     角度X = 累计高度 / math.tan(math.radians(角度)) if 角度 != 90 else 0
 
     得到等分直线中点的坐标 = {"x": 圆心到等分直线的垂直距离 - 角度X , "y": 0, "z": abs(旋转中心的位置.Z)-(abs(当前平面Z的位置))}
-    # print("得到等分直线中点的坐标",得到等分直线中点的坐标)
+    # 日志.info(f"得到等分直线中点的坐标: {得到等分直线中点的坐标}")
+    print("得到等分直线中点的坐标",得到等分直线中点的坐标)
     切割中点的坐标 = 计算点绕坐标轴旋转(得到等分直线中点的坐标, U轴的旋转角度, "Y")
-    # print("切割中点的坐标",切割中点的坐标)
+    # 日志.info(f"切割中点的坐标: {切割中点的坐标}")
     中点的坐标要加上旋转中心 = {"X":切割中点的坐标.get("x")+旋转中心的位置.X, "Y":切割中点的坐标.get("y")+旋转中心的位置.Y, "Z":切割中点的坐标.get("z")+旋转中心的位置.Z}
 
     # TODO:如果要更改角度这里也需要进行更改
     切割产品的高度 = (高度+累计高度) / math.sin(math.radians(角度))  if 角度> 0 else (高度+累计高度) / math.sin(math.radians(abs(角度))) 
-    # print("切割产品的高度",切割产品的高度)
+    # 日志.info(f"切割产品的高度: {切割产品的高度}")
 
     # TODO:计算最长的那条边的长度
     缩放的圆的半径 = abs((高度/math.tan(math.radians(角度)) + 半径))
-    最长那条边的切割长度 = 缩放的圆的半径 if 缩放的圆的半径 >  弦长 else 弦长
+    # 日志.info("半径",半径)
+    # 日志.info("高度/math.tan(math.radians(角度)) ",高度/math.tan(math.radians(角度)) )
+    # 日志.info("最长那条边的切割长度",缩放的圆的半径)
+    最长那条边的切割长度 = 缩放的圆的半径 * 1.2 if 缩放的圆的半径 >  弦长 else 弦长 * 1.2
 
     return {
         "R轴旋转的分割数": 分割数,
