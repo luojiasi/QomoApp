@@ -20,6 +20,14 @@ export interface TaskRow {
   divisions: number
   /** 配方 */
   recipe: RecipeOption
+  /** X 方向补偿 (mm) */
+  compX: number
+  /** Y 方向补偿 (mm) */
+  compY: number
+  /** Z 方向补偿 (mm) */
+  compZ: number
+  /** 角度补偿 (°) */
+  compAngle: number
 }
 
 /** 任务参数表序列化格式 */

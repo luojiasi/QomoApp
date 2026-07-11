@@ -162,6 +162,10 @@ async function onSendToBackend(): Promise<void> {
       divisions: row.divisions,
       recipeId: row.recipe,
       recipe: resolveRecipeChain(row.recipe),
+      compX: row.compX,
+      compY: row.compY,
+      compZ: row.compZ,
+      compAngle: row.compAngle,
     })),
   }
 
@@ -320,8 +324,12 @@ function isRecipeInvalid(recipe: string): boolean {
                   <th class="col-no">序号</th>
                   <th class="col-num">直径 (mm)</th>
                   <th class="col-num">角度 (°)</th>
+                  <th class="col-num">角度补偿</th>
                   <th class="col-num">高度 (mm)</th>
                   <th class="col-num">分割数</th>
+                  <th class="col-num">X补偿</th>
+                  <th class="col-num">Y补偿</th>
+                  <th class="col-num">Z补偿</th>
                   <th class="col-recipe">配方</th>
                   <th class="col-act"></th>
                 </tr>
@@ -354,6 +362,14 @@ function isRecipeInvalid(recipe: string): boolean {
                     />
                   </td>
                   <td class="col-num">
+                    <input
+                      v-model.number="row.compAngle"
+                      type="number"
+                      class="fp-input numeric"
+                      step="0.01"
+                    />
+                  </td>
+                  <td class="col-num">
                     <div class="input-unit">
                       <input
                         v-model.number="row.height"
@@ -364,7 +380,6 @@ function isRecipeInvalid(recipe: string): boolean {
                         max="20"
                         :title="isHeightInvalid(row.height) ? '高度必须在 0~20 之间' : ''"
                       />
-                      <span class="unit">mm</span>
                     </div>
                   </td>
                   <td class="col-num">
@@ -374,6 +389,30 @@ function isRecipeInvalid(recipe: string): boolean {
                       class="fp-input numeric"
                       :class="{ invalid: isDivisionsInvalid(row.divisions) }"
                       :title="isDivisionsInvalid(row.divisions) ? '值必须为 0 或 3~360' : ''"
+                    />
+                  </td>
+                  <td class="col-num">
+                    <input
+                      v-model.number="row.compX"
+                      type="number"
+                      class="fp-input numeric"
+                      step="0.001"
+                    />
+                  </td>
+                  <td class="col-num">
+                    <input
+                      v-model.number="row.compY"
+                      type="number"
+                      class="fp-input numeric"
+                      step="0.001"
+                    />
+                  </td>
+                  <td class="col-num">
+                    <input
+                      v-model.number="row.compZ"
+                      type="number"
+                      class="fp-input numeric"
+                      step="0.001"
                     />
                   </td>
                   <td class="col-recipe">
@@ -452,7 +491,7 @@ function isRecipeInvalid(recipe: string): boolean {
   background: rgba(0, 0, 0, 0.6);
 }
 .freeparam-dialog {
-  width: 720px;
+  width: 920px;
   max-width: 92vw;
   max-height: 80vh;
   display: grid;

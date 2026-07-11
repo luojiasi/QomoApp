@@ -22,6 +22,10 @@ function createRow(taskNo: number): TaskRow {
     height: 0,
     divisions: 12,
     recipe: '',
+    compX: 0,
+    compY: 0,
+    compZ: 0,
+    compAngle: 0,
   }
 }
 
@@ -89,6 +93,10 @@ export function useFreeParamTask(): {
             height: r.height ?? 0,
             divisions: r.divisions ?? 12,
             recipe: r.recipe ?? '',
+            compX: r.compX ?? 0,
+            compY: r.compY ?? 0,
+            compZ: r.compZ ?? 0,
+            compAngle: r.compAngle ?? 0,
           })
         }
         return true
