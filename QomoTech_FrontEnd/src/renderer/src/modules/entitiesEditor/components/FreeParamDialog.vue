@@ -166,6 +166,7 @@ async function onSendToBackend(): Promise<void> {
       compY: row.compY,
       compZ: row.compZ,
       compAngle: row.compAngle,
+      chordRatio: row.chordRatio,
     })),
   }
 
@@ -330,6 +331,7 @@ function isRecipeInvalid(recipe: string): boolean {
                   <th class="col-num">X补偿</th>
                   <th class="col-num">Y补偿</th>
                   <th class="col-num">Z补偿</th>
+                  <th class="col-num">弦长倍率</th>
                   <th class="col-recipe">配方</th>
                   <th class="col-act"></th>
                 </tr>
@@ -415,6 +417,14 @@ function isRecipeInvalid(recipe: string): boolean {
                       step="0.001"
                     />
                   </td>
+                  <td class="col-num">
+                    <input
+                      v-model.number="row.chordRatio"
+                      type="number"
+                      class="fp-input numeric"
+                      step="0.1"
+                    />
+                  </td>
                   <td class="col-recipe">
                     <div class="select-wrap">
                       <select
@@ -491,7 +501,7 @@ function isRecipeInvalid(recipe: string): boolean {
   background: rgba(0, 0, 0, 0.6);
 }
 .freeparam-dialog {
-  width: 920px;
+  width: 1200px;
   max-width: 92vw;
   max-height: 80vh;
   display: grid;

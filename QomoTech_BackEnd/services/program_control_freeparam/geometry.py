@@ -121,6 +121,7 @@ def 构建任务的数据(行数据: dict[str, Any]) -> dict[str, Any]:
         "补偿Y": float(行数据.get("compY", 0)),
         "补偿Z": float(行数据.get("compZ", 0)),
         "补偿角度": float(行数据.get("compAngle", 0)),
+        "弦长倍率": float(行数据.get("chordRatio", 2)),
     }
 
 def 构建执行任务的参数(数据: dict[str, Any],当前平面Z的位置, 所有高度总和: float = 0.0, 累计高度: float = 0.0 ) -> dict[str, Any]:
@@ -134,6 +135,7 @@ def 构建执行任务的参数(数据: dict[str, Any],当前平面Z的位置, �
     Y方向进行再补偿 = float(数据.get("补偿Y", 0))
     Z方向进行再补偿 = float(数据.get("补偿Z", 0))
     角度补偿 = float(数据.get("补偿角度", 0))
+    弦长倍率 = float(数据.get("弦长倍率", 2))
     
     直径 = float(数据.get("直径", 0))
     分割数 = int(数据.get("分割数", 0))
@@ -174,7 +176,7 @@ def 构建执行任务的参数(数据: dict[str, Any],当前平面Z的位置, �
     # 日志.info("半径",半径)
     # 日志.info("高度/math.tan(math.radians(角度)) ",高度/math.tan(math.radians(角度)) )
     # 日志.info("最长那条边的切割长度",缩放的圆的半径)
-    最长那条边的切割长度 = 缩放的圆的半径 * 1.2 if 缩放的圆的半径 >  弦长 else 弦长 * 1.2
+    最长那条边的切割长度 = 缩放的圆的半径 * 弦长倍率 if 缩放的圆的半径 >  弦长 else 弦长 * 弦长倍率
 
     return {
         "R轴旋转的分割数": 分割数,

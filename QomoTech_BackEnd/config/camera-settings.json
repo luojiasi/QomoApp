@@ -1,6 +1,16 @@
 {
-  "auto_exposure": true,
-  "exposure_time": 1000,
-  "mirror_horizontal": true,
-  "mirror_vertical": true
+  "cameraIndex": 0,
+  "autoExposure": true,
+  "exposureTime": 1000,
+  "frameSpeedLevel": 1,
+  "frameSpeedAutoTune": true,
+  "frameSpeedTune": 1,
+  "mirrorHorizontal": true,
+  "mirrorVertical": true,
+  "autoWhiteBalance": true,
+  "whiteBalanceRGain": 21,
+  "whiteBalanceGGain": 22,
+  "whiteBalanceBGain": 16,
+  "frameTimeoutMs": 1000,
+  "frameQuality": 90
 }

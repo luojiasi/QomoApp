@@ -7,6 +7,7 @@ class ProgramFreeParamsStep(enum.IntEnum):
     U轴进行角度旋转 = 10
     判断是否到达旋转角度 =20
     移动到最开始的位置 =30
+    打开激光设备 = 31
     Z轴下降 = 40
     判断高度是否满足 =50
     切割直线 =60 

@@ -2,19 +2,11 @@
   "mainRecipes": [
     {
       "id": "main-1",
-      "name": "主配方 1",
+      "name": "121212",
       "status": "active",
-      "updatedAt": "2026-6-23 15:05:56",
+      "updatedAt": "2026-7-3 12:08:05",
       "blackeningRecipeId": "blackening-1",
       "machiningRecipeId": "machining-1"
-    },
-    {
-      "id": "main-2",
-      "name": "主配方 2",
-      "status": "draft",
-      "updatedAt": "2026-6-23 15:05:56",
-      "blackeningRecipeId": "blackening-2",
-      "machiningRecipeId": "machining-2"
     }
   ],
   "laserPowerRecipes": [
@@ -26,22 +18,13 @@
       "laserPower": 950,
       "laserFrequency": 7000,
       "laserCurrent": 85
-    },
-    {
-      "id": "laser-power-2",
-      "name": "激光功率配方 2",
-      "updatedAt": "2026-6-23 15:05:56",
-      "laserManufacturer": "默认厂家",
-      "laserPower": 950,
-      "laserFrequency": 7000,
-      "laserCurrent": 85
     }
   ],
   "blackeningRecipes": [
     {
       "id": "blackening-1",
-      "name": "扫黑工艺配方 1",
-      "updatedAt": "2026-6-23 15:05:56",
+      "name": "123123",
+      "updatedAt": "2026-7-3 12:07:59",
       "enabled": true,
       "descentStep": 0.1,
       "descentCount": 2,
@@ -53,35 +36,19 @@
         "b": 0
       },
       "laserPowerRecipeId": "laser-power-1"
-    },
-    {
-      "id": "blackening-2",
-      "name": "扫黑工艺配方 2",
-      "updatedAt": "2026-6-23 15:05:56",
-      "enabled": true,
-      "descentStep": 0.1,
-      "descentCount": 2,
-      "blackeningSpeed": 20,
-      "blackeningStep": 0.012,
-      "jiaojubuchang": 300,
-      "saoheikaikou": {
-        "k": 0,
-        "b": 0
-      },
-      "laserPowerRecipeId": "laser-power-2"
     }
   ],
   "horizontalFormulaRecipes": [
     {
-      "name": "水平工艺配方 1",
+      "name": "123123",
       "openingShape": "V型",
       "angleFormula": {
         "k": 0,
-        "b": 0.54
+        "b": 0
       },
       "lowerOpeningFormula": {
-        "k": 5,
-        "b": 35
+        "k": 50,
+        "b": 0
       },
       "depthCompensationFormula": {
         "k": 2,
@@ -94,31 +61,7 @@
       },
       "focusCompensation": 0.08,
       "id": "horizontal-formula-1",
-      "updatedAt": "2026-6-23 15:05:56"
-    },
-    {
-      "name": "水平工艺配方 2",
-      "openingShape": "V型",
-      "angleFormula": {
-        "k": 0,
-        "b": 0.54
-      },
-      "lowerOpeningFormula": {
-        "k": 5,
-        "b": 35
-      },
-      "depthCompensationFormula": {
-        "k": 2,
-        "b": 0.5
-      },
-      "upperOpeningFormula": "由系统自动计算",
-      "compensationAngleFormula": {
-        "k": 0,
-        "b": 0
-      },
-      "focusCompensation": 0.08,
-      "id": "horizontal-formula-2",
-      "updatedAt": "2026-6-23 15:05:56"
+      "updatedAt": "2026-7-3 14:58:08"
     }
   ],
   "verticalFormulaRecipes": [
@@ -129,11 +72,11 @@
       "xSpeed": 20,
       "edgeCutting": {
         "speed": 50,
-        "cutTimes": 2,
-        "cutSpeedNums": 5,
+        "cutTimes": 1,
+        "cutSpeedNums": 1,
         "change": {
-          "k": 1,
-          "b": 5
+          "k": 0,
+          "b": 0
         }
       },
       "middleCutting": {
@@ -153,60 +96,18 @@
         }
       },
       "id": "vertical-formula-1",
-      "name": "垂直工艺配方 1",
-      "updatedAt": "2026-6-23 15:05:56"
-    },
-    {
-      "cuttingAxis": "XY",
-      "changePercent": 10,
-      "xFeed": 0.01,
-      "xSpeed": 20,
-      "edgeCutting": {
-        "speed": 50,
-        "cutTimes": 2,
-        "cutSpeedNums": 5,
-        "change": {
-          "k": 1,
-          "b": 5
-        }
-      },
-      "middleCutting": {
-        "speed": 100,
-        "cutTimes": 1,
-        "change": {
-          "k": 0,
-          "b": 50
-        }
-      },
-      "descentCutting": {
-        "speed": 0.075,
-        "zFeed": 0.002,
-        "change": {
-          "k": 10,
-          "b": 0.075
-        }
-      },
-      "id": "vertical-formula-2",
-      "name": "垂直工艺配方 2",
-      "updatedAt": "2026-6-23 15:05:56"
+      "name": "123123",
+      "updatedAt": "2026-7-3 12:07:28"
     }
   ],
   "machiningRecipes": [
     {
       "id": "machining-1",
-      "name": "加工工艺配方 1",
-      "updatedAt": "2026-6-23 15:05:56",
+      "name": "123123",
+      "updatedAt": "2026-7-3 12:07:53",
       "horizontalFormulaId": "horizontal-formula-1",
       "verticalFormulaId": "vertical-formula-1",
       "laserPowerRecipeId": "laser-power-1"
-    },
-    {
-      "id": "machining-2",
-      "name": "加工工艺配方 2",
-      "updatedAt": "2026-6-23 15:05:56",
-      "horizontalFormulaId": "horizontal-formula-2",
-      "verticalFormulaId": "vertical-formula-2",
-      "laserPowerRecipeId": "laser-power-2"
     }
   ],
   "selectedMainRecipeId": "main-1"

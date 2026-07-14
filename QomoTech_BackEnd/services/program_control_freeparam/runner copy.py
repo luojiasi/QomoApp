@@ -1,5 +1,4 @@
 import math
-from pickle import FLOAT
 from typing import Any
 import asyncio
 
@@ -284,8 +283,6 @@ class ProgramRunnerFreeParam:
         准备开始切割下一次的第一次 = False
         适当延长 = 1
 
-        是否完全旋转完毕 = False
-
 
 
         while 当前步骤< ProgramFreeParamsStep.结束当前任务:
@@ -330,15 +327,11 @@ class ProgramRunnerFreeParam:
 
                         等到轴停止结果 =  await self._运动.等待轴到位(轴名与位置=[("X",起点X),("Y",起点Y),("Z",起点Z)],容差=0.01)
                         if 等到轴停止结果:
-                            当前步骤 = ProgramFreeParamsStep.打开激光设备
+                            当前步骤 = ProgramFreeParamsStep.Z轴下降
                         else:
                             当前步骤 = ProgramFreeParamsStep.清理所有状态
                     except Exception:
                         当前步骤 = ProgramFreeParamsStep.清理所有状态
-
-                case ProgramFreeParamsStep.打开激光设备:
-                    await self._自由编辑参数的运动.开启激光()
-                    当前步骤 = ProgramFreeParamsStep.Z轴下降
 
                 case ProgramFreeParamsStep.Z轴下降:
                     # TODO:还有什么东西要去做
@@ -351,7 +344,7 @@ class ProgramRunnerFreeParam:
                         当前步骤 = ProgramFreeParamsStep.清理所有状态
 
                 case ProgramFreeParamsStep.判断高度是否满足:
-                    if 累计下降量 <= 产品的高度 or not 是否完全旋转完毕:
+                    if 累计下降量 <= 产品的高度:
                         if 执行任务的参数.get("是否启用R轴旋转"):
                             当前步骤 = ProgramFreeParamsStep.切割R轴
                             await self._自由编辑参数的运动.开启激光()
@@ -378,8 +371,8 @@ class ProgramRunnerFreeParam:
                 case ProgramFreeParamsStep.切割直线:
 
                     构建切割直线的坐标X = 执行任务的参数.get("切割中点的坐标").get("X") + 当前开口值
-                    构建切割直线的坐标Y起点 = float(执行任务的参数.get("切割中点的坐标").get("Y") + float((执行任务的参数.get("最长的那条边的切割长度")/2)*适当延长))
-                    构建切割直线的坐标Y终点 = float(执行任务的参数.get("切割中点的坐标").get("Y") - float((执行任务的参数.get("最长的那条边的切割长度")/2)*适当延长))
+                    构建切割直线的坐标Y起点 = float(执行任务的参数.get("切割中点的坐标").get("Y") + (执行任务的参数.get("最长的那条边的切割长度")/2))
+                    构建切割直线的坐标Y终点 = float(执行任务的参数.get("切割中点的坐标").get("Y") - (执行任务的参数.get("最长的那条边的切割长度")/2))
                     插补运行的路径点 = [{"x": 构建切割直线的坐标X, "y": 构建切割直线的坐标Y起点}, {"x": 构建切割直线的坐标X, "y": 构建切割直线的坐标Y终点}]
 
                     当前速度百分比 = 边缘切割速度百分比 if 是否在边缘位置 else 中间切割速度百分比
@@ -437,13 +430,33 @@ class ProgramRunnerFreeParam:
                         if 当前开口值是否在范围内 or (是否在边缘位置 and 准备开始切割下一次的第一次 and not 切割完成之后去跳转):
                             当前步骤 = ProgramFreeParamsStep.切割直线
                         else:
-                            当前步骤 = ProgramFreeParamsStep.计算下一层开口
+                            当前步骤 = ProgramFreeParamsStep.旋转时关闭激光
                     else:
                         if 当前开口值是否在范围内  or (是否在边缘位置 and 准备开始切割下一次的第一次 and 切割完成之后去跳转):
                             当前步骤 = ProgramFreeParamsStep.切割R轴
                         else:
                             准备开始切割下一次的第一次 = False
                             当前步骤 = ProgramFreeParamsStep.计算下一层开口
+
+                case ProgramFreeParamsStep.旋转时关闭激光:
+
+                    await self._自由编辑参数的运动.关闭激光()
+                    当前步骤 = ProgramFreeParamsStep.判断R轴是否转动一圈
+
+                case ProgramFreeParamsStep.判断R轴是否转动一圈:
+                    if 当前R轴旋转分割数 > (旋转任务的的分割数-1):
+                        当前R轴旋转分割数 = 1
+                        当前步骤 = ProgramFreeParamsStep.计算下一层开口
+                    else:
+                        当前R轴旋转分割数 += 1
+                        准备开始切割下一次的第一次 = False
+                        R轴旋转圈数 = float(1 / 旋转任务的的分割数) 
+                        await self._运动.R轴旋转的圈数(R轴旋转圈数)
+                        当前步骤 = ProgramFreeParamsStep.切割直线
+
+                    await self._自由编辑参数的运动.开启激光()
+
+
 
                 case ProgramFreeParamsStep.计算下一层开口:
                     进度百分比 = (累计下降量 / 产品的高度 * 100)
@@ -461,90 +474,20 @@ class ProgramRunnerFreeParam:
 
 
 
-                    总进度百分比 = float(进度百分比/旋转任务的的分割数 +  当前R轴旋转分割数 / 旋转任务的的分割数)
-                    self.更新进度(current_task_jindubaifenbi=总进度百分比)
-                    print("总进度百分比",总进度百分比)
-                    准备开始切割下一次的第一次 = False
+                    self.更新进度(current_task_jindubaifenbi=进度百分比)
+                    print("进度百分比",进度百分比)
 
 
                     # 当前大区间索引 = int(进度百分比 // 垂直的变化百分比) if 垂直的变化百分比 > 0 else 0
                     # 段内进度 = (进度百分比 % 垂直的变化百分比) // (垂直的变化百分比 // 垂直的每次下降步长量减少量) if 垂直的变化百分比 > 0 and 垂直的每次下降步长量减少量 > 0 else 0
                     # 垂直的每次下降步长量 = min(1.1, max(0.3, round((原始垂直的每次下降步长量 + 垂直的每次下降步长量减少量 / 100 * (当前大区间索引 % (垂直的每次下降步长量减少量 + 1))), 4)))
                     # 垂直的每次下降步长量 = min(1.0, max(0.3, round((原始垂直的每次下降步长量 + 垂直的每次下降步长量减少量 / 100 * 段内进度 + 垂直的每次下降步长量减少量 / 100 * 当前大区间索引), 4)))
-                    print("进度百分比",进度百分比<100)
-                    if 进度百分比 < 100:
-                        if 执行任务的参数.get("是否启用R轴旋转"):
-                            当前步骤 = ProgramFreeParamsStep.Z轴下降
-                            是否完全旋转完毕 = True
-                        else:
-                            当前步骤 = ProgramFreeParamsStep.Z轴下降
-                    else:
-                        当前步骤 = ProgramFreeParamsStep.旋转时关闭激光
 
 
-                case ProgramFreeParamsStep.旋转时关闭激光:
-
-                    await self._自由编辑参数的运动.关闭激光()
-                    当前步骤 = ProgramFreeParamsStep.判断R轴是否转动一圈
-
-                case ProgramFreeParamsStep.判断R轴是否转动一圈:
-                    if 当前R轴旋转分割数 > (旋转任务的的分割数-1):
-                        是否完全旋转完毕 = True
-                        当前R轴旋转分割数 = 1
-                        当前步骤 = ProgramFreeParamsStep.清理所有状态
-                    else:
-                        当前R轴旋转分割数 += 1
-                        准备开始切割下一次的第一次 = False
-                        R轴旋转圈数 = float(1 / 旋转任务的的分割数)
-                        await self._运动.R轴旋转的圈数(R轴旋转圈数)
+                    当前步骤 = ProgramFreeParamsStep.Z轴下降
 
 
 
-                        # 这里目的是将所有的值回到最初的位置
-                        当前开口值 = 0
-                        X轴的偏移量 = float(任务选择的垂直配方参数.get("xFeed",0))
-                        插补的运行速度 = float(任务选择的垂直配方参数.get("xSpeed",0))
-                        切割轴 = str(任务选择的垂直配方参数.get("cuttingAxis", ""))
-
-                        垂直的变化百分比 = float(任务选择的垂直配方参数.get("changePercent",10))
-                        垂直的每次下降步长量 = float(任务选择的垂直配方参数.get("descentCutting",{}).get("speed",0.075))
-                        垂直的每次下降步长量减少量 = float(任务选择的垂直配方参数.get("descentCutting",{}).get("zFeed",0))
-
-                        当前切割次数 = 0
-                        是否在边缘位置 = True
-                        垂直的边缘切割速度百分比 = float(任务选择的垂直配方参数.get("edgeCutting",{}).get("speed",50))
-                        边缘切割速度百分比 = 垂直的边缘切割速度百分比/100
-                        垂直的边缘切割次数 = float(任务选择的垂直配方参数.get("edgeCutting",{}).get("cutTimes",1))
-                        垂直的边缘切割速量 = float(任务选择的垂直配方参数.get("edgeCutting",{}).get("cutSpeedNums",1))
-                        垂直的边缘切割变化率K = float(任务选择的垂直配方参数.get("edgeCutting",{}).get("change",{}).get("k",0))
-                        垂直的边缘切割变化率B = float(任务选择的垂直配方参数.get("edgeCutting",{}).get("change",{}).get("b",0))
-
-                        垂直的中间切割速度百分比 = float(任务选择的垂直配方参数.get("middleCutting",{}).get("speed",100))
-                        中间切割速度百分比 = 垂直的中间切割速度百分比/100
-                        垂直的中间切割次数 = float(任务选择的垂直配方参数.get("middleCutting",{}).get("cutTimes",1))
-                        垂直的中间切割变化率K = float(任务选择的垂直配方参数.get("middleCutting",{}).get("change",{}).get("k",0))
-                        垂直的中间切割变化率B = float(任务选择的垂直配方参数.get("middleCutting",{}).get("change",{}).get("b",0))
-
-                        累计下降量 = 0 
-                        产品的高度 = float(执行任务的参数.get("切割产品的高度"))
-                        上层量 = 0
-
-                        角度 = 水平的角度K* 产品的高度 + 水平的角度B
-                        tana = math.tan(math.radians(角度))
-
-                        下开口值, 上开口值 = 计算开口范围(高度=产品的高度, 下开口K=水平的下开口K, 下开口B=水平的下开口B,深度补偿K=水平的深度补偿K, 深度补偿B=水平的深度补偿B, 正切角度=tana)
-                        最小的偏移 = 0
-                        最大的偏移 = 上开口值
-                        是否是从小到大的开口偏移 = True
-                        当前一层是否切割完整 = False
-
-                        旋转任务的的分割数 = 执行任务的参数.get("R轴旋转的分割数")
-                        准备开始切割下一次的第一次 = False
-                        适当延长 = 1
-
-                        当前步骤 = ProgramFreeParamsStep.移动到最开始的位置
-
-                    await self._自由编辑参数的运动.开启激光()
                 case ProgramFreeParamsStep.清理所有状态:
                     self._是否跳过请求 = False
                     await self._自由编辑参数的运动.关闭吹风()

@@ -1,7 +1,7 @@
 {
   "manufacturer": "KMJGQ_XYT",
-  "port": "COM4",
-  "power": "930",
-  "frequency": "6000",
-  "current": "80"
+  "port": "COM11",
+  "power": "730",
+  "frequency": "8000",
+  "current": "82"
 }

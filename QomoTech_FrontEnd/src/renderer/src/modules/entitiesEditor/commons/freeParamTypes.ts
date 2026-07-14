@@ -28,6 +28,8 @@ export interface TaskRow {
   compZ: number
   /** 角度补偿 (°) */
   compAngle: number
+  /** 弦长倍率 */
+  chordRatio: number
 }
 
 /** 任务参数表序列化格式 */
