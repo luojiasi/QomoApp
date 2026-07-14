@@ -123,6 +123,16 @@ def 构建任务的数据(行数据: dict[str, Any]) -> dict[str, Any]:
         "补偿角度": float(行数据.get("compAngle", 0)),
         "弦长倍率": float(行数据.get("chordRatio", 2)),
     }
+def 构建R轴的补偿(行数据: dict[str, Any]) -> dict[str, Any]:
+    """构建R轴的补偿。
+
+    从行数据中提取 R 轴补偿参数：多少圈进行一次补偿 + 每次补偿值。
+    对应前端工具栏"每旋转 N 圈补偿 M mm"的全局配置，payload 中每行附带 rInterval / rCompensation。
+    """
+    return {
+        "多少圈进行一次补偿": float(行数据.get("rInterval", 0)),
+        "补偿值": float(行数据.get("rCompensation", 0)),
+    }
 
 def 构建执行任务的参数(数据: dict[str, Any],当前平面Z的位置, 所有高度总和: float = 0.0, 累计高度: float = 0.0 ) -> dict[str, Any]:
     """将前端解析的行数据转换为执行任务的参数。

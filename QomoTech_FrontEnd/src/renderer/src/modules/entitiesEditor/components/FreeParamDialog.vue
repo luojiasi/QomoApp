@@ -28,6 +28,8 @@ const fileInputRef = ref<HTMLInputElement | null>(null)
 const sendConfirming = ref(false)
 const riskConfirmed = ref(false)
 const riskShake = ref(false)
+const rRotationInterval = ref(0)
+const rCompensationValue = ref(0)
 
 const activeMainRecipes = computed(() =>
   recipeStore.recipeState.mainRecipes.filter((recipe) => recipe.status === 'active')
@@ -167,6 +169,8 @@ async function onSendToBackend(): Promise<void> {
       compZ: row.compZ,
       compAngle: row.compAngle,
       chordRatio: row.chordRatio,
+      rInterval: rRotationInterval.value,
+      rCompensation: rCompensationValue.value,
     })),
   }
 
@@ -314,8 +318,28 @@ function isRecipeInvalid(recipe: string): boolean {
 
         <div class="fp-body">
           <div class="fp-toolbar">
-            <button class="fp-btn-sm import" @click="onImportClick">导入</button>
-            <button class="fp-btn-sm add" @click="addRow">+ 添加任务</button>
+            <div class="fp-toolbar-left">
+              <button class="fp-btn-sm import" @click="onImportClick">导入</button>
+              <button class="fp-btn-sm add" @click="addRow">+ 添加任务</button>
+            </div>
+            <div class="fp-toolbar-right">
+              <span class="fp-toolbar-label">每旋转</span>
+              <input
+                v-model.number="rRotationInterval"
+                type="number"
+                class="fp-input-sm"
+                step="1"
+                min="0"
+              />
+              <span class="fp-toolbar-label">圈补偿</span>
+              <input
+                v-model.number="rCompensationValue"
+                type="number"
+                class="fp-input-sm"
+                step="0.001"
+              />
+              <span class="fp-toolbar-label fp-toolbar-unit">mm</span>
+            </div>
           </div>
 
           <div class="fp-table-wrap">
@@ -554,8 +578,61 @@ function isRecipeInvalid(recipe: string): boolean {
 /* ── toolbar ── */
 .fp-toolbar {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   flex-shrink: 0;
+}
+.fp-toolbar-left {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.fp-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  border: 1px solid #27272a;
+  border-radius: 6px;
+  background: #09090b;
+}
+.fp-toolbar-label {
+  font-size: 11px;
+  color: #52525b;
+  user-select: none;
+}
+.fp-toolbar-unit {
+  margin-left: 2px;
+  color: #3b82f6;
+  font-weight: 500;
+}
+.fp-input-sm {
+  width: 56px;
+  padding: 3px 6px;
+  font-size: 12px;
+  font-family: inherit;
+  color: #d4d4d8;
+  background: #18181b;
+  border: 1px solid #27272a;
+  border-radius: 4px;
+  outline: none;
+  text-align: center;
+  transition: border-color 0.15s;
+}
+.fp-input-sm:focus {
+  border-color: #3b82f6;
+}
+.fp-input-sm::-webkit-outer-spin-button,
+.fp-input-sm::-webkit-inner-spin-button {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+}
+.fp-input-sm {
+  appearance: textfield;
+  -moz-appearance: textfield;
+  -webkit-appearance: textfield;
 }
 .fp-btn-sm {
   padding: 4px 12px;
