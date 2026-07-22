@@ -844,6 +844,55 @@ class MotionService:
         日志.info(f"R轴旋转圈数={旋转圈数} → 已到达 {目标圈数:.2f}")
         return {"success": True, "message": f"R轴已旋转到 {目标圈数:.2f} 圈"}
 
+    async def R轴旋转圈数是否到达指定圈数(self, 旋转圈数: float, 超时秒: float = 60.0) -> bool:
+        """启动 R 轴持续旋转，轮询直到转够指定圈数或超时。
+
+        - 旋转圈数 >= 目标时返回 True
+        - 急停 / 超时返回 False
+        - 暂停期间继续等待
+        """
+        self._保证已启动()
+        adapter = self._断言adapter()
+        try:
+            self._断言safety().准入_运动指令(self._状态机.当前)
+        except SafetyViolation:
+            return False
+
+        # 记录起始圈数，计算目标
+        起始圈数 = await adapter.获取R轴的当前位置()
+        目标圈数 = 起始圈数 + float(旋转圈数)
+
+        # 启动持续旋转
+        self._状态机.触发(状态事件.MOVE_START)
+        try:
+            启动结果 = await adapter.R轴一直进行旋转()
+        except Exception:
+            self._状态机.触发(状态事件.STOP, 强制=True)
+            return False
+        if not 启动结果.get("success"):
+            self._状态机.触发(状态事件.STOP, 强制=True)
+            return False
+
+        # 轮询等待到达目标圈数
+        截止 = asyncio.get_event_loop().time() + 超时秒
+        while True:
+            当前状态 = self._状态机.当前
+            if 当前状态 == 运动状态.ESTOP:
+                日志.warning("急停，R轴旋转圈数检查中断")
+                return False
+            if 当前状态 == 运动状态.PAUSED:
+                await asyncio.sleep(0.05)
+                continue
+            当前圈数 = await adapter.获取R轴的当前位置()
+            if 当前圈数 >= (目标圈数 - 0.001):
+                日志.info(f"R轴已到达目标圈数 {目标圈数:.2f}（当前={当前圈数:.2f}，起始={起始圈数:.2f}）")
+                await self._刷新快照()
+                return True
+            if asyncio.get_event_loop().time() >= 截止:
+                日志.error(f"R轴旋转超时（目标={目标圈数:.2f}，当前={当前圈数:.2f}）")
+                return False
+            await asyncio.sleep(0.02)
+
     async def R轴旋转的圈数带参数(self, 旋转参数: Dict[str, Any]) -> Dict[str, Any]:
         self._保证已启动()
         adapter = self._断言adapter()

@@ -3,7 +3,7 @@ import ControlPanelBase from '../components/ControlPanelBase.vue'
 import TabBar from '@/shared/components/TabBar.vue'
 import AxisCenterCalibPanel from '../components/AxisCenterCalibPanel.vue'
 import QuickFocusPanel from '../components/QuickFocusPanel.vue'
-import QuickDotPanel from '../components/QuickDotPanel.vue'
+import ThreePointsToFindCirclePoint from '../components/ThreePointsToFindCirclePoint.vue'
 import QuickConcentricPanel from '../components/QuickConcentricPanel.vue'
 import UserCustomPanel from '../components/UserCustomPanel.vue'
 import QuickMoveToPositionPanel from '../components/QuickMoveToPositionPanel.vue'
@@ -29,7 +29,7 @@ const { isPanelExpanded, activeTab, tabs } = useAuxiliaryPanelLogic()
       >
         <AxisCenterCalibPanel v-if="activeTab === 'axisCenterCalib'" />
         <QuickFocusPanel v-if="activeTab === 'quickFocus'" />
-        <QuickDotPanel v-if="activeTab === 'quickDot'" />
+        <ThreePointsToFindCirclePoint v-if="activeTab === 'threePointsToFindCirclePoint'" />
         <QuickConcentricPanel v-if="activeTab === 'quickConcentric'" />
         <UserCustomPanel v-if="activeTab === 'userCustom'" />
         <QuickMoveToPositionPanel v-if="activeTab === 'quickMoveToPosition'" />

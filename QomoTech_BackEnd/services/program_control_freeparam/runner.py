@@ -138,6 +138,7 @@ class ProgramRunnerFreeParam:
     async def 执行自由编辑参数(self, *, 配方数据: dict[str, Any], 实体数据: list[dict[str, Any]]) -> dict[str, Any]:
         if self._执行锁.locked():return {"success": False, "message": "程序正在执行中（重复触发被拒绝）"}
         if not self._运动.适配器 or not self._运动.适配器.已连接:return {"success": False, "message": "motion 控制器未连接"}
+        
         async with self._执行锁:
             async with self._控制锁:
                 self._是否运行中 = True
@@ -152,6 +153,7 @@ class ProgramRunnerFreeParam:
                 # 循环前获取当前 XYZ 轴位置
                 当前X, 当前Y = await self._运动.取_xy_实际位置()
                 当前Z = await self._运动.取_z_实际位置()
+                # 当前Z = 0.0
 
                 for 序号, 行数据 in enumerate(实体数据):
                     当前序号 = 序号 + 1
@@ -162,6 +164,7 @@ class ProgramRunnerFreeParam:
                     # 当前平面的Z轴位置：往上逐个累加前面任务的高度
                     累计高度 = sum(float(实体数据[k].get("height", 0)) for k in range(序号))
                     所有高度总和 = sum(float(实体数据[k].get("height", 0)) for k in range(len(实体数据)))
+                    
                     执行任务的参数 = 构建执行任务的参数(该序号的参数,当前Z, 所有高度总和, 累计高度)
                     self.更新进度(current_task_index=当前序号, current_task_jindubaifenbi=0)
                     try:
@@ -269,8 +272,6 @@ class ProgramRunnerFreeParam:
         产品的高度 = float(执行任务的参数.get("切割产品的高度"))
         上层量 = 0
         
-
-        
         角度 = 水平的角度K* 产品的高度 + 水平的角度B
         tana = math.tan(math.radians(角度))
 
@@ -278,15 +279,14 @@ class ProgramRunnerFreeParam:
         最小的偏移 = 0
         最大的偏移 = 上开口值
         是否是从小到大的开口偏移 = True
-        当前一层是否切割完整 = False
+        R轴是否进行持续旋转打开 = False
 
         旋转任务的的分割数 = 执行任务的参数.get("R轴旋转的分割数")
         当前R轴旋转分割数 = 1 
         准备开始切割下一次的第一次 = False
-        适当延长 = 1
 
-        多少圈进行补偿值 = 该序号R轴的补偿.get("多少圈进行一次补偿")
-        补偿值 = 该序号R轴的补偿.get("补偿值")
+        多少圈进行补偿值 = float(该序号R轴的补偿.get("多少圈进行一次补偿", 0))
+        补偿值 = float(该序号R轴的补偿.get("补偿值", 0))
 
         是否完全旋转完毕 = False
 
@@ -326,18 +326,18 @@ class ProgramRunnerFreeParam:
                     起点Y = 执行任务的参数.get("切割中点的坐标").get("Y")
                     起点Z = 执行任务的参数.get("切割中点的坐标").get("Z")
                     try:
-                        await self._运动.绝对运动("X", 起点X)
-                        await self._运动.绝对运动("Y", 起点Y)
                         await self._运动.绝对运动("Z", 起点Z)
-                        
-                        等到轴停止结果 =  await self._运动.等待轴到位(轴名与位置=[("X",起点X),("Y",起点Y),("Z",起点Z)],容差=0.01)
-                        if 等到轴停止结果:
+
+                        插补运行的路径点 = [{"x": 起点X, "y": 起点Y}]
+                        切割直线的结果 = await self._运动.连续插补XY(路径点=插补运行的路径点,速度=20)
+                        asyncio.sleep(0.1)
+
+                        等待X轴静止结果 = await self._运动.等待静止("X")
+                        等待Y轴静止结果 = await self._运动.等待静止("Y")
+                        if 等待X轴静止结果 and 等待Y轴静止结果:
                             当前步骤 = ProgramFreeParamsStep.打开激光设备
-                        else:
-                            日志.log("移动到最开始的位置等到轴停止结果")
-                            当前步骤 = ProgramFreeParamsStep.清理所有状态
                     except Exception:
-                        日志.log("移动到最开始的位置失败")
+                        日志.info("移动到最开始的位置失败")
                         当前步骤 = ProgramFreeParamsStep.清理所有状态
 
                 case ProgramFreeParamsStep.打开激光设备:
@@ -349,44 +349,50 @@ class ProgramRunnerFreeParam:
                     目标Z轴的位置 = -累计下降量 + 执行任务的参数.get("切割中点的坐标").get("Z")
                     await self._运动.绝对运动("Z", 目标Z轴的位置)
                     等到轴停止结果 =  await self._运动.等待轴到位(轴名与位置=[("Z",目标Z轴的位置)],容差=0.01)
+                    asyncio.sleep(0.1)
                     if 等到轴停止结果:
                         当前步骤 = ProgramFreeParamsStep.判断高度是否满足
                     else:
-                        日志.log("Z轴下降等到轴停止结果")
+                        日志.info("Z轴下降等到轴停止结果")
                         当前步骤 = ProgramFreeParamsStep.清理所有状态
 
                 case ProgramFreeParamsStep.判断高度是否满足:
                     if 累计下降量 <= 产品的高度 or not 是否完全旋转完毕:
                         if 执行任务的参数.get("是否启用R轴旋转"):
+                            日志.info("判断高度切割R轴")
+                            if not R轴是否进行持续旋转打开:
+                                await self._运动.R轴一直进行旋转
+                                R轴是否进行持续旋转打开 = True
                             当前步骤 = ProgramFreeParamsStep.切割R轴
                             await self._自由编辑参数的运动.开启激光()
                         else:   
+                            日志.info("判断高度切割直线")
                             当前步骤 = ProgramFreeParamsStep.切割直线
                     else:
-                        日志.log("判断高度是否满足")
+                        日志.info("判断高度是否满足")
                         当前步骤 = ProgramFreeParamsStep.清理所有状态
 
                 case ProgramFreeParamsStep.切割R轴:
-                    
+
                     构建切割直线的坐标X = 执行任务的参数.get("切割中点的坐标").get("X") + 当前开口值
                     构建切割直线的坐标Y起点 = float(执行任务的参数.get("切割中点的坐标").get("Y"))
                     插补运行的路径点= [{"x": 构建切割直线的坐标X, "y": 构建切割直线的坐标Y起点}]
                     当前速度百分比 = 边缘切割速度百分比 if 是否在边缘位置 else 中间切割速度百分比
                     目标运行速度 = 插补的运行速度 * 当前速度百分比
                     切割直线的结果 = await self._运动.连续插补XY(路径点=插补运行的路径点,速度=目标运行速度)
-                    
+
                     if 切割直线的结果:
                         当前步骤 = ProgramFreeParamsStep.等待R轴旋转一圈
-                        
+
                     else:
-                        日志.log("切割R轴切割直线的结果")
+                        日志.info("切割R轴切割直线的结果")
                         当前步骤 = ProgramFreeParamsStep.清理所有状态
-                
+
                 case ProgramFreeParamsStep.切割直线:
 
                     构建切割直线的坐标X = 执行任务的参数.get("切割中点的坐标").get("X") + 当前开口值
-                    构建切割直线的坐标Y起点 = float(执行任务的参数.get("切割中点的坐标").get("Y") + float((执行任务的参数.get("最长的那条边的切割长度")/2)*适当延长))
-                    构建切割直线的坐标Y终点 = float(执行任务的参数.get("切割中点的坐标").get("Y") - float((执行任务的参数.get("最长的那条边的切割长度")/2)*适当延长))
+                    构建切割直线的坐标Y起点 = float(执行任务的参数.get("切割中点的坐标").get("Y") + float((执行任务的参数.get("最长的那条边的切割长度")/2)))
+                    构建切割直线的坐标Y终点 = float(执行任务的参数.get("切割中点的坐标").get("Y") - float((执行任务的参数.get("最长的那条边的切割长度")/2)))
                     插补运行的路径点 = [{"x": 构建切割直线的坐标X, "y": 构建切割直线的坐标Y起点}, {"x": 构建切割直线的坐标X, "y": 构建切割直线的坐标Y终点}]
 
                     当前速度百分比 = 边缘切割速度百分比 if 是否在边缘位置 else 中间切割速度百分比
@@ -397,13 +403,13 @@ class ProgramRunnerFreeParam:
                     if 切割直线的结果:
                         当前步骤 = ProgramFreeParamsStep.等待X轴和Y轴插补结束
                     else:
-                        日志.log("切割直线切割直线的结果")
+                        日志.info("切割直线切割直线的结果")
                         当前步骤 = ProgramFreeParamsStep.清理所有状态
 
                 case ProgramFreeParamsStep.等待R轴旋转一圈:
-                    await self._运动.R轴旋转的圈数(2.0)
-                    当前步骤 = ProgramFreeParamsStep.更新开口偏移值
-
+                    旋转结果 = await self._运动.R轴旋转圈数是否到达指定圈数(2.0)
+                    if 旋转结果:
+                        当前步骤 = ProgramFreeParamsStep.更新开口偏移值
 
                 case ProgramFreeParamsStep.等待X轴和Y轴插补结束:
                     try:
@@ -411,11 +417,10 @@ class ProgramRunnerFreeParam:
                         等待Y轴静止结果 = await self._运动.等待静止("Y")
                         if 等待X轴静止结果 and 等待Y轴静止结果:
                             当前步骤 = ProgramFreeParamsStep.更新开口偏移值
-                            
                         else:
                             当前步骤 = ProgramFreeParamsStep.清理所有状态
                     except Exception:
-                        日志.log("等待X轴和Y轴插补结束失败")
+                        日志.info("等待X轴和Y轴插补结束失败")
                         当前步骤 = ProgramFreeParamsStep.清理所有状态
 
 
@@ -448,7 +453,7 @@ class ProgramRunnerFreeParam:
                         else:
                             当前步骤 = ProgramFreeParamsStep.计算下一层开口
                     else:
-                        if 当前开口值是否在范围内  or (是否在边缘位置 and 准备开始切割下一次的第一次 and 切割完成之后去跳转):
+                        if 当前开口值是否在范围内  or (是否在边缘位置 and 准备开始切割下一次的第一次 and not 切割完成之后去跳转):
                             当前步骤 = ProgramFreeParamsStep.切割R轴
                         else:
                             准备开始切割下一次的第一次 = False
@@ -507,7 +512,7 @@ class ProgramRunnerFreeParam:
                         R轴旋转圈数 = float(1 / 旋转任务的的分割数)
                         await self._运动.R轴旋转的圈数(R轴旋转圈数)
 
-                        if 多少圈进行补偿值 > 0 and 当前R轴旋转分割数 % 多少圈进行补偿值 == 0:
+                        if 多少圈进行补偿值 > 0 and 当前R轴旋转分割数 % int(多少圈进行补偿值) == 0:
                             await self._运动.相对运动("R",补偿值)
 
 

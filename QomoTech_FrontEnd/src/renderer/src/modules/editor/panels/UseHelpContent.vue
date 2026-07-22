@@ -1,9 +1,37 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import CollapsiblePanelHeader from '@/shared/components/CollapsiblePanelHeader.vue'
+import { useNotification } from '@/shared/composables/useNotification'
 
 const isExpanded = ref(true)
 
+const { success, error } = useNotification()
+
+// ──── 视频流程引导数据 ────
+interface VideoGuideItem {
+  id: string
+  title: string
+  fileName: string
+}
+
+const videoGuides: VideoGuideItem[] = [
+  { id: 'startup', title: '开机流程', fileName: 'resources/videos/开机流程.mp4' },
+  { id: 'init', title: '初始化流程', fileName: 'resources/videos/初始化流程.mp4' },
+  { id: 'precheck', title: '切割前参数检查流程', fileName: 'resources/videos/切割前参数检查流程.mp4' },
+  { id: 'focus', title: '对焦流程', fileName: 'resources/videos/对焦流程.mp4' },
+  { id: 'diamond', title: '切割金刚石放置流程', fileName: 'resources/videos/切割金刚石放置流程.mp4' },
+]
+
+async function handlePlayVideo(item: VideoGuideItem): Promise<void> {
+  const res = await window.api.openDocument(item.fileName)
+  if (res.ok) {
+    success('正在播放', item.title)
+  } else {
+    error('打开失败', res.error)
+  }
+}
+
+// ──── 快捷键数据 ────
 interface ShortcutEntry {
   label: string
   keys: string[]
@@ -102,6 +130,30 @@ const groups: ShortcutGroup[] = [
                 {{ key }}
               </kbd>
             </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 视频流程引导 -->
+      <div class="rounded-xl border border-(--app-border) bg-(--app-card-soft) p-3">
+        <p class="mb-2 text-xs font-semibold text-(--app-text-primary)">视频流程</p>
+        <div class="space-y-1.5">
+          <div
+            v-for="item in videoGuides"
+            :key="item.id"
+            class="flex items-center justify-between gap-2"
+          >
+            <span class="text-xs text-(--app-text-secondary)">{{ item.title }}</span>
+            <button
+              type="button"
+              class="inline-flex items-center gap-1 rounded-lg border border-blue-500/40 bg-blue-600/80 px-2.5 py-1 text-[11px] font-medium text-white transition hover:bg-blue-600"
+              @click="handlePlayVideo(item)"
+            >
+              <svg class="h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M8 5v14l11-7z"/>
+              </svg>
+              播放
+            </button>
           </div>
         </div>
       </div>
