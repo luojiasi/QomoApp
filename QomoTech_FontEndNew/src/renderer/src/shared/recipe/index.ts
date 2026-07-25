@@ -1,3 +1,6 @@
 export * from './types'
 export * from './api'
 export * from './composable'
+export * from './defaults'
+export * from './chainTypes'
+export * from './chain'

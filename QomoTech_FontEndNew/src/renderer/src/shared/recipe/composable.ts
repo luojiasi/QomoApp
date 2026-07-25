@@ -65,6 +65,30 @@ export function useRecipes() {
     dirty.value = true
   }
 
+  function replaceList(listKey: string, arr: unknown[]) {
+    ;(state.value as Record<string, unknown>)[listKey] = arr
+    dirty.value = true
+  }
+
+  /** 按 id 更新数组元素；支持 fieldPath 如 'angleFormula.k' 或 'edgeCutting.change.k' */
+  function updateListItem(listKey: string, id: string, fieldPath: string, value: unknown) {
+    const list = [...(((state.value as Record<string, unknown>)[listKey] as Record<string, unknown>[] | undefined) ?? [])] as Record<string, unknown>[]
+    const idx = list.findIndex((r) => r.id === id)
+    if (idx < 0) return
+    const clone = structuredClone(list[idx]) as Record<string, unknown>
+    const parts = fieldPath.split('.')
+    let cur: Record<string, unknown> = clone
+    for (let i = 0; i < parts.length - 1; i++) {
+      const key = parts[i]
+      cur[key] = { ...((cur[key] as Record<string, unknown> | undefined) ?? {}) }
+      cur = cur[key] as Record<string, unknown>
+    }
+    cur[parts[parts.length - 1]] = value
+    list[idx] = clone
+    ;(state.value as Record<string, unknown>)[listKey] = list
+    dirty.value = true
+  }
+
   return {
     state: readonly(state),
     mainRecipes,
@@ -76,6 +100,8 @@ export function useRecipes() {
     load,
     save,
     selectRecipe,
-    updateField
+    updateField,
+    replaceList,
+    updateListItem
   }
 }

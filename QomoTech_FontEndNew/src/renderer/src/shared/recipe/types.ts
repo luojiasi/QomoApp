@@ -20,7 +20,7 @@ export interface BlackeningRecipe {
   blackeningSpeed: number
   blackeningStep: number
   jiaojubuchang: number
-  saoheikaikou: number
+  saoheikaikou: { k: number; b: number }
   laserPowerRecipeId: string
 }
 
