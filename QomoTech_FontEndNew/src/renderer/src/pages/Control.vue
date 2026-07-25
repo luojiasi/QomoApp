@@ -20,6 +20,15 @@ import {
   setKeyboardJogLogger
 } from '../shared/motion'
 import type { ControllerParameters } from '../shared/motion'
+import {
+  startCameraReceiver,
+  refreshCameraStream,
+  useCameraReceiverState
+} from '../shared/camera'
+import { useL10n } from '../shared/l10n'
+
+const { t } = useL10n()
+const { frameUrl } = useCameraReceiverState()
 
 const {
   controllerConnected,
@@ -36,12 +45,12 @@ const isConnecting = ref(false)
 const AXIS_KEYS = ['X', 'Y', 'Z', 'U', 'R'] as const
 type AxisKey = (typeof AXIS_KEYS)[number]
 
-const axisMeta: Record<AxisKey, { unit: string; color: string }> = {
-  X: { unit: 'mm', color: 'primary' },
-  Y: { unit: 'mm', color: 'primary' },
-  Z: { unit: 'mm', color: 'primary' },
-  U: { unit: 'deg', color: 'tertiary' },
-  R: { unit: 'deg', color: 'tertiary' }
+const axisMeta: Record<AxisKey, { unitKey: 'unitMm' | 'unitDeg'; color: string }> = {
+  X: { unitKey: 'unitMm', color: 'primary' },
+  Y: { unitKey: 'unitMm', color: 'primary' },
+  Z: { unitKey: 'unitMm', color: 'primary' },
+  U: { unitKey: 'unitDeg', color: 'tertiary' },
+  R: { unitKey: 'unitDeg', color: 'tertiary' }
 }
 
 function formatPosition(val: number | undefined | null): string {
@@ -132,37 +141,46 @@ async function startJog(axis: AxisKey, dir: number) {
   jogDir[axis] = dir
   activeJogAxis.value = axis
   const dirLabel = dir > 0 ? '+' : '-'
-  pushLog(`JOG ${axis}${dirLabel}`, `speed=${jogSpeed.value}%  pos=${formatPosition(mposition[axis])}`)
+  pushLog(
+    `${t('control.logJog')} ${axis}${dirLabel}`,
+    `${t('control.logSpeed')}=${jogSpeed.value}%  ${t('control.logPos')}=${formatPosition(mposition[axis])}`
+  )
   await jogAxis(axis, dir, jogSpeed.value)
 }
 
 async function stopJog(axis: AxisKey) {
   jogDir[axis] = 0
   activeJogAxis.value = null
-  pushLog(`JOG ${axis} STOP`, `pos=${formatPosition(mposition[axis])}`)
+  pushLog(
+    `${t('control.logJogStop')} ${axis}`,
+    `${t('control.logPos')}=${formatPosition(mposition[axis])}`
+  )
   await jogStop(axis)
 }
 
 async function handleEstop() {
-  pushLog('E-STOP', '紧急停止触发')
+  pushLog(t('control.logEstop'), t('control.logEstopDetail'))
   await estop()
 }
 
 async function handleStopToIdle() {
   if (!controllerConnected.value) return
-  pushLog('STOP', '停止 → IDLE')
+  pushLog(t('control.logStop'), t('control.logStopDetail'))
   await stop()
 }
 
 async function handleHomeAll() {
   if (!controllerConnected.value) return
-  pushLog('HOME ALL', '全轴回零')
+  pushLog(t('control.logHomeAll'), t('control.logHomeAllDetail'))
   await homeAxes()
 }
 
 async function handleZeroAxis(axis: AxisKey) {
   if (!controllerConnected.value) return
-  pushLog(`ZERO ${axis}`, `清零前 pos=${formatPosition(mposition[axis])}`)
+  pushLog(
+    `${t('control.logZero')} ${axis}`,
+    `${t('control.logZeroDetail')} ${t('control.logPos')}=${formatPosition(mposition[axis])}`
+  )
   await zeroMotionAxis(axis)
 }
 
@@ -176,7 +194,7 @@ async function toggleConnection() {
   isConnecting.value = true
   try {
     if (controllerConnected.value) {
-      pushLog('DISCONNECT', '断开控制器连接')
+      pushLog(t('control.logDisconnect'), t('control.logDisconnectDetail'))
       await disconnectMotion()
     } else {
       // Load controller settings and use saved IP (fallback to default IP)
@@ -190,7 +208,7 @@ async function toggleConnection() {
           }
         }
       } catch { /* use default IP */ }
-      pushLog('CONNECT', `连接控制器 ${ip}`)
+      pushLog(t('control.logConnect'), `${t('control.logConnectDetail')} ${ip}`)
       await connectMotion(ip)
       // Bootstrap: push axis params after connecting
       try {
@@ -214,9 +232,7 @@ async function toggleConnection() {
 // Program status (simulated for now — will be replaced by WebSocket)
 const programProgress = ref(65)
 const programElapsed = ref('00:42:15')
-const laserPower = ref('3.5')
-const feedRate = ref('12,400')
-
+const laserPower = ref('建议：12~14 ')
 // Drive event log
 interface DriveLogEntry {
   id: number
@@ -240,6 +256,7 @@ function pushLog(event: string, detail: string) {
 
 onMounted(() => {
   startHardwareMonitor()
+  startCameraReceiver()
   setKeyboardJogLogger((event, detail) => pushLog(event, detail))
 })
 
@@ -266,11 +283,11 @@ const ioOutput2 = computed(() => ioOut.value[2] ?? false)
           :class="`axis-${axisMeta[axis].color}`"
         >
           <div class="axis-header">
-            <label class="axis-label">{{ axis }}-Axis</label>
+            <label class="axis-label">{{ axis }}{{ t('control.axisSuffix') }}</label>
             <span class="axis-ws-dot" :class="{ connected: wsConnected }"></span>
           </div>
           <span class="axis-value">{{ formatPosition(mposition[axis]) }}</span>
-          <span class="axis-unit">{{ axisMeta[axis].unit }}</span>
+          <span class="axis-unit">{{ t(`control.${axisMeta[axis].unitKey}`) }}</span>
         </div>
       </div>
 
@@ -278,21 +295,29 @@ const ioOutput2 = computed(() => ioOut.value[2] ?? false)
       <div class="workspace">
         <div class="workspace-badge">
           <span class="badge-dot" :class="{ connected: controllerConnected }"></span>
-          {{ controllerConnected ? controllerState : '未连接控制器' }}
+          {{ controllerConnected ? controllerState : t('control.controllerDisconnected') }}
         </div>
-        <div class="workspace-area">
-          <span class="workspace-placeholder">WORKSPACE VIEW</span>
+        <div class="workspace-area" @dblclick="refreshCameraStream()">
+          <img
+            v-if="frameUrl"
+            :src="frameUrl"
+            :alt="t('control.cameraAlt')"
+            class="workspace-camera-frame"
+            draggable="false"
+            @error="refreshCameraStream()"
+          />
+          <span v-else class="workspace-placeholder">{{ t('monitor.videoPlaceholder') }}</span>
         </div>
         <div class="workspace-tools">
-          <button class="tool-btn" @click="toggleConnection" :disabled="isConnecting">
+          <button class="tool-btn" @click="toggleConnection" :disabled="isConnecting" :title="t('control.titleConnectToggle')">
             <span class="material-symbols-outlined">
               {{ controllerConnected ? 'link_off' : 'link' }}
             </span>
           </button>
-          <button class="tool-btn" @click="handleStopToIdle" :disabled="!controllerConnected" title="Stop → IDLE">
+          <button class="tool-btn" @click="handleStopToIdle" :disabled="!controllerConnected" :title="t('control.titleStopToIdle')">
             <span class="material-symbols-outlined" style="color: var(--color-warning)">stop</span>
           </button>
-          <button class="tool-btn" @click="handleEstop" :disabled="!controllerConnected">
+          <button class="tool-btn" @click="handleEstop" :disabled="!controllerConnected" :title="t('control.titleEstop')">
             <span class="material-symbols-outlined" style="color: var(--color-error)">emergency</span>
           </button>
         </div>
@@ -301,48 +326,43 @@ const ioOutput2 = computed(() => ioOut.value[2] ?? false)
       <!-- Status bar -->
       <div class="control-statusbar">
         <div class="stat-item">
-          <span class="stat-label">LASER POWER</span>
-          <span class="stat-value text-primary">{{ laserPower }}kW</span>
+          <span class="stat-label">{{ t('control.laserPower') }}</span>
+          <span class="stat-value text-primary">{{ laserPower }}{{ t('control.unitKw') }}</span>
         </div>
         <div class="stat-divider"></div>
         <div class="stat-item">
-          <span class="stat-label">FEED RATE</span>
-          <span class="stat-value">{{ feedRate }} <span class="stat-unit">mm/min</span></span>
-        </div>
-        <div class="stat-divider"></div>
-        <div class="stat-item">
-          <span class="stat-label">IO 0 (气源)</span>
+          <span class="stat-label">{{ t('control.io0') }}</span>
           <span class="stat-value" :class="ioOutput0 ? 'text-primary' : ''">
             <span class="io-dot" :class="{ on: ioOutput0 }"></span>
-            {{ ioOutput0 ? 'ON' : 'OFF' }}
+            {{ ioOutput0 ? t('control.ioOn') : t('control.ioOff') }}
           </span>
         </div>
         <div class="stat-divider"></div>
         <div class="stat-item">
-          <span class="stat-label">IO 1 (可见光)</span>
+          <span class="stat-label">{{ t('control.io1') }}</span>
           <span class="stat-value" :class="ioOutput1 ? 'text-primary' : ''">
             <span class="io-dot" :class="{ on: ioOutput1 }"></span>
-            {{ ioOutput1 ? 'ON' : 'OFF' }}
+            {{ ioOutput1 ? t('control.ioOn') : t('control.ioOff') }}
           </span>
         </div>
         <div class="stat-divider"></div>
         <div class="stat-item">
-          <span class="stat-label">IO 2 (激光)</span>
+          <span class="stat-label">{{ t('control.io2') }}</span>
           <span class="stat-value" :class="ioOutput2 ? 'text-primary' : ''">
             <span class="io-dot" :class="{ on: ioOutput2 }"></span>
-            {{ ioOutput2 ? 'ON' : 'OFF' }}
+            {{ ioOutput2 ? t('control.ioOn') : t('control.ioOff') }}
           </span>
         </div>
         <div class="stat-divider"></div>
         <div class="stat-progress">
           <div class="stat-progress-info">
             <span class="material-symbols-outlined stat-clock">schedule</span>
-            <span class="stat-label">EST: {{ programElapsed }}</span>
+            <span class="stat-label">{{ t('control.est') }}: {{ programElapsed }}</span>
           </div>
           <div class="progress-bar">
             <div class="progress-fill" :style="{ width: `${programProgress}%` }"></div>
           </div>
-          <span class="stat-label">{{ programProgress }}% COMPLETED</span>
+          <span class="stat-label">{{ programProgress }}% {{ t('control.completed') }}</span>
         </div>
       </div>
     </div>
@@ -351,7 +371,7 @@ const ioOutput2 = computed(() => ioOut.value[2] ?? false)
     <aside class="control-sidebar">
       <!-- Jog controller -->
       <div class="jog-card">
-        <h4 class="jog-title">Jog Controller</h4>
+        <h4 class="jog-title">{{ t('control.jogController') }}</h4>
 
         <div class="jog-dial-container">
           <!-- outer ring -->
@@ -469,29 +489,29 @@ const ioOutput2 = computed(() => ioOut.value[2] ?? false)
 
         <!-- Step distance indicator -->
         <div class="step-info">
-          <span class="step-label">STEP</span>
+          <span class="step-label">{{ t('control.step') }}</span>
           <span class="step-value">{{ stepLabel }}</span>
-          <span class="step-unit">mm/deg</span>
+          <span class="step-unit">{{ t('control.stepUnit') }}</span>
           <button class="step-f5-btn" @click="openStepDialog">F5</button>
         </div>
         <!-- Speed slider -->
         <div class="jog-speed">
           <div class="speed-header">
-            <span class="speed-label">JOG SPEED</span>
+            <span class="speed-label">{{ t('control.jogSpeed') }}</span>
             <span class="speed-value">{{ jogSpeed }}%</span>
           </div>
           <input v-model.number="jogSpeed" type="range" class="speed-slider" min="1" max="100" />
           <div class="speed-ticks">
-            <span>MIN</span>
-            <span>50%</span>
-            <span>MAX</span>
+            <span>{{ t('control.speedMin') }}</span>
+            <span>{{ t('control.speedMid') }}</span>
+            <span>{{ t('control.speedMax') }}</span>
           </div>
         </div>
         <!-- Home & Zero actions -->
         <div class="jog-actions">
           <button class="action-btn home" @click="handleHomeAll" :disabled="!controllerConnected">
             <span class="material-symbols-outlined">home</span>
-            HOME ALL
+            {{ t('control.homeAll') }}
           </button>
           <button class="action-btn zero" @click="handleZeroAxis('X')" :disabled="!controllerConnected">
             X0
@@ -514,7 +534,7 @@ const ioOutput2 = computed(() => ioOut.value[2] ?? false)
       <!-- Drive event log -->
       <div class="gcode-card">
         <div class="gcode-header">
-          <span class="gcode-title">DRIVE LOG</span>
+          <span class="gcode-title">{{ t('control.driveLogTitle') }}</span>
           <span class="material-symbols-outlined gcode-icon">list_alt</span>
         </div>
         <div class="gcode-list">
@@ -524,7 +544,7 @@ const ioOutput2 = computed(() => ioOut.value[2] ?? false)
             <span class="log-detail">{{ entry.detail }}</span>
           </div>
           <div v-if="driveLog.length === 0" class="gcode-line dim">
-            <span>— 等待操作 —</span>
+            <span>{{ t('control.driveLogWaiting') }}</span>
           </div>
         </div>
       </div>
@@ -627,6 +647,7 @@ const ioOutput2 = computed(() => ioOut.value[2] ?? false)
   position: absolute;
   top: 16px;
   left: 16px;
+  z-index: 2;
   background: rgba(28, 32, 39, 0.8);
   padding: 8px 16px;
   border-radius: 4px;
@@ -657,7 +678,14 @@ const ioOutput2 = computed(() => ioOut.value[2] ?? false)
   display: flex;
   align-items: center;
   justify-content: center;
-  opacity: 0.4;
+  background: #000;
+  overflow: hidden;
+}
+
+.workspace-camera-frame {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .workspace-placeholder {
@@ -665,12 +693,14 @@ const ioOutput2 = computed(() => ioOut.value[2] ?? false)
   font-size: 14px;
   color: var(--color-on-surface-variant);
   letter-spacing: 0.2em;
+  opacity: 0.4;
 }
 
 .workspace-tools {
   position: absolute;
   bottom: 16px;
   right: 16px;
+  z-index: 2;
   display: flex;
   gap: 8px;
 }
