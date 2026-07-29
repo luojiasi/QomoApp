@@ -305,6 +305,13 @@ function handleNext(): void {
   chainIndex.value = chainStep(chainNodes.value, chainIndex.value, 1)
 }
 
+function handleGoToKind(
+  kind: 'blackening' | 'machining' | 'laser' | 'horizontal' | 'vertical'
+): void {
+  const idx = chainNodes.value.findIndex((n) => n.kind === kind)
+  if (idx >= 0) chainIndex.value = idx
+}
+
 function handleNewMain(): void {
   newRecipeName.value = ''
   showNewDialog.value = true
@@ -553,6 +560,7 @@ onMounted(async () => {
         @update-main="handleUpdateMain"
         @update-list-item="handleUpdateListItem"
         @create-and-link="handleCreateAndLink"
+        @go-to-kind="handleGoToKind"
         @prev="handlePrev"
         @next="handleNext"
       />

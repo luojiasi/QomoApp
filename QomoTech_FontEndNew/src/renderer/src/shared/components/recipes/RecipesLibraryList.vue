@@ -64,6 +64,7 @@ function displayName(item: { id: string; name?: string }): string {
         class="rll-item"
         :class="{ active: item.id === selectedId }"
         @click="emit('select', item.id)"
+        @dblclick="emit('rename', item.id)"
         @contextmenu.prevent="emit('rename', item.id)"
       >
         <span class="rll-name">{{ displayName(item) }}</span>

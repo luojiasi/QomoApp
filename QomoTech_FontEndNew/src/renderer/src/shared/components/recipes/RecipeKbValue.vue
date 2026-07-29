@@ -26,7 +26,7 @@ const emit = defineEmits<{ 'update:modelValue': [number] }>()
   color: var(--color-on-surface-variant); letter-spacing: 0.04em; text-transform: uppercase;
 }
 .rkb-row {
-  display: flex; align-items: baseline; gap: 2px;
+  display: flex; align-items: center; gap: 2px;
   padding: 8px 12px;
   background: color-mix(in srgb, var(--color-surface-container-highest) 60%, transparent);
   border: 1px solid color-mix(in srgb, var(--color-outline-variant) 80%, transparent);
@@ -40,6 +40,7 @@ const emit = defineEmits<{ 'update:modelValue': [number] }>()
   flex: 1; min-width: 0; border: none; background: transparent; outline: none;
   font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 700;
   color: var(--color-on-surface); font-variant-numeric: tabular-nums;
+  text-align: center;
   appearance: none; -webkit-appearance: none;
 }
 .rkb-input::-webkit-outer-spin-button,

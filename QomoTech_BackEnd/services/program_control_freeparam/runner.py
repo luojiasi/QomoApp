@@ -108,6 +108,7 @@ class ProgramRunnerFreeParam:
                 await self._运动.设置输出(2, False)
             except Exception:
                 pass
+        return {"success": True, "message": "已急停"}
 
     async def 跳过任务(self) -> dict[str, Any]:
         async with self._控制锁:
@@ -153,7 +154,11 @@ class ProgramRunnerFreeParam:
                 # 循环前获取当前 XYZ 轴位置
                 当前X, 当前Y = await self._运动.取_xy_实际位置()
                 当前Z = await self._运动.取_z_实际位置()
-                # 当前Z = 0.0
+                # 当前Z = -23.1
+                # 当前Z = -19.6
+                # 当前Z = -18.85
+                # 当前Z = -17.45
+
 
                 for 序号, 行数据 in enumerate(实体数据):
                     当前序号 = 序号 + 1
@@ -168,6 +173,7 @@ class ProgramRunnerFreeParam:
                     执行任务的参数 = 构建执行任务的参数(该序号的参数,当前Z, 所有高度总和, 累计高度)
                     self.更新进度(current_task_index=当前序号, current_task_jindubaifenbi=0)
                     try:
+                        print(执行任务的参数)
                         await self._切割(配方数据=该序号的配方,执行任务的参数=执行任务的参数,该序号R轴的补偿 = 该序号R轴的补偿 ,起始点的位置 = {"x":当前X,"y":当前Y,"z":当前Z})
                     except Exception as e:
                         日志.error(f"任务 {当前序号} 执行失败: {e}")
@@ -330,7 +336,7 @@ class ProgramRunnerFreeParam:
 
                         插补运行的路径点 = [{"x": 起点X, "y": 起点Y}]
                         切割直线的结果 = await self._运动.连续插补XY(路径点=插补运行的路径点,速度=20)
-                        asyncio.sleep(0.1)
+                        await asyncio.sleep(0.1)
 
                         等待X轴静止结果 = await self._运动.等待静止("X")
                         等待Y轴静止结果 = await self._运动.等待静止("Y")
@@ -349,7 +355,7 @@ class ProgramRunnerFreeParam:
                     目标Z轴的位置 = -累计下降量 + 执行任务的参数.get("切割中点的坐标").get("Z")
                     await self._运动.绝对运动("Z", 目标Z轴的位置)
                     等到轴停止结果 =  await self._运动.等待轴到位(轴名与位置=[("Z",目标Z轴的位置)],容差=0.01)
-                    asyncio.sleep(0.1)
+                    await asyncio.sleep(0.1)
                     if 等到轴停止结果:
                         当前步骤 = ProgramFreeParamsStep.判断高度是否满足
                     else:
@@ -361,7 +367,7 @@ class ProgramRunnerFreeParam:
                         if 执行任务的参数.get("是否启用R轴旋转"):
                             日志.info("判断高度切割R轴")
                             if not R轴是否进行持续旋转打开:
-                                await self._运动.R轴一直进行旋转
+                                await self._运动.R轴一直进行旋转()
                                 R轴是否进行持续旋转打开 = True
                             当前步骤 = ProgramFreeParamsStep.切割R轴
                             await self._自由编辑参数的运动.开启激光()
@@ -475,7 +481,7 @@ class ProgramRunnerFreeParam:
 
 
 
-                    总进度百分比 = float(进度百分比/旋转任务的的分割数 +  当前R轴旋转分割数 / 旋转任务的的分割数)
+                    总进度百分比 = float(((当前R轴旋转分割数 - 1) * 100 + 进度百分比) / 旋转任务的的分割数) if 旋转任务的的分割数 > 0 else 进度百分比
                     self.更新进度(current_task_jindubaifenbi=总进度百分比)
                     print("总进度百分比",总进度百分比)
                     准备开始切割下一次的第一次 = False
@@ -509,7 +515,7 @@ class ProgramRunnerFreeParam:
                     else:
                         当前R轴旋转分割数 += 1
                         准备开始切割下一次的第一次 = False
-                        R轴旋转圈数 = float(1 / 旋转任务的的分割数)
+                        R轴旋转圈数 = float(1 / 旋转任务的的分割数) if 旋转任务的的分割数 > 0 else 0.0
                         await self._运动.R轴旋转的圈数(R轴旋转圈数)
 
                         if 多少圈进行补偿值 > 0 and 当前R轴旋转分割数 % int(多少圈进行补偿值) == 0:

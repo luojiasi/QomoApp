@@ -1,7 +1,7 @@
 // =============================================================================
 // Recipe composable — 配方状态响应式管理
 // =============================================================================
-import { ref, readonly, computed } from 'vue'
+import { ref, readonly, computed, toRaw } from 'vue'
 import { getRecipeState, saveRecipeState } from './api'
 import type { RecipeStatePayload, MainRecipe } from './types'
 
@@ -75,17 +75,22 @@ export function useRecipes() {
     const list = [...(((state.value as Record<string, unknown>)[listKey] as Record<string, unknown>[] | undefined) ?? [])] as Record<string, unknown>[]
     const idx = list.findIndex((r) => r.id === id)
     if (idx < 0) return
-    const clone = structuredClone(list[idx]) as Record<string, unknown>
+    // Pinia/Vue ref 里的对象是 Proxy；structuredClone(Proxy) 会抛 DataCloneError
+    const clone = structuredClone(toRaw(list[idx])) as Record<string, unknown>
     const parts = fieldPath.split('.')
     let cur: Record<string, unknown> = clone
     for (let i = 0; i < parts.length - 1; i++) {
       const key = parts[i]
-      cur[key] = { ...((cur[key] as Record<string, unknown> | undefined) ?? {}) }
+      const child = cur[key]
+      cur[key] = { ...toRaw((child as Record<string, unknown> | undefined) ?? {}) }
       cur = cur[key] as Record<string, unknown>
     }
-    cur[parts[parts.length - 1]] = value
+    // 统一启用字段为真正的 boolean，避免 "false" 字符串被当成已启用
+    const nextValue =
+      parts[parts.length - 1] === 'enabled' ? value === true || value === 'true' || value === 1 || value === '1' : value
+    cur[parts[parts.length - 1]] = nextValue
     list[idx] = clone
-    ;(state.value as Record<string, unknown>)[listKey] = list
+    state.value = { ...toRaw(state.value), [listKey]: list }
     dirty.value = true
   }
 

@@ -40,6 +40,7 @@ export type CreateAndLinkTarget =
 const emit = defineEmits<{
   prev: []
   next: []
+  'go-to-kind': [kind: 'blackening' | 'machining' | 'laser' | 'horizontal' | 'vertical']
   'update-main': [key: keyof MainRecipe, value: string]
   'update-list-item': [listKey: string, id: string, fieldPath: string, value: unknown]
   'create-and-link': [target: CreateAndLinkTarget]
@@ -75,8 +76,30 @@ function optLabel(item: { id: string; name?: string }): string {
   return (item.name && item.name.trim()) || item.id
 }
 
+function linkedLabel(
+  id: string | undefined,
+  options: { id: string; name?: string }[]
+): string {
+  if (!id) return t('recipes.linkedNone')
+  const hit = options.find((x) => x.id === id)
+  return hit ? optLabel(hit) : t('recipes.linkedMissing')
+}
+
+/** 兼容后端/历史数据里 enabled 为布尔或 "true"/"false" 字符串 */
+function isEnabledFlag(value: unknown): boolean {
+  return value === true || value === 'true' || value === 1 || value === '1'
+}
+
 function updateList(listKey: string, id: string, fieldPath: string, value: unknown): void {
   emit('update-list-item', listKey, id, fieldPath, value)
+}
+
+const blackeningEnabled = computed(() => isEnabledFlag(props.blackening?.enabled))
+
+function setBlackeningEnabled(on: boolean): void {
+  const id = props.blackening?.id || (props.node.kind === 'blackening' ? props.node.id : '')
+  if (!id) return
+  emit('update-list-item', 'blackeningRecipes', id, 'enabled', on)
 }
 </script>
 
@@ -116,68 +139,155 @@ function updateList(listKey: string, id: string, fieldPath: string, value: unkno
           <span class="material-symbols-outlined rne-empty-icon">edit_note</span>
           <span>{{ t('recipes.selectOrCreate') }}</span>
         </div>
-        <div v-else class="field-grid">
-          <div class="field">
-            <label class="fl">{{ t('recipes.fieldName') }}</label>
-            <input
-              class="fi"
-              :value="main.name"
-              @input="emit('update-main', 'name', ($event.target as HTMLInputElement).value)"
-            />
-          </div>
-          <div class="field">
-            <label class="fl">{{ t('recipes.fieldStatus') }}</label>
-            <div class="select-wrap">
-              <select
-                class="fi"
-                :value="main.status ?? 'draft'"
-                @change="emit('update-main', 'status', ($event.target as HTMLSelectElement).value)"
+        <template v-else>
+          <!-- 主配方自身属性 -->
+          <section class="rne-section tone-main">
+            <header class="rne-section-head">
+              <span class="rne-section-badge">
+                <span class="material-symbols-outlined">badge</span>
+              </span>
+              <div class="rne-section-text">
+                <h3 class="rne-section-title">{{ t('recipes.sectionMainProps') }}</h3>
+                <p class="rne-section-desc">{{ t('recipes.sectionMainPropsDesc') }}</p>
+              </div>
+            </header>
+            <div class="field-grid field-grid-2col">
+              <div class="field">
+                <label class="fl">{{ t('recipes.fieldName') }}</label>
+                <input
+                  class="fi"
+                  :value="main.name"
+                  @input="emit('update-main', 'name', ($event.target as HTMLInputElement).value)"
+                />
+              </div>
+              <div class="field">
+                <label class="fl">{{ t('recipes.fieldStatus') }}</label>
+                <div class="select-wrap">
+                  <select
+                    class="fi"
+                    :value="main.status ?? 'draft'"
+                    @change="emit('update-main', 'status', ($event.target as HTMLSelectElement).value)"
+                  >
+                    <option value="active">{{ t('recipes.statusActive') }}</option>
+                    <option value="draft">{{ t('recipes.statusDraft') }}</option>
+                  </select>
+                  <span class="material-symbols-outlined select-arrow">expand_more</span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- 关联子配方 -->
+          <section class="rne-section tone-sub">
+            <header class="rne-section-head">
+              <span class="rne-section-badge">
+                <span class="material-symbols-outlined">account_tree</span>
+              </span>
+              <div class="rne-section-text">
+                <h3 class="rne-section-title">{{ t('recipes.sectionSubLinks') }}</h3>
+                <p class="rne-section-desc">{{ t('recipes.sectionSubLinksDesc') }}</p>
+              </div>
+            </header>
+
+            <div class="sub-link-grid">
+              <article
+                class="sub-link-card"
+                :class="{ linked: Boolean(main.blackeningRecipeId) }"
               >
-                <option value="active">{{ t('recipes.statusActive') }}</option>
-                <option value="draft">{{ t('recipes.statusDraft') }}</option>
-              </select>
-              <span class="material-symbols-outlined select-arrow">expand_more</span>
-            </div>
-          </div>
-          <div class="field">
-            <label class="fl">{{ t('recipes.typeBlackening') }}</label>
-            <div class="ref-row">
-              <div class="select-wrap">
-                <select
-                  class="fi"
-                  :value="main.blackeningRecipeId"
-                  @change="emit('update-main', 'blackeningRecipeId', ($event.target as HTMLSelectElement).value)"
+                <div class="sub-link-top">
+                  <span class="sub-link-icon tone-blackening">
+                    <span class="material-symbols-outlined">contrast</span>
+                  </span>
+                  <div class="sub-link-meta">
+                    <span class="sub-link-kind">{{ t('recipes.typeBlackening') }}</span>
+                    <span class="sub-link-current">
+                      {{ linkedLabel(main.blackeningRecipeId, blackeningOptions) }}
+                    </span>
+                  </div>
+                </div>
+                <div class="ref-row">
+                  <div class="select-wrap">
+                    <select
+                      class="fi"
+                      :value="main.blackeningRecipeId"
+                      @change="emit('update-main', 'blackeningRecipeId', ($event.target as HTMLSelectElement).value)"
+                    >
+                      <option value="">{{ t('recipes.pendingSelect') }}</option>
+                      <option v-for="b in blackeningOptions" :key="b.id" :value="b.id">
+                        {{ optLabel(b) }}
+                      </option>
+                    </select>
+                    <span class="material-symbols-outlined select-arrow">expand_more</span>
+                  </div>
+                  <button
+                    type="button"
+                    class="ref-create"
+                    @click="emit('create-and-link', 'blackeningRecipeId')"
+                  >
+                    {{ t('recipes.createAndLink') }}
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  class="sub-link-open"
+                  :disabled="!main.blackeningRecipeId"
+                  @click="emit('go-to-kind', 'blackening')"
                 >
-                  <option value="">{{ t('recipes.pendingSelect') }}</option>
-                  <option v-for="b in blackeningOptions" :key="b.id" :value="b.id">{{ optLabel(b) }}</option>
-                </select>
-                <span class="material-symbols-outlined select-arrow">expand_more</span>
-              </div>
-              <button type="button" class="ref-create" @click="emit('create-and-link', 'blackeningRecipeId')">
-                {{ t('recipes.createAndLink') }}
-              </button>
-            </div>
-          </div>
-          <div class="field">
-            <label class="fl">{{ t('recipes.typeMachining') }}</label>
-            <div class="ref-row">
-              <div class="select-wrap">
-                <select
-                  class="fi"
-                  :value="main.machiningRecipeId"
-                  @change="emit('update-main', 'machiningRecipeId', ($event.target as HTMLSelectElement).value)"
+                  <span class="material-symbols-outlined">arrow_forward</span>
+                  {{ t('recipes.editLinkedSub') }}
+                </button>
+              </article>
+
+              <article
+                class="sub-link-card"
+                :class="{ linked: Boolean(main.machiningRecipeId) }"
+              >
+                <div class="sub-link-top">
+                  <span class="sub-link-icon tone-machining">
+                    <span class="material-symbols-outlined">precision_manufacturing</span>
+                  </span>
+                  <div class="sub-link-meta">
+                    <span class="sub-link-kind">{{ t('recipes.typeMachining') }}</span>
+                    <span class="sub-link-current">
+                      {{ linkedLabel(main.machiningRecipeId, machiningOptions) }}
+                    </span>
+                  </div>
+                </div>
+                <div class="ref-row">
+                  <div class="select-wrap">
+                    <select
+                      class="fi"
+                      :value="main.machiningRecipeId"
+                      @change="emit('update-main', 'machiningRecipeId', ($event.target as HTMLSelectElement).value)"
+                    >
+                      <option value="">{{ t('recipes.pendingSelect') }}</option>
+                      <option v-for="m in machiningOptions" :key="m.id" :value="m.id">
+                        {{ optLabel(m) }}
+                      </option>
+                    </select>
+                    <span class="material-symbols-outlined select-arrow">expand_more</span>
+                  </div>
+                  <button
+                    type="button"
+                    class="ref-create"
+                    @click="emit('create-and-link', 'machiningRecipeId')"
+                  >
+                    {{ t('recipes.createAndLink') }}
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  class="sub-link-open"
+                  :disabled="!main.machiningRecipeId"
+                  @click="emit('go-to-kind', 'machining')"
                 >
-                  <option value="">{{ t('recipes.pendingSelect') }}</option>
-                  <option v-for="m in machiningOptions" :key="m.id" :value="m.id">{{ optLabel(m) }}</option>
-                </select>
-                <span class="material-symbols-outlined select-arrow">expand_more</span>
-              </div>
-              <button type="button" class="ref-create" @click="emit('create-and-link', 'machiningRecipeId')">
-                {{ t('recipes.createAndLink') }}
-              </button>
+                  <span class="material-symbols-outlined">arrow_forward</span>
+                  {{ t('recipes.editLinkedSub') }}
+                </button>
+              </article>
             </div>
-          </div>
-        </div>
+          </section>
+        </template>
       </div>
 
       <!-- laser -->
@@ -187,36 +297,47 @@ function updateList(listKey: string, id: string, fieldPath: string, value: unkno
           <span>{{ t('recipes.pendingSelect') }}</span>
         </div>
         <template v-else>
-          <div class="unit-grid">
-            <RecipeUnitValue
-              :label="t('recipes.fieldPower')"
-              :model-value="laser.laserPower"
-              :unit="t('recipes.unitW')"
-              @update:model-value="updateList('laserPowerRecipes', laser.id, 'laserPower', $event)"
-            />
-            <RecipeUnitValue
-              :label="t('recipes.fieldFrequency')"
-              :model-value="laser.laserFrequency"
-              :unit="t('recipes.unitHz')"
-              @update:model-value="updateList('laserPowerRecipes', laser.id, 'laserFrequency', $event)"
-            />
-            <RecipeUnitValue
-              :label="t('recipes.fieldCurrent')"
-              :model-value="laser.laserCurrent"
-              :unit="t('recipes.unitA')"
-              @update:model-value="updateList('laserPowerRecipes', laser.id, 'laserCurrent', $event)"
-            />
-          </div>
-          <div class="field-grid field-grid-top">
-            <div class="field">
-              <label class="fl">{{ t('recipes.fieldManufacturer') }}</label>
-              <input
-                class="fi mono"
-                :value="laser.laserManufacturer ?? ''"
-                @input="updateList('laserPowerRecipes', laser.id, 'laserManufacturer', ($event.target as HTMLInputElement).value)"
+          <section class="rne-section tone-params">
+            <header class="rne-section-head">
+              <span class="rne-section-badge">
+                <span class="material-symbols-outlined">bolt</span>
+              </span>
+              <div class="rne-section-text">
+                <h3 class="rne-section-title">{{ t('recipes.sectionLaserParams') }}</h3>
+                <p class="rne-section-desc">{{ t('recipes.sectionLaserParamsDesc') }}</p>
+              </div>
+            </header>
+            <div class="unit-grid">
+              <RecipeUnitValue
+                :label="t('recipes.fieldPower')"
+                :model-value="laser.laserPower"
+                :unit="t('recipes.unitW')"
+                @update:model-value="updateList('laserPowerRecipes', laser.id, 'laserPower', $event)"
+              />
+              <RecipeUnitValue
+                :label="t('recipes.fieldFrequency')"
+                :model-value="laser.laserFrequency"
+                :unit="t('recipes.unitHz')"
+                @update:model-value="updateList('laserPowerRecipes', laser.id, 'laserFrequency', $event)"
+              />
+              <RecipeUnitValue
+                :label="t('recipes.fieldCurrent')"
+                :model-value="laser.laserCurrent"
+                :unit="t('recipes.unitA')"
+                @update:model-value="updateList('laserPowerRecipes', laser.id, 'laserCurrent', $event)"
               />
             </div>
-          </div>
+            <div class="field-grid field-grid-top">
+              <div class="field">
+                <label class="fl">{{ t('recipes.fieldManufacturer') }}</label>
+                <input
+                  class="fi mono"
+                  :value="laser.laserManufacturer ?? ''"
+                  @input="updateList('laserPowerRecipes', laser.id, 'laserManufacturer', ($event.target as HTMLInputElement).value)"
+                />
+              </div>
+            </div>
+          </section>
         </template>
       </div>
 
@@ -226,99 +347,152 @@ function updateList(listKey: string, id: string, fieldPath: string, value: unkno
           <span class="material-symbols-outlined rne-empty-icon">pending</span>
           <span>{{ t('recipes.pendingSelect') }}</span>
         </div>
-        <div v-else class="field-grid">
-          <div class="field">
-            <label class="fl">{{ t('recipes.fieldEnabled') }}</label>
-            <div class="select-wrap">
-              <select
-                class="fi"
-                :value="String(blackening.enabled)"
-                @change="updateList('blackeningRecipes', blackening.id, 'enabled', ($event.target as HTMLSelectElement).value === 'true')"
-              >
-                <option value="true">{{ t('recipes.fieldYes') }}</option>
-                <option value="false">{{ t('recipes.fieldNo') }}</option>
-              </select>
-              <span class="material-symbols-outlined select-arrow">expand_more</span>
-            </div>
-          </div>
-          <RecipeUnitValue
-            :label="t('recipes.fieldDescentStep')"
-            :model-value="blackening.descentStep"
-            :unit="t('recipes.unitMm')"
-            :step="0.01"
-            @update:model-value="updateList('blackeningRecipes', blackening.id, 'descentStep', $event)"
-          />
-          <div class="field">
-            <label class="fl">{{ t('recipes.fieldDescentCount') }}</label>
-            <input
-              class="fi"
-              type="number"
-              :value="blackening.descentCount"
-              @input="updateList('blackeningRecipes', blackening.id, 'descentCount', Number(($event.target as HTMLInputElement).value))"
-            />
-          </div>
-          <RecipeUnitValue
-            :label="t('recipes.fieldBlackeningSpeed')"
-            :model-value="blackening.blackeningSpeed"
-            :unit="t('recipes.unitMmPerS')"
-            @update:model-value="updateList('blackeningRecipes', blackening.id, 'blackeningSpeed', $event)"
-          />
-          <RecipeUnitValue
-            :label="t('recipes.fieldBlackeningStep')"
-            :model-value="blackening.blackeningStep"
-            :unit="t('recipes.unitMm')"
-            :step="0.001"
-            @update:model-value="updateList('blackeningRecipes', blackening.id, 'blackeningStep', $event)"
-          />
-          <div class="field">
-            <label class="fl">{{ t('recipes.fieldJiaojubuchang') }}</label>
-            <input
-              class="fi"
-              type="number"
-              :value="blackening.jiaojubuchang"
-              @input="updateList('blackeningRecipes', blackening.id, 'jiaojubuchang', Number(($event.target as HTMLInputElement).value))"
-            />
-          </div>
-        </div>
-        <template v-if="blackening && !node.missing">
-          <details class="formula-group" open>
-            <summary>{{ t('recipes.fieldSaoheikaikou') }}</summary>
-            <div class="kb-row">
-              <RecipeKbValue
-                label=""
-                coeff="K"
-                :model-value="blackening.saoheikaikou?.k ?? 0"
-                @update:model-value="updateList('blackeningRecipes', blackening.id, 'saoheikaikou.k', $event)"
-              />
-              <RecipeKbValue
-                label=""
-                coeff="B"
-                :model-value="blackening.saoheikaikou?.b ?? 0"
-                @update:model-value="updateList('blackeningRecipes', blackening.id, 'saoheikaikou.b', $event)"
-              />
-            </div>
-          </details>
-          <div class="field-grid field-grid-top">
-            <div class="field">
-              <label class="fl">{{ t('recipes.fieldLaser') }}</label>
-              <div class="ref-row">
-                <div class="select-wrap">
-                  <select
-                    class="fi"
-                    :value="blackening.laserPowerRecipeId"
-                    @change="updateList('blackeningRecipes', blackening.id, 'laserPowerRecipeId', ($event.target as HTMLSelectElement).value)"
-                  >
-                    <option value="">{{ t('recipes.pendingSelect') }}</option>
-                    <option v-for="l in laserOptions" :key="l.id" :value="l.id">{{ optLabel(l) }}</option>
-                  </select>
-                  <span class="material-symbols-outlined select-arrow">expand_more</span>
-                </div>
-                <button type="button" class="ref-create" @click="emit('create-and-link', 'laserPowerRecipeId')">
-                  {{ t('recipes.createAndLink') }}
-                </button>
+        <template v-else>
+          <section
+            class="rne-section tone-enable"
+            :class="{ 'is-on': blackeningEnabled, 'is-off': !blackeningEnabled }"
+          >
+            <header class="rne-section-head">
+              <span class="rne-section-badge">
+                <span class="material-symbols-outlined">
+                  {{ blackeningEnabled ? 'toggle_on' : 'toggle_off' }}
+                </span>
+              </span>
+              <div class="rne-section-text">
+                <h3 class="rne-section-title">{{ t('recipes.sectionEnabled') }}</h3>
+                <p class="rne-section-desc">{{ t('recipes.sectionEnabledDesc') }}</p>
               </div>
+            </header>
+            <div class="enable-toggle" role="group" :aria-label="t('recipes.fieldEnabled')">
+              <button
+                type="button"
+                class="enable-btn"
+                :class="{ active: blackeningEnabled }"
+                @click="setBlackeningEnabled(true)"
+              >
+                {{ t('recipes.fieldYes') }}
+              </button>
+              <button
+                type="button"
+                class="enable-btn"
+                :class="{ active: !blackeningEnabled }"
+                @click="setBlackeningEnabled(false)"
+              >
+                {{ t('recipes.fieldNo') }}
+              </button>
             </div>
-          </div>
+          </section>
+
+          <section class="rne-section tone-params">
+            <header class="rne-section-head">
+              <span class="rne-section-badge">
+                <span class="material-symbols-outlined">tune</span>
+              </span>
+              <div class="rne-section-text">
+                <h3 class="rne-section-title">{{ t('recipes.sectionBlackeningParams') }}</h3>
+                <p class="rne-section-desc">{{ t('recipes.sectionBlackeningParamsDesc') }}</p>
+              </div>
+            </header>
+            <div class="field-grid">
+              <RecipeUnitValue
+                :label="t('recipes.fieldDescentStep')"
+                :model-value="blackening.descentStep"
+                :unit="t('recipes.unitMm')"
+                :step="0.01"
+                @update:model-value="updateList('blackeningRecipes', blackening.id, 'descentStep', $event)"
+              />
+              <RecipeUnitValue
+                :label="t('recipes.fieldDescentCount')"
+                :model-value="blackening.descentCount"
+                :unit="t('recipes.unitTimes')"
+                :step="1"
+                @update:model-value="updateList('blackeningRecipes', blackening.id, 'descentCount', $event)"
+              />
+              <RecipeUnitValue
+                :label="t('recipes.fieldBlackeningSpeed')"
+                :model-value="blackening.blackeningSpeed"
+                :unit="t('recipes.unitMmPerS')"
+                @update:model-value="updateList('blackeningRecipes', blackening.id, 'blackeningSpeed', $event)"
+              />
+              <RecipeUnitValue
+                :label="t('recipes.fieldBlackeningStep')"
+                :model-value="blackening.blackeningStep"
+                :unit="t('recipes.unitMm')"
+                :step="0.001"
+                @update:model-value="updateList('blackeningRecipes', blackening.id, 'blackeningStep', $event)"
+              />
+              <RecipeUnitValue
+                :label="t('recipes.fieldJiaojubuchang')"
+                :model-value="blackening.jiaojubuchang"
+                :unit="t('recipes.unitUm')"
+                :step="1"
+                @update:model-value="updateList('blackeningRecipes', blackening.id, 'jiaojubuchang', $event)"
+              />
+            </div>
+            <details class="formula-group" open>
+              <summary>{{ t('recipes.fieldSaoheikaikou') }}</summary>
+              <div class="kb-row">
+                <RecipeKbValue
+                  label=""
+                  coeff="K"
+                  :model-value="blackening.saoheikaikou?.k ?? 0"
+                  @update:model-value="updateList('blackeningRecipes', blackening.id, 'saoheikaikou.k', $event)"
+                />
+                <RecipeKbValue
+                  label=""
+                  coeff="B"
+                  :model-value="blackening.saoheikaikou?.b ?? 0"
+                  @update:model-value="updateList('blackeningRecipes', blackening.id, 'saoheikaikou.b', $event)"
+                />
+              </div>
+            </details>
+          </section>
+
+          <section class="rne-section tone-sub">
+            <header class="rne-section-head">
+              <span class="rne-section-badge">
+                <span class="material-symbols-outlined">account_tree</span>
+              </span>
+              <div class="rne-section-text">
+                <h3 class="rne-section-title">{{ t('recipes.sectionSubLinks') }}</h3>
+                <p class="rne-section-desc">{{ t('recipes.sectionBlackeningLinksDesc') }}</p>
+              </div>
+            </header>
+            <div class="sub-link-grid sub-link-grid-1">
+              <article
+                class="sub-link-card"
+                :class="{ linked: Boolean(blackening.laserPowerRecipeId) }"
+              >
+                <div class="sub-link-top">
+                  <span class="sub-link-icon tone-laser">
+                    <span class="material-symbols-outlined">bolt</span>
+                  </span>
+                  <div class="sub-link-meta">
+                    <span class="sub-link-kind">{{ t('recipes.typeLaser') }}</span>
+                    <span class="sub-link-current">
+                      {{ linkedLabel(blackening.laserPowerRecipeId, laserOptions) }}
+                    </span>
+                  </div>
+                </div>
+                <div class="ref-row">
+                  <div class="select-wrap">
+                    <select
+                      class="fi"
+                      :value="blackening.laserPowerRecipeId"
+                      @change="updateList('blackeningRecipes', blackening.id, 'laserPowerRecipeId', ($event.target as HTMLSelectElement).value)"
+                    >
+                      <option value="">{{ t('recipes.pendingSelect') }}</option>
+                      <option v-for="l in laserOptions" :key="l.id" :value="l.id">{{ optLabel(l) }}</option>
+                    </select>
+                    <span class="material-symbols-outlined select-arrow">expand_more</span>
+                  </div>
+                  <button type="button" class="ref-create" @click="emit('create-and-link', 'laserPowerRecipeId')">
+                    {{ t('recipes.createAndLink') }}
+                  </button>
+                </div>
+              </article>
+            </div>
+          </section>
         </template>
       </div>
 
@@ -328,65 +502,146 @@ function updateList(listKey: string, id: string, fieldPath: string, value: unkno
           <span class="material-symbols-outlined rne-empty-icon">pending</span>
           <span>{{ t('recipes.pendingSelect') }}</span>
         </div>
-        <div v-else class="field-grid">
-          <div class="field">
-            <label class="fl">{{ t('recipes.fieldHorizontal') }}</label>
-            <div class="ref-row">
-              <div class="select-wrap">
-                <select
-                  class="fi"
-                  :value="machining.horizontalFormulaId"
-                  @change="updateList('machiningRecipes', machining.id, 'horizontalFormulaId', ($event.target as HTMLSelectElement).value)"
-                >
-                  <option value="">{{ t('recipes.pendingSelect') }}</option>
-                  <option v-for="h in horizontalOptions" :key="h.id" :value="h.id">{{ optLabel(h) }}</option>
-                </select>
-                <span class="material-symbols-outlined select-arrow">expand_more</span>
+        <template v-else>
+          <section class="rne-section tone-sub">
+            <header class="rne-section-head">
+              <span class="rne-section-badge">
+                <span class="material-symbols-outlined">account_tree</span>
+              </span>
+              <div class="rne-section-text">
+                <h3 class="rne-section-title">{{ t('recipes.sectionSubLinks') }}</h3>
+                <p class="rne-section-desc">{{ t('recipes.sectionMachiningLinksDesc') }}</p>
               </div>
-              <button type="button" class="ref-create" @click="emit('create-and-link', 'horizontalFormulaId')">
-                {{ t('recipes.createAndLink') }}
-              </button>
-            </div>
-          </div>
-          <div class="field">
-            <label class="fl">{{ t('recipes.fieldVertical') }}</label>
-            <div class="ref-row">
-              <div class="select-wrap">
-                <select
-                  class="fi"
-                  :value="machining.verticalFormulaId"
-                  @change="updateList('machiningRecipes', machining.id, 'verticalFormulaId', ($event.target as HTMLSelectElement).value)"
+            </header>
+            <div class="sub-link-grid sub-link-grid-3">
+              <article
+                class="sub-link-card"
+                :class="{ linked: Boolean(machining.horizontalFormulaId) }"
+              >
+                <div class="sub-link-top">
+                  <span class="sub-link-icon tone-horizontal">
+                    <span class="material-symbols-outlined">horizontal_rule</span>
+                  </span>
+                  <div class="sub-link-meta">
+                    <span class="sub-link-kind">{{ t('recipes.typeHorizontal') }}</span>
+                    <span class="sub-link-current">
+                      {{ linkedLabel(machining.horizontalFormulaId, horizontalOptions) }}
+                    </span>
+                  </div>
+                </div>
+                <div class="ref-row">
+                  <div class="select-wrap">
+                    <select
+                      class="fi"
+                      :value="machining.horizontalFormulaId"
+                      @change="updateList('machiningRecipes', machining.id, 'horizontalFormulaId', ($event.target as HTMLSelectElement).value)"
+                    >
+                      <option value="">{{ t('recipes.pendingSelect') }}</option>
+                      <option v-for="h in horizontalOptions" :key="h.id" :value="h.id">{{ optLabel(h) }}</option>
+                    </select>
+                    <span class="material-symbols-outlined select-arrow">expand_more</span>
+                  </div>
+                  <button type="button" class="ref-create" @click="emit('create-and-link', 'horizontalFormulaId')">
+                    {{ t('recipes.createAndLink') }}
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  class="sub-link-open"
+                  :disabled="!machining.horizontalFormulaId"
+                  @click="emit('go-to-kind', 'horizontal')"
                 >
-                  <option value="">{{ t('recipes.pendingSelect') }}</option>
-                  <option v-for="v in verticalOptions" :key="v.id" :value="v.id">{{ optLabel(v) }}</option>
-                </select>
-                <span class="material-symbols-outlined select-arrow">expand_more</span>
-              </div>
-              <button type="button" class="ref-create" @click="emit('create-and-link', 'verticalFormulaId')">
-                {{ t('recipes.createAndLink') }}
-              </button>
-            </div>
-          </div>
-          <div class="field">
-            <label class="fl">{{ t('recipes.fieldLaser') }}</label>
-            <div class="ref-row">
-              <div class="select-wrap">
-                <select
-                  class="fi"
-                  :value="machining.laserPowerRecipeId"
-                  @change="updateList('machiningRecipes', machining.id, 'laserPowerRecipeId', ($event.target as HTMLSelectElement).value)"
+                  <span class="material-symbols-outlined">arrow_forward</span>
+                  {{ t('recipes.editLinkedSub') }}
+                </button>
+              </article>
+
+              <article
+                class="sub-link-card"
+                :class="{ linked: Boolean(machining.verticalFormulaId) }"
+              >
+                <div class="sub-link-top">
+                  <span class="sub-link-icon tone-vertical">
+                    <span class="material-symbols-outlined">height</span>
+                  </span>
+                  <div class="sub-link-meta">
+                    <span class="sub-link-kind">{{ t('recipes.typeVertical') }}</span>
+                    <span class="sub-link-current">
+                      {{ linkedLabel(machining.verticalFormulaId, verticalOptions) }}
+                    </span>
+                  </div>
+                </div>
+                <div class="ref-row">
+                  <div class="select-wrap">
+                    <select
+                      class="fi"
+                      :value="machining.verticalFormulaId"
+                      @change="updateList('machiningRecipes', machining.id, 'verticalFormulaId', ($event.target as HTMLSelectElement).value)"
+                    >
+                      <option value="">{{ t('recipes.pendingSelect') }}</option>
+                      <option v-for="v in verticalOptions" :key="v.id" :value="v.id">{{ optLabel(v) }}</option>
+                    </select>
+                    <span class="material-symbols-outlined select-arrow">expand_more</span>
+                  </div>
+                  <button type="button" class="ref-create" @click="emit('create-and-link', 'verticalFormulaId')">
+                    {{ t('recipes.createAndLink') }}
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  class="sub-link-open"
+                  :disabled="!machining.verticalFormulaId"
+                  @click="emit('go-to-kind', 'vertical')"
                 >
-                  <option value="">{{ t('recipes.pendingSelect') }}</option>
-                  <option v-for="l in laserOptions" :key="l.id" :value="l.id">{{ optLabel(l) }}</option>
-                </select>
-                <span class="material-symbols-outlined select-arrow">expand_more</span>
-              </div>
-              <button type="button" class="ref-create" @click="emit('create-and-link', 'laserPowerRecipeId')">
-                {{ t('recipes.createAndLink') }}
-              </button>
+                  <span class="material-symbols-outlined">arrow_forward</span>
+                  {{ t('recipes.editLinkedSub') }}
+                </button>
+              </article>
+
+              <article
+                class="sub-link-card"
+                :class="{ linked: Boolean(machining.laserPowerRecipeId) }"
+              >
+                <div class="sub-link-top">
+                  <span class="sub-link-icon tone-laser">
+                    <span class="material-symbols-outlined">bolt</span>
+                  </span>
+                  <div class="sub-link-meta">
+                    <span class="sub-link-kind">{{ t('recipes.typeLaser') }}</span>
+                    <span class="sub-link-current">
+                      {{ linkedLabel(machining.laserPowerRecipeId, laserOptions) }}
+                    </span>
+                  </div>
+                </div>
+                <div class="ref-row">
+                  <div class="select-wrap">
+                    <select
+                      class="fi"
+                      :value="machining.laserPowerRecipeId"
+                      @change="updateList('machiningRecipes', machining.id, 'laserPowerRecipeId', ($event.target as HTMLSelectElement).value)"
+                    >
+                      <option value="">{{ t('recipes.pendingSelect') }}</option>
+                      <option v-for="l in laserOptions" :key="l.id" :value="l.id">{{ optLabel(l) }}</option>
+                    </select>
+                    <span class="material-symbols-outlined select-arrow">expand_more</span>
+                  </div>
+                  <button type="button" class="ref-create" @click="emit('create-and-link', 'laserPowerRecipeId')">
+                    {{ t('recipes.createAndLink') }}
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  class="sub-link-open"
+                  :disabled="!machining.laserPowerRecipeId"
+                  @click="emit('go-to-kind', 'laser')"
+                >
+                  <span class="material-symbols-outlined">arrow_forward</span>
+                  {{ t('recipes.editLinkedSub') }}
+                </button>
+              </article>
             </div>
-          </div>
-        </div>
+          </section>
+        </template>
       </div>
 
       <!-- horizontal -->
@@ -396,104 +651,123 @@ function updateList(listKey: string, id: string, fieldPath: string, value: unkno
           <span>{{ t('recipes.pendingSelect') }}</span>
         </div>
         <template v-else>
-          <div class="field-grid field-grid-2col">
-            <div class="field">
-              <label class="fl">{{ t('recipes.fieldOpeningShape') }}</label>
-              <div class="select-wrap">
-                <select
-                  class="fi"
-                  :value="horizontal.openingShape"
-                  @change="updateList('horizontalFormulaRecipes', horizontal.id, 'openingShape', ($event.target as HTMLSelectElement).value)"
-                >
-                  <option value="V型">V型</option>
-                  <option value="//型">//型</option>
-                </select>
-                <span class="material-symbols-outlined select-arrow">expand_more</span>
+          <section class="rne-section tone-params">
+            <header class="rne-section-head">
+              <span class="rne-section-badge">
+                <span class="material-symbols-outlined">horizontal_rule</span>
+              </span>
+              <div class="rne-section-text">
+                <h3 class="rne-section-title">{{ t('recipes.sectionHorizontalParams') }}</h3>
+                <p class="rne-section-desc">{{ t('recipes.sectionHorizontalParamsDesc') }}</p>
               </div>
-            </div>
-            <div class="field">
-              <label class="fl">{{ t('recipes.fieldFocusComp') }}</label>
-              <input
-                class="fi"
-                type="number"
-                step="0.01"
-                :value="horizontal.focusCompensation"
-                @input="updateList('horizontalFormulaRecipes', horizontal.id, 'focusCompensation', Number(($event.target as HTMLInputElement).value))"
+            </header>
+            <div class="field-grid field-grid-2col">
+              <div class="field">
+                <label class="fl">{{ t('recipes.fieldOpeningShape') }}</label>
+                <div
+                  class="enable-toggle"
+                  role="group"
+                  :aria-label="t('recipes.fieldOpeningShape')"
+                >
+                  <button
+                    type="button"
+                    class="enable-btn"
+                    :class="{ active: horizontal.openingShape === 'V型' }"
+                    @click="updateList('horizontalFormulaRecipes', horizontal.id, 'openingShape', 'V型')"
+                  >
+                    V型
+                  </button>
+                  <button
+                    type="button"
+                    class="enable-btn"
+                    :class="{ active: horizontal.openingShape === '//型' }"
+                    @click="updateList('horizontalFormulaRecipes', horizontal.id, 'openingShape', '//型')"
+                  >
+                    //型
+                  </button>
+                </div>
+              </div>
+              <RecipeUnitValue
+                :label="t('recipes.fieldFocusComp')"
+                :model-value="horizontal.focusCompensation"
+                :unit="t('recipes.unitMm')"
+                :step="0.01"
+                @update:model-value="updateList('horizontalFormulaRecipes', horizontal.id, 'focusCompensation', $event)"
               />
             </div>
-          </div>
 
-          <details class="formula-group" open>
-            <summary>{{ t('recipes.groupAngleFormula') }}</summary>
-            <div class="kb-row">
-              <RecipeKbValue
-                label=""
-                coeff="K"
-                :model-value="horizontal.angleFormula?.k ?? 0"
-                @update:model-value="updateList('horizontalFormulaRecipes', horizontal.id, 'angleFormula.k', $event)"
-              />
-              <RecipeKbValue
-                label=""
-                coeff="B"
-                :model-value="horizontal.angleFormula?.b ?? 0"
-                @update:model-value="updateList('horizontalFormulaRecipes', horizontal.id, 'angleFormula.b', $event)"
-              />
-            </div>
-          </details>
+            <details class="formula-group" open>
+              <summary>{{ t('recipes.groupAngleFormula') }}</summary>
+              <div class="kb-row">
+                <RecipeKbValue
+                  label=""
+                  coeff="K"
+                  :model-value="horizontal.angleFormula?.k ?? 0"
+                  @update:model-value="updateList('horizontalFormulaRecipes', horizontal.id, 'angleFormula.k', $event)"
+                />
+                <RecipeKbValue
+                  label=""
+                  coeff="B"
+                  :model-value="horizontal.angleFormula?.b ?? 0"
+                  @update:model-value="updateList('horizontalFormulaRecipes', horizontal.id, 'angleFormula.b', $event)"
+                />
+              </div>
+            </details>
 
-          <details class="formula-group" open>
-            <summary>{{ t('recipes.groupLowerOpening') }}</summary>
-            <div class="kb-row">
-              <RecipeKbValue
-                label=""
-                coeff="K"
-                :model-value="horizontal.lowerOpeningFormula?.k ?? 0"
-                @update:model-value="updateList('horizontalFormulaRecipes', horizontal.id, 'lowerOpeningFormula.k', $event)"
-              />
-              <RecipeKbValue
-                label=""
-                coeff="B"
-                :model-value="horizontal.lowerOpeningFormula?.b ?? 0"
-                @update:model-value="updateList('horizontalFormulaRecipes', horizontal.id, 'lowerOpeningFormula.b', $event)"
-              />
-            </div>
-          </details>
+            <details class="formula-group" open>
+              <summary>{{ t('recipes.groupLowerOpening') }}</summary>
+              <div class="kb-row">
+                <RecipeKbValue
+                  label=""
+                  coeff="K"
+                  :model-value="horizontal.lowerOpeningFormula?.k ?? 0"
+                  @update:model-value="updateList('horizontalFormulaRecipes', horizontal.id, 'lowerOpeningFormula.k', $event)"
+                />
+                <RecipeKbValue
+                  label=""
+                  coeff="B"
+                  :model-value="horizontal.lowerOpeningFormula?.b ?? 0"
+                  @update:model-value="updateList('horizontalFormulaRecipes', horizontal.id, 'lowerOpeningFormula.b', $event)"
+                />
+              </div>
+            </details>
 
-          <details class="formula-group" open>
-            <summary>{{ t('recipes.groupDepthComp') }}</summary>
-            <div class="kb-row">
-              <RecipeKbValue
-                label=""
-                coeff="K"
-                :model-value="horizontal.depthCompensationFormula?.k ?? 0"
-                @update:model-value="updateList('horizontalFormulaRecipes', horizontal.id, 'depthCompensationFormula.k', $event)"
-              />
-              <RecipeKbValue
-                label=""
-                coeff="B"
-                :model-value="horizontal.depthCompensationFormula?.b ?? 0"
-                @update:model-value="updateList('horizontalFormulaRecipes', horizontal.id, 'depthCompensationFormula.b', $event)"
-              />
-            </div>
-          </details>
+            <details class="formula-group" open>
+              <summary>{{ t('recipes.groupDepthComp') }}</summary>
+              <div class="kb-row">
+                <RecipeKbValue
+                  label=""
+                  coeff="K"
+                  :model-value="horizontal.depthCompensationFormula?.k ?? 0"
+                  @update:model-value="updateList('horizontalFormulaRecipes', horizontal.id, 'depthCompensationFormula.k', $event)"
+                />
+                <RecipeKbValue
+                  label=""
+                  coeff="B"
+                  :model-value="horizontal.depthCompensationFormula?.b ?? 0"
+                  @update:model-value="updateList('horizontalFormulaRecipes', horizontal.id, 'depthCompensationFormula.b', $event)"
+                />
+              </div>
+            </details>
 
-          <details class="formula-group" open>
-            <summary>{{ t('recipes.groupCompAngle') }}</summary>
-            <div class="kb-row">
-              <RecipeKbValue
-                label=""
-                coeff="K"
-                :model-value="horizontal.compensationAngleFormula?.k ?? 0"
-                @update:model-value="updateList('horizontalFormulaRecipes', horizontal.id, 'compensationAngleFormula.k', $event)"
-              />
-              <RecipeKbValue
-                label=""
-                coeff="B"
-                :model-value="horizontal.compensationAngleFormula?.b ?? 0"
-                @update:model-value="updateList('horizontalFormulaRecipes', horizontal.id, 'compensationAngleFormula.b', $event)"
-              />
-            </div>
-          </details>
+            <details class="formula-group" open>
+              <summary>{{ t('recipes.groupCompAngle') }}</summary>
+              <div class="kb-row">
+                <RecipeKbValue
+                  label=""
+                  coeff="K"
+                  :model-value="horizontal.compensationAngleFormula?.k ?? 0"
+                  @update:model-value="updateList('horizontalFormulaRecipes', horizontal.id, 'compensationAngleFormula.k', $event)"
+                />
+                <RecipeKbValue
+                  label=""
+                  coeff="B"
+                  :model-value="horizontal.compensationAngleFormula?.b ?? 0"
+                  @update:model-value="updateList('horizontalFormulaRecipes', horizontal.id, 'compensationAngleFormula.b', $event)"
+                />
+              </div>
+            </details>
+          </section>
         </template>
       </div>
 
@@ -504,148 +778,170 @@ function updateList(listKey: string, id: string, fieldPath: string, value: unkno
           <span>{{ t('recipes.pendingSelect') }}</span>
         </div>
         <template v-else>
-          <div class="field-grid">
+          <section class="rne-section tone-params">
+            <header class="rne-section-head">
+              <span class="rne-section-badge">
+                <span class="material-symbols-outlined">height</span>
+              </span>
+              <div class="rne-section-text">
+                <h3 class="rne-section-title">{{ t('recipes.sectionVerticalParams') }}</h3>
+                <p class="rne-section-desc">{{ t('recipes.sectionVerticalParamsDesc') }}</p>
+              </div>
+            </header>
             <div class="field">
               <label class="fl">{{ t('recipes.fieldCuttingAxis') }}</label>
-              <div class="select-wrap">
-                <select
-                  class="fi"
-                  :value="vertical.cuttingAxis"
-                  @change="updateList('verticalFormulaRecipes', vertical.id, 'cuttingAxis', ($event.target as HTMLSelectElement).value)"
+              <div
+                class="enable-toggle"
+                role="group"
+                :aria-label="t('recipes.fieldCuttingAxis')"
+              >
+                <button
+                  type="button"
+                  class="enable-btn"
+                  :class="{ active: vertical.cuttingAxis === 'XY' }"
+                  @click="updateList('verticalFormulaRecipes', vertical.id, 'cuttingAxis', 'XY')"
                 >
-                  <option value="XY">XY</option>
-                  <option value="R">R</option>
-                </select>
-                <span class="material-symbols-outlined select-arrow">expand_more</span>
+                  XY
+                </button>
+                <button
+                  type="button"
+                  class="enable-btn"
+                  :class="{ active: vertical.cuttingAxis === 'R' }"
+                  @click="updateList('verticalFormulaRecipes', vertical.id, 'cuttingAxis', 'R')"
+                >
+                  R
+                </button>
               </div>
             </div>
-            <RecipeUnitValue
-              :label="t('recipes.fieldChangePercent')"
-              :model-value="vertical.changePercent"
-              :unit="t('recipes.unitPercent')"
-              @update:model-value="updateList('verticalFormulaRecipes', vertical.id, 'changePercent', $event)"
-            />
-            <RecipeUnitValue
-              :label="t('recipes.fieldXFeed')"
-              :model-value="vertical.xFeed"
-              :unit="t('recipes.unitMm')"
-              :step="0.001"
-              @update:model-value="updateList('verticalFormulaRecipes', vertical.id, 'xFeed', $event)"
-            />
-            <RecipeUnitValue
-              :label="t('recipes.fieldXSpeed')"
-              :model-value="vertical.xSpeed"
-              :unit="t('recipes.unitMmPerS')"
-              @update:model-value="updateList('verticalFormulaRecipes', vertical.id, 'xSpeed', $event)"
-            />
-          </div>
-
-          <details class="formula-group" open>
-            <summary>{{ t('recipes.groupEdgeCutting') }}</summary>
-            <div class="field-grid">
+            <div class="field-grid field-grid-top">
               <RecipeUnitValue
-                :label="t('recipes.fieldSpeed')"
-                :model-value="vertical.edgeCutting?.speed ?? 0"
+                :label="t('recipes.fieldChangePercent')"
+                :model-value="vertical.changePercent"
                 :unit="t('recipes.unitPercent')"
-                @update:model-value="updateList('verticalFormulaRecipes', vertical.id, 'edgeCutting.speed', $event)"
+                @update:model-value="updateList('verticalFormulaRecipes', vertical.id, 'changePercent', $event)"
               />
-              <div class="field">
-                <label class="fl">{{ t('recipes.fieldCutTimes') }}</label>
-                <input
-                  class="fi"
-                  type="number"
-                  :value="vertical.edgeCutting?.cutTimes ?? 0"
-                  @input="updateList('verticalFormulaRecipes', vertical.id, 'edgeCutting.cutTimes', Number(($event.target as HTMLInputElement).value))"
-                />
-              </div>
-              <div class="field">
-                <label class="fl">{{ t('recipes.fieldCutSpeedNums') }}</label>
-                <input
-                  class="fi"
-                  type="number"
-                  :value="vertical.edgeCutting?.cutSpeedNums ?? 0"
-                  @input="updateList('verticalFormulaRecipes', vertical.id, 'edgeCutting.cutSpeedNums', Number(($event.target as HTMLInputElement).value))"
-                />
-              </div>
-              <RecipeKbValue
-                label=""
-                coeff="K"
-                :model-value="vertical.edgeCutting?.change?.k ?? 0"
-                @update:model-value="updateList('verticalFormulaRecipes', vertical.id, 'edgeCutting.change.k', $event)"
-              />
-              <RecipeKbValue
-                label=""
-                coeff="B"
-                :model-value="vertical.edgeCutting?.change?.b ?? 0"
-                @update:model-value="updateList('verticalFormulaRecipes', vertical.id, 'edgeCutting.change.b', $event)"
-              />
-            </div>
-          </details>
-
-          <details class="formula-group" open>
-            <summary>{{ t('recipes.groupMiddleCutting') }}</summary>
-            <div class="field-grid">
               <RecipeUnitValue
-                :label="t('recipes.fieldSpeed')"
-                :model-value="vertical.middleCutting?.speed ?? 0"
-                :unit="t('recipes.unitPercent')"
-                @update:model-value="updateList('verticalFormulaRecipes', vertical.id, 'middleCutting.speed', $event)"
-              />
-              <div class="field">
-                <label class="fl">{{ t('recipes.fieldCutTimes') }}</label>
-                <input
-                  class="fi"
-                  type="number"
-                  :value="vertical.middleCutting?.cutTimes ?? 0"
-                  @input="updateList('verticalFormulaRecipes', vertical.id, 'middleCutting.cutTimes', Number(($event.target as HTMLInputElement).value))"
-                />
-              </div>
-              <RecipeKbValue
-                label=""
-                coeff="K"
-                :model-value="vertical.middleCutting?.change?.k ?? 0"
-                @update:model-value="updateList('verticalFormulaRecipes', vertical.id, 'middleCutting.change.k', $event)"
-              />
-              <RecipeKbValue
-                label=""
-                coeff="B"
-                :model-value="vertical.middleCutting?.change?.b ?? 0"
-                @update:model-value="updateList('verticalFormulaRecipes', vertical.id, 'middleCutting.change.b', $event)"
-              />
-            </div>
-          </details>
-
-          <details class="formula-group" open>
-            <summary>{{ t('recipes.groupDescentCutting') }}</summary>
-            <div class="field-grid">
-              <RecipeUnitValue
-                :label="t('recipes.fieldDescentAmount')"
-                :model-value="vertical.descentCutting?.speed ?? 0"
+                :label="t('recipes.fieldXFeed')"
+                :model-value="vertical.xFeed"
                 :unit="t('recipes.unitMm')"
                 :step="0.001"
-                @update:model-value="updateList('verticalFormulaRecipes', vertical.id, 'descentCutting.speed', $event)"
+                @update:model-value="updateList('verticalFormulaRecipes', vertical.id, 'xFeed', $event)"
               />
               <RecipeUnitValue
-                :label="t('recipes.fieldZFeed')"
-                :model-value="vertical.descentCutting?.zFeed ?? 0"
-                :unit="t('recipes.unitMm')"
-                :step="0.001"
-                @update:model-value="updateList('verticalFormulaRecipes', vertical.id, 'descentCutting.zFeed', $event)"
-              />
-              <RecipeKbValue
-                label=""
-                coeff="K"
-                :model-value="vertical.descentCutting?.change?.k ?? 0"
-                @update:model-value="updateList('verticalFormulaRecipes', vertical.id, 'descentCutting.change.k', $event)"
-              />
-              <RecipeKbValue
-                label=""
-                coeff="B"
-                :model-value="vertical.descentCutting?.change?.b ?? 0"
-                @update:model-value="updateList('verticalFormulaRecipes', vertical.id, 'descentCutting.change.b', $event)"
+                :label="t('recipes.fieldXSpeed')"
+                :model-value="vertical.xSpeed"
+                :unit="t('recipes.unitMmPerS')"
+                @update:model-value="updateList('verticalFormulaRecipes', vertical.id, 'xSpeed', $event)"
               />
             </div>
-          </details>
+
+            <details class="formula-group" open>
+              <summary>{{ t('recipes.groupEdgeCutting') }}</summary>
+              <div class="field-grid">
+                <RecipeUnitValue
+                  :label="t('recipes.fieldSpeed')"
+                  :model-value="vertical.edgeCutting?.speed ?? 0"
+                  :unit="t('recipes.unitPercent')"
+                  @update:model-value="updateList('verticalFormulaRecipes', vertical.id, 'edgeCutting.speed', $event)"
+                />
+                <RecipeUnitValue
+                  :label="t('recipes.fieldCutTimes')"
+                  :model-value="vertical.edgeCutting?.cutTimes ?? 0"
+                  :unit="t('recipes.unitTimes')"
+                  :step="1"
+                  @update:model-value="updateList('verticalFormulaRecipes', vertical.id, 'edgeCutting.cutTimes', $event)"
+                />
+                <RecipeUnitValue
+                  :label="t('recipes.fieldCutSpeedNums')"
+                  :model-value="vertical.edgeCutting?.cutSpeedNums ?? 0"
+                  :unit="t('recipes.unitTimes')"
+                  :step="1"
+                  @update:model-value="updateList('verticalFormulaRecipes', vertical.id, 'edgeCutting.cutSpeedNums', $event)"
+                />
+              </div>
+              <div class="kb-row">
+                <RecipeKbValue
+                  label=""
+                  coeff="K"
+                  :model-value="vertical.edgeCutting?.change?.k ?? 0"
+                  @update:model-value="updateList('verticalFormulaRecipes', vertical.id, 'edgeCutting.change.k', $event)"
+                />
+                <RecipeKbValue
+                  label=""
+                  coeff="B"
+                  :model-value="vertical.edgeCutting?.change?.b ?? 0"
+                  @update:model-value="updateList('verticalFormulaRecipes', vertical.id, 'edgeCutting.change.b', $event)"
+                />
+              </div>
+            </details>
+
+            <details class="formula-group" open>
+              <summary>{{ t('recipes.groupMiddleCutting') }}</summary>
+              <div class="field-grid">
+                <RecipeUnitValue
+                  :label="t('recipes.fieldSpeed')"
+                  :model-value="vertical.middleCutting?.speed ?? 0"
+                  :unit="t('recipes.unitPercent')"
+                  @update:model-value="updateList('verticalFormulaRecipes', vertical.id, 'middleCutting.speed', $event)"
+                />
+                <RecipeUnitValue
+                  :label="t('recipes.fieldCutTimes')"
+                  :model-value="vertical.middleCutting?.cutTimes ?? 0"
+                  :unit="t('recipes.unitTimes')"
+                  :step="1"
+                  @update:model-value="updateList('verticalFormulaRecipes', vertical.id, 'middleCutting.cutTimes', $event)"
+                />
+              </div>
+              <div class="kb-row">
+                <RecipeKbValue
+                  label=""
+                  coeff="K"
+                  :model-value="vertical.middleCutting?.change?.k ?? 0"
+                  @update:model-value="updateList('verticalFormulaRecipes', vertical.id, 'middleCutting.change.k', $event)"
+                />
+                <RecipeKbValue
+                  label=""
+                  coeff="B"
+                  :model-value="vertical.middleCutting?.change?.b ?? 0"
+                  @update:model-value="updateList('verticalFormulaRecipes', vertical.id, 'middleCutting.change.b', $event)"
+                />
+              </div>
+            </details>
+
+            <details class="formula-group" open>
+              <summary>{{ t('recipes.groupDescentCutting') }}</summary>
+              <div class="field-grid">
+                <RecipeUnitValue
+                  :label="t('recipes.fieldDescentAmount')"
+                  :model-value="vertical.descentCutting?.speed ?? 0"
+                  :unit="t('recipes.unitMm')"
+                  :step="0.001"
+                  @update:model-value="updateList('verticalFormulaRecipes', vertical.id, 'descentCutting.speed', $event)"
+                />
+                <RecipeUnitValue
+                  :label="t('recipes.fieldZFeed')"
+                  :model-value="vertical.descentCutting?.zFeed ?? 0"
+                  :unit="t('recipes.unitMm')"
+                  :step="0.001"
+                  @update:model-value="updateList('verticalFormulaRecipes', vertical.id, 'descentCutting.zFeed', $event)"
+                />
+              </div>
+              <div class="kb-row">
+                <RecipeKbValue
+                  label=""
+                  coeff="K"
+                  :model-value="vertical.descentCutting?.change?.k ?? 0"
+                  @update:model-value="updateList('verticalFormulaRecipes', vertical.id, 'descentCutting.change.k', $event)"
+                />
+                <RecipeKbValue
+                  label=""
+                  coeff="B"
+                  :model-value="vertical.descentCutting?.change?.b ?? 0"
+                  @update:model-value="updateList('verticalFormulaRecipes', vertical.id, 'descentCutting.change.b', $event)"
+                />
+              </div>
+            </details>
+          </section>
         </template>
       </div>
     </div>
@@ -748,8 +1044,227 @@ function updateList(listKey: string, id: string, fieldPath: string, value: unkno
 .rne-panel {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
   animation: rne-fade 0.12s ease-out;
+}
+
+.rne-section {
+  --sec-accent: var(--color-primary);
+  padding: 14px 16px 16px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--sec-accent) 22%, rgba(255, 255, 255, 0.08));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--sec-accent) 9%, transparent), transparent 52%),
+    rgba(20, 22, 26, 0.45);
+}
+.rne-section.tone-main { --sec-accent: #7eb6ff; }
+.rne-section.tone-sub { --sec-accent: #5eead4; }
+.rne-section.tone-params { --sec-accent: #fbbf24; }
+.rne-section.tone-enable { --sec-accent: #86efac; }
+.rne-section.tone-enable.is-off { --sec-accent: #94a3b8; }
+.rne-section.tone-enable .rne-section-head {
+  align-items: center;
+  margin-bottom: 12px;
+}
+.rne-section.tone-enable .rne-section-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.enable-toggle {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 100%;
+  padding: 3px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  gap: 3px;
+  pointer-events: auto;
+}
+.enable-btn {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-on-surface-variant);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  pointer-events: auto;
+  user-select: none;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.enable-btn.active {
+  background: color-mix(in srgb, var(--sec-accent) 28%, transparent);
+  color: var(--sec-accent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sec-accent) 45%, transparent);
+}
+.enable-btn:hover:not(.active) {
+  color: var(--color-on-surface);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.sub-link-grid-1 { grid-template-columns: 1fr; }
+.sub-link-grid-3 { grid-template-columns: repeat(3, 1fr); }
+.sub-link-icon.tone-laser {
+  color: #7dd3fc;
+  background: rgba(125, 211, 252, 0.12);
+  border-color: rgba(125, 211, 252, 0.28);
+}
+.sub-link-icon.tone-horizontal {
+  color: #f9a8d4;
+  background: rgba(249, 168, 212, 0.12);
+  border-color: rgba(249, 168, 212, 0.28);
+}
+.sub-link-icon.tone-vertical {
+  color: #86efac;
+  background: rgba(134, 239, 172, 0.12);
+  border-color: rgba(134, 239, 172, 0.28);
+}
+
+.rne-section-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.rne-section-badge {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--sec-accent);
+  background: color-mix(in srgb, var(--sec-accent) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sec-accent) 32%, transparent);
+}
+.rne-section-badge .material-symbols-outlined { font-size: 18px; }
+.rne-section-text { min-width: 0; }
+.rne-section-title {
+  margin: 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-on-surface);
+}
+.rne-section-desc {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--color-on-surface-variant);
+}
+
+.sub-link-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.sub-link-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.2);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.sub-link-card.linked {
+  border-color: color-mix(in srgb, var(--sec-accent) 35%, transparent);
+  background: color-mix(in srgb, var(--sec-accent) 6%, rgba(0, 0, 0, 0.18));
+}
+.sub-link-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.sub-link-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid transparent;
+}
+.sub-link-icon .material-symbols-outlined { font-size: 18px; }
+.sub-link-icon.tone-blackening {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.12);
+  border-color: rgba(251, 191, 36, 0.28);
+}
+.sub-link-icon.tone-machining {
+  color: #a78bfa;
+  background: rgba(167, 139, 250, 0.12);
+  border-color: rgba(167, 139, 250, 0.28);
+}
+.sub-link-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.sub-link-kind {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-on-surface);
+}
+.sub-link-current {
+  font-size: 12px;
+  color: var(--color-on-surface-variant);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sub-link-card.linked .sub-link-current {
+  color: var(--sec-accent);
+  font-weight: 600;
+}
+.sub-link-open {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 6px;
+  border: 1px dashed color-mix(in srgb, var(--sec-accent) 40%, transparent);
+  background: transparent;
+  color: var(--sec-accent);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, opacity 0.12s ease;
+}
+.sub-link-open .material-symbols-outlined { font-size: 16px; }
+.sub-link-open:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--sec-accent) 12%, transparent);
+  border-style: solid;
+}
+.sub-link-open:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 @keyframes rne-fade {
   from { opacity: 0; transform: translateY(3px); }
@@ -870,6 +1385,7 @@ function updateList(listKey: string, id: string, fieldPath: string, value: unkno
   transform: translateY(-50%) rotate(180deg);
 }
 .formula-group {
+  margin-top: 14px;
   border: 1px solid var(--color-outline-variant);
   border-radius: 10px;
   background: color-mix(in srgb, var(--color-surface-container-low) 70%, transparent);
@@ -899,9 +1415,14 @@ function updateList(listKey: string, id: string, fieldPath: string, value: unkno
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px 18px;
+  margin-top: 12px;
+}
+@media (max-width: 1100px) {
+  .sub-link-grid-3 { grid-template-columns: 1fr; }
 }
 @media (max-width: 900px) {
   .unit-grid,
   .field-grid { grid-template-columns: 1fr 1fr; }
+  .sub-link-grid { grid-template-columns: 1fr; }
 }
 </style>
