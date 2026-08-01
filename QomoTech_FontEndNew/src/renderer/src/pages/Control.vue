@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import {
   startHardwareMonitor,
   stopHardwareMonitor,
@@ -28,7 +29,12 @@ import {
 import { useL10n } from '../shared/l10n'
 
 const { t } = useL10n()
+const router = useRouter()
 const { frameUrl } = useCameraReceiverState()
+
+function openDriverSettings() {
+  router.push('/controller-settings')
+}
 
 const {
   controllerConnected,
@@ -530,6 +536,18 @@ const ioOutput2 = computed(() => ioOut.value[2] ?? false)
           </button>
         </div>
       </div>
+
+      <!-- Driver settings — stacked under Jog (not a right overlay) -->
+      <button type="button" class="driver-settings-card" @click="openDriverSettings">
+        <div class="driver-settings-head">
+          <span class="material-symbols-outlined driver-settings-icon">precision_manufacturing</span>
+          <div class="driver-settings-text">
+            <span class="driver-settings-title">{{ t('control.driverSettings') }}</span>
+            <span class="driver-settings-sub">{{ t('control.driverSettingsHint') }}</span>
+          </div>
+          <span class="material-symbols-outlined driver-settings-chevron">chevron_right</span>
+        </div>
+      </button>
 
       <!-- Drive event log -->
       <div class="gcode-card">
@@ -1202,6 +1220,57 @@ const ioOutput2 = computed(() => ioOut.value[2] ?? false)
   font-size: 10px;
   color: var(--color-on-surface-variant);
   font-family: 'JetBrains Mono', monospace;
+}
+
+/* Driver settings entry (below Jog) */
+.driver-settings-card {
+  display: block;
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(36, 39, 42, 0.7);
+  backdrop-filter: blur(12px);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+}
+.driver-settings-card:hover {
+  border-color: color-mix(in srgb, var(--color-primary) 45%, transparent);
+  background: color-mix(in srgb, var(--color-primary) 8%, rgba(36, 39, 42, 0.85));
+}
+.driver-settings-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.driver-settings-icon {
+  font-size: 22px;
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+.driver-settings-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.driver-settings-title {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-on-surface);
+}
+.driver-settings-sub {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--color-on-surface-variant);
+}
+.driver-settings-chevron {
+  font-size: 20px;
+  color: var(--color-on-surface-variant);
+  flex-shrink: 0;
 }
 
 /* G-code */

@@ -27,6 +27,7 @@ const mainNavItems: NavItem[] = [
   { path: '/control', icon: 'settings_input_component', labelKey: 'nav.control' },
   { path: '/controller-settings', icon: 'precision_manufacturing', labelKey: 'nav.controllerSettings' },
   { path: '/recipes', icon: 'description', labelKey: 'nav.recipes' },
+  { path: '/free-param', icon: 'tune', labelKey: 'nav.freeParam' },
   { path: '/serial', icon: 'terminal', labelKey: 'nav.serial' }
 ]
 

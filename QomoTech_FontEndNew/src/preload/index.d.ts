@@ -33,6 +33,14 @@ declare global {
       system: {
         getInfo: () => Promise<SystemInfo>
       }
+      getBackendRuntimeStatus: () => Promise<{
+        state: 'running' | 'starting' | 'restarting' | 'error' | 'missing' | 'stopped'
+        isReachable: boolean
+        message: string
+      }>
+      openDocument: (
+        relativePath: string
+      ) => Promise<{ ok: true } | { ok: false; error: string }>
       update: UpdateAPI
     }
   }

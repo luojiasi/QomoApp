@@ -17,6 +17,15 @@ const api = {
       updateUrl: string
     }> => ipcRenderer.invoke('system:info')
   },
+  getBackendRuntimeStatus: (): Promise<{
+    state: 'running' | 'starting' | 'restarting' | 'error' | 'missing' | 'stopped'
+    isReachable: boolean
+    message: string
+  }> => ipcRenderer.invoke('get-backend-runtime-status'),
+  openDocument: (
+    relativePath: string
+  ): Promise<{ ok: true } | { ok: false; error: string }> =>
+    ipcRenderer.invoke('app:open-document', relativePath),
   update: {
     check: (): Promise<{ success: boolean; updateInfo?: unknown; error?: string }> =>
       ipcRenderer.invoke('update:check'),

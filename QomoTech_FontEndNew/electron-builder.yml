@@ -13,6 +13,13 @@ asarUnpack:
   - resources/**
 win:
   executableName: QomoTech
+  extraFiles:
+    - from: '../QomoTech_BackEnd/dist/run/run.exe'
+      to: 'run.exe'
+      filter: '**/*'
+    - from: '../QomoTech_BackEnd/dist/run/_internal'
+      to: '_internal'
+      filter: '**/*'
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}

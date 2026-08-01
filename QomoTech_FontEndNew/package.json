@@ -1,10 +1,11 @@
 {
-  "name": "qomotech-fontendnew",
-  "version": "0.2.15",
-  "description": "An Electron application with Vue and TypeScript",
+  "name": "qomotech-new",
+  "version": "0.2.21",
+  "description": "QOMOTech is a software for controlling the robot",
   "main": "./out/main/index.js",
-  "author": "example.com",
-  "homepage": "https://electron-vite.org",
+  "author": "ljs_bestwriter",
+  "homepage": "https://personalresume.luojiasi.com",
+
   "scripts": {
     "format": "prettier --write .",
     "lint": "eslint --cache .",
@@ -14,9 +15,11 @@
     "start": "electron-vite preview",
     "dev": "electron-vite dev",
     "build": "npm run typecheck && electron-vite build",
+    "build:backend:win": "cd ../QomoTech_BackEnd && python -m PyInstaller --noconfirm run.spec",
     "postinstall": "electron-builder install-app-deps",
     "build:unpack": "npm run build && electron-builder --dir",
-    "build:win": "npm run build && electron-builder --win",
+    "build:win": "npm run build:backend:win && npm run build && electron-builder --win",
+    "build:onlywin": "npm run build && electron-builder --win",
     "build:mac": "npm run build && electron-builder --mac",
     "build:linux": "npm run build && electron-builder --linux"
   },

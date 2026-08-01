@@ -29,12 +29,13 @@ function onPulseMsChange(id: string, event: Event) {
   updateBinding(id, { pulseMs: v })
 }
 
-type SettingsTab = 'general' | 'update' | 'display' | 'keyboard' | 'system' | 'about'
+type SettingsTab = 'general' | 'update' | 'display' | 'tutorials' | 'keyboard' | 'system' | 'about'
 
 const tabs: { id: SettingsTab; icon: string; titleKey: string }[] = [
   { id: 'general', icon: 'settings', titleKey: 'settings.general' },
   { id: 'update', icon: 'system_update', titleKey: 'settings.update' },
   { id: 'display', icon: 'palette', titleKey: 'settings.display' },
+  { id: 'tutorials', icon: 'play_circle', titleKey: 'settings.tutorials' },
   { id: 'keyboard', icon: 'keyboard', titleKey: 'kbd.title' },
   { id: 'system', icon: 'info', titleKey: 'settings.systemInfo' },
   { id: 'about', icon: 'apartment', titleKey: 'settings.about' }
@@ -84,6 +85,35 @@ onUnmounted(() => {
 
 const checkingUpdate = ref(false)
 const updateResult = ref<string | null>(null)
+
+/** 与 FrontEnd UseHelpContent 对齐的教程视频 */
+const videoGuides = [
+  { id: 'startup', titleKey: 'settings.tutorialStartup', fileName: 'resources/videos/开机流程.mp4' },
+  { id: 'init', titleKey: 'settings.tutorialInit', fileName: 'resources/videos/初始化流程.mp4' },
+  { id: 'precheck', titleKey: 'settings.tutorialPrecheck', fileName: 'resources/videos/切割前参数检查流程.mp4' },
+  { id: 'focus', titleKey: 'settings.tutorialFocus', fileName: 'resources/videos/对焦流程.mp4' },
+  { id: 'diamond', titleKey: 'settings.tutorialDiamond', fileName: 'resources/videos/切割金刚石放置流程.mp4' }
+] as const
+
+const tutorialStatus = ref('')
+const playingId = ref<string | null>(null)
+
+async function playTutorial(item: (typeof videoGuides)[number]): Promise<void> {
+  playingId.value = item.id
+  tutorialStatus.value = ''
+  try {
+    const res = await window.api.openDocument(item.fileName)
+    if (res.ok) {
+      tutorialStatus.value = `${t('settings.tutorialPlaying')}: ${t(item.titleKey)}`
+    } else {
+      tutorialStatus.value = `${t('settings.tutorialOpenFailed')}: ${res.error}`
+    }
+  } catch {
+    tutorialStatus.value = t('settings.tutorialOpenFailed')
+  } finally {
+    playingId.value = null
+  }
+}
 
 async function checkUpdate() {
   checkingUpdate.value = true
@@ -266,6 +296,38 @@ function onRecordKeydown(e: KeyboardEvent) {
               <span class="setting-desc">{{ t('settings.windowSizeDesc') }}</span>
             </div>
             <div class="setting-value mono">{{ windowWidth }} × {{ windowHeight }}</div>
+          </div>
+        </section>
+
+        <!-- Tutorials (video guides) -->
+        <section v-else-if="activeTab === 'tutorials'" class="detail-panel">
+          <h2 class="detail-title">
+            <span class="material-symbols-outlined">play_circle</span>
+            {{ t('settings.tutorials') }}
+          </h2>
+          <p class="tutorial-desc">{{ t('settings.tutorialsDesc') }}</p>
+
+          <div class="tutorial-list">
+            <div v-for="item in videoGuides" :key="item.id" class="tutorial-row">
+              <div class="setting-info">
+                <span class="setting-label">{{ t(item.titleKey) }}</span>
+              </div>
+              <button
+                type="button"
+                class="setting-btn tutorial-play"
+                :disabled="playingId === item.id"
+                @click="playTutorial(item)"
+              >
+                <span class="material-symbols-outlined">
+                  {{ playingId === item.id ? 'hourglass_empty' : 'play_arrow' }}
+                </span>
+                {{ t('settings.tutorialPlay') }}
+              </button>
+            </div>
+          </div>
+
+          <div v-if="tutorialStatus" class="tutorial-status" :title="tutorialStatus">
+            {{ tutorialStatus }}
           </div>
         </section>
 
@@ -698,6 +760,44 @@ function onRecordKeydown(e: KeyboardEvent) {
   background: rgba(255, 180, 171, 0.1);
   border-color: rgba(255, 180, 171, 0.3);
   color: var(--color-error);
+}
+
+.tutorial-desc {
+  margin: 0 0 16px;
+  font-size: 12px;
+  color: var(--color-on-surface-variant);
+  line-height: 1.5;
+}
+.tutorial-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tutorial-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--color-outline-variant);
+  background: color-mix(in srgb, var(--color-surface-container-high) 70%, transparent);
+}
+.tutorial-play .material-symbols-outlined {
+  font-size: 18px;
+}
+.tutorial-status {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--color-outline-variant);
+  background: color-mix(in srgb, var(--color-surface-container) 80%, transparent);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--color-on-surface-variant);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .settings-grid {

@@ -17,6 +17,26 @@ interface VersionRelease {
 }
 
 const changes: Record<string, VersionChange[]> = {
+  '0.2.21': [
+    { type: 'feature', textKey: 'update.v0221.c1' }
+  ],
+  '0.2.20': [
+    { type: 'improve', textKey: 'update.v0220.c1' }
+  ],
+  '0.2.19': [
+    { type: 'feature', textKey: 'update.v0219.c1' }
+  ],
+  '0.2.18': [
+    { type: 'improve', textKey: 'update.v0218.c1' }
+  ],
+  '0.2.17': [
+    { type: 'feature', textKey: 'update.v0217.c1' },
+    { type: 'improve', textKey: 'update.v0217.c2' }
+  ],
+  '0.2.16': [
+    { type: 'feature', textKey: 'update.v0216.c1' },
+    { type: 'improve', textKey: 'update.v0216.c2' }
+  ],
   '0.2.15': [
     { type: 'feature', textKey: 'update.v0215.c1' },
     { type: 'improve', textKey: 'update.v0215.c2' },
@@ -61,7 +81,7 @@ const changes: Record<string, VersionChange[]> = {
   ]
 }
 
-const releaseOrder = ['0.2.15', '0.2.14', '0.2.13', '0.2.12', '0.2.11', '0.2.10', '0.2.9']
+const releaseOrder = ['0.2.21', '0.2.20', '0.2.19', '0.2.18', '0.2.17', '0.2.16', '0.2.15', '0.2.14', '0.2.13', '0.2.12', '0.2.11', '0.2.10', '0.2.9']
 
 const changelog: VersionRelease[] = releaseOrder.map((v) => ({
   version: v,
