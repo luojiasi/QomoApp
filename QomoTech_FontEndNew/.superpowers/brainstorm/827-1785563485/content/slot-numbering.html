@@ -1,0 +1,70 @@
+<h2>十位格子编号怎么排？</h2>
+<p class="subtitle">对应机床俯视：左列 / 右列，从上到下。点选一种编号方式。</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>先左后右，各列自上而下</h3>
+      <p>左列 1→5，右列 6→10（常见工位编号）</p>
+      <div class="mockup" style="margin-top:10px">
+        <div class="mockup-body" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;max-width:160px">
+          <div style="border:1px solid #666;padding:8px;text-align:center;border-radius:6px">1</div>
+          <div style="border:1px solid #666;padding:8px;text-align:center;border-radius:6px">6</div>
+          <div style="border:1px solid #666;padding:8px;text-align:center;border-radius:6px">2</div>
+          <div style="border:1px solid #666;padding:8px;text-align:center;border-radius:6px">7</div>
+          <div style="border:1px solid #666;padding:8px;text-align:center;border-radius:6px">3</div>
+          <div style="border:1px solid #666;padding:8px;text-align:center;border-radius:6px">8</div>
+          <div style="border:1px solid #666;padding:8px;text-align:center;border-radius:6px">4</div>
+          <div style="border:1px solid #666;padding:8px;text-align:center;border-radius:6px">9</div>
+          <div style="border:1px solid #666;padding:8px;text-align:center;border-radius:6px">5</div>
+          <div style="border:1px solid #666;padding:8px;text-align:center;border-radius:6px">10</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>逐行从左到右</h3>
+      <p>第1行 1|2，第2行 3|4 … 第5行 9|10</p>
+      <div class="mockup" style="margin-top:10px">
+        <div class="mockup-body" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;max-width:160px">
+          <div style="border:1px solid #666;padding:8px;text-align:center;border-radius:6px">1</div>
+          <div style="border:1px solid #666;padding:8px;text-align:center;border-radius:6px">2</div>
+          <div style="border:1px solid #666;padding:8px;text-align:center;border-radius:6px">3</div>
+          <div style="border:1px solid #666;padding:8px;text-align:center;border-radius:6px">4</div>
+          <div style="border:1px solid #666;padding:8px;text-align:center;border-radius:6px">5</div>
+          <div style="border:1px solid #666;padding:8px;text-align:center;border-radius:6px">6</div>
+          <div style="border:1px solid #666;padding:8px;text-align:center;border-radius:6px">7</div>
+          <div style="border:1px solid #666;padding:8px;text-align:center;border-radius:6px">8</div>
+          <div style="border:1px solid #666;padding:8px;text-align:center;border-radius:6px">9</div>
+          <div style="border:1px solid #666;padding:8px;text-align:center;border-radius:6px">10</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>先右后左，各列自上而下</h3>
+      <p>右列 1→5，左列 6→10</p>
+      <div class="mockup" style="margin-top:10px">
+        <div class="mockup-body" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;max-width:160px">
+          <div style="border:1px solid #666;padding:8px;text-align:center;border-radius:6px">6</div>
+          <div style="border:1px solid #666;padding:8px;text-align:center;border-radius:6px">1</div>
+          <div style="border:1px solid #666;padding:8px;text-align:center;border-radius:6px">7</div>
+          <div style="border:1px solid #666;padding:8px;text-align:center;border-radius:6px">2</div>
+          <div style="border:1px solid #666;padding:8px;text-align:center;border-radius:6px">8</div>
+          <div style="border:1px solid #666;padding:8px;text-align:center;border-radius:6px">3</div>
+          <div style="border:1px solid #666;padding:8px;text-align:center;border-radius:6px">9</div>
+          <div style="border:1px solid #666;padding:8px;text-align:center;border-radius:6px">4</div>
+          <div style="border:1px solid #666;padding:8px;text-align:center;border-radius:6px">10</div>
+          <div style="border:1px solid #666;padding:8px;text-align:center;border-radius:6px">5</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,90 @@
+<h2>设计 §1（修订）：格子下显示绑定目标名</h2>
+<p class="subtitle">选中工位并与当前目标绑定后，该工位下方显示目标名称。看是否符合预期。</p>
+
+<div class="mockup">
+  <div class="mockup-header">目标参数 · 工位网格（含绑定名）</div>
+  <div class="mockup-body" style="max-width:340px;margin:0 auto;font-family:system-ui,sans-serif">
+    <div style="margin-bottom:10px;font-size:12px;opacity:.75">
+      当前编辑目标：<strong style="color:#f0b429">目标1</strong>
+    </div>
+
+    <div style="padding:10px;border:1px solid #444;border-radius:8px;background:#1a1d22">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-size:12px;opacity:.85">工位选择</div>
+        <div style="font-size:11px;padding:4px 8px;border-radius:6px;background:#2a3344;color:#c8d4ff">示教选中格</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <!-- row: left=6.. right=1.. -->
+        <div style="padding:10px 8px;text-align:center;border-radius:8px;border:1px solid #555;background:#222;opacity:.7">
+          <div style="font-size:16px;font-weight:700">6</div>
+          <div style="font-size:10px;opacity:.45;margin-top:4px">—</div>
+        </div>
+        <div style="padding:10px 8px;text-align:center;border-radius:8px;border:2px solid #f0b429;background:#2a2410;box-shadow:0 0 0 2px rgba(240,180,41,.2)">
+          <div style="font-size:16px;font-weight:700;color:#f0b429">1</div>
+          <div style="font-size:10px;color:#f0b429;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">目标1</div>
+        </div>
+
+        <div style="padding:10px 8px;text-align:center;border-radius:8px;border:1px solid #555;background:#222;opacity:.7">
+          <div style="font-size:16px;font-weight:700">7</div>
+          <div style="font-size:10px;opacity:.45;margin-top:4px">—</div>
+        </div>
+        <div style="padding:10px 8px;text-align:center;border-radius:8px;border:1px solid #4a6;background:#1a2a22">
+          <div style="font-size:16px;font-weight:700">2</div>
+          <div style="font-size:10px;color:#8c8;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">目标2</div>
+        </div>
+
+        <div style="padding:10px 8px;text-align:center;border-radius:8px;border:1px solid #555;background:#222;opacity:.7">
+          <div style="font-size:16px;font-weight:700">8</div>
+          <div style="font-size:10px;opacity:.45;margin-top:4px">—</div>
+        </div>
+        <div style="padding:10px 8px;text-align:center;border-radius:8px;border:1px solid #4a6;background:#1a2a22">
+          <div style="font-size:16px;font-weight:700">3</div>
+          <div style="font-size:10px;color:#8c8;margin-top:4px">目标3</div>
+        </div>
+
+        <div style="padding:10px 8px;text-align:center;border-radius:8px;border:1px solid #555;background:#222;opacity:.7">
+          <div style="font-size:16px;font-weight:700">9</div>
+          <div style="font-size:10px;opacity:.45;margin-top:4px">—</div>
+        </div>
+        <div style="padding:10px 8px;text-align:center;border-radius:8px;border:1px solid #4a6;background:#1a2a22">
+          <div style="font-size:16px;font-weight:700">4</div>
+          <div style="font-size:10px;opacity:.45;margin-top:4px">—</div>
+        </div>
+
+        <div style="padding:10px 8px;text-align:center;border-radius:8px;border:1px solid #555;background:#222;opacity:.7">
+          <div style="font-size:16px;font-weight:700">10</div>
+          <div style="font-size:10px;opacity:.45;margin-top:4px">—</div>
+        </div>
+        <div style="padding:10px 8px;text-align:center;border-radius:8px;border:1px solid #4a6;background:#1a2a22">
+          <div style="font-size:16px;font-weight:700">5</div>
+          <div style="font-size:10px;opacity:.45;margin-top:4px">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:14px">
+  <ul>
+    <li>工位编号下方：已绑定显示<strong>目标名称</strong>；未绑定显示「—」</li>
+    <li>金边 = 当前正在编辑的目标所绑定的工位</li>
+    <li>点已示教工位 → 运动到位 + 把<strong>当前目标</strong>绑到该工位（名称出现在格子下）</li>
+  </ul>
+</div>
+
+<p class="subtitle">还请确认一点：同一工位是否只允许绑定一个目标？（若目标2再绑到工位1，是覆盖「目标1」还是禁止？）</p>
+<div class="options">
+  <div class="option" data-choice="overwrite" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content"><h3>覆盖</h3><p>新目标绑定后，旧目标失去该工位</p></div>
+  </div>
+  <div class="option" data-choice="forbid" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content"><h3>禁止</h3><p>已被占用则提示，需先解绑</p></div>
+  </div>
+  <div class="option" data-choice="multi" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content"><h3>允许多个</h3><p>格子下可叠显示多个目标名</p></div>
+  </div>
+</div>

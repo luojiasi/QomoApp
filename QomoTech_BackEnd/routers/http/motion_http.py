@@ -30,6 +30,10 @@ from pydantic import BaseModel, Field
 
 from services.MotionService import MotionService
 from services.motion_control.config_persistence import 保存到文件, 从文件加载
+from services.program_control_ten.ten_plus_cutting_persistence import (
+    保存到文件 as 保存十工位到文件,
+    从文件加载 as 加载十工位文件,
+)
 from services.motion_control.safe_controller import SafetyViolation
 from services.motion_control.zmc_adapter import ZMCError
 from utils.logger import 获取日志记录器
@@ -851,3 +855,23 @@ async def 保存控制器设置(req: Request):
         return _ok("控制器设置已保存并下发到驱动器")
     except Exception:
         return _ok("控制器设置已保存到文件，但下发驱动器失败（控制器可能未连接）")
+
+
+# ==================================================================
+# 12. 十工位切割点位（TENPLUSCUTTING.json）
+# ==================================================================
+
+
+@路由.get("/ten-plus-cutting", summary="读取十工位点位配置 TENPLUSCUTTING.json")
+async def 读取十工位点位():
+    data = 加载十工位文件()
+    return _ok("OK", data)
+
+
+@路由.post("/ten-plus-cutting", summary="保存十工位点位配置到 TENPLUSCUTTING.json")
+async def 保存十工位点位(req: Request):
+    body = await req.json()
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="请求体必须为 JSON 对象")
+    data = 保存十工位到文件(body)
+    return _ok("十工位配置已保存", data)

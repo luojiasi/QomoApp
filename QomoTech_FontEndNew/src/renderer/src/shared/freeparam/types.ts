@@ -31,11 +31,28 @@ export interface FreeParamTarget {
   name: string
   /** 该目标的点位 XY，格式 "(x,y)" */
   pointXy: string
+  /** 绑定的工位号 1–10；未绑定为 null */
+  slotIndex: number | null
   /** 每旋转多少圈做一次补偿（对齐 FrontEnd rInterval） */
   rInterval: number
   /** 每次圈补偿量 mm（对齐 FrontEnd rCompensation） */
   rCompensation: number
   rows: FreeParamTaskRow[]
+}
+
+/** 十工位单槽（对应 TENPLUSCUTTING.json） */
+export interface TenPlusSlot {
+  index: number
+  x: number
+  y: number
+  z: number
+  u: number
+  taught: boolean
+}
+
+export interface TenPlusCuttingConfig {
+  version: string
+  slots: TenPlusSlot[]
 }
 
 /** 新格式：多目标整包保存 */
@@ -55,7 +72,8 @@ export interface SerializedTaskTable {
   rows: FreeParamTaskRow[]
 }
 
-export const FREE_PARAM_FILE_VERSION = '2.2.0'
+export const FREE_PARAM_FILE_VERSION = '2.3.0'
+export const TEN_PLUS_SLOT_COUNT = 10
 export const FREE_PARAM_FILE_EXT = '.jjs'
 export const FREE_PARAM_FORMAT = 'QOMO5P-FreeParamTargets' as const
 export const LEGACY_TASK_TABLE_FORMAT = 'QOMO5P-TaskTable' as const

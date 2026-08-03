@@ -3,10 +3,18 @@ from pickle import FLOAT
 from typing import Any
 import asyncio
 
-from services.program_control_freeparam.motion_primitives import 自由编辑参数的额外运动控制
-from services.program_control_freeparam.step import ProgramFreeParamsStep
+from services.program_control_ten.motion_primitives import 十工位的额外运动控制
+from services.program_control_ten.step import ProgramFreeParamsStep
 from services.MotionService import MotionService
-from services.program_control_freeparam.geometry import 构建R轴的补偿, 构建任务的数据, 构建执行任务的参数, 构建配方数据, 计算开口范围, 更新V型开口偏移, 更新平行型开口偏移
+from services.program_control_ten.geometry import (
+    构建R轴的补偿,
+    构建任务的数据,
+    构建执行任务的参数,
+    构建配方数据,
+    计算开口范围,
+    更新V型开口偏移,
+    更新平行型开口偏移,
+)
 from utils.logger import 获取日志记录器
 
 日志 = 获取日志记录器("自由参数切割程序")
@@ -17,11 +25,11 @@ from utils.logger import 获取日志记录器
 # Runner
 # ======================================================================
 
-class ProgramRunnerFreeParam:
+class ProgramRunnerTenPlus:
 
     def __init__(self) -> None:
         self._运动 = MotionService.获取实例()
-        self._自由编辑参数的运动 = 自由编辑参数的额外运动控制(self._运动)
+        self._十工位的运动 = 十工位的额外运动控制(self._运动)
 
         # ── 运行状态标志 ──
         self._是否运行中 = False
@@ -136,7 +144,7 @@ class ProgramRunnerFreeParam:
     # 主入口
     # ==================================================================
 
-    async def 执行自由编辑参数(self, *, 配方数据: dict[str, Any], 实体数据: list[dict[str, Any]]) -> dict[str, Any]:
+    async def 执行十工位自由编辑参数(self, *, 配方数据: dict[str, Any], 实体数据: list[dict[str, Any]]) -> dict[str, Any]:
         if self._执行锁.locked():return {"success": False, "message": "程序正在执行中（重复触发被拒绝）"}
         if not self._运动.适配器 or not self._运动.适配器.已连接:return {"success": False, "message": "motion 控制器未连接"}
         
@@ -154,11 +162,6 @@ class ProgramRunnerFreeParam:
                 # 循环前获取当前 XYZ 轴位置
                 当前X, 当前Y = await self._运动.取_xy_实际位置()
                 当前Z = await self._运动.取_z_实际位置()
-                # 当前Z = -23.1
-                # 当前Z = -19.6
-                # 当前Z = -18.85
-                # 当前Z = -17.45
-
 
                 for 序号, 行数据 in enumerate(实体数据):
                     当前序号 = 序号 + 1
@@ -180,8 +183,8 @@ class ProgramRunnerFreeParam:
                         return {"success": False, "message": f"任务 {当前序号} 执行失败: {e}"}
 
                     if self._是否急停请求:
-                        await self._自由编辑参数的运动.关闭吹风()
-                        await self._自由编辑参数的运动.关闭激光()
+                        await self._十工位的运动.关闭吹风()
+                        await self._十工位的运动.关闭激光()
                         return {"success": False, "message": "程序已急停"}
                     if self._是否跳过请求:
                         # 跳过标记由 _切割() 内的清理所有状态 清除

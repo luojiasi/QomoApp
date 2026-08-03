@@ -17,6 +17,7 @@ from core.calc_offset_ljs import OffsetEndpointCalculator  # 旧的
 # from core.calc_offset import OffsetEndpointCalculator  # 新的
 from services.PragramService import PragramService
 from services.ProgramServiceFreeParam import ProgramServiceFreeParam
+from services.ProgramServiceTenParam import ProgramServiceTenPlus
 from services.SystemSettingService import 保存配方状态到文件, 从文件加载配方状态
 from routers.apiresponse import ApiResponse
 from utils.logger import 获取日志记录器
@@ -28,6 +29,7 @@ from utils.logger import 获取日志记录器
 # 应该委托给 self.程序执行器，而且 HTTP 路由里 program_http.py:87 调的 _svc() 是 PragramService，不是 ProgramService4p——4P 跑起来了状态也拿不到。
 def _svc() -> PragramService: return PragramService.获取实例()
 def _freeparam_svc() -> ProgramServiceFreeParam: return ProgramServiceFreeParam.获取实例()
+def _tenplus_svc() -> ProgramServiceTenPlus: return ProgramServiceTenPlus.获取实例()
 
 class 开始程序参数请求模型(BaseModel):
     recipe_payload: Dict[str, Any] = Field(
@@ -103,6 +105,26 @@ async def send_free_params(payload: 自由编辑参数请求模型):
 
     asyncio.ensure_future(_run())
     return ApiResponse(success=True, message="自由编辑参数已下发", data={"task_count": len(payload.rows)})
+
+@路由.post("/startProgram/tenPlusEntitiesEditParams", summary="十工位自由编辑参数切割")
+async def send_free_params(payload: 自由编辑参数请求模型):
+    """接收自由编辑参数，启动后台切割任务。"""
+    旧在跑 = _svc().获取运行状态().get("running", False)
+    新在跑 = _freeparam_svc().获取运行状态().get("running", False)
+    tenplus_在跑 = _tenplus_svc().获取运行状态().get("running", False)
+    if 旧在跑 or 新在跑 or tenplus_在跑:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="已有程序正在运行，请停止后再启动")
+
+    async def _run() -> None:
+        try:
+            print(payload.rows)
+            print(payload.recipes)
+            # await ProgramServiceTenPlus.获取实例().执行十工位自由编辑参数(配方数据=payload.recipes,实体数据=payload.rows)
+        except Exception:
+            日志.exception("十工位自由编辑参数执行异常")
+
+    asyncio.ensure_future(_run())
+    return ApiResponse(success=True, message="十工位自由编辑参数已下发", data={"task_count": len(payload.rows)})
 
 
 # ==================================================================

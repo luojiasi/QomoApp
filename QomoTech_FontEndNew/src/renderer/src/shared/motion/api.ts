@@ -140,6 +140,55 @@ export const getControllerSettings = () =>
 export const saveControllerSettings = (payload: unknown) =>
   apiCall('motion/controller-settings', 'POST', payload)
 
+export const rotateUAxisToAngle = (angle: number) =>
+  apiCall('motion/u/rotate-angle', 'POST', { angle })
+
+export const waitMotionIdle = (axis: string, timeout_s = 60, poll_interval_s = 0.05) =>
+  apiCall<boolean>('motion/wait-idle', 'POST', { axis, timeout_s, poll_interval_s })
+
+/** 十工位配置 TENPLUSCUTTING.json */
+export const getTenPlusCutting = () =>
+  apiCall<{
+    version: string
+    slots: Array<{ index: number; x: number; y: number; z: number; u: number; taught: boolean }>
+  }>('motion/ten-plus-cutting', 'GET')
+
+export const saveTenPlusCutting = (payload: unknown) =>
+  apiCall('motion/ten-plus-cutting', 'POST', payload)
+
+/** 绝对运动到工位：XYZ + U，逐轴等待静止 */
+export async function moveToTenPlusSlot(slot: {
+  x: number
+  y: number
+  z: number
+  u: number
+}): Promise<{ success: boolean; message?: string }> {
+  const axes: Array<{ axis: string; position: number }> = [
+    { axis: 'X', position: slot.x },
+    { axis: 'Y', position: slot.y },
+    { axis: 'Z', position: slot.z }
+  ]
+  for (const { axis, position } of axes) {
+    const moveRes = await moveAbs(axis, position)
+    if (!moveRes.success) {
+      return { success: false, message: moveRes.message || `${axis} 运动失败` }
+    }
+    const idleRes = await waitMotionIdle(axis)
+    if (!idleRes.success || idleRes.data === false) {
+      return { success: false, message: idleRes.message || `${axis} 等待静止超时` }
+    }
+  }
+  const uRes = await rotateUAxisToAngle(slot.u)
+  if (!uRes.success) {
+    return { success: false, message: uRes.message || 'U 轴运动失败' }
+  }
+  const uIdle = await waitMotionIdle('U')
+  if (!uIdle.success || uIdle.data === false) {
+    return { success: false, message: uIdle.message || 'U 轴等待静止超时' }
+  }
+  return { success: true }
+}
+
 // Bootstrap helpers
 export const connectMotionWithControllerSettings = (settings: { communication: { controller_ip: string } }) =>
   connectMotion(settings.communication.controller_ip)

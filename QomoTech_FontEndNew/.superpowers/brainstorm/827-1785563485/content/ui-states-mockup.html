@@ -1,0 +1,54 @@
+<h2>设计 §1：界面与格子状态</h2>
+<p class="subtitle">放在「目标点位 XY」下方。看状态区分是否清楚，回复「可以」或要改哪里。</p>
+
+<div class="mockup">
+  <div class="mockup-header">目标参数 · 点位区预览</div>
+  <div class="mockup-body" style="max-width:320px;margin:0 auto;font-family:system-ui,sans-serif">
+    <div style="margin-bottom:12px;padding:10px;border:1px solid #444;border-radius:8px;background:#1a1d22">
+      <div style="font-size:12px;opacity:.7;margin-bottom:6px">目标点位 XY</div>
+      <div style="display:flex;gap:8px">
+        <div style="flex:1;padding:8px;border-radius:6px;background:#0e1116;border:1px solid #333;font-family:monospace;color:#9bb8ff">(12.50,-8.20)</div>
+        <div style="padding:8px 10px;border-radius:6px;background:#243049;color:#9bb8ff;font-size:12px">获取机床 XY</div>
+      </div>
+    </div>
+
+    <div style="padding:10px;border:1px solid #444;border-radius:8px;background:#1a1d22">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-size:12px;opacity:.85">工位选择 <span style="opacity:.55">（当前目标 → #3）</span></div>
+        <div style="font-size:11px;padding:4px 8px;border-radius:6px;background:#2a3344;color:#c8d4ff">示教选中格</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <!-- left col 6-10, right col 1-5 -->
+        <div style="padding:14px;text-align:center;border-radius:8px;border:1px solid #555;background:#222;opacity:.75">6<br/><span style="font-size:10px;opacity:.5">空</span></div>
+        <div style="padding:14px;text-align:center;border-radius:8px;border:1px solid #4a6;background:#1a2a22">1<br/><span style="font-size:10px;color:#6c8">已示教</span></div>
+
+        <div style="padding:14px;text-align:center;border-radius:8px;border:1px solid #555;background:#222;opacity:.75">7<br/><span style="font-size:10px;opacity:.5">空</span></div>
+        <div style="padding:14px;text-align:center;border-radius:8px;border:1px solid #4a6;background:#1a2a22">2<br/><span style="font-size:10px;color:#6c8">已示教</span></div>
+
+        <div style="padding:14px;text-align:center;border-radius:8px;border:2px solid #f0b429;background:#2a2410;box-shadow:0 0 0 2px rgba(240,180,41,.25)">3<br/><span style="font-size:10px;color:#f0b429">当前目标</span></div>
+        <div style="padding:14px;text-align:center;border-radius:8px;border:1px solid #4a6;background:#1a2a22">8<br/><span style="font-size:10px;color:#6c8">已示教</span></div>
+
+        <div style="padding:14px;text-align:center;border-radius:8px;border:1px solid #6af;background:#1a2230">4<br/><span style="font-size:10px;color:#8af">选中待示教</span></div>
+        <div style="padding:14px;text-align:center;border-radius:8px;border:1px solid #555;background:#222;opacity:.75">9<br/><span style="font-size:10px;opacity:.5">空</span></div>
+
+        <div style="padding:14px;text-align:center;border-radius:8px;border:1px solid #555;background:#222;opacity:.75">5<br/><span style="font-size:10px;opacity:.5">空</span></div>
+        <div style="padding:14px;text-align:center;border-radius:8px;border:1px solid #555;background:#222;opacity:.75">10<br/><span style="font-size:10px;opacity:.5">空</span></div>
+      </div>
+
+      <p style="margin:10px 0 0;font-size:11px;opacity:.55;line-height:1.4">
+        编号：右列 1→5，左列 6→10。<br/>
+        金边=当前目标所属；绿=已示教；蓝=临时选中（可示教）；灰=空。
+      </p>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:16px">
+  <p class="subtitle">交互摘要</p>
+  <ul>
+    <li>点<strong>已示教</strong>格 → XYZ+U 运动 + 绑定当前目标（金边移到该格）</li>
+    <li>点<strong>空</strong>格 → 仅选中（蓝边），不运动</li>
+    <li>点「示教选中格」→ 二次确认后写入全局工位 XYZ+U</li>
+  </ul>
+</div>

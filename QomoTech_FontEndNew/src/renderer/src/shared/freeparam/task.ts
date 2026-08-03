@@ -39,10 +39,18 @@ function createTarget(name: string): FreeParamTarget {
     id: nextId('target'),
     name,
     pointXy: '',
+    slotIndex: null,
     rInterval: 0,
     rCompensation: 0,
     rows: [createRow(1)]
   }
+}
+
+function normalizeSlotIndex(raw: unknown): number | null {
+  if (raw === null || raw === undefined || raw === '') return null
+  const n = Number(raw)
+  if (!Number.isInteger(n) || n < 1 || n > 10) return null
+  return n
 }
 
 function normalizeRow(raw: Partial<FreeParamTaskRow>, fallbackNo: number): FreeParamTaskRow {
@@ -124,6 +132,7 @@ function normalizeTarget(
     id: raw.id || nextId('target'),
     name: (raw.name && String(raw.name).trim()) || fallbackName,
     pointXy,
+    slotIndex: normalizeSlotIndex((raw as { slotIndex?: unknown }).slotIndex),
     rInterval,
     rCompensation,
     rows
@@ -198,6 +207,24 @@ export function useFreeParamTask() {
     target.rows.forEach((r, i) => {
       r.taskNo = i + 1
     })
+  }
+
+  /** 将当前目标绑定到工位；同工位其他目标覆盖清空 */
+  function bindActiveTargetToSlot(slotIndex: number, pointXy?: string): boolean {
+    const target = activeTarget.value
+    if (!target) return false
+    const idx = normalizeSlotIndex(slotIndex)
+    if (idx === null) return false
+    for (const t of targets) {
+      if (t.id !== target.id && t.slotIndex === idx) {
+        t.slotIndex = null
+      }
+    }
+    target.slotIndex = idx
+    if (typeof pointXy === 'string') {
+      target.pointXy = pointXy
+    }
+    return true
   }
 
   /** 导出全部目标为 .jjs（浏览器下载） */
@@ -286,6 +313,7 @@ export function useFreeParamTask() {
     removeTarget,
     addRow,
     removeRow,
+    bindActiveTargetToSlot,
     exportToFile,
     loadFromFile
   }

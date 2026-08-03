@@ -1,23 +1,36 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref, toRaw } from 'vue'
 import { useL10n } from '../shared/l10n'
 import { useRecipes } from '../shared/recipe'
 import type { MainRecipe } from '../shared/recipe'
-import { startHardwareMonitor, useHardwareState } from '../shared/motion'
+import {
+  startHardwareMonitor,
+  useHardwareState,
+  getTenPlusCutting,
+  saveTenPlusCutting,
+  moveToTenPlusSlot
+} from '../shared/motion'
 import {
   useFreeParamTask,
   isDiameterInvalid,
   isAngleInvalid,
   isHeightInvalid,
   isDivisionsInvalid,
-  isRecipeInvalid
+  isRecipeInvalid,
+  TEN_PLUS_GRID_ORDER,
+  createEmptyTenPlusConfig,
+  normalizeTenPlusConfig,
+  formatPointXy,
+  sendTenPlusFreeParams,
+  buildTenPlusRowsFromTarget
 } from '../shared/freeparam'
+import type { TenPlusCuttingConfig, TenPlusFreeParamPayload, TenPlusSlot } from '../shared/freeparam'
 
 type WorkMode = 'freeParam' | 'drawImage'
 
 const { t } = useL10n()
 const { state, load } = useRecipes()
-const { mposition } = useHardwareState()
+const { mposition, controllerConnected } = useHardwareState()
 const {
   targets,
   activeTargetId,
@@ -30,6 +43,7 @@ const {
   removeTarget,
   addRow,
   removeRow,
+  bindActiveTargetToSlot,
   exportToFile,
   loadFromFile
 } = useFreeParamTask()
@@ -40,6 +54,14 @@ const renameDraft = ref('')
 const renameInputRef = ref<HTMLInputElement | null>(null)
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const statusMsg = ref('')
+const starting = ref(false)
+/** 已确认可正常加工，勾选后才可开始任务 */
+const processConfirmed = ref(false)
+const tenPlusConfig = ref<TenPlusCuttingConfig>(createEmptyTenPlusConfig())
+const selectedSlotIndex = ref<number | null>(null)
+const slotBusy = ref(false)
+const showTeachDialog = ref(false)
+const teachDialogSlot = ref<number | null>(null)
 
 const activeMainRecipes = computed(() => {
   const list = (state.value.mainRecipes ?? []) as MainRecipe[]
@@ -95,27 +117,42 @@ function setStatus(msg: string): void {
   statusMsg.value = msg
 }
 
+function tf(path: string, vars: Record<string, string | number>): string {
+  let s = t(path)
+  for (const [k, v] of Object.entries(vars)) {
+    s = s.replaceAll(`{${k}}`, String(v))
+  }
+  return s
+}
+
+/** 校验单个目标的全部行 */
+function validateTargetRows(targetName: string, rows: typeof taskRows.value): string | null {
+  for (const row of rows) {
+    const at = `${targetName} #${row.taskNo}`
+    if (isDiameterInvalid(row.diameter)) {
+      return `${at}: ${t('freeParam.errDiameter')}`
+    }
+    if (isAngleInvalid(row.angle)) {
+      return `${at}: ${t('freeParam.errAngle')}`
+    }
+    if (isHeightInvalid(row.height)) {
+      return `${at}: ${t('freeParam.errHeight')}`
+    }
+    if (isDivisionsInvalid(row.divisions)) {
+      return `${at}: ${t('freeParam.errDivisions')}`
+    }
+    if (isRecipeInvalid(row.recipe)) {
+      return `${at}: ${t('freeParam.errRecipe')}`
+    }
+  }
+  return null
+}
+
 /** 保存前校验全部目标的全部行（对齐 FrontEnd FreeParamDialog） */
 function validateAllTargets(): string | null {
   for (const target of targets) {
-    for (const row of target.rows) {
-      const at = `${target.name} #${row.taskNo}`
-      if (isDiameterInvalid(row.diameter)) {
-        return `${at}: ${t('freeParam.errDiameter')}`
-      }
-      if (isAngleInvalid(row.angle)) {
-        return `${at}: ${t('freeParam.errAngle')}`
-      }
-      if (isHeightInvalid(row.height)) {
-        return `${at}: ${t('freeParam.errHeight')}`
-      }
-      if (isDivisionsInvalid(row.divisions)) {
-        return `${at}: ${t('freeParam.errDivisions')}`
-      }
-      if (isRecipeInvalid(row.recipe)) {
-        return `${at}: ${t('freeParam.errRecipe')}`
-      }
-    }
+    const err = validateTargetRows(target.name, target.rows)
+    if (err) return err
   }
   return null
 }
@@ -128,6 +165,54 @@ function onSave(): void {
   }
   exportToFile()
   setStatus(t('freeParam.saveOk'))
+}
+
+/** 校验当前目标并下发到后端十工位切割接口 */
+async function onStart(): Promise<void> {
+  if (starting.value || !processConfirmed.value) return
+  const target = activeTarget.value
+  if (!target) {
+    setStatus(t('freeParam.startNoTarget'))
+    return
+  }
+  const err = validateTargetRows(target.name, target.rows)
+  if (err) {
+    setStatus(err)
+    return
+  }
+
+  const recipeState = toRaw(state.value)
+  const payload: TenPlusFreeParamPayload = {
+    recipes: {
+      mainRecipes: JSON.parse(JSON.stringify(recipeState.mainRecipes ?? [])),
+      machiningRecipes: JSON.parse(JSON.stringify(recipeState.machiningRecipes ?? [])),
+      blackeningRecipes: JSON.parse(JSON.stringify(recipeState.blackeningRecipes ?? [])),
+      laserPowerRecipes: JSON.parse(JSON.stringify(recipeState.laserPowerRecipes ?? [])),
+      horizontalFormulaRecipes: JSON.parse(JSON.stringify(recipeState.horizontalFormulaRecipes ?? [])),
+      verticalFormulaRecipes: JSON.parse(JSON.stringify(recipeState.verticalFormulaRecipes ?? []))
+    },
+    rows: buildTenPlusRowsFromTarget(target.rows, {
+      rInterval: target.rInterval,
+      rCompensation: target.rCompensation,
+      pointXy: target.pointXy,
+      slotIndex: target.slotIndex
+    })
+  }
+
+  starting.value = true
+  try {
+    const res = await sendTenPlusFreeParams(payload)
+    if (res.success) {
+      const tc = typeof res.data?.task_count === 'number' ? res.data.task_count : target.rows.length
+      setStatus(`${t('freeParam.startOk')} (${tc})`)
+    } else {
+      setStatus(`${t('freeParam.startFail')}: ${res.message || ''}`)
+    }
+  } catch {
+    setStatus(t('freeParam.startFail'))
+  } finally {
+    starting.value = false
+  }
 }
 
 function onLoadClick(): void {
@@ -152,15 +237,172 @@ function onFileChange(e: Event): void {
   input.value = ''
 }
 
+function getSlot(index: number): TenPlusSlot | undefined {
+  return tenPlusConfig.value.slots.find((s) => s.index === index)
+}
+
+function boundTargetName(slotIndex: number): string {
+  const hit = targets.find((t) => t.slotIndex === slotIndex)
+  return hit?.name?.trim() || ''
+}
+
+function slotCellClass(index: number): Record<string, boolean> {
+  const slot = getSlot(index)
+  const taught = Boolean(slot?.taught)
+  const isBound = activeTarget.value?.slotIndex === index
+  const isSelected = selectedSlotIndex.value === index
+  return {
+    taught,
+    empty: !taught,
+    bound: isBound,
+    selected: isSelected && !isBound
+  }
+}
+
+async function loadTenPlusConfig(): Promise<void> {
+  const res = await getTenPlusCutting()
+  if (res.success && res.data) {
+    tenPlusConfig.value = normalizeTenPlusConfig(res.data)
+  } else {
+    tenPlusConfig.value = createEmptyTenPlusConfig()
+  }
+}
+
+async function persistTenPlusConfig(): Promise<boolean> {
+  const res = await saveTenPlusCutting(tenPlusConfig.value)
+  if (!res.success) {
+    setStatus(res.message || t('freeParam.slotSaveFail'))
+    return false
+  }
+  if (res.data) {
+    tenPlusConfig.value = normalizeTenPlusConfig(res.data)
+  }
+  return true
+}
+
+async function onSlotClick(index: number): Promise<void> {
+  if (slotBusy.value || !activeTarget.value) return
+  const slot = getSlot(index)
+  selectedSlotIndex.value = index
+  if (!slot?.taught) return
+  if (!controllerConnected.value) {
+    setStatus(t('freeParam.slotNeedConnect'))
+    return
+  }
+  slotBusy.value = true
+  try {
+    const moveRes = await moveToTenPlusSlot(slot)
+    if (!moveRes.success) {
+      setStatus(moveRes.message || t('freeParam.slotMoveFail'))
+      return
+    }
+    bindActiveTargetToSlot(index, formatPointXy(slot.x, slot.y))
+    setStatus(tf('freeParam.slotBoundOk', { name: activeTarget.value.name, n: index }))
+  } finally {
+    slotBusy.value = false
+  }
+}
+
+function onTeachSelectedSlot(): void {
+  if (slotBusy.value || !activeTarget.value) return
+  const index = selectedSlotIndex.value
+  if (index === null) {
+    setStatus(t('freeParam.slotSelectFirst'))
+    return
+  }
+  if (!controllerConnected.value) {
+    setStatus(t('freeParam.slotNeedConnect'))
+    return
+  }
+  teachDialogSlot.value = index
+  showTeachDialog.value = true
+}
+
+function closeTeachDialog(): void {
+  showTeachDialog.value = false
+  teachDialogSlot.value = null
+}
+
+async function confirmTeachSlot(): Promise<void> {
+  const index = teachDialogSlot.value
+  if (index === null || !activeTarget.value) {
+    closeTeachDialog()
+    return
+  }
+  closeTeachDialog()
+
+  const x = Number(mposition.value['X'])
+  const y = Number(mposition.value['Y'])
+  const z = Number(mposition.value['Z'])
+  const u = Number(mposition.value['U'])
+  if ([x, y, z, u].some((v) => Number.isNaN(v))) {
+    setStatus(t('freeParam.slotPosInvalid'))
+    return
+  }
+
+  const slot = getSlot(index)
+  if (!slot) return
+  slot.x = x
+  slot.y = y
+  slot.z = z
+  slot.u = u
+  slot.taught = true
+
+  slotBusy.value = true
+  try {
+    const saved = await persistTenPlusConfig()
+    if (!saved) return
+    if (activeTarget.value.slotIndex === index) {
+      activeTarget.value.pointXy = formatPointXy(x, y)
+    }
+    setStatus(tf('freeParam.slotTeachOk', { n: index }))
+  } finally {
+    slotBusy.value = false
+  }
+}
+
 onMounted(async () => {
   startHardwareMonitor()
   await load()
   initDefault(t('freeParam.targetDefault'))
+  await loadTenPlusConfig()
 })
 </script>
 
 <template>
   <div class="fp-page">
+    <Teleport to="body">
+      <div
+        v-if="showTeachDialog && teachDialogSlot !== null"
+        class="fp-dlg-overlay"
+        @click.self="closeTeachDialog"
+      >
+        <div class="fp-dlg-card" role="dialog" aria-modal="true">
+          <div class="fp-dlg-head">
+            <span class="material-symbols-outlined fp-dlg-icon">precision_manufacturing</span>
+            <span class="fp-dlg-title">{{ t('freeParam.slotTeachDialogTitle') }}</span>
+          </div>
+          <p class="fp-dlg-body">
+            {{ tf('freeParam.slotTeachConfirm', { n: teachDialogSlot }) }}
+          </p>
+          <div class="fp-dlg-meta">
+            <span>X {{ formatAxis(mposition['X']) }}</span>
+            <span>Y {{ formatAxis(mposition['Y']) }}</span>
+            <span>Z {{ formatAxis(mposition['Z']) }}</span>
+            <span>U {{ formatAxis(mposition['U']) }}</span>
+          </div>
+          <div class="fp-dlg-btns">
+            <button type="button" class="fp-dlg-cancel" @click="closeTeachDialog">
+              {{ t('freeParam.cancel') }}
+            </button>
+            <button type="button" class="fp-dlg-ok" @click="confirmTeachSlot">
+              {{ t('freeParam.confirm') }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
     <header class="fp-top">
       <div class="fp-top-text">
         <h1 class="fp-title">{{ t('freeParam.title') }}</h1>
@@ -440,6 +682,38 @@ onMounted(async () => {
                     {{ t('freeParam.captureXy') }}
                   </button>
                 </div>
+
+                <div class="fp-slot-block">
+                  <div class="fp-slot-head">
+                    <span class="fp-slot-title">{{ t('freeParam.slotTitle') }}</span>
+                    <button
+                      type="button"
+                      class="fp-xy-btn"
+                      :disabled="slotBusy || selectedSlotIndex === null"
+                      @click="onTeachSelectedSlot"
+                    >
+                      <span class="material-symbols-outlined">save</span>
+                      {{ t('freeParam.slotTeach') }}
+                    </button>
+                  </div>
+                  <p v-if="activeTarget.slotIndex" class="fp-slot-hint">
+                    {{ tf('freeParam.slotCurrent', { n: activeTarget.slotIndex }) }}
+                  </p>
+                  <div class="fp-slot-grid" :class="{ busy: slotBusy }">
+                    <button
+                      v-for="n in TEN_PLUS_GRID_ORDER"
+                      :key="n"
+                      type="button"
+                      class="fp-slot-cell"
+                      :class="slotCellClass(n)"
+                      :disabled="slotBusy"
+                      @click="onSlotClick(n)"
+                    >
+                      <span class="fp-slot-no">{{ n }}</span>
+                      <span class="fp-slot-name">{{ boundTargetName(n) || '—' }}</span>
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
             <div v-else class="fp-target-params-empty">{{ t('freeParam.targetParamsEmpty') }}</div>
@@ -455,6 +729,19 @@ onMounted(async () => {
     </div>
 
     <footer class="fp-footer">
+      <label class="fp-confirm">
+        <input v-model="processConfirmed" type="checkbox" :disabled="starting" />
+        <span>{{ t('freeParam.processConfirm') }}</span>
+      </label>
+      <button
+        type="button"
+        class="fp-btn start"
+        :disabled="starting || !processConfirmed"
+        @click="onStart"
+      >
+        <span class="material-symbols-outlined">play_arrow</span>
+        {{ starting ? t('freeParam.starting') : t('freeParam.start') }}
+      </button>
       <span v-if="statusMsg" class="fp-status" :title="statusMsg">{{ statusMsg }}</span>
       <div class="fp-footer-spacer" />
       <input
@@ -939,9 +1226,100 @@ onMounted(async () => {
   transition: background 0.15s, border-color 0.15s;
 }
 .fp-xy-btn .material-symbols-outlined { font-size: 14px; }
-.fp-xy-btn:hover {
+.fp-xy-btn:hover:not(:disabled) {
   border-color: var(--color-primary);
   background: color-mix(in srgb, var(--color-primary) 20%, transparent);
+}
+.fp-xy-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.fp-slot-block {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.fp-slot-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.fp-slot-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-on-surface-variant);
+}
+.fp-slot-hint {
+  margin: 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: color-mix(in srgb, #f0b429 85%, var(--color-on-surface));
+}
+.fp-slot-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.fp-slot-grid.busy {
+  opacity: 0.7;
+  pointer-events: none;
+}
+.fp-slot-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 48px;
+  padding: 6px 4px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--color-outline-variant) 80%, transparent);
+  background: color-mix(in srgb, var(--color-surface-container-lowest) 70%, transparent);
+  color: var(--color-on-surface-variant);
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s, box-shadow 0.12s;
+}
+.fp-slot-cell.empty {
+  opacity: 0.72;
+}
+.fp-slot-cell.taught {
+  border-color: color-mix(in srgb, #4ade80 45%, transparent);
+  background: color-mix(in srgb, #4ade80 8%, transparent);
+}
+.fp-slot-cell.selected {
+  border-color: color-mix(in srgb, var(--color-primary) 55%, transparent);
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 18%, transparent);
+}
+.fp-slot-cell.bound {
+  border-color: #f0b429;
+  background: color-mix(in srgb, #f0b429 12%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, #f0b429 22%, transparent);
+  color: #f0b429;
+}
+.fp-slot-cell:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--color-primary) 40%, transparent);
+}
+.fp-slot-no {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+.fp-slot-name {
+  max-width: 100%;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ── Table ── */
@@ -1110,6 +1488,28 @@ onMounted(async () => {
   box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.08);
 }
 .fp-footer-spacer { flex: 1; min-width: 0; }
+.fp-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(360px, 42vw);
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--color-outline-variant);
+  background: var(--color-surface-container-high);
+  color: var(--color-on-surface-variant);
+  font-size: 12px;
+  font-weight: 550;
+  line-height: 1.35;
+  cursor: pointer;
+  user-select: none;
+}
+.fp-confirm input {
+  width: 15px;
+  height: 15px;
+  accent-color: #22c55e;
+  flex-shrink: 0;
+}
 .fp-status {
   max-width: 55%;
   overflow: hidden;
@@ -1142,6 +1542,18 @@ onMounted(async () => {
   border-color: var(--color-primary);
   color: var(--color-primary);
 }
+.fp-btn.start {
+  border-color: color-mix(in srgb, #22c55e 50%, transparent);
+  background: color-mix(in srgb, #22c55e 22%, transparent);
+  color: #86efac;
+}
+.fp-btn.start:hover:not(:disabled) {
+  background: color-mix(in srgb, #22c55e 34%, transparent);
+}
+.fp-btn.start:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
 .fp-btn.save {
   border-color: color-mix(in srgb, var(--color-primary) 42%, transparent);
   background: color-mix(in srgb, var(--color-primary) 18%, transparent);
@@ -1149,5 +1561,97 @@ onMounted(async () => {
 }
 .fp-btn.save:hover {
   background: color-mix(in srgb, var(--color-primary) 28%, transparent);
+}
+
+.fp-dlg-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+}
+.fp-dlg-card {
+  min-width: 340px;
+  max-width: 440px;
+  padding: 22px 24px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--color-outline-variant) 70%, transparent);
+  background: color-mix(in srgb, var(--color-surface-container-highest) 82%, transparent);
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  box-shadow:
+    0 24px 60px -16px rgba(0, 0, 0, 0.55),
+    0 0 0 1px color-mix(in srgb, var(--color-primary) 8%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.fp-dlg-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.fp-dlg-icon {
+  font-size: 22px;
+  color: var(--color-primary);
+}
+.fp-dlg-title {
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-on-surface);
+}
+.fp-dlg-body {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-on-surface-variant);
+}
+.fp-dlg-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--color-outline-variant) 70%, transparent);
+  background: color-mix(in srgb, var(--color-surface-container-lowest) 70%, transparent);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+.fp-dlg-btns {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 2px;
+}
+.fp-dlg-cancel,
+.fp-dlg-ok {
+  min-height: 34px;
+  padding: 6px 18px;
+  border-radius: 8px;
+  border: none;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+}
+.fp-dlg-cancel {
+  background: var(--color-surface-variant);
+  color: var(--color-on-surface);
+}
+.fp-dlg-cancel:hover {
+  opacity: 0.9;
+}
+.fp-dlg-ok {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+.fp-dlg-ok:hover {
+  filter: brightness(1.06);
 }
 </style>

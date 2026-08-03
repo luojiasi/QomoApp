@@ -353,6 +353,16 @@ class MotionService:
         # 停止后仍可能有其它轴在动，状态由 monitor 决策；这里仅做硬停
         await self._刷新快照()
 
+    async def 停止轴运动(self, 轴名: str) -> None:
+        """单独停止指定轴的运动（取消当前运动+缓冲）。"""
+        self._保证已启动()
+        adapter = self._断言adapter()
+        gate = self._断言safety()
+        cfg = gate.校验轴名(轴名)
+        await adapter.单轴停止(cfg.axis_no, 取消_全部)
+        日志.info(f"停止轴运动 {轴名}#{cfg.axis_no}")
+        await self._刷新快照()
+
     async def 绝对运动(
         self, 轴名: str, 位置: float, 速度: Optional[float] = None,
     ) -> None:
