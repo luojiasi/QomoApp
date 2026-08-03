@@ -1,14 +1,15 @@
 import math
-from pickle import FLOAT
 from typing import Any
 import asyncio
 
 from services.program_control_ten.motion_primitives import 十工位的额外运动控制
 from services.program_control_ten.step import ProgramFreeParamsStep
+from services.program_control_ten.ten_plus_cutting_persistence import 按工位号取点位
 from services.MotionService import MotionService
 from services.program_control_ten.geometry import (
     构建R轴的补偿,
     构建任务的数据,
+    构建总任务目标,
     构建执行任务的参数,
     构建配方数据,
     计算开口范围,
@@ -155,47 +156,75 @@ class ProgramRunnerTenPlus:
                 self._是否急停请求 = False
                 self._是否跳过请求 = False
             try:
-                任务总数 = len(实体数据)
-                self.更新进度(total_tasks=任务总数, current_task_index=0, current_task_jindubaifenbi=0)
-                日志.info(f"[FreeParam] ====== 开始执行，共 {任务总数} 个任务 ======")
+                目标列表 = 构建总任务目标(实体数据)
+                目标总数 = len(目标列表)
+                行总数 = sum(len(t.get("rows") or []) for t in 目标列表)
+                self.更新进度(total_tasks=行总数, current_task_index=0, current_task_jindubaifenbi=0)
+                日志.info(f"[TenPlus] ====== 开始执行，共 {目标总数} 个目标、{行总数} 行 ======")
 
-                # 循环前获取当前 XYZ 轴位置
-                当前X, 当前Y = await self._运动.取_xy_实际位置()
-                当前Z = await self._运动.取_z_实际位置()
+                全局已完成行 = 0
+                首个工位Z: float | None = None
 
-                for 序号, 行数据 in enumerate(实体数据):
-                    当前序号 = 序号 + 1
-                    日志.info(f"\n[FreeParam] ======== 任务 {当前序号}/{任务总数} ========")
-                    该序号R轴的补偿 = 构建R轴的补偿(行数据)
-                    该序号的参数 = 构建任务的数据(行数据)
-                    该序号的配方 = 构建配方数据(配方数据,该序号的参数.get("配方ID"))
-                    # 当前平面的Z轴位置：往上逐个累加前面任务的高度
-                    累计高度 = sum(float(实体数据[k].get("height", 0)) for k in range(序号))
-                    所有高度总和 = sum(float(实体数据[k].get("height", 0)) for k in range(len(实体数据)))
-                    
-                    执行任务的参数 = 构建执行任务的参数(该序号的参数,当前Z, 所有高度总和, 累计高度)
-                    self.更新进度(current_task_index=当前序号, current_task_jindubaifenbi=0)
-                    try:
-                        print(执行任务的参数)
-                        await self._切割(配方数据=该序号的配方,执行任务的参数=执行任务的参数,该序号R轴的补偿 = 该序号R轴的补偿 ,起始点的位置 = {"x":当前X,"y":当前Y,"z":当前Z})
-                    except Exception as e:
-                        日志.error(f"任务 {当前序号} 执行失败: {e}")
-                        return {"success": False, "message": f"任务 {当前序号} 执行失败: {e}"}
-
-                    if self._是否急停请求:
-                        await self._十工位的运动.关闭吹风()
-                        await self._十工位的运动.关闭激光()
-                        return {"success": False, "message": "程序已急停"}
-                    if self._是否跳过请求:
-                        # 跳过标记由 _切割() 内的清理所有状态 清除
+                for 目标序号, 目标 in enumerate(目标列表):
+                    行列表 = list(目标.get("rows") or [])
+                    目标名 = str(目标.get("name") or 目标.get("id") or 目标序号 + 1)
+                    日志.info(f"\n[TenPlus] -------- 目标 {目标序号 + 1}/{目标总数}: {目标名} " + f"（{len(行列表)} 行）--------")
+                    if not 行列表:
+                        日志.warning(f"[TenPlus] 目标 {目标名} 无任务行，跳过")
                         continue
-                await self._运动.绝对运动("Z", 当前Z)
-                起始坐标的路径点 = [{"x": 当前X, "y": 当前Y}]
-                await self._运动.连续插补XY(路径点=起始坐标的路径点,速度=10)
-                await self._运动.U轴旋转角度(0)
-                
-                日志.info(f"\n[FreeParam] ====== 全部完成，共处理 {任务总数} 个任务 =====")
-                return {"success": True, "task_count": 任务总数}
+
+                    try:
+                        工位号 = int(行列表[0].get("slotIndex"))
+                    except (TypeError, ValueError):
+                        return {"success": False,"message": f"目标 {目标名} 缺少有效 slotIndex，无法从 TENPLUSCUTTING 取点"}
+                    工位点 = 按工位号取点位(工位号)
+                    if 工位点 is None:
+                        return {"success": False,"message": f"目标 {目标名} 工位 {工位号} 未示教或不存在（TENPLUSCUTTING）",}
+
+                    当前X = float(工位点["x"])
+                    当前Y = float(工位点["y"])
+                    当前Z = float(工位点["z"])
+                    当前U = float(工位点["u"])
+                    
+                    日志.info(f"[TenPlus] 目标 {目标名} 工位#{工位号} → " + f"XYZU=({当前X}, {当前Y}, {当前Z}, {当前U})")
+                    await self._运动到示教工位(当前X, 当前Y, 当前Z, 当前U)
+
+                    所有高度总和 = sum(float(行.get("height", 0)) for 行 in 行列表)
+
+                    for 序号, 行数据 in enumerate(行列表):
+                        全局已完成行 += 1
+                        当前序号 = 全局已完成行
+                        日志.info(f"\n[TenPlus] ======== 目标 {目标序号 + 1}/{目标总数} " + f"行 {序号 + 1}/{len(行列表)}（总进度 {当前序号}/{行总数}）========")
+                        该序号R轴的补偿 = 构建R轴的补偿(行数据)
+                        该序号的参数 = 构建任务的数据(行数据)
+                        该序号的配方 = 构建配方数据(配方数据, 该序号的参数.get("配方ID"))
+                        累计高度 = sum(float(行列表[k].get("height", 0)) for k in range(序号))
+                        执行任务的参数 = 构建执行任务的参数(该序号的参数, 当前Z, 所有高度总和, 累计高度)
+                        self.更新进度(current_task_index=当前序号, current_task_jindubaifenbi=0)
+                        try:
+                            await self._切割(
+                                配方数据=该序号的配方,
+                                执行任务的参数=执行任务的参数,
+                                该序号R轴的补偿=该序号R轴的补偿,
+                                起始点的位置={"x": 当前X, "y": 当前Y, "z": 当前Z, "u": 当前U},
+                            )
+                        except Exception as e:
+                            日志.error(f"目标 {目标名} 行 {序号 + 1} 执行失败: {e}")
+                            return {"success": False,"message": f"目标 {目标名} 行 {序号 + 1} 执行失败: {e}"}
+
+                        if self._是否急停请求:
+                            await self._十工位的运动.关闭吹风()
+                            await self._十工位的运动.关闭激光()
+                            return {"success": False, "message": "程序已急停"}
+                        if self._是否跳过请求:
+                            continue
+
+                if 首个工位Z is not None:
+                    await self._运动.绝对运动("Z", 首个工位Z)
+                    await self._运动.等待静止("Z")
+
+                日志.info(f"\n[TenPlus] ====== 全部完成，共 {目标总数} 个目标、{行总数} 行 ======")
+                return {"success": True, "task_count": 行总数, "target_count": 目标总数}
             finally:
                 async with self._控制锁:
                     self._是否运行中 = False
@@ -203,6 +232,12 @@ class ProgramRunnerTenPlus:
                     self._是否急停请求 = False
                     self._是否跳过请求 = False
                 self._广播状态变更(force=True)
+
+    async def _运动到示教工位(self, x: float, y: float, z: float, u: float) -> None:
+        """按 TENPLUSCUTTING 示教坐标做 XYZU 绝对定位（与前端 moveToTenPlusSlot 一致）。"""
+        for 轴名, 位置 in (("X", x), ("Y", y), ("Z", z), ("U", u)):
+            await self._运动.绝对运动(轴名, 位置)
+            await self._运动.等待静止(轴名)
 
     async def _检查是否应中止(self) -> bool:
         """检查急停/跳过/暂停状态。急停或跳过时返回 True，暂停时阻塞等待恢复。"""
@@ -312,7 +347,7 @@ class ProgramRunnerTenPlus:
                 case ProgramFreeParamsStep.准备开始:
                     是否连上 = self._运动.适配器.已连接 if self._运动.适配器 else False
                     if 是否连上:
-                        await self._自由编辑参数的运动.开启吹风()
+                        await self._十工位的运动.开启吹风()
                         当前步骤 = ProgramFreeParamsStep.U轴进行角度旋转
 
 
@@ -350,7 +385,7 @@ class ProgramRunnerTenPlus:
                         当前步骤 = ProgramFreeParamsStep.清理所有状态
 
                 case ProgramFreeParamsStep.打开激光设备:
-                    await self._自由编辑参数的运动.开启激光()
+                    await self._十工位的运动.开启激光()
                     当前步骤 = ProgramFreeParamsStep.Z轴下降
 
                 case ProgramFreeParamsStep.Z轴下降:
@@ -373,7 +408,7 @@ class ProgramRunnerTenPlus:
                                 await self._运动.R轴一直进行旋转()
                                 R轴是否进行持续旋转打开 = True
                             当前步骤 = ProgramFreeParamsStep.切割R轴
-                            await self._自由编辑参数的运动.开启激光()
+                            await self._十工位的运动.开启激光()
                         else:   
                             日志.info("判断高度切割直线")
                             当前步骤 = ProgramFreeParamsStep.切割直线
@@ -507,7 +542,7 @@ class ProgramRunnerTenPlus:
 
                 case ProgramFreeParamsStep.旋转时关闭激光:
 
-                    await self._自由编辑参数的运动.关闭激光()
+                    await self._十工位的运动.关闭激光()
                     当前步骤 = ProgramFreeParamsStep.判断R轴是否转动一圈
 
                 case ProgramFreeParamsStep.判断R轴是否转动一圈:
@@ -571,11 +606,11 @@ class ProgramRunnerTenPlus:
 
                         当前步骤 = ProgramFreeParamsStep.移动到最开始的位置
 
-                    await self._自由编辑参数的运动.开启激光()
+                    await self._十工位的运动.开启激光()
                 case ProgramFreeParamsStep.清理所有状态:
                     self._是否跳过请求 = False
-                    await self._自由编辑参数的运动.关闭吹风()
-                    await self._自由编辑参数的运动.关闭激光()
+                    await self._十工位的运动.关闭吹风()
+                    await self._十工位的运动.关闭激光()
                     await self._运动.停止轴运动("R")
                     # 不重复调急停——急停已在外部控制指令中触发
                     # TODO:回到台面的位置

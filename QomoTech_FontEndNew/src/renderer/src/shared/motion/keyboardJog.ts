@@ -10,6 +10,12 @@ import { moveRel, setIoOutput } from './api'
 export const IO_OUTPUT_COUNT = 10
 export const DEFAULT_IO_PULSE_MS = 500
 
+/**
+ * U 轴键盘步长 → moveRel 位移换算。
+ * 硬件约定：moveRel(U, 1) ≈ 360°；期望界面步长 5 → 90° ⇒ 系数 = (90/5)/360 = 0.05。
+ */
+const U_KEYBOARD_STEP_SCALE = (90 / 5) / 360
+
 // ===== Step distance =====
 const stepDist = ref(1)
 const showStepDialog = ref(false)
@@ -40,10 +46,15 @@ export function setKeyboardJogLogger(cb: ((event: string, detail: string) => voi
   logCb = cb
 }
 
+function stepToRelDistance(axis: string): number {
+  if (axis === 'U') return stepDist.value * U_KEYBOARD_STEP_SCALE
+  return stepDist.value
+}
+
 async function kbdMove(axis: string, dir: number) {
   const { controllerConnected } = useHardwareState()
   if (!controllerConnected.value) return
-  const dist = stepDist.value * dir
+  const dist = stepToRelDistance(axis) * dir
   const dirLabel = dir > 0 ? '+' : '-'
   if (logCb) logCb(`KBD ${axis}${dirLabel}`, `dist=${dist} speed=${jogSpeed.value}%`)
   await moveRel(axis, dist, jogSpeed.value)
@@ -269,59 +280,64 @@ function getLookup() {
 
 // ===== Main handler =====
 let _registered = false
+let _keydownHandler: ((e: KeyboardEvent) => void) | null = null
+
+function onKeyboardJogKeydown(e: KeyboardEvent) {
+  if (e.repeat) return
+  const { controllerConnected } = useHardwareState()
+  if (!controllerConnected.value) return
+  if (showStepDialog.value) return
+  if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return
+
+  for (const b of bindings) {
+    if (!b.key || !b.isIo) continue
+    if (
+      keyMatches(e.key, b.key) &&
+      (e.ctrlKey || e.metaKey) === b.ctrl &&
+      e.shiftKey === b.shift
+    ) {
+      if (b.ioPulse) pulseIoOutput(b.ioIndex, b.pulseMs)
+      else toggleIoOutput(b.ioIndex)
+      e.preventDefault()
+      return
+    }
+  }
+
+  for (const b of bindings) {
+    if (!b.key || !b.isStep) continue
+    if (
+      keyMatches(e.key, b.key) &&
+      (e.ctrlKey || e.metaKey) === b.ctrl &&
+      e.shiftKey === b.shift
+    ) {
+      if (b.stepDialog) openStepDialog()
+      else stepDist.value = b.stepValue
+      e.preventDefault()
+      return
+    }
+  }
+
+  const lookup = getLookup()
+  const slug = `${(e.ctrlKey || e.metaKey) ? 'C' : ''}${e.shiftKey ? 'S' : ''}:${normalizeBindingKey(e.key)}`
+  const move = lookup.get(slug)
+  if (move) {
+    kbdMove(move.axis, move.dir)
+    e.preventDefault()
+  }
+}
 
 export function startKeyboardJog() {
   if (_registered) return
   _registered = true
-
-  function handler(e: KeyboardEvent) {
-    if (e.repeat) return
-    const { controllerConnected } = useHardwareState()
-    if (!controllerConnected.value) return
-    if (showStepDialog.value) return
-    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return
-
-    for (const b of bindings) {
-      if (!b.key || !b.isIo) continue
-      if (
-        keyMatches(e.key, b.key) &&
-        (e.ctrlKey || e.metaKey) === b.ctrl &&
-        e.shiftKey === b.shift
-      ) {
-        if (b.ioPulse) pulseIoOutput(b.ioIndex, b.pulseMs)
-        else toggleIoOutput(b.ioIndex)
-        e.preventDefault()
-        return
-      }
-    }
-
-    for (const b of bindings) {
-      if (!b.key || !b.isStep) continue
-      if (
-        keyMatches(e.key, b.key) &&
-        (e.ctrlKey || e.metaKey) === b.ctrl &&
-        e.shiftKey === b.shift
-      ) {
-        if (b.stepDialog) openStepDialog()
-        else stepDist.value = b.stepValue
-        e.preventDefault()
-        return
-      }
-    }
-
-    const lookup = getLookup()
-    const slug = `${(e.ctrlKey || e.metaKey) ? 'C' : ''}${e.shiftKey ? 'S' : ''}:${normalizeBindingKey(e.key)}`
-    const move = lookup.get(slug)
-    if (move) {
-      kbdMove(move.axis, move.dir)
-      e.preventDefault()
-    }
-  }
-
-  window.addEventListener('keydown', handler)
+  _keydownHandler = onKeyboardJogKeydown
+  window.addEventListener('keydown', _keydownHandler)
 }
 
 export function stopKeyboardJog() {
+  if (_keydownHandler) {
+    window.removeEventListener('keydown', _keydownHandler)
+    _keydownHandler = null
+  }
   _registered = false
 }
 

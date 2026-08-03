@@ -22,9 +22,10 @@ import {
   normalizeTenPlusConfig,
   formatPointXy,
   sendTenPlusFreeParams,
-  buildTenPlusRowsFromTarget
+  buildTenPlusRowsFromTargets,
+  toTenPlusTargetSummary
 } from '../shared/freeparam'
-import type { TenPlusCuttingConfig, TenPlusFreeParamPayload, TenPlusSlot } from '../shared/freeparam'
+import type { FreeParamTarget, TenPlusCuttingConfig, TenPlusFreeParamPayload, TenPlusSlot } from '../shared/freeparam'
 
 type WorkMode = 'freeParam' | 'drawImage'
 
@@ -57,6 +58,9 @@ const statusMsg = ref('')
 const starting = ref(false)
 /** 已确认可正常加工，勾选后才可开始任务 */
 const processConfirmed = ref(false)
+/** 开始任务弹窗：选择要下发的目标 */
+const showStartDialog = ref(false)
+const dialogSelectedIds = ref<string[]>([])
 const tenPlusConfig = ref<TenPlusCuttingConfig>(createEmptyTenPlusConfig())
 const selectedSlotIndex = ref<number | null>(null)
 const slotBusy = ref(false)
@@ -167,17 +171,85 @@ function onSave(): void {
   setStatus(t('freeParam.saveOk'))
 }
 
-/** 校验当前目标并下发到后端十工位切割接口 */
-async function onStart(): Promise<void> {
+function isDialogSelected(id: string): boolean {
+  return dialogSelectedIds.value.includes(id)
+}
+
+function toggleDialogSelected(id: string, checked: boolean): void {
+  const set = new Set(dialogSelectedIds.value)
+  if (checked) set.add(id)
+  else set.delete(id)
+  dialogSelectedIds.value = targets.filter((t) => set.has(t.id)).map((t) => t.id)
+}
+
+function targetReadyForStart(target: FreeParamTarget): boolean {
+  if (target.slotIndex === null || target.slotIndex === undefined) return false
+  if (!target.pointXy || !String(target.pointXy).trim()) return false
+  if (!target.rows.length) return false
+  return true
+}
+
+function targetStartBlockReason(target: FreeParamTarget): string {
+  if (target.slotIndex === null || target.slotIndex === undefined) {
+    return t('freeParam.startDlgNeedSlot')
+  }
+  if (!target.pointXy || !String(target.pointXy).trim()) {
+    return t('freeParam.startDlgNeedPointXy')
+  }
+  if (!target.rows.length) return t('freeParam.startDlgNoRows')
+  return ''
+}
+
+const dialogSelectedTargets = computed((): FreeParamTarget[] => {
+  const map = new Map(targets.map((t) => [t.id, t]))
+  return dialogSelectedIds.value.map((id) => map.get(id)).filter((t): t is FreeParamTarget => Boolean(t))
+})
+
+const canConfirmStartDialog = computed(() => {
+  const list = dialogSelectedTargets.value
+  return list.length > 0 && list.every((t) => targetReadyForStart(t))
+})
+
+/** 点击开始任务：先弹出目标选择窗 */
+function onStart(): void {
   if (starting.value || !processConfirmed.value) return
-  const target = activeTarget.value
-  if (!target) {
+  if (targets.length === 0) {
     setStatus(t('freeParam.startNoTarget'))
     return
   }
-  const err = validateTargetRows(target.name, target.rows)
-  if (err) {
-    setStatus(err)
+  // 默认勾选当前编辑目标（若可运行）；否则勾选全部可运行目标
+  const readyIds = targets.filter((t) => targetReadyForStart(t)).map((t) => t.id)
+  if (activeTargetId.value && readyIds.includes(activeTargetId.value)) {
+    dialogSelectedIds.value = [activeTargetId.value]
+  } else {
+    dialogSelectedIds.value = [...readyIds]
+  }
+  showStartDialog.value = true
+}
+
+function closeStartDialog(): void {
+  if (starting.value) return
+  showStartDialog.value = false
+}
+
+/** 弹窗确认后，将选中目标发送到后端 */
+async function confirmStartDialog(): Promise<void> {
+  if (starting.value || !canConfirmStartDialog.value) return
+
+  const selected = dialogSelectedTargets.value
+  for (const target of selected) {
+    const err = validateTargetRows(target.name, target.rows)
+    if (err) {
+      setStatus(err)
+      return
+    }
+  }
+
+  const summaries = selected
+    .map((t) => toTenPlusTargetSummary(t))
+    .filter((t): t is NonNullable<typeof t> => t !== null)
+  if (summaries.length !== selected.length) {
+    setStatus(t('freeParam.startNoTarget'))
     return
   }
 
@@ -191,20 +263,23 @@ async function onStart(): Promise<void> {
       horizontalFormulaRecipes: JSON.parse(JSON.stringify(recipeState.horizontalFormulaRecipes ?? [])),
       verticalFormulaRecipes: JSON.parse(JSON.stringify(recipeState.verticalFormulaRecipes ?? []))
     },
-    rows: buildTenPlusRowsFromTarget(target.rows, {
-      rInterval: target.rInterval,
-      rCompensation: target.rCompensation,
-      pointXy: target.pointXy,
-      slotIndex: target.slotIndex
-    })
+    targets: summaries,
+    rows: buildTenPlusRowsFromTargets(selected)
   }
 
   starting.value = true
   try {
     const res = await sendTenPlusFreeParams(payload)
     if (res.success) {
-      const tc = typeof res.data?.task_count === 'number' ? res.data.task_count : target.rows.length
-      setStatus(`${t('freeParam.startOk')} (${tc})`)
+      const tc = typeof res.data?.task_count === 'number' ? res.data.task_count : payload.rows.length
+      setStatus(
+        `${t('freeParam.startOk')}：${tf('freeParam.startTargetsHint', {
+          count: summaries.length,
+          names: summaries.map((x) => x.name).join('、'),
+          rows: tc
+        })}`
+      )
+      showStartDialog.value = false
     } else {
       setStatus(`${t('freeParam.startFail')}: ${res.message || ''}`)
     }
@@ -281,23 +356,42 @@ async function persistTenPlusConfig(): Promise<boolean> {
 }
 
 async function onSlotClick(index: number): Promise<void> {
-  if (slotBusy.value || !activeTarget.value) return
+  const target = activeTarget.value
+  if (!target) return
   const slot = getSlot(index)
+  if (!slot) return
+
   selectedSlotIndex.value = index
-  if (!slot?.taught) return
-  if (!controllerConnected.value) {
-    setStatus(t('freeParam.slotNeedConnect'))
+
+  // 未示教：只选中，等「示教选中格」
+  if (!slot.taught) {
+    setStatus(tf('freeParam.slotSelected', { n: index }))
     return
   }
+
+  // 已示教：立刻绑定（不依赖控制器/运动）
+  const ok = bindActiveTargetToSlot(index, formatPointXy(slot.x, slot.y))
+  if (!ok) {
+    setStatus(t('freeParam.slotMoveFail'))
+    return
+  }
+  setStatus(tf('freeParam.slotBoundOk', { name: target.name, n: index }))
+
+  // 已连接则后台运动；运动中仍允许再次点击换绑（不因 slotBusy 挡住绑定）
+  if (!controllerConnected.value) {
+    setStatus(`${tf('freeParam.slotBoundOk', { name: target.name, n: index })}（${t('freeParam.slotNeedConnect')}）`)
+    return
+  }
+  if (slotBusy.value) return
+
   slotBusy.value = true
   try {
     const moveRes = await moveToTenPlusSlot(slot)
     if (!moveRes.success) {
-      setStatus(moveRes.message || t('freeParam.slotMoveFail'))
-      return
+      setStatus(
+        `${tf('freeParam.slotBoundOk', { name: target.name, n: index })}；${moveRes.message || t('freeParam.slotMoveFail')}`
+      )
     }
-    bindActiveTargetToSlot(index, formatPointXy(slot.x, slot.y))
-    setStatus(tf('freeParam.slotBoundOk', { name: activeTarget.value.name, n: index }))
   } finally {
     slotBusy.value = false
   }
@@ -403,6 +497,60 @@ onMounted(async () => {
       </div>
     </Teleport>
 
+    <Teleport to="body">
+      <div v-if="showStartDialog" class="fp-dlg-overlay" @click.self="closeStartDialog">
+        <div class="fp-dlg-card fp-dlg-card-wide" role="dialog" aria-modal="true">
+          <div class="fp-dlg-head">
+            <span class="material-symbols-outlined fp-dlg-icon">playlist_play</span>
+            <span class="fp-dlg-title">{{ t('freeParam.startDlgTitle') }}</span>
+          </div>
+          <p class="fp-dlg-body">{{ t('freeParam.startDlgDesc') }}</p>
+          <div class="fp-start-pick-list">
+            <label
+              v-for="(target, index) in targets"
+              :key="target.id"
+              class="fp-start-pick-item"
+              :class="{
+                selected: isDialogSelected(target.id),
+                disabled: !targetReadyForStart(target)
+              }"
+            >
+              <input
+                type="checkbox"
+                :checked="isDialogSelected(target.id)"
+                :disabled="!targetReadyForStart(target) || starting"
+                @change="toggleDialogSelected(target.id, ($event.target as HTMLInputElement).checked)"
+              />
+              <span class="fp-start-pick-index">{{ String(index + 1).padStart(2, '0') }}</span>
+              <span class="fp-start-pick-text">
+                <span class="fp-start-pick-name">{{ target.name }}</span>
+                <span class="fp-start-pick-meta">
+                  <template v-if="target.slotIndex">#{{ target.slotIndex }} · </template>
+                  {{ target.rows.length }} {{ t('freeParam.rowsUnit') }}
+                  <template v-if="!targetReadyForStart(target)">
+                    · {{ targetStartBlockReason(target) }}
+                  </template>
+                </span>
+              </span>
+            </label>
+          </div>
+          <div class="fp-dlg-btns">
+            <button type="button" class="fp-dlg-cancel" :disabled="starting" @click="closeStartDialog">
+              {{ t('freeParam.cancel') }}
+            </button>
+            <button
+              type="button"
+              class="fp-dlg-ok"
+              :disabled="starting || !canConfirmStartDialog"
+              @click="confirmStartDialog"
+            >
+              {{ starting ? t('freeParam.starting') : t('freeParam.startDlgConfirm') }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
     <header class="fp-top">
       <div class="fp-top-text">
         <h1 class="fp-title">{{ t('freeParam.title') }}</h1>
@@ -476,6 +624,7 @@ onMounted(async () => {
                   <span class="fp-target-name">{{ target.name }}</span>
                   <span class="fp-target-meta">
                     {{ target.rows.length }} {{ t('freeParam.rowsUnit') }}
+                    <template v-if="target.slotIndex"> · #{{ target.slotIndex }}</template>
                   </span>
                 </span>
               </button>
@@ -699,14 +848,13 @@ onMounted(async () => {
                   <p v-if="activeTarget.slotIndex" class="fp-slot-hint">
                     {{ tf('freeParam.slotCurrent', { n: activeTarget.slotIndex }) }}
                   </p>
-                  <div class="fp-slot-grid" :class="{ busy: slotBusy }">
+                  <div class="fp-slot-grid">
                     <button
                       v-for="n in TEN_PLUS_GRID_ORDER"
                       :key="n"
                       type="button"
                       class="fp-slot-cell"
                       :class="slotCellClass(n)"
-                      :disabled="slotBusy"
                       @click="onSlotClick(n)"
                     >
                       <span class="fp-slot-no">{{ n }}</span>
@@ -1266,10 +1414,6 @@ onMounted(async () => {
   grid-template-columns: 1fr 1fr;
   gap: 6px;
 }
-.fp-slot-grid.busy {
-  opacity: 0.7;
-  pointer-events: none;
-}
 .fp-slot-cell {
   display: flex;
   flex-direction: column;
@@ -1587,6 +1731,73 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+.fp-dlg-card-wide {
+  min-width: 420px;
+  max-width: 520px;
+}
+.fp-start-pick-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: min(360px, 50vh);
+  overflow-y: auto;
+  padding: 2px;
+}
+.fp-start-pick-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--color-outline-variant) 70%, transparent);
+  background: color-mix(in srgb, var(--color-surface-container) 70%, transparent);
+  cursor: pointer;
+  user-select: none;
+}
+.fp-start-pick-item.selected {
+  border-color: color-mix(in srgb, #22c55e 50%, transparent);
+  background: color-mix(in srgb, #22c55e 12%, transparent);
+}
+.fp-start-pick-item.disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.fp-start-pick-item input {
+  width: 15px;
+  height: 15px;
+  accent-color: #22c55e;
+  flex-shrink: 0;
+}
+.fp-start-pick-index {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-on-surface-variant);
+  background: rgba(0, 0, 0, 0.22);
+}
+.fp-start-pick-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.fp-start-pick-name {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--color-on-surface);
+}
+.fp-start-pick-meta {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--color-outline);
 }
 .fp-dlg-head {
   display: flex;

@@ -156,7 +156,7 @@ export const getTenPlusCutting = () =>
 export const saveTenPlusCutting = (payload: unknown) =>
   apiCall('motion/ten-plus-cutting', 'POST', payload)
 
-/** 绝对运动到工位：XYZ + U，逐轴等待静止 */
+/** 绝对运动到工位：XYZU 均用 moveAbs（示教存的是 mpos，不是角度） */
 export async function moveToTenPlusSlot(slot: {
   x: number
   y: number
@@ -166,7 +166,8 @@ export async function moveToTenPlusSlot(slot: {
   const axes: Array<{ axis: string; position: number }> = [
     { axis: 'X', position: slot.x },
     { axis: 'Y', position: slot.y },
-    { axis: 'Z', position: slot.z }
+    { axis: 'Z', position: slot.z },
+    { axis: 'U', position: slot.u }
   ]
   for (const { axis, position } of axes) {
     const moveRes = await moveAbs(axis, position)
@@ -177,14 +178,6 @@ export async function moveToTenPlusSlot(slot: {
     if (!idleRes.success || idleRes.data === false) {
       return { success: false, message: idleRes.message || `${axis} 等待静止超时` }
     }
-  }
-  const uRes = await rotateUAxisToAngle(slot.u)
-  if (!uRes.success) {
-    return { success: false, message: uRes.message || 'U 轴运动失败' }
-  }
-  const uIdle = await waitMotionIdle('U')
-  if (!uIdle.success || uIdle.data === false) {
-    return { success: false, message: uIdle.message || 'U 轴等待静止超时' }
   }
   return { success: true }
 }

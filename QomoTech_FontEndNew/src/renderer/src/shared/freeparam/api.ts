@@ -1,4 +1,4 @@
-import type { FreeParamTaskRow } from './types'
+import type { FreeParamTarget, FreeParamTaskRow } from './types'
 import type { RecipeStatePayload } from '../recipe'
 
 interface ApiCallResult<T = unknown> {
@@ -6,6 +6,15 @@ interface ApiCallResult<T = unknown> {
   message?: string
   data?: T
   [key: string]: unknown
+}
+
+export interface TenPlusTargetSummary {
+  id: string
+  name: string
+  slotIndex: number
+  pointXy: string
+  rInterval: number
+  rCompensation: number
 }
 
 export interface TenPlusFreeParamPayload {
@@ -17,6 +26,8 @@ export interface TenPlusFreeParamPayload {
     horizontalFormulaRecipes: RecipeStatePayload['horizontalFormulaRecipes']
     verticalFormulaRecipes: RecipeStatePayload['verticalFormulaRecipes']
   }
+  /** 勾选并下发的多个目标摘要 */
+  targets: TenPlusTargetSummary[]
   rows: Array<{
     taskNo: number
     diameter: number
@@ -33,6 +44,8 @@ export interface TenPlusFreeParamPayload {
     rCompensation: number
     pointXy?: string
     slotIndex?: number | null
+    targetId?: string
+    targetName?: string
   }>
 }
 
@@ -74,14 +87,34 @@ async function apiCall<T = unknown>(
   }
 }
 
-/** 将当前目标任务行下发到十工位自由编辑切割接口。 */
+/** 将勾选目标任务行下发到十工位自由编辑切割接口。 */
 export const sendTenPlusFreeParams = (payload: TenPlusFreeParamPayload) =>
   apiCall<{ task_count?: number }>('startProgram/tenPlusEntitiesEditParams', 'POST', payload)
 
-/** 从目标级字段组装后端行 payload（对齐 FrontEnd FreeParamDialog）。 */
+export function toTenPlusTargetSummary(target: FreeParamTarget): TenPlusTargetSummary | null {
+  if (target.slotIndex === null || target.slotIndex === undefined) return null
+  if (!target.pointXy || !String(target.pointXy).trim()) return null
+  return {
+    id: target.id,
+    name: target.name,
+    slotIndex: target.slotIndex,
+    pointXy: target.pointXy,
+    rInterval: target.rInterval,
+    rCompensation: target.rCompensation
+  }
+}
+
+/** 从目标级字段组装后端行 payload。 */
 export function buildTenPlusRowsFromTarget(
   rows: FreeParamTaskRow[],
-  opts: { rInterval: number; rCompensation: number; pointXy?: string; slotIndex?: number | null }
+  opts: {
+    rInterval: number
+    rCompensation: number
+    pointXy?: string
+    slotIndex?: number | null
+    targetId?: string
+    targetName?: string
+  }
 ): TenPlusFreeParamPayload['rows'] {
   return rows.map((row) => ({
     taskNo: row.taskNo,
@@ -98,6 +131,32 @@ export function buildTenPlusRowsFromTarget(
     rInterval: opts.rInterval,
     rCompensation: opts.rCompensation,
     pointXy: opts.pointXy,
-    slotIndex: opts.slotIndex
+    slotIndex: opts.slotIndex,
+    targetId: opts.targetId,
+    targetName: opts.targetName
   }))
+}
+
+/** 多个勾选目标按工位号排序后展平为 rows。 */
+export function buildTenPlusRowsFromTargets(selected: FreeParamTarget[]): TenPlusFreeParamPayload['rows'] {
+  const ordered = [...selected].sort((a, b) => {
+    const sa = a.slotIndex ?? 999
+    const sb = b.slotIndex ?? 999
+    if (sa !== sb) return sa - sb
+    return a.name.localeCompare(b.name)
+  })
+  const out: TenPlusFreeParamPayload['rows'] = []
+  for (const target of ordered) {
+    out.push(
+      ...buildTenPlusRowsFromTarget(target.rows, {
+        rInterval: target.rInterval,
+        rCompensation: target.rCompensation,
+        pointXy: target.pointXy,
+        slotIndex: target.slotIndex,
+        targetId: target.id,
+        targetName: target.name
+      })
+    )
+  }
+  return out
 }

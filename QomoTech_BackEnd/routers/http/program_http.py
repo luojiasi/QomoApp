@@ -48,7 +48,15 @@ class 自由编辑参数请求模型(BaseModel):
         ..., description="配方列表",
     )
     rows: List[Dict[str, Any]] = Field(
-        ..., description="自由编辑参数列表",
+        ..., description="自由编辑参数列表（可含多目标展平行）",
+    )
+    targets: List[Dict[str, Any]] | None = Field(
+        default=None,
+        description="勾选下发的多个目标摘要列表",
+    )
+    target: Dict[str, Any] | None = Field(
+        default=None,
+        description="兼容旧字段：单目标摘要",
     )
 
 # ==================================================================
@@ -107,24 +115,31 @@ async def send_free_params(payload: 自由编辑参数请求模型):
     return ApiResponse(success=True, message="自由编辑参数已下发", data={"task_count": len(payload.rows)})
 
 @路由.post("/startProgram/tenPlusEntitiesEditParams", summary="十工位自由编辑参数切割")
-async def send_free_params(payload: 自由编辑参数请求模型):
-    """接收自由编辑参数，启动后台切割任务。"""
+async def send_ten_plus_free_params(payload: 自由编辑参数请求模型):
+    """接收勾选的一个或多个目标，启动十工位后台切割任务。"""
     旧在跑 = _svc().获取运行状态().get("running", False)
     新在跑 = _freeparam_svc().获取运行状态().get("running", False)
     tenplus_在跑 = _tenplus_svc().获取运行状态().get("running", False)
     if 旧在跑 or 新在跑 or tenplus_在跑:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="已有程序正在运行，请停止后再启动")
+    if not payload.rows:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="勾选目标没有可执行的任务行")
+
+    目标列表 = payload.targets or ([payload.target] if payload.target else [])
+    日志.info("十工位启动: targets=%s rows=%s", 目标列表, len(payload.rows))
 
     async def _run() -> None:
         try:
-            print(payload.rows)
-            print(payload.recipes)
-            # await ProgramServiceTenPlus.获取实例().执行十工位自由编辑参数(配方数据=payload.recipes,实体数据=payload.rows)
+            await ProgramServiceTenPlus.获取实例().执行十工位自由编辑参数(配方数据=payload.recipes,实体数据=payload.rows)
         except Exception:
             日志.exception("十工位自由编辑参数执行异常")
 
     asyncio.ensure_future(_run())
-    return ApiResponse(success=True, message="十工位自由编辑参数已下发", data={"task_count": len(payload.rows)})
+    return ApiResponse(
+        success=True,
+        message="十工位自由编辑参数已下发",
+        data={"task_count": len(payload.rows), "targets": 目标列表},
+    )
 
 
 # ==================================================================

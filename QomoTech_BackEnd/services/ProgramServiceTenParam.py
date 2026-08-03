@@ -57,7 +57,6 @@ class ProgramServiceTenPlus:
         self._loop = asyncio.get_running_loop()
         self.程序执行器 = ProgramRunnerTenPlus()
         self.程序执行器._广播回调 = self._广播状态  # type: ignore[attr-defined]
-        # 先广播 running=true 让前端感知
         self._广播状态(force=True)
         try:
             return await self.程序执行器.执行十工位自由编辑参数(配方数据=配方数据, 实体数据=实体数据)

@@ -93,3 +93,19 @@ def 从文件加载() -> Dict[str, Any]:
     with open(path, "r", encoding="utf-8") as f:
         raw = json.load(f)
     return _normalize(raw if isinstance(raw, dict) else None)
+
+
+def 按工位号取点位(index: int) -> Optional[Dict[str, Any]]:
+    """按工位号(1-10)取示教点位；不存在或未示教返回 None。"""
+    try:
+        idx = int(index)
+    except (TypeError, ValueError):
+        return None
+    if idx < 1 or idx > _SLOT_COUNT:
+        return None
+    for slot in 从文件加载().get("slots") or []:
+        if int(slot.get("index", -1)) == idx:
+            if not bool(slot.get("taught", False)):
+                return None
+            return slot
+    return None

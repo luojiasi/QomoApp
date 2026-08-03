@@ -9,6 +9,25 @@ from core.calc_rotation import 计算点绕坐标轴旋转
 
 日志 = 获取日志记录器("freeparamgeometry")
 
+def 构建总任务目标(目标列表: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """将扁平行按 targetId + targetName 归并为目标数组。
+
+    入参为前端展平后的 rows（每行带 targetId / targetName）。
+    返回按首次出现顺序排列的目标列表，每项：
+      { "id", "name", "rows": [属于该目标的全部行] }
+    """
+    分组: dict[tuple[str, str], dict[str, Any]] = {}
+    顺序: list[tuple[str, str]] = []
+    for 行 in 目标列表 or []:
+        目标ID = str(行.get("targetId") or "")
+        目标名 = str(行.get("targetName") or "")
+        键 = (目标ID, 目标名)
+        if 键 not in 分组:
+            分组[键] = {"id": 目标ID, "name": 目标名, "rows": []}
+            顺序.append(键)
+        分组[键]["rows"].append(行)
+    return [分组[k] for k in 顺序]
+
 
 def 构建配方数据(配方数据: dict[str, Any], 配方ID: str) -> dict[str, Any]:
     """根据配方ID从完整配方数据中查找主配方 → 加工/扫黑 → 子配方链。

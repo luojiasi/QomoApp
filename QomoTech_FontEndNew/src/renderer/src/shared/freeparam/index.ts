@@ -27,5 +27,10 @@ export {
   normalizeTenPlusConfig,
   formatPointXy
 } from './tenPlus'
-export { sendTenPlusFreeParams, buildTenPlusRowsFromTarget } from './api'
-export type { TenPlusFreeParamPayload } from './api'
+export {
+  sendTenPlusFreeParams,
+  buildTenPlusRowsFromTarget,
+  buildTenPlusRowsFromTargets,
+  toTenPlusTargetSummary
+} from './api'
+export type { TenPlusFreeParamPayload, TenPlusTargetSummary } from './api'
