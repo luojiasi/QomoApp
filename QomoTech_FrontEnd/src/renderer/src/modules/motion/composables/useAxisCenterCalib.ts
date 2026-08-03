@@ -8,6 +8,8 @@ import {
   setMotionIoOutput,
 } from '../api'
 import type { MotionAxis } from '../types'
+import { getRAxisPosition, syncRAxisPosition } from '@/modules/program/api'
+import type { RAxisPositionPayload } from '@/modules/program/types'
 import { useNotification } from '@/shared/composables/useNotification'
 import { useHardwareState } from '@/shared/api/hardware'
 import { sleep } from '../utils'
@@ -44,6 +46,11 @@ export function useAxisCenterCalib() {
   const controllerStore = useControllerSettingsStore()
   /** 辅助功能面板持久化（如基于中心的 XY 累计） */
   const auxiliaryFunctionPanelStore = useAuxiliaryFunctionPanelStore()
+
+  /** 已保存的 R 轴旋转中心点（后端） */
+  const savedRAxisPosition = ref<RAxisPositionPayload | null>(null)
+  /** 正在保存 R 轴旋转中心点 */
+  const isSavingRAxisPosition = ref(false)
 
   /** 从后端加载上一次保存的中心校准偏移量。组件 onMounted 时调用。 */
   const loadAxisCenterCalibOffset = () => {
@@ -210,6 +217,60 @@ export function useAxisCenterCalib() {
     const name = axisNameByNo[axisNo]
     const mpos = Number(mposition.value[name] ?? NaN)
     return Number.isFinite(mpos) ? mpos : null
+  }
+
+  /** 从后端加载已保存的 R 轴旋转中心点。 */
+  async function loadRAxisPosition(): Promise<void> {
+    const res = await getRAxisPosition()
+    if (!res.success || !res.data) {
+      error(res.message || '读取 R 轴旋转中心点失败')
+      return
+    }
+    savedRAxisPosition.value = {
+      X: Number(res.data.X),
+      Y: Number(res.data.Y),
+      Z: Number(res.data.Z),
+    }
+  }
+
+  /** 将当前 XYZ 机械坐标保存为 R 轴旋转中心点。 */
+  async function handleSaveRAxisPosition(): Promise<void> {
+    if (isSavingRAxisPosition.value || isAxisCenterCalib.value) return
+
+    const X = getAxisPosition(0)
+    const Y = getAxisPosition(1)
+    const Z = getAxisPosition(2)
+    if (X === null || Y === null || Z === null) {
+      error('当前 XYZ 位置不可用，保存失败')
+      return
+    }
+
+    isSavingRAxisPosition.value = true
+    try {
+      const payload: RAxisPositionPayload = {
+        X: Number(X.toFixed(3)),
+        Y: Number(Y.toFixed(3)),
+        Z: Number(Z.toFixed(3)),
+      }
+      const res = await syncRAxisPosition(payload)
+      if (!res.success || !res.data) {
+        error(res.message || '保存 R 轴旋转中心点失败')
+        return
+      }
+      savedRAxisPosition.value = {
+        X: Number(res.data.X),
+        Y: Number(res.data.Y),
+        Z: Number(res.data.Z),
+      }
+      success('已保存当前 XYZ 为 R 轴旋转中心点')
+    } finally {
+      isSavingRAxisPosition.value = false
+    }
+  }
+
+  function displaySavedRAxisAxis(axisName: 'X' | 'Y' | 'Z'): string {
+    const value = savedRAxisPosition.value?.[axisName]
+    return typeof value === 'number' && Number.isFinite(value) ? value.toFixed(3) : '-'
   }
 
   /** 抓取当前时刻各轴坐标快照（保留三位小数），用于写入采样点 */
@@ -526,5 +587,10 @@ export function useAxisCenterCalib() {
     handleAxisCenterCalib,
     axisCenterCalibCenterBasedXYSum,
     loadAxisCenterCalibOffset,
+    savedRAxisPosition,
+    isSavingRAxisPosition,
+    loadRAxisPosition,
+    handleSaveRAxisPosition,
+    displaySavedRAxisAxis,
   }
 }

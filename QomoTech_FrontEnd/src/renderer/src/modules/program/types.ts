@@ -13,6 +13,9 @@ export interface Product4PCenterRotationPayload extends XYZ {}
 /** 快速移动点位置 */
 export interface QuickMovePositionPayload extends XYZ {}
 
+/** R 轴旋转中心点位置 */
+export interface RAxisPositionPayload extends XYZ {}
+
 /** 程序运行状态数据（WS 下行） */
 export interface StartProgramStatusData {
   running: boolean

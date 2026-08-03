@@ -156,13 +156,17 @@ export function normalizeRecipeState(raw: unknown): RecipeManagerState | null {
   )
   if (missingArray) return _normalizeFail(`缺少数组字段: ${missingArray}`)
 
-  if (typeof p.selectedMainRecipeId !== 'string') return _normalizeFail('selectedMainRecipeId 不是 string', typeof p.selectedMainRecipeId)
-  if (!isObject(p.filter)) return _normalizeFail('filter 不是对象', typeof p.filter)
+  if (typeof p.selectedMainRecipeId !== 'string') {
+    // selectedMainRecipeId 缺失时取第一个主配方做兜底
+    p.selectedMainRecipeId = p.mainRecipes![0]?.id ?? ''
+  }
 
-  const filter = p.filter as Record<string, unknown>
-  if (typeof filter.keyword !== 'string') return _normalizeFail('filter.keyword 不是 string', typeof filter.keyword)
+  const filter = isObject(p.filter) ? (p.filter as Record<string, unknown>) : {}
+  if (typeof filter.keyword !== 'string') filter.keyword = ''
   const rs = filter.recipeStatus
-  if (rs !== 'all' && rs !== 'draft' && rs !== 'active' && rs !== 'archived') return _normalizeFail('recipeStatus 无效', rs)
+  if (rs !== 'all' && rs !== 'draft' && rs !== 'active' && rs !== 'archived') {
+    (filter as Record<string, unknown>).recipeStatus = 'all'
+  }
 
   const libraryKeywords = createDefaultLibraryKeywords()
   if (isObject(filter.libraryKeywords)) {
@@ -174,8 +178,8 @@ export function normalizeRecipeState(raw: unknown): RecipeManagerState | null {
     }
   }
   ;(p as { filter: RecipeManagerState['filter'] }).filter = {
-    keyword: filter.keyword as string,
-    recipeStatus: rs,
+    keyword: (filter as Record<string, unknown>).keyword as string,
+    recipeStatus: (filter as Record<string, unknown>).recipeStatus as RecipeManagerState['filter']['recipeStatus'],
     libraryKeywords
   }
 

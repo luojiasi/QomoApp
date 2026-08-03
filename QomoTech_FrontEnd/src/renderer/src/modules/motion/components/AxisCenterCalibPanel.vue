@@ -10,6 +10,7 @@ const state = reactive(inject<any>('axisCalib')!)
 
 onMounted(() => {
   state.loadAxisCenterCalibOffset()
+  void state.loadRAxisPosition()
 })
 </script>
 
@@ -46,7 +47,7 @@ onMounted(() => {
       <FormField v-model="state.axisCenterCalibStartAngle" label="起始角" :disabled="state.isAxisCenterCalib" />
       <FormField v-model="state.axisCenterCalibAngleStep" label="角度步长" :disabled="state.isAxisCenterCalib" />
       <FormField v-model="state.axisCenterCalibSampleCount" label="采样点数" :min="3" :step="2" :disabled="state.isAxisCenterCalib" />
-      <FormField v-model="state.axisCenterCalibSpeed" label="采样轴运动速度" :min="0.01" :step="0.1" :disabled="state.isAxisCenterCalib" />
+      <FormField v-model="state.axisCenterCalibSpeed" label="采样轴速度" :min="0.01" :step="0.1" :disabled="state.isAxisCenterCalib" />
       <FormField v-model="state.axisCenterCalibSettleMs" label="等待时间(ms)" :min="0" :step="1" :disabled="state.isAxisCenterCalib" />
       <FormField v-model="state.axisCenterCalibLaserPulseMs" label="激光时间(ms)" :min="0" :step="1" :disabled="state.isAxisCenterCalib || !state.axisCenterCalibAutoPulse" />
     </div>
@@ -66,6 +67,21 @@ onMounted(() => {
       <StatusCard label="目标旋转轴" :value="state.axisCenterCalibRotationAxisLabel" />
       <StatusCard label="当前角度" :value="state.axisCenterCalibCurrentAngleText" />
       <StatusCard label="失败信息" :value="state.axisCenterCalibErrorMessage || '-'" />
+    </div>
+    <div class="space-y-2">
+      <button
+        type="button"
+        :disabled="state.isAxisCenterCalib || state.isSavingRAxisPosition"
+        class="w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-4 py-2 text-sm font-medium text-(--app-text-primary) transition hover:border-sky-500/35 hover:bg-(--app-card) disabled:cursor-not-allowed disabled:opacity-50"
+        @click="state.handleSaveRAxisPosition"
+      >
+        {{ state.isSavingRAxisPosition ? '保存中...' : '记录R轴旋转中心' }}
+      </button>
+      <div class="grid grid-cols-3 gap-2">
+        <StatusCard label="已存 R 中心 X" :value="state.displaySavedRAxisAxis('X')" />
+        <StatusCard label="已存 R 中心 Y" :value="state.displaySavedRAxisAxis('Y')" />
+        <StatusCard label="已存 R 中心 Z" :value="state.displaySavedRAxisAxis('Z')" />
+      </div>
     </div>
     <div class="flex gap-2">
       <PrimaryButton :disabled="state.isAxisCenterCalib" class="flex-1" @click="state.handleAxisCenterCalib">

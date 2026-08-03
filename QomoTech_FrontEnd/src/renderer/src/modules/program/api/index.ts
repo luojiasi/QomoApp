@@ -1,5 +1,10 @@
 import { apiCall, type ApiCallResult } from '@/shared/api/httpClient'
-import type { Product4PCenterRotationPayload, QuickMovePositionPayload, StartProgramControlAction } from '../types'
+import type {
+  Product4PCenterRotationPayload,
+  QuickMovePositionPayload,
+  RAxisPositionPayload,
+  StartProgramControlAction
+} from '../types'
 
 /** 启动配方运行。 */
 export const startProgram = async (payload: Record<string, unknown>): Promise<ApiCallResult<Record<string, unknown>>> => 
@@ -24,6 +29,14 @@ export const syncQuickMovePosition = async (payload: QuickMovePositionPayload): 
 /** 从后端获取 系统设置 快速移动点。 */
 export const getQuickMovePosition = async (): Promise<ApiCallResult<QuickMovePositionPayload>> =>
     apiCall<QuickMovePositionPayload>('system-setting/quick-move-position', 'GET')
+
+/** 同步 系统设置 R 轴旋转中心点。 */
+export const syncRAxisPosition = async (payload: RAxisPositionPayload): Promise<ApiCallResult<RAxisPositionPayload>> =>
+  apiCall<RAxisPositionPayload>('system-setting/r_axis_position','POST',payload as unknown as Record<string, unknown>)
+
+/** 从后端获取 系统设置 R 轴旋转中心点。 */
+export const getRAxisPosition = async (): Promise<ApiCallResult<RAxisPositionPayload>> =>
+  apiCall<RAxisPositionPayload>('system-setting/r_axis_position', 'GET')
 
 /** 获取程序运行状态。 */
 export const getStartProgramStatus = async (): Promise<ApiCallResult<{ running?: boolean; paused?: boolean } & Record<string, unknown>>> => 
