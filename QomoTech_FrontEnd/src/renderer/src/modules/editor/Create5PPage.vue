@@ -187,6 +187,28 @@
               <div class="mt-1 text-[11px] text-slate-200">{{ tool.name }}</div>
               <!-- <div v-if="tool.DrawingShapeTools && tool.DrawingShapeTools.length >=2 " class="absolute -bottom-1 right-1 text-[14px] leading-none text-slate-400">▾</div> -->
             </button>
+            <button
+              type="button"
+              class="group relative flex h-12 w-16 flex-col items-center justify-center rounded-md border border-transparent text-slate-200 transition-colors hover:border-slate-600 hover:bg-slate-800/60"
+              title="重置 Home 展示图 Shift 偏移"
+              @click="resetShowImageOffset"
+            >
+              <div class="mt-1 text-[11px] text-slate-200">重置偏移</div>
+            </button>
+            <label
+              class="flex h-12 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-md border border-transparent px-1 text-[11px] text-slate-200 hover:border-slate-600 hover:bg-slate-800/60"
+              title="运行时将展示偏移 X 取反后叠加到 xyOffset"
+            >
+              <input v-model="invertShowImageOffsetX" type="checkbox" class="accent-sky-400" />
+              反转X
+            </label>
+            <label
+              class="flex h-12 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-md border border-transparent px-1 text-[11px] text-slate-200 hover:border-slate-600 hover:bg-slate-800/60"
+              title="运行时将展示偏移 Y 取反后叠加到 xyOffset"
+            >
+              <input v-model="invertShowImageOffsetY" type="checkbox" class="accent-sky-400" />
+              反转Y
+            </label>
           </div>
         </div>
 
@@ -765,9 +787,9 @@
                     v-else
                     class="cursor-pointer rounded px-0.5 hover:bg-slate-700/50"
                     @click="
-                      openAcEdit(entity.id, 'ellipseRotationDeg', { scalar: entity.rotationDeg })
+                      openAcEdit(entity.id, 'ellipseRotationDeg', {scalar: irregularRotationDeg(entity)})
                     "
-                    >长轴角(°)：{{ entity.rotationDeg.toFixed(3) }}</span
+                    >长轴角(°)：{{ irregularRotationDeg(entity).toFixed(3) }}</span
                   >
                   <span>
                     焊接：{{ entity.welding?.name }}（开口角：{{
@@ -1036,9 +1058,9 @@
 
           <div v-if="editingEntity" class="space-y-3 text-xs">
             <div class="text-slate-300">
-              ID：<span class="text-sky-300">{{ editingEntity.id }}</span> （{{
+              ID:<span class="text-sky-300">{{ editingEntity.id }}</span> ({{
                 editingEntity.type
-              }}）
+              }})
             </div>
 
             <div class="grid grid-cols-2 gap-2">
@@ -1152,6 +1174,11 @@ import {
   type QomoEntityWithSurface
 } from './qomo5pTypes'
 import { useQomo5PStore } from './useQomo5PStore'
+import {
+  invertShowImageOffsetX,
+  invertShowImageOffsetY,
+  resetShowImageOffset
+} from './showImageOffset'
 import { storeToRefs } from 'pinia'
 const store = useQomo5PStore()
 const { viewport, layers, entities, selectedEntityIds } = storeToRefs(store)
@@ -1167,13 +1194,22 @@ const isEllipseLikeIrregularEntity = (
     entity.shape === 'marquise' ||
     entity.shape === 'pear' ||
     entity.shape === 'heart')
-const bezierPointDisplay = (entity: QomoBezierSurfacesEntity, index: number) => entity.points[index]
-const bezierDegree = (entity: QomoBezierSurfacesEntity) => Math.max(entity.points.length - 1, 0)
-const bezierPointLabel = (entity: QomoBezierSurfacesEntity, index: number) => {
+/** 模板里 v-if 收窄不稳定，辅助函数入参用联合类型再自行收窄 */
+const asBezierEntity = (entity: QomoEntityWithSurface): QomoBezierSurfacesEntity | null =>
+  entity.type === 'BEZIER' ? entity : null
+const bezierPointDisplay = (entity: QomoEntityWithSurface, index: number) =>
+  asBezierEntity(entity)?.points[index] ?? { x: 0, y: 0 }
+const bezierDegree = (entity: QomoEntityWithSurface) =>
+  Math.max((asBezierEntity(entity)?.points.length ?? 1) - 1, 0)
+const bezierPointLabel = (entity: QomoEntityWithSurface, index: number) => {
+  const bezier = asBezierEntity(entity)
+  if (!bezier) return `点${index}`
   if (index === 0) return '起点'
-  if (index === entity.points.length - 1) return '终点'
+  if (index === bezier.points.length - 1) return '终点'
   return `控制点${index}`
 }
+const irregularRotationDeg = (entity: QomoEntityWithSurface): number =>
+  isEllipseLikeIrregularEntity(entity) ? entity.rotationDeg : 0
 const formatFormulaNumber = (value: number) => {
   const rounded = Number(value.toFixed(3))
   return String(rounded)
@@ -1196,15 +1232,20 @@ const bezierBasisTermLabel = (degree: number, index: number) => {
   if (tPower > 0) parts.push(tPower === 1 ? 't' : `t^${tPower}`)
   return parts.join('')
 }
-const bezierGeneralFormula = (entity: QomoBezierSurfacesEntity) =>
-  entity.points
-    .map((_, index) => `${bezierBasisTermLabel(bezierDegree(entity), index)} P${index}`)
+const bezierGeneralFormula = (entity: QomoEntityWithSurface) => {
+  const bezier = asBezierEntity(entity)
+  if (!bezier) return ''
+  return bezier.points
+    .map((_, index) => `${bezierBasisTermLabel(bezierDegree(bezier), index)} P${index}`)
     .join(' + ')
-const bezierExpandedCoordinateFormula = (entity: QomoBezierSurfacesEntity, axis: 'x' | 'y') => {
-  return entity.points
+}
+const bezierExpandedCoordinateFormula = (entity: QomoEntityWithSurface, axis: 'x' | 'y') => {
+  const bezier = asBezierEntity(entity)
+  if (!bezier) return ''
+  return bezier.points
     .map(
       (point, index) =>
-        `${bezierBasisTermLabel(bezierDegree(entity), index)} * ${formatFormulaNumber(point[axis])}`
+        `${bezierBasisTermLabel(bezierDegree(bezier), index)} * ${formatFormulaNumber(point[axis])}`
     )
     .join(' + ')
 }

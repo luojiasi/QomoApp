@@ -1,7 +1,7 @@
 {
   "communication": {
     "controller_model": "QomoTech406V2",
-    "controller_ip": "127.0.0.1",
+    "controller_ip": "192.168.0.11",
     "connect_timeout_s": 5,
     "enable_axes": [
       "X",
@@ -25,8 +25,8 @@
       "sramp": 10,
       "creep": 10,
       "merge": 0,
-      "fwd_in": -1,
-      "rev_in": -1,
+      "fwd_in": 0,
+      "rev_in": 1,
       "pulses_per_rev": 10000,
       "electronic_gear_ratio": 1,
       "gear_ratio": 1,
@@ -54,8 +54,8 @@
       "sramp": 10,
       "creep": 10,
       "merge": 0,
-      "fwd_in": -1,
-      "rev_in": -1,
+      "fwd_in": 3,
+      "rev_in": 2,
       "pulses_per_rev": 10000,
       "electronic_gear_ratio": 1,
       "gear_ratio": 1,
@@ -83,8 +83,8 @@
       "sramp": 10,
       "creep": 10,
       "merge": 0,
-      "fwd_in": -1,
-      "rev_in": -1,
+      "fwd_in": 4,
+      "rev_in": 5,
       "pulses_per_rev": 10000,
       "electronic_gear_ratio": 1,
       "gear_ratio": 1,
@@ -116,7 +116,7 @@
       "rev_in": -1,
       "pulses_per_rev": 10000,
       "electronic_gear_ratio": 1,
-      "gear_ratio": 10,
+      "gear_ratio": 1,
       "step_angle": 0,
       "microsteps": 0,
       "merge_params": {
@@ -134,10 +134,10 @@
       "axis_name": "R",
       "axis_type": 1,
       "units": 10000,
-      "speed": 3,
+      "speed": 40,
       "lspeed": 0,
-      "accel": 20,
-      "decel": 20,
+      "accel": 300,
+      "decel": 300,
       "sramp": 10,
       "creep": 10,
       "merge": 0,
@@ -146,8 +146,8 @@
       "pulses_per_rev": 10000,
       "electronic_gear_ratio": 1,
       "gear_ratio": 1,
-      "step_angle": 0,
-      "microsteps": 0,
+      "step_angle": 1.8,
+      "microsteps": 32,
       "merge_params": {
         "corner_mode": 0,
         "decel_angle": 15,
@@ -156,7 +156,7 @@
       },
       "backlash": 5,
       "backlash_enable": false,
-      "motor_type": "servo"
+      "motor_type": "stepper"
     }
   ]
 }

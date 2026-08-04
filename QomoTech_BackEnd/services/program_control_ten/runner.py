@@ -185,7 +185,8 @@ class ProgramRunnerTenPlus:
                     当前Y = float(工位点["y"])
                     当前Z = float(工位点["z"])
                     当前U = float(工位点["u"])
-                    
+                    if 首个工位Z is None:
+                        首个工位Z = 当前Z
                     日志.info(f"[TenPlus] 目标 {目标名} 工位#{工位号} → " + f"XYZU=({当前X}, {当前Y}, {当前Z}, {当前U})")
                     await self._运动到示教工位(当前X, 当前Y, 当前Z, 当前U)
 

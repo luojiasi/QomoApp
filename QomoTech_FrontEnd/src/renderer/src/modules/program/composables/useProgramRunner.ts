@@ -8,6 +8,7 @@ import { useProgramControl } from './useProgramControl'
 // 旧版 editor
 import { useQomo5PStore } from '@/modules/editor/useQomo5PStore'
 import type { QomoEntityWithSurface } from '@/modules/editor/qomo5pTypes'
+import { getShowImageOffsetForRun, resetShowImageOffset } from '@/modules/editor/showImageOffset'
 import { usePositionTable } from '@/shared/composables/usePositionTable'
 // 新版 entitiesEditor
 import type { EditorEntity, SurfaceEntity } from '@/modules/entitiesEditor/commons/types'
@@ -277,8 +278,13 @@ export function useProgramRunner() {
   async function runQomo5P(): Promise<void> {
     try {
       const xyOffset = resolveXYMotionOffsetFromHardwareState()
+      const imageOffset = getShowImageOffsetForRun()
+      xyOffset.x += imageOffset.x
+      xyOffset.y += imageOffset.y
       homeXyOffset.value = xyOffset
       runTrigger.value = true
+      // 展示偏移已并入 xyOffset，清零以免叠加层重复平移
+      resetShowImageOffset()
       const offsetEntities = offsetEntitiesByXYMpos(qomo5pStore.exportEntitiesToHomeVue(), xyOffset.x, xyOffset.y)
       const payload = {
         recipe_payload: currentRunRecipePayload.value,

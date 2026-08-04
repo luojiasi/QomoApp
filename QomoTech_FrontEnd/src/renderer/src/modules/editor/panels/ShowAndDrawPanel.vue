@@ -142,8 +142,8 @@
           vector-effect="non-scaling-stroke"
         />
 
-        <!-- 仅实体随机床平移显示，不改 Pinia 几何 -->
-        <g :transform="machineFollowTransform">
+        <!-- 仅显示层平移：机台跟随 + Shift 展示偏移，不改 Pinia 几何 -->
+        <g :transform="`${machineFollowTransform} ${showImageOffsetTransform}`">
           <template v-for="entity in visibleEntities" :key="entity.id">
           <line
             v-if="entity.type === 'LINE'"
@@ -254,6 +254,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useHardwareState } from '@/shared/api/hardware'
 import { storeToRefs } from 'pinia'
 import { useQomo5PStore } from '../useQomo5PStore'
+import { showImageOffsetX, showImageOffsetY } from '../showImageOffset'
 import type { OpenDirectionType, Point, QomoEntityWithSurface } from '../qomo5pTypes'
 import {computeOpenEntityOffsetPathsForCanvas,createBezierPoints,createCushionPoints,createHeartPoints,createMarquisePoints,createOctagonPoints,createPearPoints,createSquarePoints} from '../cad/threeGeometry'
 
@@ -287,6 +288,10 @@ const machineFollowTransform = computed(() => {
   // console.log("machineMposXY.value.y",machineMposXY.value.y)
   return `translate(${-machineMposXY.value.x + (props.xyOffset?.x ?? 0)} ${-machineMposXY.value.y + (props.xyOffset?.y ?? 0)})`
 })
+/** Shift 挪动的展示偏移；运行时已并入 xyOffset 并清零，避免重复叠加 */
+const showImageOffsetTransform = computed(
+  () => `translate(${showImageOffsetX.value} ${showImageOffsetY.value})`
+)
 
 const hostRef = ref<HTMLDivElement | null>(null)
 let ro: ResizeObserver | null = null

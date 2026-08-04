@@ -1,6 +1,7 @@
 import { ref, onUnmounted } from 'vue'
 import { subscribeGlobalKeyboard } from '@/shared/composables/useGlobalKeyboard'
 import { useNotification } from '@/shared/composables/useNotification'
+import { showImageOffsetX, showImageOffsetY } from '@/modules/editor/showImageOffset'
 import { useControllerSettingsStore } from '../stores/useControllerSettingsStore'
 import { useAuxiliaryFunctionPanelStore } from '../stores/useAuxiliaryFunctionPanelStore'
 import { U_AXIS_NO, R_AXIS_NO, getAxisSpeed } from '../config'
@@ -37,13 +38,31 @@ export function useMotionKeyboard() {
       void moveMotionAxisRel(axisNo, sign * moveStep.value)
   }
 
+  /** Shift+方向键：只挪 Home 展示图，步长与 F1–F4 的 moveStep 一致 */
+  function nudgeShowImage(e: KeyboardEvent, keyword: string): void {
+    const map: Record<string, [number, number]> = {
+      ARROWUP: [0, 1],
+      ARROWDOWN: [0, -1],
+      ARROWLEFT: [-1, 0],
+      ARROWRIGHT: [1, 0],
+    }
+    const entry = map[keyword]
+    if (!entry) return
+    e.preventDefault()
+    const [dx, dy] = entry
+    showImageOffsetX.value += dx * moveStep.value
+    showImageOffsetY.value += dy * moveStep.value
+  }
+
   const handler = (e: KeyboardEvent): void => {
     const keyword = e.key.toUpperCase()
     const onlyctrlKey = e.ctrlKey && !e.shiftKey && !e.altKey
     const nokey = !e.ctrlKey && !e.shiftKey && !e.altKey
     const altKey = e.altKey && !e.ctrlKey && !e.shiftKey
+    const onlyShiftKey = e.shiftKey && !e.ctrlKey && !e.altKey
 
     if (altKey) jogMove(e, keyword, true)
+    if (onlyShiftKey) nudgeShowImage(e, keyword)
 
     if (e.repeat) return
 
