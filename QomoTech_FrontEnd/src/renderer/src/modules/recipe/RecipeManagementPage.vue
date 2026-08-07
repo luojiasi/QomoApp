@@ -754,6 +754,8 @@ onMounted(async () => {
                   <th class="px-4 py-2.5 text-left text-xs font-semibold app-text-primary w-36">激光功率配方</th>
                   <th class="px-4 py-2.5 text-left text-xs font-semibold app-text-primary w-36">水平工艺配方</th>
                   <th class="px-4 py-2.5 text-left text-xs font-semibold app-text-primary w-36">垂直工艺配方</th>
+                  <th class="px-4 py-2.5 text-center text-xs font-semibold app-text-primary w-28">是否是示教模式</th>
+                  <th class="px-4 py-2.5 text-center text-xs font-semibold app-text-primary w-28" title="后端超时次数 = 本值 × 1000">超时等待时间</th>
                   <th class="px-4 py-2.5 text-center text-xs font-semibold app-text-primary w-16">操作</th>
                 </tr>
               </thead>
@@ -781,6 +783,26 @@ onMounted(async () => {
                     <select v-model="recipe.verticalFormulaId" class="w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-sm outline-none" @change="markProcessRecipeUpdated(recipe)">
                       <option v-for="vf in recipeState.verticalFormulaRecipes" :key="vf.id" :value="vf.id" class="text-slate-900">{{ vf.name }}</option>
                     </select>
+                  </td>
+                  <td class="px-4 py-2 text-center">
+                    <input
+                      v-model="recipe.teachingMode"
+                      type="checkbox"
+                      class="mt-0.5 h-4 w-4"
+                      title="是否是示教模式"
+                      @change="markProcessRecipeUpdated(recipe)"
+                    />
+                  </td>
+                  <td class="px-4 py-2">
+                    <input
+                      v-model.number="recipe.timeoutWaitTime"
+                      type="number"
+                      min="1"
+                      step="1"
+                      class="w-full rounded-lg border border-(--app-border) bg-transparent px-2 py-1.5 text-center text-sm outline-none"
+                      title="超时等待时间（后端超时次数 = 本值 × 1000）"
+                      @input="markProcessRecipeUpdated(recipe)"
+                    />
                   </td>
                   <td class="px-4 py-2 text-center">
                     <button type="button" class="rounded-lg border border-red-200 px-2.5 py-1 text-xs text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40" :disabled="isChildRecipeLinked('machining', recipe.id)" @click="removeMachiningRecipe(recipe.id)">删除</button>

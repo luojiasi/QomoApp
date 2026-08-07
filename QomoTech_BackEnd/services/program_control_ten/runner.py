@@ -190,7 +190,7 @@ class ProgramRunnerTenPlus:
                     日志.info(f"[TenPlus] 目标 {目标名} 工位#{工位号} → " + f"XYZU=({当前X}, {当前Y}, {当前Z}, {当前U})")
                     await self._运动到示教工位(当前X, 当前Y, 当前Z, 当前U)
 
-                    所有高度总和 = sum(float(行.get("height", 0)) for 行 in 行列表)
+                    
 
                     for 序号, 行数据 in enumerate(行列表):
                         全局已完成行 += 1
@@ -200,6 +200,7 @@ class ProgramRunnerTenPlus:
                         该序号的参数 = 构建任务的数据(行数据)
                         该序号的配方 = 构建配方数据(配方数据, 该序号的参数.get("配方ID"))
                         累计高度 = sum(float(行列表[k].get("height", 0)) for k in range(序号))
+                        所有高度总和 = sum(float(行列表[k].get("height", 0)) for k in range(len(行数据)))
                         执行任务的参数 = 构建执行任务的参数(该序号的参数, 当前Z, 所有高度总和, 累计高度)
                         self.更新进度(current_task_index=当前序号, current_task_jindubaifenbi=0)
                         try:

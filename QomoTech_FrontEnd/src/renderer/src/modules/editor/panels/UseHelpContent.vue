@@ -61,6 +61,8 @@ const groups: ShortcutGroup[] = [
       { label: 'U 轴旋转 (顺/逆)', keys: ['Ctrl', '↑', '↓'] },
       { label: 'R 轴旋转 (顺/逆)', keys: ['Ctrl', '←', '→'] },
       { label: 'Alt + 方向键 (带设定)', keys: ['Alt', '↑↓←→'] },
+      { label: '移动图像但不移动轴', keys: ['Shift', '↑↓←→'] },
+      { label: '移动图像且移动轴', keys: ['Shift', 'Ctrl', '↑↓←→'] },
     ]
   },
   {

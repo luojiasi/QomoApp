@@ -11,7 +11,13 @@ export const SubRecipeDefaults: Record<string, Record<string, unknown>> = {
     saoheikaikou: { k: 0, b: 0 },
     laserPowerRecipeId: ''
   },
-  machining: { name: '', horizontalFormulaId: '', verticalFormulaId: '', laserPowerRecipeId: '' },
+  machining: {
+    name: '',
+    horizontalFormulaId: '',
+    verticalFormulaId: '',
+    laserPowerRecipeId: '',
+    teachingMode: false
+  },
   horizontal: {
     name: '',
     openingShape: 'V型',

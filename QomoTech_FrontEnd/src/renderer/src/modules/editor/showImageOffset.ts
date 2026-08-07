@@ -1,12 +1,16 @@
 import { ref, watch } from 'vue'
 
-/** Home 叠加层「展示图」平移（mm），不写回 5P 实体参数；运行 Qomo5P 时叠加进 xyOffset。 */
+/** Shift+方向键：只挪展示图（mm），不写回 5P；运行 Qomo5P 时叠加进 xyOffset。 */
 export const showImageOffsetX = ref(0)
 export const showImageOffsetY = ref(0)
 
+/** Shift+Ctrl+方向键：挪展示图且点动轴；运行时同样叠加进 xyOffset。 */
+export const showImageWithAxisOffsetX = ref(0)
+export const showImageWithAxisOffsetY = ref(0)
+
 /**
  * 运行时是否将展示偏移取反后再加到 xyOffset（对齐机台点动轴向符号）。
- * 仅影响 runQomo5P 的叠加符号，不影响 Shift 挪图的画面方向。
+ * 仅影响 runQomo5P 的叠加符号，不影响键盘挪图的画面方向。
  */
 export const invertShowImageOffsetX = ref(false)
 export const invertShowImageOffsetY = ref(false)
@@ -45,12 +49,14 @@ watch(
 export function resetShowImageOffset(): void {
   showImageOffsetX.value = 0
   showImageOffsetY.value = 0
+  showImageWithAxisOffsetX.value = 0
+  showImageWithAxisOffsetY.value = 0
 }
 
-/** 运行时叠加用的展示偏移（已按反转勾选应用符号） */
-export function getShowImageOffsetForRun(): { x: number; y: number } {
+/** 画面上两套展示偏移之和（不应用反转） */
+export function getShowImageOffsetForDisplay(): { x: number; y: number } {
   return {
-    x: showImageOffsetX.value * (invertShowImageOffsetX.value ? -1 : 1),
-    y: showImageOffsetY.value * (invertShowImageOffsetY.value ? -1 : 1)
+    x: showImageOffsetX.value + showImageWithAxisOffsetX.value,
+    y: showImageOffsetY.value + showImageWithAxisOffsetY.value
   }
 }

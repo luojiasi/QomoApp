@@ -115,6 +115,8 @@ export function createMachiningRecipe(
     id: `machining-${sequence}`,
     name: `加工工艺配方 ${sequence}`,
     updatedAt: createTimestamp(),
+    teachingMode: false,
+    timeoutWaitTime: 2,
     ...requiredFormulas
   }
 }

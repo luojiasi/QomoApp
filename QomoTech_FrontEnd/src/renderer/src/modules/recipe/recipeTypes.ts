@@ -29,6 +29,10 @@ export interface MachiningProcessRecipe extends RecipeRecordBase {
   horizontalFormulaId: string
   verticalFormulaId: string
   laserPowerRecipeId: string
+  /** 是否示教模式；默认 false */
+  teachingMode: boolean
+  /** XY 空闲超时等待时间（秒量级配置值）；后端实际超时次数 = 本值 × 1000；默认 2 */
+  timeoutWaitTime: number
 }
 
 

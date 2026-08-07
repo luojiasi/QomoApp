@@ -511,6 +511,8 @@ export const zhCN = {
     sectionBlackeningParamsDesc: '下降、速度、步长与开口公式等工艺参数。',
     sectionBlackeningLinksDesc: '扫黑可关联独立的激光配方。',
     sectionMachiningLinksDesc: '加工配方由水平、垂直、激光三类子配方组合而成。',
+    fieldTeachingMode: '是否是示教模式',
+    sectionTeachingModeDesc: '开启后该加工工艺按示教模式运行；默认关闭。',
     sectionLaserParams: '激光参数',
     sectionLaserParamsDesc: '功率、频率、电流与厂家等激光输出参数。',
     sectionHorizontalParams: '水平参数',

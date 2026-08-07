@@ -254,7 +254,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useHardwareState } from '@/shared/api/hardware'
 import { storeToRefs } from 'pinia'
 import { useQomo5PStore } from '../useQomo5PStore'
-import { showImageOffsetX, showImageOffsetY } from '../showImageOffset'
+import { getShowImageOffsetForDisplay } from '../showImageOffset'
 import type { OpenDirectionType, Point, QomoEntityWithSurface } from '../qomo5pTypes'
 import {computeOpenEntityOffsetPathsForCanvas,createBezierPoints,createCushionPoints,createHeartPoints,createMarquisePoints,createOctagonPoints,createPearPoints,createSquarePoints} from '../cad/threeGeometry'
 
@@ -288,10 +288,11 @@ const machineFollowTransform = computed(() => {
   // console.log("machineMposXY.value.y",machineMposXY.value.y)
   return `translate(${-machineMposXY.value.x + (props.xyOffset?.x ?? 0)} ${-machineMposXY.value.y + (props.xyOffset?.y ?? 0)})`
 })
-/** Shift 挪动的展示偏移；运行时已并入 xyOffset 并清零，避免重复叠加 */
-const showImageOffsetTransform = computed(
-  () => `translate(${showImageOffsetX.value} ${showImageOffsetY.value})`
-)
+/** Shift / Shift+Ctrl 展示偏移合计；运行时已并入 xyOffset 并清零，避免重复叠加 */
+const showImageOffsetTransform = computed(() => {
+  const offset = getShowImageOffsetForDisplay()
+  return `translate(${offset.x} ${offset.y})`
+})
 
 const hostRef = ref<HTMLDivElement | null>(null)
 let ro: ResizeObserver | null = null

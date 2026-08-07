@@ -207,10 +207,16 @@ export function normalizeRecipeState(raw: unknown): RecipeManagerState | null {
 
   for (let i = 0; i < p.machiningRecipes!.length; i++) {
     if (!isObject(p.machiningRecipes![i])) return _normalizeFail(`machiningRecipes[${i}] 不是对象`)
-    const m = p.machiningRecipes![i] as Partial<MachiningProcessRecipe>
+    const m = p.machiningRecipes![i] as Partial<MachiningProcessRecipe> & Record<string, unknown>
     if (typeof m.horizontalFormulaId !== 'string') return _normalizeFail(`machiningRecipes[${i}] 缺少 horizontalFormulaId`)
     if (typeof m.verticalFormulaId !== 'string') return _normalizeFail(`machiningRecipes[${i}] 缺少 verticalFormulaId`)
     if (typeof m.laserPowerRecipeId !== 'string') return _normalizeFail(`machiningRecipes[${i}] 缺少 laserPowerRecipeId`)
+    // 旧存档无此字段时补默认 false，避免加载失败
+    if (typeof m.teachingMode !== 'boolean') m.teachingMode = false
+    // 旧存档无超时等待时间时补默认 2
+    if (typeof m.timeoutWaitTime !== 'number' || !Number.isFinite(m.timeoutWaitTime) || m.timeoutWaitTime <= 0) {
+      m.timeoutWaitTime = 2
+    }
   }
 
   // 剔除已废弃字段（code, version, productModel, notes），防止旧存档残留写回后端

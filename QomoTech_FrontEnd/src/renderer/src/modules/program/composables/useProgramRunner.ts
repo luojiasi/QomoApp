@@ -8,7 +8,15 @@ import { useProgramControl } from './useProgramControl'
 // 旧版 editor
 import { useQomo5PStore } from '@/modules/editor/useQomo5PStore'
 import type { QomoEntityWithSurface } from '@/modules/editor/qomo5pTypes'
-import { getShowImageOffsetForRun, resetShowImageOffset } from '@/modules/editor/showImageOffset'
+import {
+  invertShowImageOffsetX,
+  invertShowImageOffsetY,
+  resetShowImageOffset,
+  showImageOffsetX,
+  showImageOffsetY,
+  showImageWithAxisOffsetX,
+  showImageWithAxisOffsetY
+} from '@/modules/editor/showImageOffset'
 import { usePositionTable } from '@/shared/composables/usePositionTable'
 // 新版 entitiesEditor
 import type { EditorEntity, SurfaceEntity } from '@/modules/entitiesEditor/commons/types'
@@ -278,12 +286,19 @@ export function useProgramRunner() {
   async function runQomo5P(): Promise<void> {
     try {
       const xyOffset = resolveXYMotionOffsetFromHardwareState()
-      const imageOffset = getShowImageOffsetForRun()
-      xyOffset.x += imageOffset.x
-      xyOffset.y += imageOffset.y
+      // Shift 只挪图
+      const imageOnlyX = showImageOffsetX.value
+      const imageOnlyY = showImageOffsetY.value
+      // Shift+Ctrl 挪图且动轴
+      const imageWithAxisX = showImageWithAxisOffsetX.value
+      const imageWithAxisY = showImageWithAxisOffsetY.value
+      const signX = invertShowImageOffsetX.value ? -1 : 1
+      const signY = invertShowImageOffsetY.value ? -1 : 1
+      xyOffset.x += (imageOnlyX + imageWithAxisX) * signX
+      xyOffset.y += (imageOnlyY + imageWithAxisY) * signY
       homeXyOffset.value = xyOffset
       runTrigger.value = true
-      // 展示偏移已并入 xyOffset，清零以免叠加层重复平移
+      // 两套展示偏移已并入 xyOffset，清零以免叠加层重复平移
       resetShowImageOffset()
       const offsetEntities = offsetEntitiesByXYMpos(qomo5pStore.exportEntitiesToHomeVue(), xyOffset.x, xyOffset.y)
       const payload = {

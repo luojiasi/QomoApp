@@ -511,6 +511,8 @@ export const ko = {
     sectionBlackeningParamsDesc: '하강·속도·스텝·개구 공식 등 공정 매개변수.',
     sectionBlackeningLinksDesc: '블랙닝은 독립 레이저 레시피를 연결할 수 있습니다.',
     sectionMachiningLinksDesc: '가공 레시피는 수평·수직·레이저 하위 레시피로 구성됩니다.',
+    fieldTeachingMode: '티칭 모드 여부',
+    sectionTeachingModeDesc: '켜면 해당 가공 레시피가 티칭 모드로 동작합니다. 기본값은 꺼짐입니다.',
     sectionLaserParams: '레이저 파라미터',
     sectionLaserParamsDesc: '출력·주파수·전류·제조사 등 레이저 출력 설정.',
     sectionHorizontalParams: '수평 파라미터',

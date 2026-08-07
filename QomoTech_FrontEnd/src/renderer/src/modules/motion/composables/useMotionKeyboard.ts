@@ -1,7 +1,12 @@
 import { ref, onUnmounted } from 'vue'
 import { subscribeGlobalKeyboard } from '@/shared/composables/useGlobalKeyboard'
 import { useNotification } from '@/shared/composables/useNotification'
-import { showImageOffsetX, showImageOffsetY } from '@/modules/editor/showImageOffset'
+import {
+  showImageOffsetX,
+  showImageOffsetY,
+  showImageWithAxisOffsetX,
+  showImageWithAxisOffsetY
+} from '@/modules/editor/showImageOffset'
 import { useControllerSettingsStore } from '../stores/useControllerSettingsStore'
 import { useAuxiliaryFunctionPanelStore } from '../stores/useAuxiliaryFunctionPanelStore'
 import { U_AXIS_NO, R_AXIS_NO, getAxisSpeed } from '../config'
@@ -38,20 +43,32 @@ export function useMotionKeyboard() {
       void moveMotionAxisRel(axisNo, sign * moveStep.value)
   }
 
+  const imageNudgeMap: Record<string, [number, number]> = {
+    ARROWUP: [0, 1],
+    ARROWDOWN: [0, -1],
+    ARROWLEFT: [-1, 0],
+    ARROWRIGHT: [1, 0],
+  }
+
   /** Shift+方向键：只挪 Home 展示图，步长与 F1–F4 的 moveStep 一致 */
   function nudgeShowImage(e: KeyboardEvent, keyword: string): void {
-    const map: Record<string, [number, number]> = {
-      ARROWUP: [0, 1],
-      ARROWDOWN: [0, -1],
-      ARROWLEFT: [-1, 0],
-      ARROWRIGHT: [1, 0],
-    }
-    const entry = map[keyword]
+    const entry = imageNudgeMap[keyword]
     if (!entry) return
     e.preventDefault()
     const [dx, dy] = entry
     showImageOffsetX.value += dx * moveStep.value
     showImageOffsetY.value += dy * moveStep.value
+  }
+
+  /** Shift+Ctrl+方向键：挪展示图且点动轴 */
+  function nudgeShowImageAndJog(e: KeyboardEvent, keyword: string): void {
+    const entry = imageNudgeMap[keyword]
+    if (!entry) return
+    e.preventDefault()
+    const [dx, dy] = entry
+    showImageWithAxisOffsetX.value += dx * moveStep.value
+    showImageWithAxisOffsetY.value += dy * moveStep.value
+    jogMove(e, keyword, false)
   }
 
   const handler = (e: KeyboardEvent): void => {
@@ -60,9 +77,11 @@ export function useMotionKeyboard() {
     const nokey = !e.ctrlKey && !e.shiftKey && !e.altKey
     const altKey = e.altKey && !e.ctrlKey && !e.shiftKey
     const onlyShiftKey = e.shiftKey && !e.ctrlKey && !e.altKey
+    const shiftCtrlKey = e.shiftKey && e.ctrlKey && !e.altKey
 
     if (altKey) jogMove(e, keyword, true)
-    if (onlyShiftKey) nudgeShowImage(e, keyword)
+    if (shiftCtrlKey) nudgeShowImageAndJog(e, keyword)
+    else if (onlyShiftKey) nudgeShowImage(e, keyword)
 
     if (e.repeat) return
 

@@ -101,6 +101,14 @@ function setBlackeningEnabled(on: boolean): void {
   if (!id) return
   emit('update-list-item', 'blackeningRecipes', id, 'enabled', on)
 }
+
+const machiningTeachingMode = computed(() => isEnabledFlag(props.machining?.teachingMode))
+
+function setMachiningTeachingMode(on: boolean): void {
+  const id = props.machining?.id || (props.node.kind === 'machining' ? props.node.id : '')
+  if (!id) return
+  emit('update-list-item', 'machiningRecipes', id, 'teachingMode', on)
+}
 </script>
 
 <template>
@@ -503,6 +511,41 @@ function setBlackeningEnabled(on: boolean): void {
           <span>{{ t('recipes.pendingSelect') }}</span>
         </div>
         <template v-else>
+          <section
+            class="rne-section tone-enable"
+            :class="{ 'is-on': machiningTeachingMode, 'is-off': !machiningTeachingMode }"
+          >
+            <header class="rne-section-head">
+              <span class="rne-section-badge">
+                <span class="material-symbols-outlined">
+                  {{ machiningTeachingMode ? 'toggle_on' : 'toggle_off' }}
+                </span>
+              </span>
+              <div class="rne-section-text">
+                <h3 class="rne-section-title">{{ t('recipes.fieldTeachingMode') }}</h3>
+                <p class="rne-section-desc">{{ t('recipes.sectionTeachingModeDesc') }}</p>
+              </div>
+            </header>
+            <div class="enable-toggle" role="group" :aria-label="t('recipes.fieldTeachingMode')">
+              <button
+                type="button"
+                class="enable-btn"
+                :class="{ active: machiningTeachingMode }"
+                @click="setMachiningTeachingMode(true)"
+              >
+                {{ t('recipes.fieldYes') }}
+              </button>
+              <button
+                type="button"
+                class="enable-btn"
+                :class="{ active: !machiningTeachingMode }"
+                @click="setMachiningTeachingMode(false)"
+              >
+                {{ t('recipes.fieldNo') }}
+              </button>
+            </div>
+          </section>
+
           <section class="rne-section tone-sub">
             <header class="rne-section-head">
               <span class="rne-section-badge">

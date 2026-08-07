@@ -54,6 +54,8 @@ export interface MachiningRecipe {
   horizontalFormulaId: string
   verticalFormulaId: string
   laserPowerRecipeId: string
+  /** 是否示教模式；缺省按 false */
+  teachingMode?: boolean
 }
 
 export interface MainRecipe {

@@ -511,6 +511,8 @@ export const ja = {
     sectionBlackeningParamsDesc: '下降・速度・ステップ・開口公式などの工程パラメータ。',
     sectionBlackeningLinksDesc: 'ブラックニングは独立したレーザーレシピを関連付けできます。',
     sectionMachiningLinksDesc: '加工レシピは水平・垂直・レーザーのサブレシピで構成されます。',
+    fieldTeachingMode: 'ティーチングモード',
+    sectionTeachingModeDesc: 'オンにするとこの加工レシピはティーチングモードで動作します。既定はオフです。',
     sectionLaserParams: 'レーザーパラメータ',
     sectionLaserParamsDesc: '出力・周波数・電流・メーカーなどのレーザー設定。',
     sectionHorizontalParams: '水平パラメータ',

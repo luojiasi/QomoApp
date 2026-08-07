@@ -511,6 +511,8 @@ export const en = {
     sectionBlackeningParamsDesc: 'Descent, speed, step, and opening formula settings.',
     sectionBlackeningLinksDesc: 'Blackening can link a separate laser recipe.',
     sectionMachiningLinksDesc: 'Machining combines horizontal, vertical, and laser sub-recipes.',
+    fieldTeachingMode: 'Teaching mode',
+    sectionTeachingModeDesc: 'When on, this machining recipe runs in teaching mode. Off by default.',
     sectionLaserParams: 'Laser Parameters',
     sectionLaserParamsDesc: 'Power, frequency, current, and manufacturer settings.',
     sectionHorizontalParams: 'Horizontal Parameters',

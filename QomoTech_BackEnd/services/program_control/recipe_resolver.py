@@ -5,7 +5,32 @@
 
 from __future__ import annotations
 
+import math
 from typing import Any
+
+
+def 读取示教模式(工作配方: dict[str, Any] | None) -> bool:
+    """从加工工艺配方 dict 读取 teachingMode；缺省/非 True 视为 False。"""
+    if not isinstance(工作配方, dict):
+        return False
+    return 工作配方.get("teachingMode") is True
+
+
+def 读取超时等待时间(工作配方: dict[str, Any] | None) -> float:
+    """从加工工艺配方读取 timeoutWaitTime；缺省/非法时返回 2。
+
+    后端调用安全拉取时：超时次数 = 本值 × 1000。
+    """
+    if not isinstance(工作配方, dict):
+        return 2.0
+    原始值 = 工作配方.get("timeoutWaitTime", 2)
+    try:
+        值 = float(原始值)
+    except (TypeError, ValueError):
+        return 2.0
+    if not math.isfinite(值) or 值 <= 0:
+        return 2.0
+    return 值
 
 
 def 在配方中查找ID的配方(配方数据: Any, id: Any) -> dict[str, Any] | None:
@@ -169,6 +194,21 @@ class ProgramRecipeSet:
     @property
     def 是否开启扫黑(self) -> bool:
         return bool(self.扫黑配方.get("enabled"))
+
+    @property
+    def 是否进行示教模式(self) -> bool:
+        """加工工艺配方 teachingMode；缺省或非布尔时视为 False。"""
+        return 读取示教模式(self.工作配方)
+
+    @property
+    def 超时等待时间(self) -> float:
+        """加工工艺配方 timeoutWaitTime；缺省 2。超时次数 = 本值 × 1000。"""
+        return 读取超时等待时间(self.工作配方)
+
+    @property
+    def XY空闲超时次数(self) -> int:
+        """供 安全拉取xy轴是否空闲 使用的超时次数。"""
+        return max(1, int(self.超时等待时间 * 1000))
 
     @property
     def 扫黑上台高度(self) -> float:

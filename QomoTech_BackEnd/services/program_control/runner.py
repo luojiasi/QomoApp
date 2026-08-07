@@ -298,6 +298,9 @@ class ProgramRunner(ProgramContext):
         水平公式 = 配方集.水平公式
         垂直公式 = 配方集.垂直公式
 
+        是否进行示教模式 = 配方集.是否进行示教模式
+        XY空闲超时次数 = 配方集.XY空闲超时次数
+
         下开口K = float(水平公式.get('lowerOpeningFormula', {}).get('k', 0))
         下开口B = float(水平公式.get('lowerOpeningFormula', {}).get('b', 0))
         深度补偿K = float(水平公式.get('depthCompensationFormula', {}).get('k', 0))
@@ -340,6 +343,7 @@ class ProgramRunner(ProgramContext):
         边缘切割速度的变化B = float(垂直公式.get("edgeCutting", {}).get("change", {}).get('b', 0))
         中间切割速度的变化K = float(垂直公式.get("middleCutting", {}).get("change", {}).get('k', 0))
         中间切割速度的变化B = float(垂直公式.get("middleCutting", {}).get("change", {}).get('b', 0))
+        
         开口形状 = 水平公式.get('openingShape', '')
         焦距补偿 = 水平公式.get('focusCompensation', 0)
         当前Z轴的位置 = await self._运动.取_z_实际位置() + float(焦距补偿)
@@ -403,7 +407,8 @@ class ProgramRunner(ProgramContext):
                 case ProgramStep.发送扫黑激光参数:
                     厂家 = self._获取激光厂家()
                     if 厂家 == "KMJGQ_MM":
-                        await self._串口.mm激光器操作(True)
+                        if 是否进行示教模式:
+                            await self._串口.mm激光器操作(True)
                     else:
                         await self._串口.发送激光数据(str(扫黑功率), str(扫黑频率), str(扫黑电流), 厂家=厂家)
                     当前步骤 = ProgramStep.打开激光输出
@@ -411,14 +416,16 @@ class ProgramRunner(ProgramContext):
                 case ProgramStep.发送工作激光参数:
                     厂家 = self._获取激光厂家()
                     if 厂家 == "KMJGQ_MM":
-                        await self._串口.mm激光器操作(True)
+                        if 是否进行示教模式:
+                            await self._串口.mm激光器操作(True)
                     else:
                         await self._串口.发送激光数据(str(工作功率), str(工作频率), str(工作电流), 厂家=厂家)
                     当前步骤 = ProgramStep.打开激光输出
 
                 case ProgramStep.打开激光输出:
                     if not 是否打开激光:
-                        await self._运动原语.开启激光输出()
+                        if 是否进行示教模式:
+                            await self._运动原语.开启激光输出()
                         是否打开激光 = True
                     当前步骤 = ProgramStep.检查是否到达下降深度
 
@@ -475,7 +482,7 @@ class ProgramRunner(ProgramContext):
                         当前步骤 = ProgramStep.等待XY轴POST插入 if not 是否需要跳转计算下一层开口 else ProgramStep.计算下一层开口
 
                 case ProgramStep.等待XY轴POST插入:
-                    结果 = await self._运动原语.安全拉取xy轴是否空闲(休眠秒=0.01)
+                    结果 = await self._运动原语.安全拉取xy轴是否空闲(超时次数=XY空闲超时次数, 休眠秒=0.01)
                     if 结果.get("skip"):
                         return await self._运动原语.跳过任务并回Z轴(z轴目标=首次目标Z轴位置, 速度=切割速度)
                     if 结果.get("abort"):
@@ -615,6 +622,8 @@ class ProgramRunner(ProgramContext):
         水平公式 = 配方集.水平公式
         垂直公式 = 配方集.垂直公式
 
+        是否进行示教模式 = 配方集.是否进行示教模式
+
         下开口K = float(水平公式.get('lowerOpeningFormula', {}).get('k', 0))
         下开口B = float(水平公式.get('lowerOpeningFormula', {}).get('b', 0))
         深度补偿K = float(水平公式.get('depthCompensationFormula', {}).get('k', 0))
@@ -703,7 +712,8 @@ class ProgramRunner(ProgramContext):
 
                 case 40:
                     if not 是否打开激光:
-                        await self._运动原语.开启激光输出()
+                        if 是否进行示教模式:
+                            await self._运动原语.开启激光输出()
                         是否打开激光 = True
 
                     当前步骤 = 50
@@ -924,6 +934,7 @@ class ProgramRunner(ProgramContext):
         Z轴原始初始位置 = await self._运动.取_z_实际位置()
         首次目标Z轴位置 = float(Z轴原始初始位置) + float(焦距补偿)
         下降直到可以切产品的高度 = 首次目标Z轴位置 + 下降的高度
+        XY空闲超时次数 = 配方集.XY空闲超时次数
 
         当前没有偏移的点位 = 计算当前任务实体旋转后的点[原始任务序号].get('points')
         原始点数据_插补数据 = 当前没有偏移的点位.copy()
@@ -1061,7 +1072,7 @@ class ProgramRunner(ProgramContext):
                         当前步骤 = ProgramStep.等待XY轴POST插入 if not 是否需要跳转计算下一层开口 else ProgramStep.计算下一层开口
 
                 case ProgramStep.等待XY轴POST插入:
-                    结果 = await self._运动原语.安全拉取xy轴是否空闲(休眠秒=0.01)
+                    结果 = await self._运动原语.安全拉取xy轴是否空闲(超时次数=XY空闲超时次数, 休眠秒=0.01)
                     if 结果.get("skip"):
                         return await self._运动原语.跳过任务并回Z轴(z轴目标=Z轴原始初始位置, 速度=切割速度)
                     if 结果.get("abort"):

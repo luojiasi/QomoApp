@@ -104,10 +104,12 @@
     {
       "id": "machining-1",
       "name": "123123",
-      "updatedAt": "2026-7-3 12:07:53",
+      "updatedAt": "2026-8-6 15:13:47",
       "horizontalFormulaId": "horizontal-formula-1",
       "verticalFormulaId": "vertical-formula-1",
-      "laserPowerRecipeId": "laser-power-1"
+      "laserPowerRecipeId": "laser-power-1",
+      "teachingMode": true,
+      "timeoutWaitTime": 6
     }
   ],
   "selectedMainRecipeId": "main-1"

@@ -510,6 +510,8 @@ export const zhTW = {
     sectionBlackeningParamsDesc: '下降、速度、步長與開口公式等工藝參數。',
     sectionBlackeningLinksDesc: '掃黑可關聯獨立的雷射配方。',
     sectionMachiningLinksDesc: '加工配方由水平、垂直、雷射三類子配方組合而成。',
+    fieldTeachingMode: '是否是示教模式',
+    sectionTeachingModeDesc: '開啟後該加工工藝按示教模式運行；預設關閉。',
     sectionLaserParams: '雷射參數',
     sectionLaserParamsDesc: '功率、頻率、電流與廠家等雷射輸出參數。',
     sectionHorizontalParams: '水平參數',

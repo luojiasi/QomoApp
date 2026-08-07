@@ -85,10 +85,13 @@ export function useRecipes() {
       cur[key] = { ...toRaw((child as Record<string, unknown> | undefined) ?? {}) }
       cur = cur[key] as Record<string, unknown>
     }
-    // 统一启用字段为真正的 boolean，避免 "false" 字符串被当成已启用
-    const nextValue =
-      parts[parts.length - 1] === 'enabled' ? value === true || value === 'true' || value === 1 || value === '1' : value
-    cur[parts[parts.length - 1]] = nextValue
+    // 统一布尔开关字段，避免 "false" 字符串被当成已启用
+    const boolKeys = new Set(['enabled', 'teachingMode'])
+    const fieldKey = parts[parts.length - 1]
+    const nextValue = boolKeys.has(fieldKey)
+      ? value === true || value === 'true' || value === 1 || value === '1'
+      : value
+    cur[fieldKey] = nextValue
     list[idx] = clone
     state.value = { ...toRaw(state.value), [listKey]: list }
     dirty.value = true
