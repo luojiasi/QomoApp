@@ -326,6 +326,13 @@ class ZMC适配器:
                 self._校验("ZAux_Direct_SetSramp",
                           self._dll.ZAux_Direct_SetSramp(cfg.axis_no, cfg.sramp),
                           备注=f"{名}")
+                # 软限位（默认 1e9 / -1e9 表示禁用）
+                self._校验("ZAux_Direct_SetFsLimit",
+                          self._dll.ZAux_Direct_SetFsLimit(cfg.axis_no, float(cfg.正软限位)),
+                          备注=f"{名}正软限位")
+                self._校验("ZAux_Direct_SetRsLimit",
+                          self._dll.ZAux_Direct_SetRsLimit(cfg.axis_no, float(cfg.负软限位)),
+                          备注=f"{名}负软限位")
                 # 限位输入端口（-1 表示不启用）
                 if cfg.fwd_in >= 0:
                     self._校验("ZAux_Direct_SetFwdIn",
@@ -707,6 +714,8 @@ class ZMC适配器:
             if merge is not None: cfg.merge = merge
             if fwd_in is not None and int(fwd_in) >= 0: cfg.fwd_in = fwd_in
             if rev_in is not None and int(rev_in) >= 0: cfg.rev_in = rev_in
+            if 正软限位 is not None: cfg.正软限位 = float(正软限位)
+            if 负软限位 is not None: cfg.负软限位 = float(负软限位)
             # 同步静态缓存（读全部轴状态优先取缓存值）
             cache = self._静态字段缓存.get(轴号, {})
             if atype is not None: cache["axis_type"] = atype

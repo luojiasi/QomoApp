@@ -655,6 +655,8 @@ export const en = {
     merge: 'Continuous Merge (Merge)',
     fwdIn: 'Forward Limit Input (Fwd_in)',
     revIn: 'Reverse Limit Input (Rev_in)',
+    正软限位: 'Forward Soft Limit (FS_LIMIT)',
+    负软限位: 'Reverse Soft Limit (RS_LIMIT)',
     pulsesPerRev: 'Pulses Per Revolution',
     electronicGearRatio: 'Electronic Gear Ratio',
     gearRatio: 'Gear Ratio',

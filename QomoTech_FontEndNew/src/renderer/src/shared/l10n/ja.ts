@@ -655,6 +655,8 @@ export const ja = {
     merge: '連続軌跡合成 (Merge)',
     fwdIn: '正方向リミット入力 (Fwd_in)',
     revIn: '逆方向リミット入力 (Rev_in)',
+    正软限位: '正方向ソフトリミット (FS_LIMIT)',
+    负软限位: '逆方向ソフトリミット (RS_LIMIT)',
     pulsesPerRev: '1回転パルス数',
     electronicGearRatio: '電子ギア比',
     gearRatio: '減速比',

@@ -186,7 +186,7 @@ export async function moveToTenPlusSlot(slot: {
 export const connectMotionWithControllerSettings = (settings: { communication: { controller_ip: string } }) =>
   connectMotion(settings.communication.controller_ip)
 
-export const buildMotionAllAxesParamsPayload = (settings: { axes: Array<{ axis_name: string; units: number; speed: number; lspeed: number; accel: number; decel: number; sramp: number; merge: number; fwd_in: number; rev_in: number }> }) => {
+export const buildMotionAllAxesParamsPayload = (settings: { axes: Array<{ axis_name: string; units: number; speed: number; lspeed: number; accel: number; decel: number; sramp: number; merge: number; fwd_in: number; rev_in: number; 正软限位: number; 负软限位: number }> }) => {
   const table: Record<string, Record<string, number>> = {}
   for (const axis of settings.axes) {
     table[axis.axis_name] = {
@@ -198,7 +198,9 @@ export const buildMotionAllAxesParamsPayload = (settings: { axes: Array<{ axis_n
       sramp: axis.sramp,
       merge: axis.merge,
       fwd_in: axis.fwd_in,
-      rev_in: axis.rev_in
+      rev_in: axis.rev_in,
+      正软限位: axis.正软限位,
+      负软限位: axis.负软限位
     }
   }
   return { table }

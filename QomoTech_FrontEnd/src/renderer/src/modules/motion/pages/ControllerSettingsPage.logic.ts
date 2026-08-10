@@ -14,7 +14,7 @@ import { roundMax, MAX_DECIMALS } from '../utils'
 const USER_AXIS_KEYS = [
   'axis_no', 'axis_name', 'axis_type', 'units', 'speed', 'lspeed',
   'creep', 'accel', 'decel', 'merge', 'sramp',
-  'fwd_in', 'rev_in', 'pulses_per_rev', 'electronic_gear_ratio', 'gear_ratio',
+  'fwd_in', 'rev_in', '正软限位', '负软限位', 'pulses_per_rev', 'electronic_gear_ratio', 'gear_ratio',
   'step_angle', 'microsteps', 'backlash', 'backlash_enable'
 ] as const satisfies readonly (keyof ControllerAxisUserInput)[]
 

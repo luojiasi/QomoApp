@@ -57,6 +57,8 @@ function makeDefaultAxis(
     merge: 0,
     fwd_in: -1,
     rev_in: -1,
+    正软限位: 1e9,
+    负软限位: -1e9,
     motor_type: 'servo' as const,
     pulses_per_rev: 10000.0,
     electronic_gear_ratio: 1.0,

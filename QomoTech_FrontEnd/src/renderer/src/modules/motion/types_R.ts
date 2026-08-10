@@ -62,6 +62,9 @@ export interface ControllerAxisUserInput {
   merge: number
   fwd_in: number
   rev_in: number
+  /** 正负软限位 FS_LIMIT / RS_LIMIT（默认 1e9 / -1e9 表示禁用） */
+  正软限位: number
+  负软限位: number
   pulses_per_rev: number
   electronic_gear_ratio: number
   gear_ratio: number
@@ -97,6 +100,8 @@ export interface MotionAxisParamsPayload {
   merge?: number
   fwd_in?: number
   rev_in?: number
+  正软限位?: number
+  负软限位?: number
 }
 
 /** API 请求：批量轴参数，按轴名分组 */

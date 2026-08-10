@@ -59,6 +59,8 @@ class MotionAxisConfig(BaseModel):
     merge: int = Field(default=1, ge=0, le=1)                       # 连续轨迹合并开关（默认开,配合 merge_params 实现段间速度连续）
     fwd_in: int = -1                                                # 正限位输入口（-1=禁用）
     rev_in: int = -1                                                # 负限位输入口（-1=禁用）
+    正软限位: float = Field(default=1e9, ge=0)                       # 正向软限位 FS_LIMIT（默认 1e9 表示禁用）
+    负软限位: float = Field(default=-1e9, le=0)                      # 负向软限位 RS_LIMIT（默认 -1e9 表示禁用）
 
     # U/R 轴机械参数（伺服用 pulses_per_rev/electronic_gear_ratio/gear_ratio，步进用 step_angle/microsteps/gear_ratio）
     # 电机类型：servo = 伺服，stepper = 步进。根据 motor_type 选择对应公式计算每圈脉冲数

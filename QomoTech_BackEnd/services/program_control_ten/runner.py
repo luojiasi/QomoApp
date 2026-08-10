@@ -189,18 +189,17 @@ class ProgramRunnerTenPlus:
                         首个工位Z = 当前Z
                     日志.info(f"[TenPlus] 目标 {目标名} 工位#{工位号} → " + f"XYZU=({当前X}, {当前Y}, {当前Z}, {当前U})")
                     await self._运动到示教工位(当前X, 当前Y, 当前Z, 当前U)
-
-                    
-
+                    工位的轴位置 = {"x": 当前X, "y": 当前Y, "z": 当前Z, "u": 当前U}
+                
                     for 序号, 行数据 in enumerate(行列表):
                         全局已完成行 += 1
                         当前序号 = 全局已完成行
                         日志.info(f"\n[TenPlus] ======== 目标 {目标序号 + 1}/{目标总数} " + f"行 {序号 + 1}/{len(行列表)}（总进度 {当前序号}/{行总数}）========")
                         该序号R轴的补偿 = 构建R轴的补偿(行数据)
-                        该序号的参数 = 构建任务的数据(行数据)
+                        该序号的参数 = 构建任务的数据(行数据,工位的轴位置)
                         该序号的配方 = 构建配方数据(配方数据, 该序号的参数.get("配方ID"))
                         累计高度 = sum(float(行列表[k].get("height", 0)) for k in range(序号))
-                        所有高度总和 = sum(float(行列表[k].get("height", 0)) for k in range(len(行数据)))
+                        所有高度总和 = sum(float(行列表[k].get("height", 0)) for k in range(len(行列表)))
                         执行任务的参数 = 构建执行任务的参数(该序号的参数, 当前Z, 所有高度总和, 累计高度)
                         self.更新进度(current_task_index=当前序号, current_task_jindubaifenbi=0)
                         try:

@@ -655,6 +655,8 @@ export const ko = {
     merge: '연속 궤적 병합 (Merge)',
     fwdIn: '정방향 리미트 입력 (Fwd_in)',
     revIn: '역방향 리미트 입력 (Rev_in)',
+    正软限位: '정방향 소프트 리미트 (FS_LIMIT)',
+    负软限位: '역방향 소프트 리미트 (RS_LIMIT)',
     pulsesPerRev: '회전당 펄스 수',
     electronicGearRatio: '전자 기어비',
     gearRatio: '감속비',

@@ -40,7 +40,9 @@
       },
       "backlash": 5,
       "backlash_enable": false,
-      "motor_type": "servo"
+      "motor_type": "servo",
+      "正软限位": 10000,
+      "负软限位": -10000
     },
     {
       "axis_no": 1,
@@ -69,7 +71,9 @@
       },
       "backlash": 5,
       "backlash_enable": false,
-      "motor_type": "servo"
+      "motor_type": "servo",
+      "正软限位": 10000,
+      "负软限位": -10000
     },
     {
       "axis_no": 2,
@@ -98,7 +102,9 @@
       },
       "backlash": 5,
       "backlash_enable": false,
-      "motor_type": "servo"
+      "motor_type": "servo",
+      "正软限位": 10000,
+      "负软限位": -10000
     },
     {
       "axis_no": 3,
@@ -127,7 +133,9 @@
       },
       "backlash": 5,
       "backlash_enable": false,
-      "motor_type": "servo"
+      "motor_type": "servo",
+      "正软限位": 10000,
+      "负软限位": -10000
     },
     {
       "axis_no": 4,
@@ -156,7 +164,9 @@
       },
       "backlash": 5,
       "backlash_enable": false,
-      "motor_type": "stepper"
+      "motor_type": "stepper",
+      "正软限位": 10000,
+      "负软限位": -10000
     }
   ]
 }

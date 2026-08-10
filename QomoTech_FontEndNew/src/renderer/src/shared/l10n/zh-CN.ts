@@ -655,6 +655,8 @@ export const zhCN = {
     merge: '连续轨迹合并 (Merge)',
     fwdIn: '正向限位输入 (Fwd_in)',
     revIn: '反向限位输入 (Rev_in)',
+    正软限位: '正软限位 (FS_LIMIT)',
+    负软限位: '负软限位 (RS_LIMIT)',
     pulsesPerRev: '每转脉冲数',
     electronicGearRatio: '电子齿轮比',
     gearRatio: '减速比',

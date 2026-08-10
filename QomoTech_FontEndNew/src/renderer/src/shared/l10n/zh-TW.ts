@@ -654,6 +654,8 @@ export const zhTW = {
     merge: '連續軌跡合併 (Merge)',
     fwdIn: '正向限位輸入 (Fwd_in)',
     revIn: '反向限位輸入 (Rev_in)',
+    正软限位: '正軟限位 (FS_LIMIT)',
+    负软限位: '負軟限位 (RS_LIMIT)',
     pulsesPerRev: '每轉脈衝數',
     electronicGearRatio: '電子齒輪比',
     gearRatio: '減速比',

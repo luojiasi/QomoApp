@@ -62,6 +62,9 @@ export interface ControllerAxisUserInput {
   merge: number
   fwd_in: number
   rev_in: number
+  /** 正负软限位 FS_LIMIT / RS_LIMIT（默认 1e9 / -1e9 表示禁用） */
+  正软限位: number
+  负软限位: number
   /** 电机类型：servo=伺服，stepper=步进 */
   motor_type: 'servo' | 'stepper'
   pulses_per_rev: number
@@ -101,6 +104,8 @@ export interface MotionAxisParamsPayload {
   merge?: number
   fwd_in?: number
   rev_in?: number
+  正软限位?: number
+  负软限位?: number
 }
 
 /** API 请求：批量轴参数，按轴名分组 */

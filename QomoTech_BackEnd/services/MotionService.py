@@ -1035,6 +1035,8 @@ class MotionService:
                 "pulses_per_rev": a.get("pulses_per_rev"),
                 "electronic_gear_ratio": a.get("electronic_gear_ratio"),
                 "gear_ratio": a.get("gear_ratio"),
+                "正软限位": a.get("正软限位"),
+                "负软限位": a.get("负软限位"),
             }
         if not 参数表:
             日志.info("保存控制器设置：无可下发的轴参数")

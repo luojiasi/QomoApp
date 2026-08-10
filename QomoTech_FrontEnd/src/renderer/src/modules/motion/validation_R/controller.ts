@@ -56,6 +56,8 @@ export function buildControllerDriverSyncSignature(value: ControllerParameters):
       merge: a.merge,
       fwd_in: a.fwd_in,
       rev_in: a.rev_in,
+      正软限位: a.正软限位,
+      负软限位: a.负软限位,
       pulses_per_rev: a.pulses_per_rev,
       electronic_gear_ratio: a.electronic_gear_ratio,
       gear_ratio: a.gear_ratio,

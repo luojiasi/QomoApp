@@ -61,6 +61,8 @@ def _从文件数据构建配置(data: dict) -> MotionConfig:
             gear_ratio=a.get("gear_ratio", 1.0),
             step_angle=a.get("step_angle", 1.8),
             microsteps=a.get("microsteps", 32.0),
+            正软限位=a.get("正软限位", 1e9),
+            负软限位=a.get("负软限位", -1e9),
             merge_params=MergeParams(
                 corner_mode=mp.get("corner_mode", 0),
                 decel_angle=mp.get("decel_angle", 15.0),

@@ -292,7 +292,7 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <!-- 限位 / 电机 / 反向间隙：每项单独一行 -->
+          <!-- 限位输入 / 软限位：合并到一起 -->
           <div class="cs-subcard">
             <div class="cs-subcard-title">
               <span class="material-symbols-outlined">fence</span>
@@ -306,6 +306,17 @@ onUnmounted(() => {
               <div class="cs-field">
                 <label class="cs-label">{{ t('controllerSettings.revIn') }}</label>
                 <input v-model.number="editAxes[activeAxisTab].rev_in" type="number" class="cs-input mono" />
+              </div>
+            </div>
+            <div class="cs-section-divider" />
+            <div class="cs-grid cs-grid-2">
+              <div class="cs-field">
+                <label class="cs-label">{{ t('controllerSettings.正软限位') }}</label>
+                <input v-model.number="editAxes[activeAxisTab].正软限位" type="number" class="cs-input mono" />
+              </div>
+              <div class="cs-field">
+                <label class="cs-label">{{ t('controllerSettings.负软限位') }}</label>
+                <input v-model.number="editAxes[activeAxisTab].负软限位" type="number" class="cs-input mono" />
               </div>
             </div>
           </div>

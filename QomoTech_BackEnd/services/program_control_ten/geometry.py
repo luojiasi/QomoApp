@@ -5,9 +5,34 @@ from typing import Any
 from utils.logger import 获取日志记录器
 from services.SystemSettingService import 获取4P旋转中心的补偿值
 from services.SystemSettingService import 获取快速移动点
+from services.motion_control.config_loader import 加载运动配置
 from core.calc_rotation import 计算点绕坐标轴旋转
 
 日志 = 获取日志记录器("freeparamgeometry")
+
+
+def U工程位移转角度(工程位移: float) -> float:
+    """将 U 轴工程位移（mpos）转换为角度（度）。
+
+    换算口径与 ``zmc_adapter.U轴旋转的角度参数`` 一致：
+        角度 = (工程位移 × units / 有效每圈脉冲数) × 360
+    其中 有效每圈脉冲数 = pulses_per_rev × electronic_gear_ratio × gear_ratio。
+    """
+    cfg = 加载运动配置().u_axis
+    units = float(cfg.units)
+    有效每圈脉冲数 = (
+        float(cfg.pulses_per_rev)
+        * float(cfg.electronic_gear_ratio)
+        * float(cfg.gear_ratio)
+    )
+    if units <= 0 or 有效每圈脉冲数 <= 0:
+        日志.warning(
+            "U轴 units/每圈脉冲非法，无法将工程位移转角度: units=%s pulses=%s",
+            units,
+            有效每圈脉冲数,
+        )
+        return 0.0
+    return (float(工程位移) * units / 有效每圈脉冲数) * 360.0
 
 def 构建总任务目标(目标列表: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """将扁平行按 targetId + targetName 归并为目标数组。
@@ -129,7 +154,7 @@ def 更新平行型开口偏移(*,上开口值: float,正切角度: float,累计
 
 
 
-def 构建任务的数据(行数据: dict[str, Any]) -> dict[str, Any]:
+def 构建任务的数据(行数据: dict[str, Any],工位的轴位置: dict[str, Any]) -> dict[str, Any]:
     """将前端解析的行数据转换为切割任务的数据。"""
     return {
         "配方ID": str(行数据.get("recipeId", "")),
@@ -142,6 +167,10 @@ def 构建任务的数据(行数据: dict[str, Any]) -> dict[str, Any]:
         "补偿Z": float(行数据.get("compZ", 0)),
         "补偿角度": float(行数据.get("compAngle", 0)),
         "弦长倍率": float(行数据.get("chordRatio", 2)),
+        "工位的X坐标": float(工位的轴位置.get("x", 0)),
+        "工位的Y坐标": float(工位的轴位置.get("y", 0)),
+        "工位的Z坐标": float(工位的轴位置.get("z", 0)),
+        "工位的U坐标": float(工位的轴位置.get("u", 0)),
     }
 def 构建R轴的补偿(行数据: dict[str, Any]) -> dict[str, Any]:
     """构建R轴的补偿。
@@ -166,14 +195,22 @@ def 构建执行任务的参数(数据: dict[str, Any],当前平面Z的位置, �
     Z方向进行再补偿 = float(数据.get("补偿Z", 0))
     角度补偿 = float(数据.get("补偿角度", 0))
     弦长倍率 = float(数据.get("弦长倍率", 2))
-    
+
+    工位的X坐标 = float(数据.get("工位的X坐标", 0))
+    工位的Y坐标 = float(数据.get("工位的Y坐标", 0))
+    工位的Z坐标 = float(数据.get("工位的Z坐标", 0))
+    工位的U坐标 = float(数据.get("工位的U坐标", 0))
+    # 工位 U 为工程位移（距离），先转成角度再参与叠加
+    转化的做坐标 = U工程位移转角度(工位的U坐标)
+
     直径 = float(数据.get("直径", 0))
     分割数 = int(数据.get("分割数", 0))
     角度 = float(数据.get("角度", 0))
     高度 = float(数据.get("高度", 0))
     是否启用R轴旋转 = True if 分割数 == 0 or 分割数 >= 48 else False
     R轴旋转角度 = 360 / 分割数 if 分割数 > 0 else 0.0
-    U轴的旋转角度 = 90 - (角度 + 角度补偿) if 角度  > 0 else -90 - (角度 + 角度补偿)
+    # 工艺相对倾角（几何换算用）
+    U轴的旋转角度 = 90 - (角度 + 角度补偿) if 角度 > 0 else -90 - (角度 + 角度补偿)
 
     旋转中心的位置 = 获取4P旋转中心的补偿值()
     R轴旋转中心的位置 = 获取快速移动点()
@@ -209,14 +246,15 @@ def 构建执行任务的参数(数据: dict[str, Any],当前平面Z的位置, �
     # TODO:我这个需要拿到点的坐标 -------------可能会出现错误
     角度X = 累计高度 / math.tan(math.radians(角度)) if 角度 != 90 else 0
     
-    得到等分直线中点的坐标 = {"x": 圆心到等分直线的垂直距离 - 角度X +计算得到U轴的旋转中心点与R轴旋转中心点的X轴的位置距离 , "y": 0, "z": abs(旋转中心的位置.Z)-(abs(当前平面Z的位置))}
+    得到等分直线中点的坐标 = {"x": 圆心到等分直线的垂直距离 - 角度X +计算得到U轴的旋转中心点与R轴旋转中心点的X轴的位置距离, "y": 0, "z": abs(旋转中心的位置.Z)-(abs(当前平面Z的位置))}
     日志.info(f"圆心到等分直线的垂直距离:{圆心到等分直线的垂直距离}")
     日志.info(f"角度X:{角度X}")
     日志.info(f"计算得到U轴的旋转中心点与R轴旋转中心点的X轴的位置距离:{计算得到U轴的旋转中心点与R轴旋转中心点的X轴的位置距离}")
     日志.info(f"得到等分直线中点的坐标:{得到等分直线中点的坐标}")
+    # 点位几何按工艺倾角旋转；机台 U 目标再叠加工位示教角
     切割中点的坐标 = 计算点绕坐标轴旋转(得到等分直线中点的坐标, U轴的旋转角度, "Y")
     # 中点的坐标要加上旋转中心 = {"X":切割中点的坐标.get("x")+旋转中心的位置.X + 角度补偿的X + X方向进行再补偿, "Y":切割中点的坐标.get("y")+旋转中心的位置.Y + Y方向进行再补偿, "Z":切割中点的坐标.get("z") + 旋转中心的位置.Z + 角度补偿的Z + Z方向进行再补偿}
-    中点的坐标要加上旋转中心 = {"X":切割中点的坐标.get("x")+旋转中心的位置.X  + X方向进行再补偿, "Y":切割中点的坐标.get("y")+旋转中心的位置.Y + Y方向进行再补偿, "Z":切割中点的坐标.get("z") + 旋转中心的位置.Z  + Z方向进行再补偿}
+    中点的坐标要加上旋转中心 = {"X":切割中点的坐标.get("x")+ X方向进行再补偿 + 工位的X坐标, "Y":切割中点的坐标.get("y") + Y方向进行再补偿 + 工位的Y坐标, "Z":切割中点的坐标.get("z") + Z方向进行再补偿 + 工位的Z坐标}
 
     # TODO:如果要更改角度这里也需要进行更改
     切割产品的高度 = (高度+累计高度) / math.sin(math.radians(abs(角度)))
@@ -224,6 +262,9 @@ def 构建执行任务的参数(数据: dict[str, Any],当前平面Z的位置, �
     # TODO:计算最长的那条边的长度
     缩放的圆的半径 = abs((高度/math.tan(math.radians(角度)) + 半径))
     最长那条边的切割长度 = 缩放的圆的半径 * 弦长倍率 if 缩放的圆的半径 > 弦长 else 弦长 * 弦长倍率
+
+    # 下发 U 轴：工艺倾角 + 工位示教 U（转化的做坐标）
+    U轴的旋转角度 = U轴的旋转角度 + 转化的做坐标
 
     return {
         "R轴旋转的分割数": 分割数,
