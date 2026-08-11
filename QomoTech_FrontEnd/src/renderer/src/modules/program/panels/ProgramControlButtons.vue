@@ -53,9 +53,8 @@ function onKeydownEnter(e: KeyboardEvent): void {
       急停
     </button>
     <button
-      v-if="programTaskCount >= 2"
+      v-if="programRunning && programTaskCount >= 2"
       :class="[btnBase, 'bg-orange-600 hover:border-orange-300 hover:bg-orange-700']"
-      :disabled="!programRunning"
       @keydown.enter="onKeydownEnter"
       @click="emit('skipTask')"
     >

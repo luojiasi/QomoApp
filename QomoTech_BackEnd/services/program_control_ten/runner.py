@@ -108,6 +108,11 @@ class ProgramRunnerTenPlus:
         async with self._控制锁:
             self._是否急停请求 = True
             self._是否已暂停 = False
+            # 立即对外声明停止，避免前端仍显示跳过/暂停等运行态控件
+            self._是否运行中 = False
+            self._任务总数 = 0
+            self._当前任务序号 = 0
+            self._进度百分比 = 0.0
         # 先广播状态让前端感知，再执行耗时操作
         self._广播状态变更(force=True)
         if self._运动.适配器 and self._运动.适配器.已连接:
@@ -188,7 +193,11 @@ class ProgramRunnerTenPlus:
                     if 首个工位Z is None:
                         首个工位Z = 当前Z
                     日志.info(f"[TenPlus] 目标 {目标名} 工位#{工位号} → " + f"XYZU=({当前X}, {当前Y}, {当前Z}, {当前U})")
-                    await self._运动到示教工位(当前X, 当前Y, 当前Z, 当前U)
+                    try:
+                        await self._运动到示教工位(当前X, 当前Y, 当前Z, 当前U)
+                    except Exception as e:
+                        日志.error(f"目标 {目标名} 运动到示教工位失败: {e}")
+                        return {"success": False, "message": f"目标 {目标名} 运动到示教工位失败: {e}"}
                     工位的轴位置 = {"x": 当前X, "y": 当前Y, "z": 当前Z, "u": 当前U}
                 
                     for 序号, 行数据 in enumerate(行列表):
@@ -208,6 +217,7 @@ class ProgramRunnerTenPlus:
                                 执行任务的参数=执行任务的参数,
                                 该序号R轴的补偿=该序号R轴的补偿,
                                 起始点的位置={"x": 当前X, "y": 当前Y, "z": 当前Z, "u": 当前U},
+                                工位号=工位号,
                             )
                         except Exception as e:
                             日志.error(f"目标 {目标名} 行 {序号 + 1} 执行失败: {e}")
@@ -251,8 +261,43 @@ class ProgramRunnerTenPlus:
             if self._是否急停请求:
                 return True
         return False
+    def _工位号转输出口(self, 工位号: int) -> int | None:
+        """工位 → 输出口：1/6→3，2/7→4，3/8→5，4/9→6，5/10→7。"""
+        try:
+            n = int(工位号)
+        except (TypeError, ValueError):
+            日志.error(f"无效工位号: {工位号!r}")
+            return None
+        if n < 1 or n > 10:
+            日志.error(f"工位号超出范围 1–10: {n}")
+            return None
+        return ((n - 1) % 5) + 3
 
-    async def _切割(self,配方数据:dict[str, Any],执行任务的参数:dict[str, Any],该序号R轴的补偿:dict[str, Any],起始点的位置:dict[str, Any])->bool:
+    async def _根据工位号打开输出口(self, 工位号: int) -> bool:
+        输出口 = self._工位号转输出口(工位号)
+        if 输出口 is None:
+            return False
+        try:
+            await self._运动.设置输出(输出口, True)
+            日志.info(f"工位#{工位号} → 打开输出口 OUT[{输出口}]")
+            return True
+        except Exception as exc:
+            日志.error(f"打开输出口失败: 工位#{工位号} OUT[{输出口}]: {exc}")
+            return False
+
+    async def _根据工位号关闭输出口(self, 工位号: int) -> bool:
+        输出口 = self._工位号转输出口(工位号)
+        if 输出口 is None:
+            return False
+        try:
+            await self._运动.设置输出(输出口, False)
+            日志.info(f"工位#{工位号} → 关闭输出口 OUT[{输出口}]")
+            return True
+        except Exception as exc:
+            日志.error(f"关闭输出口失败: 工位#{工位号} OUT[{输出口}]: {exc}")
+            return False
+
+    async def _切割(self,配方数据:dict[str, Any],执行任务的参数:dict[str, Any],该序号R轴的补偿:dict[str, Any],起始点的位置:dict[str, Any],工位号:int)->bool:
         是否完成切割 = False
         当前步骤 = ProgramFreeParamsStep.准备开始
 
@@ -336,7 +381,6 @@ class ProgramRunnerTenPlus:
         是否完全旋转完毕 = False
 
 
-
         while 当前步骤< ProgramFreeParamsStep.结束当前任务:
             # 每步开始时检查急停/暂停
             if await self._检查是否应中止():
@@ -349,14 +393,23 @@ class ProgramRunnerTenPlus:
                     是否连上 = self._运动.适配器.已连接 if self._运动.适配器 else False
                     if 是否连上:
                         await self._十工位的运动.开启吹风()
+                        当前步骤 = ProgramFreeParamsStep.根据工位号打开输出口
+                    else:
+                        日志.error("准备开始：控制器未连接，进入清理")
+                        当前步骤 = ProgramFreeParamsStep.清理所有状态
+                case ProgramFreeParamsStep.根据工位号打开输出口:
+                    if await self._根据工位号打开输出口(工位号):
                         当前步骤 = ProgramFreeParamsStep.U轴进行角度旋转
-
-
+                    else:
+                        当前步骤 = ProgramFreeParamsStep.清理所有状态
                 case ProgramFreeParamsStep.U轴进行角度旋转:
                     旋转角度 = 执行任务的参数.get("U轴的旋转角度")
-                    旋转结果 = await self._运动.U轴旋转角度(旋转角度)
-                    if not 旋转结果.get('success'): 当前步骤 = ProgramFreeParamsStep.清理所有状态
-                    当前步骤 = ProgramFreeParamsStep.判断是否到达旋转角度
+                    旋转结果 = await self._运动.U轴旋转角度带上下限(旋转角度)
+                    if not 旋转结果.get("success"):
+                        日志.error(f"U轴旋转失败（目标={旋转角度}°）: {旋转结果.get('message')}")
+                        当前步骤 = ProgramFreeParamsStep.清理所有状态
+                    else:
+                        当前步骤 = ProgramFreeParamsStep.判断是否到达旋转角度
 
                 case ProgramFreeParamsStep.判断是否到达旋转角度:
                     是否到达旋转角度 = await self._运动.U轴是否到达旋转角度(旋转角度)
@@ -613,6 +666,7 @@ class ProgramRunnerTenPlus:
                     await self._十工位的运动.关闭吹风()
                     await self._十工位的运动.关闭激光()
                     await self._运动.停止轴运动("R")
+                    await self._根据工位号关闭输出口(工位号)
                     # 不重复调急停——急停已在外部控制指令中触发
                     # TODO:回到台面的位置
                     # await self._运动.绝对运动("Z", 起始点的位置.get("z"))

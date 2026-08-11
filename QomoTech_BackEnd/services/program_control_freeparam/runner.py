@@ -99,6 +99,10 @@ class ProgramRunnerFreeParam:
         async with self._控制锁:
             self._是否急停请求 = True
             self._是否已暂停 = False
+            self._是否运行中 = False
+            self._任务总数 = 0
+            self._当前任务序号 = 0
+            self._进度百分比 = 0.0
         # 先广播状态让前端感知，再执行耗时操作
         self._广播状态变更(force=True)
         if self._运动.适配器 and self._运动.适配器.已连接:

@@ -155,6 +155,11 @@ class ProgramRunner(ProgramContext):
             self._是否急停请求 = True
             self._是否已暂停 = False
             self._需恢复激光 = False
+            # 立即对外声明停止，避免前端仍显示跳过/暂停等运行态控件
+            self._是否运行中 = False
+            self._任务总数 = 0
+            self._当前任务序号 = 0
+            self._进度百分比 = 0.0
         if self._运动.适配器 and self._运动.适配器.已连接:
             await self._运动.设置输出(0, False)
             await self._运动.设置输出(2, False)

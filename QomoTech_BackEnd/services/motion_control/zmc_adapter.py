@@ -1404,8 +1404,8 @@ class ZMC适配器:
             每圈脉冲数 = float(旋转参数.get("每圈脉冲数", self._U轴每圈脉冲数))
             电子齿轮比 = float(旋转参数.get("电子齿轮比", self._U轴电子齿轮比))
             减速比 = float(旋转参数.get("减速比", self._U轴减速比))
-            角度下限_原值 = 旋转参数.get("角度下限", -90)
-            角度上限_原值 = 旋转参数.get("角度上限", 90)
+            角度下限_原值 = 旋转参数.get("角度下限", -180)
+            角度上限_原值 = 旋转参数.get("角度上限", 180)
             角度下限 = float(角度下限_原值) if 角度下限_原值 is not None else None
             角度上限 = float(角度上限_原值) if 角度上限_原值 is not None else None
         except (TypeError, ValueError):
@@ -1488,6 +1488,15 @@ class ZMC适配器:
             "旋转角度": abs(float(旋转角度)),
             "旋转方向": "顺时针" if float(旋转角度) >= 0 else "逆时针",
             "运动模式": "absolute",
+        })
+    async def U轴旋转角度带上下限(self, 旋转角度: float) -> Dict[str, Any]:
+        """简化版 U 轴绝对旋转 —— 正数顺时针、负数逆时针。"""
+        return await self.U轴旋转的角度参数({
+            "旋转角度": abs(float(旋转角度)),
+            "旋转方向": "顺时针" if float(旋转角度) >= 0 else "逆时针",
+            "运动模式": "absolute",
+            "角度下限": -180,
+            "角度上限": 180,
         })
 
     async def U轴是否到达旋转角度(self, 旋转角度: float, 容差: float = 0.001) -> bool:

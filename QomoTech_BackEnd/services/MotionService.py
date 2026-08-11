@@ -786,6 +786,24 @@ class MotionService:
         await self._刷新快照()
         日志.info(f"U轴旋转到角度={旋转角度}° → {结果.get('message', 'OK')}")
         return 结果
+    async def U轴旋转角度带上下限(self, 旋转角度: float) -> Dict[str, Any]:
+        self._保证已启动()
+        adapter = self._断言adapter()
+        try:
+            self._断言safety().准入_运动指令(self._状态机.当前)
+        except SafetyViolation as exc:
+            return {"success": False, "message": str(exc)}
+        self._状态机.触发(状态事件.MOVE_START)
+        try:
+            结果 = await adapter.U轴旋转角度带上下限(旋转角度)
+        except Exception:
+            self._状态机.触发(状态事件.STOP, 强制=True)
+            raise
+        if not 结果.get("success"):
+            self._状态机.触发(状态事件.STOP, 强制=True)
+        await self._刷新快照()
+        日志.info(f"U轴旋转到角度={旋转角度}° → {结果.get('message', 'OK')}")
+        return 结果
 
     async def U轴是否到达旋转角度(self, 旋转角度: float, 容差: float = 0.01, 超时秒: float = 40.0) -> bool:
         """轮询直到 U 轴到达目标角度，暂停/急停/超时返回 False。"""

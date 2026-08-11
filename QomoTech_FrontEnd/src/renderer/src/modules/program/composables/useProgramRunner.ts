@@ -79,6 +79,9 @@ export function useProgramRunner() {
   } = useProgramStatus()
 
   const afterEstop = () => {
+    programRunning.value = false
+    programPaused.value = false
+    programTaskCount.value = 0
     runTrigger.value = false
     currentTaskIndex.value = 0
     currentTaskJindubaifenbi.value = 0

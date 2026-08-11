@@ -69,7 +69,8 @@ async def start_program(payload: 开始程序参数请求模型):
     """接收配方 + 实体，启动后台任务执行程序。"""
     旧在跑 = _svc().获取运行状态().get("running", False)
     新在跑 = _freeparam_svc().获取运行状态().get("running", False)
-    if 旧在跑 or 新在跑:
+    tenplus_在跑 = _tenplus_svc().获取运行状态().get("running", False)
+    if 旧在跑 or 新在跑 or tenplus_在跑:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="已有程序正在运行，请停止后再启动")
 
     tasks = OffsetEndpointCalculator.calc_xy_points(payload.entities, 0)
@@ -102,7 +103,8 @@ async def send_free_params(payload: 自由编辑参数请求模型):
     """接收自由编辑参数，启动后台切割任务。"""
     旧在跑 = _svc().获取运行状态().get("running", False)
     新在跑 = _freeparam_svc().获取运行状态().get("running", False)
-    if 旧在跑 or 新在跑:
+    tenplus_在跑 = _tenplus_svc().获取运行状态().get("running", False)
+    if 旧在跑 or 新在跑 or tenplus_在跑:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="已有程序正在运行，请停止后再启动")
 
     async def _run() -> None:
@@ -149,16 +151,18 @@ async def send_ten_plus_free_params(payload: 自由编辑参数请求模型):
 
 @路由.get("/startProgram/status", summary="获取程序运行状态")
 def program_status() -> ApiResponse:
-    """返回 running / paused / total_tasks / current_task_index / 进度百分比（合并旧程序与 FreeParam）。"""
+    """返回 running / paused / total_tasks / current_task_index / 进度百分比（合并旧程序、FreeParam、TenPlus）。"""
     旧状态是否在跑 = _svc().获取运行状态().get("running", False)
     自由编辑状态是否在跑 = _freeparam_svc().获取运行状态().get("running", False)
-    # 任一正在运行则 running=True
+    tenplus_是否在跑 = _tenplus_svc().获取运行状态().get("running", False)
+    # 任一正在运行则返回对应状态
     if 旧状态是否在跑:
         return ApiResponse(success=True, message="OK", data=_svc().获取运行状态())
-    elif 自由编辑状态是否在跑:
+    if 自由编辑状态是否在跑:
         return ApiResponse(success=True, message="OK", data=_freeparam_svc().获取运行状态())
-    else:
-        return ApiResponse(success=True, message="OK", data=_freeparam_svc().获取运行状态())
+    if tenplus_是否在跑:
+        return ApiResponse(success=True, message="OK", data=_tenplus_svc().获取运行状态())
+    return ApiResponse(success=True, message="OK", data=_freeparam_svc().获取运行状态())
 
 
 # ==================================================================
@@ -169,26 +173,33 @@ def program_status() -> ApiResponse:
 async def _dispatch_program_control(action: str) -> Dict[str, Any]:
     svc = _svc()
     freeparam_svc = _freeparam_svc()
+    tenplus_svc = _tenplus_svc()
     if action == "reset":
-        result = await svc.复位() or await freeparam_svc.复位()
+        result = await svc.复位() or await freeparam_svc.复位() or await tenplus_svc.复位()
         return result
 
     旧在跑 = svc.获取运行状态().get("running", False)
     新在跑 = freeparam_svc.获取运行状态().get("running", False)
+    tenplus_在跑 = tenplus_svc.获取运行状态().get("running", False)
     if 旧在跑:
         if action == "pause": return await svc.暂停()
         elif action == "resume": return await svc.恢复()
         elif action == "estop": return await svc.急停()
         elif action == "skip": return await svc.跳过任务()
         else: return {"success": False, "message": f"未知操作: {action}"}
-    elif 新在跑:
+    if 新在跑:
         if action == "pause": return await freeparam_svc.暂停()
         elif action == "resume": return await freeparam_svc.恢复()
         elif action == "estop": return await freeparam_svc.急停()
         elif action == "skip": return await freeparam_svc.跳过任务()
         else: return {"success": False, "message": f"未知操作: {action}"}
-    else:
-        return {"success": False, "message": "没有正在运行的程序"}
+    if tenplus_在跑:
+        if action == "pause": return await tenplus_svc.暂停()
+        elif action == "resume": return await tenplus_svc.恢复()
+        elif action == "estop": return await tenplus_svc.急停()
+        elif action == "skip": return await tenplus_svc.跳过任务()
+        else: return {"success": False, "message": f"未知操作: {action}"}
+    return {"success": False, "message": "没有正在运行的程序"}
 
 
 @路由.post("/startProgram/control", summary="控制程序运行（暂停/继续/复位/急停/跳过）")

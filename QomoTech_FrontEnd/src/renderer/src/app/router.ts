@@ -13,6 +13,7 @@ import LaserSettingsPage from '@/modules/laser/pages/LaserSettingsPage.vue'
 import { getDesktopBackendRuntimeStatus } from '@/shared/api/desktopBridge'
 import Create5PPage from '@/modules/editor/Create5PPage.vue'
 import Create5PNPage from '@/modules/entitiesEditor/pages/EditorPage.vue'
+import TenPlusCuttingPage from '@/modules/tenPlusCutting/pages/TenPlusCuttingPage.vue'
 import SelfProcessPage from '@/modules/workflow/SelfProcessPage.vue'
 import type { RouteShortcut } from '@/shared/types'
 
@@ -138,6 +139,20 @@ const routes: RouteRecordRaw[] = [
         icon: 'icon-gongzuotai',
         description: '用于5P编辑器的页面。',
         order: 50
+      }
+    }
+  },
+  {
+    path: '/ten-axis-cutting',
+    name: 'ten-axis-cutting',
+    component: TenPlusCuttingPage,
+    meta: {
+      requiresAuth: true,
+      menu: {
+        label: '十轴切割',
+        icon: 'icon-gongzuotai',
+        description: '十工位多目标自由参数切割页面。',
+        order: 51
       }
     }
   },

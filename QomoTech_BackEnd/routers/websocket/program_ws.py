@@ -2,7 +2,8 @@
 
 端点：``WS /ws/program/status``
 
-现由 ``services.PragramService`` 和 ``services.ProgramServiceFreeParam`` 管理订阅/广播。
+现由 ``services.PragramService``、``services.ProgramServiceFreeParam``
+与 ``services.ProgramServiceTenParam`` 管理订阅/广播。
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ from starlette.websockets import WebSocketState
 
 from services.PragramService import PragramService
 from services.ProgramServiceFreeParam import ProgramServiceFreeParam
+from services.ProgramServiceTenParam import ProgramServiceTenPlus
 from utils.logger import 获取日志记录器
 
 日志 = 获取日志记录器("程序WS")
@@ -27,18 +29,21 @@ def _svc() -> PragramService:
 def _freeparam_svc() -> ProgramServiceFreeParam:
     return ProgramServiceFreeParam.获取实例()
 
+def _tenplus_svc() -> ProgramServiceTenPlus:
+    return ProgramServiceTenPlus.获取实例()
+
 
 def _合并状态() -> dict[str, Any]:
     旧 = _svc().获取运行状态()
     新 = _freeparam_svc().获取运行状态()
-    旧在跑 = 旧.get("running", False)
-    新在跑 = 新.get("running", False)
-    if 旧在跑:
+    ten = _tenplus_svc().获取运行状态()
+    if 旧.get("running", False):
         return 旧
-    if 新在跑:
+    if 新.get("running", False):
         return 新
-    # 都不在跑，返回更完整的那个
-    return 旧 if 旧在跑 else 新
+    if ten.get("running", False):
+        return ten
+    return 新
 
 
 @路由.websocket("/program/status")
@@ -46,19 +51,26 @@ async def 程序状态(websocket: WebSocket):
     await websocket.accept()
     q旧: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=8)
     q新: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=8)
+    q十: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=8)
     _svc().订阅状态(q旧)
     _freeparam_svc().订阅状态(q新)
+    _tenplus_svc().订阅状态(q十)
     try:
         await websocket.send_json({"type": "start_program_status", "data": _合并状态()})
         while True:
-            done, _ = await asyncio.wait(
-                [asyncio.create_task(q旧.get()), asyncio.create_task(q新.get())],
+            done, pending = await asyncio.wait(
+                [
+                    asyncio.create_task(q旧.get()),
+                    asyncio.create_task(q新.get()),
+                    asyncio.create_task(q十.get()),
+                ],
                 return_when=asyncio.FIRST_COMPLETED,
             )
+            for task in pending:
+                task.cancel()
             if websocket.client_state == WebSocketState.DISCONNECTED:
                 break
             await websocket.send_json({"type": "start_program_status", "data": _合并状态()})
-            # 清空另一个队列中可能积压的消息
             for task in done:
                 task.result()
     except WebSocketDisconnect:
@@ -68,6 +80,7 @@ async def 程序状态(websocket: WebSocket):
     finally:
         _svc().取消订阅(q旧)
         _freeparam_svc().取消订阅(q新)
+        _tenplus_svc().取消订阅(q十)
         if (websocket.client_state != WebSocketState.DISCONNECTED
                 and websocket.application_state != WebSocketState.DISCONNECTED):
             try:

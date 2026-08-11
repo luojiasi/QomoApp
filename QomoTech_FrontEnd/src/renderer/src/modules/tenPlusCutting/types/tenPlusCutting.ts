@@ -1,0 +1,95 @@
+/** 单条任务参数行 */
+export interface TenPlusTaskRow {
+  id: string
+  taskNo: number
+  diameter: number
+  angle: number
+  height: number
+  divisions: number
+  recipe: string
+  compX: number
+  compY: number
+  compZ: number
+  compAngle: number
+  chordRatio: number
+}
+
+/** 编程目标：独立任务表 + 点位/圈补偿 + 工位绑定 */
+export interface TenPlusTarget {
+  id: string
+  name: string
+  pointXy: string
+  slotIndex: number | null
+  rInterval: number
+  rCompensation: number
+  rows: TenPlusTaskRow[]
+}
+
+export interface TenPlusSlot {
+  index: number
+  x: number
+  y: number
+  z: number
+  u: number
+  taught: boolean
+}
+
+export interface TenPlusCuttingConfig {
+  version: string
+  slots: TenPlusSlot[]
+}
+
+export interface SerializedTenPlusTargets {
+  format: 'QOMO5P-FreeParamTargets'
+  version: string
+  savedAt: string
+  activeTargetId: string | null
+  targets: TenPlusTarget[]
+}
+
+export interface SerializedLegacyTaskTable {
+  format: 'QOMO5P-TaskTable'
+  version: string
+  savedAt: string
+  rows: TenPlusTaskRow[]
+}
+
+export interface TenPlusTargetSummary {
+  id: string
+  name: string
+  slotIndex: number
+  pointXy: string
+  rInterval: number
+  rCompensation: number
+}
+
+export interface TenPlusFreeParamPayload {
+  recipes: {
+    mainRecipes: unknown[]
+    machiningRecipes: unknown[]
+    blackeningRecipes: unknown[]
+    laserPowerRecipes: unknown[]
+    horizontalFormulaRecipes: unknown[]
+    verticalFormulaRecipes: unknown[]
+  }
+  targets: TenPlusTargetSummary[]
+  rows: Array<{
+    taskNo: number
+    diameter: number
+    angle: number
+    height: number
+    divisions: number
+    recipeId: string
+    compX: number
+    compY: number
+    compZ: number
+    compAngle: number
+    chordRatio: number
+    rInterval: number
+    rCompensation: number
+    pointXy?: string
+    slotIndex?: number | null
+    targetId?: string
+    targetName?: string
+  }>
+}

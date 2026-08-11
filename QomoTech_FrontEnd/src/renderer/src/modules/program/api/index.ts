@@ -49,3 +49,9 @@ export const startProgramControl = async (action: StartProgramControlAction): Pr
 /** 将自由编辑参数下发到后端。 */
 export const sendFreeParams = async (payload: Record<string, unknown>): Promise<ApiCallResult<Record<string, unknown>>> =>
   apiCall('startProgram/entitiesEditFreeparam', 'POST', payload)
+
+/** 将十工位自由编辑参数下发到后端。 */
+export const sendTenPlusFreeParams = async (
+  payload: Record<string, unknown>
+): Promise<ApiCallResult<{ task_count?: number } & Record<string, unknown>>> =>
+  apiCall('startProgram/tenPlusEntitiesEditParams', 'POST', payload)

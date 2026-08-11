@@ -227,3 +227,64 @@ export const saveControllerSettingsToFile = async (
   payload: Record<string, unknown>
 ): Promise<ApiCallResult<Record<string, unknown>>> =>
   apiCall('motion/controller-settings', 'POST', payload)
+
+// -----------------------------------------------------------------------------
+// 十工位切割配置
+// -----------------------------------------------------------------------------
+
+/** 读取 TENPLUSCUTTING 十工位示教配置。 */
+export const getTenPlusCutting = (): Promise<
+  ApiCallResult<{
+    version: string
+    slots: Array<{ index: number; x: number; y: number; z: number; u: number; taught: boolean }>
+  }>
+> => apiCall('motion/ten-plus-cutting', 'GET')
+
+/** 保存 TENPLUSCUTTING 十工位示教配置。 */
+export const saveTenPlusCutting = (payload: unknown): Promise<ApiCallResult<Record<string, unknown>>> =>
+  apiCall('motion/ten-plus-cutting', 'POST', payload as Record<string, unknown>)
+
+/** 按轴名绝对运动（十工位用，示教存的是 mpos）。 */
+export const moveMotionAbsByName = (
+  axis: string,
+  position: number
+): Promise<ApiCallResult<Record<string, unknown>>> =>
+  apiCall('motion/move/abs', 'POST', { axis, position } as unknown as Record<string, unknown>)
+
+/** 等待指定轴静止。 */
+export const waitMotionIdle = (
+  axis: string,
+  timeout_s = 60,
+  poll_interval_s = 0.05
+): Promise<ApiCallResult<boolean>> =>
+  apiCall<boolean>('motion/wait-idle', 'POST', {
+    axis,
+    timeout_s,
+    poll_interval_s
+  } as unknown as Record<string, unknown>)
+
+/** 绝对运动到十工位示教点：依次移动 X/Y/Z/U。 */
+export async function moveToTenPlusSlot(slot: {
+  x: number
+  y: number
+  z: number
+  u: number
+}): Promise<{ success: boolean; message?: string }> {
+  const axes: Array<{ axis: string; position: number }> = [
+    { axis: 'X', position: slot.x },
+    { axis: 'Y', position: slot.y },
+    { axis: 'Z', position: slot.z },
+    { axis: 'U', position: slot.u }
+  ]
+  for (const { axis, position } of axes) {
+    const moveRes = await moveMotionAbsByName(axis, position)
+    if (!moveRes.success) {
+      return { success: false, message: moveRes.message || `${axis} 运动失败` }
+    }
+    const idleRes = await waitMotionIdle(axis)
+    if (!idleRes.success || idleRes.data === false) {
+      return { success: false, message: idleRes.message || `${axis} 等待静止超时` }
+    }
+  }
+  return { success: true }
+}

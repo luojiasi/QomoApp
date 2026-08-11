@@ -111,7 +111,7 @@
       "axis_name": "U",
       "axis_type": 1,
       "units": 10000,
-      "speed": 1,
+      "speed": 0.2,
       "lspeed": 0,
       "accel": 200,
       "decel": 200,
