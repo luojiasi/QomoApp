@@ -71,6 +71,8 @@ const dialogSelectedIds = ref<string[]>([])
 const tenPlusConfig = ref<TenPlusCuttingConfig>(createEmptyTenPlusConfig())
 const selectedSlotIndex = ref<number | null>(null)
 const slotBusy = ref(false)
+/** 点击已示教工位时是否运动到该点，默认开启 */
+const moveOnSlotClick = ref(true)
 const showTeachDialog = ref(false)
 const teachDialogSlot = ref<number | null>(null)
 
@@ -304,6 +306,29 @@ function getSlot(index: number): TenPlusSlot | undefined {
   return tenPlusConfig.value.slots.find((s) => s.index === index)
 }
 
+const hoverSlotIndex = ref<number | null>(null)
+const hoverTipPos = ref({ top: 0, left: 0 })
+
+const hoverSlot = computed((): TenPlusSlot | undefined => {
+  const idx = hoverSlotIndex.value
+  return idx === null ? undefined : getSlot(idx)
+})
+
+function onSlotHoverEnter(event: MouseEvent, index: number): void {
+  const el = event.currentTarget as HTMLElement | null
+  if (!el) return
+  const rect = el.getBoundingClientRect()
+  hoverSlotIndex.value = index
+  hoverTipPos.value = {
+    top: rect.top - 8,
+    left: rect.left + rect.width / 2
+  }
+}
+
+function onSlotHoverLeave(): void {
+  hoverSlotIndex.value = null
+}
+
 function boundTargetName(slotIndex: number): string {
   const hit = targets.find((t) => t.slotIndex === slotIndex)
   return hit?.name?.trim() || ''
@@ -364,6 +389,10 @@ async function onSlotClick(index: number): Promise<void> {
   }
   setStatus(`已绑定「${target.name}」→ 工位 #${index}`)
 
+  if (!moveOnSlotClick.value) {
+    setStatus(`已绑定「${target.name}」→ 工位 #${index}（未勾选点击移动）`)
+    return
+  }
   if (!controllerConnected.value) {
     setStatus(`已绑定「${target.name}」→ 工位 #${index}（控制器未连接，跳过运动）`)
     return
@@ -451,6 +480,24 @@ onMounted(async () => {
 
 <template>
   <div class="tpc-page">
+    <!-- 工位坐标悬浮提示 -->
+    <Teleport to="body">
+      <div
+        v-if="hoverSlotIndex !== null"
+        class="tpc-slot-tip"
+        :style="{ top: `${hoverTipPos.top}px`, left: `${hoverTipPos.left}px` }"
+      >
+        <div class="tpc-slot-tip-title">工位 #{{ hoverSlotIndex }}</div>
+        <template v-if="hoverSlot?.taught">
+          <div>X {{ formatAxis(hoverSlot.x) }}</div>
+          <div>Y {{ formatAxis(hoverSlot.y) }}</div>
+          <div>Z {{ formatAxis(hoverSlot.z) }}</div>
+          <div>U {{ formatAxis(hoverSlot.u) }}</div>
+        </template>
+        <div v-else class="tpc-slot-tip-empty">未示教</div>
+      </div>
+    </Teleport>
+
     <!-- 示教确认 -->
     <Teleport to="body">
       <div
@@ -780,14 +827,20 @@ onMounted(async () => {
             <div class="tpc-slot-block">
               <div class="tpc-slot-head">
                 <span>工位选择</span>
-                <button
-                  type="button"
-                  class="tpc-btn-sm"
-                  :disabled="slotBusy || selectedSlotIndex === null"
-                  @click="onTeachSelectedSlot"
-                >
-                  示教选中格
-                </button>
+                <div class="tpc-slot-head-actions">
+                  <label class="tpc-slot-move" title="勾选后，点击已示教工位会运动到该点">
+                    <input v-model="moveOnSlotClick" type="checkbox" />
+                    <span>点击移动</span>
+                  </label>
+                  <button
+                    type="button"
+                    class="tpc-btn-sm"
+                    :disabled="slotBusy || selectedSlotIndex === null"
+                    @click="onTeachSelectedSlot"
+                  >
+                    示教选中格
+                  </button>
+                </div>
               </div>
               <p v-if="activeTarget.slotIndex" class="tpc-slot-hint">
                 当前绑定工位 #{{ activeTarget.slotIndex }}
@@ -800,6 +853,8 @@ onMounted(async () => {
                   class="tpc-slot-cell"
                   :class="slotCellClass(n)"
                   @click="onSlotClick(n)"
+                  @mouseenter="onSlotHoverEnter($event, n)"
+                  @mouseleave="onSlotHoverLeave"
                 >
                   <span class="tpc-slot-no">{{ n }}</span>
                   <span class="tpc-slot-name">{{ boundTargetName(n) || '—' }}</span>
@@ -1169,6 +1224,26 @@ onMounted(async () => {
   font-size: 12px;
   color: #a1a1aa;
 }
+.tpc-slot-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.tpc-slot-move {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  user-select: none;
+  color: #a1a1aa;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.tpc-slot-move input {
+  margin: 0;
+  accent-color: #4ade80;
+}
 .tpc-slot-hint {
   margin: 0;
   font-size: 11px;
@@ -1228,6 +1303,30 @@ onMounted(async () => {
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 100%;
+}
+.tpc-slot-tip {
+  position: fixed;
+  z-index: 10050;
+  transform: translate(-50%, -100%);
+  min-width: 108px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #3f3f46;
+  background: #18181b;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  color: #e4e4e7;
+  font-size: 11px;
+  line-height: 1.5;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.tpc-slot-tip-title {
+  margin-bottom: 2px;
+  color: #a1a1aa;
+  font-weight: 600;
+}
+.tpc-slot-tip-empty {
+  color: #71717a;
 }
 
 .tpc-draw-empty {
