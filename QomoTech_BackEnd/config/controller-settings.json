@@ -111,7 +111,7 @@
       "axis_name": "U",
       "axis_type": 1,
       "units": 10000,
-      "speed": 0.2,
+      "speed": 0.8,
       "lspeed": 0,
       "accel": 200,
       "decel": 200,
@@ -122,7 +122,7 @@
       "rev_in": -1,
       "pulses_per_rev": 10000,
       "electronic_gear_ratio": 1,
-      "gear_ratio": 1,
+      "gear_ratio": 10,
       "step_angle": 0,
       "microsteps": 0,
       "merge_params": {
@@ -142,7 +142,7 @@
       "axis_name": "R",
       "axis_type": 1,
       "units": 10000,
-      "speed": 40,
+      "speed": 2,
       "lspeed": 0,
       "accel": 300,
       "decel": 300,
@@ -164,7 +164,7 @@
       },
       "backlash": 5,
       "backlash_enable": false,
-      "motor_type": "stepper",
+      "motor_type": "servo",
       "正软限位": 10000,
       "负软限位": -10000
     }

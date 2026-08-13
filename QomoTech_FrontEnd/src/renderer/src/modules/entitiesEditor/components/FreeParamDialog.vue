@@ -169,6 +169,8 @@ async function onSendToBackend(): Promise<void> {
       compZ: row.compZ,
       compAngle: row.compAngle,
       chordRatio: row.chordRatio,
+      k: row.k,
+      b: row.b,
       rInterval: rRotationInterval.value,
       rCompensation: rCompensationValue.value,
     })),
@@ -356,6 +358,8 @@ function isRecipeInvalid(recipe: string): boolean {
                   <th class="col-num">Y补偿</th>
                   <th class="col-num">Z补偿</th>
                   <th class="col-num">弦长倍率</th>
+                  <th class="col-num">K</th>
+                  <th class="col-num">B</th>
                   <th class="col-recipe">配方</th>
                   <th class="col-act"></th>
                 </tr>
@@ -447,6 +451,24 @@ function isRecipeInvalid(recipe: string): boolean {
                       type="number"
                       class="fp-input numeric"
                       step="0.1"
+                    />
+                  </td>
+                  <td class="col-num">
+                    <input
+                      v-model.number="row.k"
+                      type="number"
+                      class="fp-input numeric"
+                      step="0.001"
+                      title="线性系数 K"
+                    />
+                  </td>
+                  <td class="col-num">
+                    <input
+                      v-model.number="row.b"
+                      type="number"
+                      class="fp-input numeric"
+                      step="0.001"
+                      title="线性系数 B"
                     />
                   </td>
                   <td class="col-recipe">

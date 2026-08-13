@@ -100,7 +100,7 @@ html, body, #app {
   background: var(--color-background);
 }
 
-/* Google Material Symbols */
+/* Material Symbols（本地字体，见 main.ts） */
 .material-symbols-outlined {
   font-family: 'Material Symbols Outlined', sans-serif;
   font-size: 20px;

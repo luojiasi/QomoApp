@@ -30,6 +30,10 @@ export interface TaskRow {
   compAngle: number
   /** 弦长倍率 */
   chordRatio: number
+  /** 线性系数 K */
+  k: number
+  /** 线性系数 B */
+  b: number
 }
 
 /** 任务参数表序列化格式 */

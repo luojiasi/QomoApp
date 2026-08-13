@@ -3,9 +3,11 @@ import { useControllerSettingsStore } from '../stores/useControllerSettingsStore
 import { useAuxiliaryFunctionPanelStore } from '../stores/useAuxiliaryFunctionPanelStore'
 import {
   moveMotionAxisAbs,
+  moveMotionAxisRel,
   rotateRAxisByTurns,
   rotateUAxisByAngle,
   setMotionIoOutput,
+  waitMotionIdle,
 } from '../api'
 import type { MotionAxis } from '../types'
 import { getRAxisPosition, syncRAxisPosition } from '@/modules/program/api'
@@ -33,6 +35,10 @@ export type AxisCenterCalibSample = {
 export const axisNameByNo: MotionAxis[] = ['X', 'Y', 'Z', 'U', 'R']
 /** 在采样记录与校验中参与展示/判断的轴名列表 */
 export const axisCenterCalibDisplayAxes: MotionAxis[] = ['X', 'Y', 'Z', 'U', 'R']
+/** Z 轴号（与控制器约定一致） */
+const Z_AXIS_NO = 2
+/** 已在目标绝对位置时不再下发 Z 运动的容差（mm） */
+const AXIS_CENTER_CALIB_Z_ABS_EPS_MM = 1e-3
 
 /**
  * 五轴中心校准：按旋转轴多角度停点，人工打点/对图后记录 XYZRU，最后汇总中心相关量并写入辅助功能面板 store。
@@ -73,6 +79,10 @@ export function useAxisCenterCalib() {
   const axisCenterCalibSampleCount = ref(3)
   /** 采样速度（0.1-1） */
   const axisCenterCalibSpeed = ref(1)
+  /** 「标记并继续」后 Z 轴绝对目标位置（mm） */
+  const axisCenterCalibZLiftAbsMm = ref(-5)
+  /** Z 轴抬升到绝对位置时的速度 */
+  const axisCenterCalibZLiftSpeed = ref(10)
   /** 每次运动到位后的稳定等待时间（毫秒） */
   const axisCenterCalibSettleMs = ref(1000)
   /** 自动出光时激光 IO 保持时间（毫秒） */
@@ -402,32 +412,79 @@ export function useAxisCenterCalib() {
   }
 
   /**
-   * 将旋转轴转到指定角度：U 轴用角度 API，R 轴用圈数 API，其余轴走绝对定位。
+   * 按相对角度增量旋转：U 轴用角度 API，R 轴用圈数 API，其余轴走相对定位。
+   * @param deltaAngle 相对当前位姿的角度增量（度），可正可负
    */
-  async function moveAxisToAngle(axisNo: number, angle: number): Promise<void> {
+  async function moveAxisByRelativeAngle(axisNo: number, deltaAngle: number): Promise<void> {
     const axisSpeed = axisCenterCalibSpeed.value
     const speed = Number.isFinite(axisSpeed) && axisSpeed > 0 ? axisSpeed : 20
-    const rotateDirection = angle >= 0 ? '顺时针' : '逆时针'
-    const absAngle = Math.abs(angle)
+    if (!Number.isFinite(deltaAngle) || Math.abs(deltaAngle) <= 1e-9) return
+
+    const rotateDirection = deltaAngle >= 0 ? '顺时针' : '逆时针'
+    const absAngle = Math.abs(deltaAngle)
     let result
     if (axisNo === 3) {
       result = await rotateUAxisByAngle({
         旋转角度: absAngle,
         旋转速度: speed,
         旋转方向: rotateDirection,
-        运动模式: 'absolute',
+        运动模式: 'relative',
       })
     } else if (axisNo === 4) {
       result = await rotateRAxisByTurns({
         旋转圈数: absAngle / 360,
         旋转速度: speed,
         旋转方向: rotateDirection,
-        运动模式: 'absolute',
+        运动模式: 'relative',
       })
     } else {
-      result = await moveMotionAxisAbs(axisNo, angle, { controllerSettings: controllerStore.controllerSettings })
+      result = await moveMotionAxisRel(axisNo, deltaAngle, { controllerSettings: controllerStore.controllerSettings })
     }
     if (!result?.success) throw new Error(result?.message || `${axisNameByNo[axisNo] ?? `Axis ${axisNo}`} 移动失败`)
+  }
+
+  /** 「标记并继续」后：Z 轴绝对定位并等待静止，避免后续旋转碰撞。已在目标则跳过。 */
+  async function liftZAfterMark(): Promise<void> {
+    const targetZ = axisCenterCalibZLiftAbsMm.value
+    if (!Number.isFinite(targetZ)) {
+      throw new Error('Z 抬升绝对位置无效')
+    }
+    const axisSpeed = axisCenterCalibZLiftSpeed.value
+    const speed = Number.isFinite(axisSpeed) && axisSpeed > 0 ? axisSpeed : 20
+    const currentZ = getAxisPosition(Z_AXIS_NO)
+    if (currentZ !== null && Math.abs(currentZ - targetZ) <= AXIS_CENTER_CALIB_Z_ABS_EPS_MM) {
+      return
+    }
+    const result = await moveMotionAxisAbs(Z_AXIS_NO, targetZ, {
+      speed,
+      controllerSettings: controllerStore.controllerSettings,
+    })
+    if (!result?.success) {
+      throw new Error(result?.message || `Z 轴移动到绝对位置 ${targetZ} mm 失败`)
+    }
+    const idleRes = await waitMotionIdle('Z')
+    if (!idleRes.success || idleRes.data === false) {
+      throw new Error(idleRes.message || 'Z 轴抬升后等待静止超时')
+    }
+  }
+
+  /** 读取校准旋转轴当前角度（度）；读不到时回退 0。 */
+  function readCurrentCalibrationAngleDegrees(axisNo: number): number {
+    const name = axisNameByNo[axisNo]
+    const axis = controllerStore.controllerSettings.axes.find((item) => item.axis_no === axisNo)
+    const mpos = Number(mposition.value[name] ?? NaN)
+    const units = Number(axis?.units)
+    if (!Number.isFinite(mpos) || !Number.isFinite(units) || units <= 0) return 0
+
+    const pulsesPerRev =
+      Number(axis?.pulses_per_rev) > 0
+        ? Number(axis?.pulses_per_rev) *
+          (Number(axis?.electronic_gear_ratio) > 0 ? Number(axis?.electronic_gear_ratio) : 1) *
+          (Number(axis?.gear_ratio) > 0 ? Number(axis?.gear_ratio) : 1)
+        : axisNo === 3
+          ? 10000
+          : 6400
+    return (mpos * units / pulsesPerRev) * 360
   }
 
   /** 与 store 同步的「基于中心」的 X/Y 累计结果（供面板只读展示） */
@@ -454,6 +511,14 @@ export function useAxisCenterCalib() {
       error('等待时间和激光时间不能小于 0')
       return
     }
+    if (!Number.isFinite(axisCenterCalibZLiftAbsMm.value)) {
+      error('Z 抬升绝对位置无效')
+      return
+    }
+    if (!Number.isFinite(axisCenterCalibZLiftSpeed.value) || axisCenterCalibZLiftSpeed.value <= 0) {
+      error('Z 抬升速度必须大于 0')
+      return
+    }
 
     axisCenterCalibErrorMessage.value = ''
     axisCenterCalibLogs.value = []
@@ -467,6 +532,8 @@ export function useAxisCenterCalib() {
       axisCenterCalibPhase.value = 'move-to-start'
 
       axisCenterCalibPhase.value = 'sampling'
+      const rotationAxisNo = axisCenterCalibRotationAxisNo.value
+      let previousAngle = readCurrentCalibrationAngleDegrees(rotationAxisNo)
       for (let index = 0; index < axisCenterCalibSamples.value.length; index++) {
         const sample = axisCenterCalibSamples.value[index]
         axisCenterCalibSamples.value[index] = {
@@ -475,9 +542,16 @@ export function useAxisCenterCalib() {
           machinePositions: {},
         }
 
-        logAxisCenterCalib(`第 ${index + 1} 点移动到 ${sample.angle.toFixed(3)}°`)
-        await moveAxisToAngle(axisCenterCalibRotationAxisNo.value, sample.angle)
-        await sleep(axisCenterCalibSettleMs.value)
+        // 第 1 点：先转到采样角；后续点在上一轮「抬 Z 后再旋转」中已到位
+        if (index === 0) {
+          const deltaAngle = sample.angle - previousAngle
+          logAxisCenterCalib(
+            `第 1 点相对旋转 ${deltaAngle.toFixed(3)}° → 目标 ${sample.angle.toFixed(3)}°`
+          )
+          await moveAxisByRelativeAngle(rotationAxisNo, deltaAngle)
+          previousAngle = sample.angle
+          await sleep(axisCenterCalibSettleMs.value)
+        }
 
         if (axisCenterCalibAutoPulse.value && axisCenterCalibLaserPulseMs.value > 0) {
           logAxisCenterCalib(`第 ${index + 1} 点触发激光 ${axisCenterCalibLaserPulseMs.value} ms`)
@@ -491,13 +565,31 @@ export function useAxisCenterCalib() {
           state: 'done',
           machinePositions: snapshot,
         }
-      }
 
-      if (axisCenterCalibReturnToStart.value) {
-        axisCenterCalibPhase.value = 'returning'
-        logAxisCenterCalib(`返回起始角`)
-        await moveAxisToAngle(axisCenterCalibRotationAxisNo.value, 0)
+        // 标记并继续：先把 Z 移到绝对安全高度并静止，再旋转到下一点 / 回起始角
+        logAxisCenterCalib(
+          `第 ${index + 1} 点标记完成，先 Z 轴绝对移动到 ${axisCenterCalibZLiftAbsMm.value} mm`
+        )
+        await liftZAfterMark()
         await sleep(axisCenterCalibSettleMs.value)
+
+        const nextSample = axisCenterCalibSamples.value[index + 1]
+        if (nextSample) {
+          const deltaToNext = nextSample.angle - previousAngle
+          logAxisCenterCalib(
+            `Z 抬升完成，再相对旋转 ${deltaToNext.toFixed(3)}° → 第 ${index + 2} 点 ${nextSample.angle.toFixed(3)}°`
+          )
+          await moveAxisByRelativeAngle(rotationAxisNo, deltaToNext)
+          previousAngle = nextSample.angle
+          await sleep(axisCenterCalibSettleMs.value)
+        } else if (axisCenterCalibReturnToStart.value) {
+          axisCenterCalibPhase.value = 'returning'
+          const returnDelta = 0 - previousAngle
+          logAxisCenterCalib(`Z 抬升完成，再相对返回起始角 0°（增量 ${returnDelta.toFixed(3)}°）`)
+          await moveAxisByRelativeAngle(rotationAxisNo, returnDelta)
+          previousAngle = 0
+          await sleep(axisCenterCalibSettleMs.value)
+        }
       }
 
 
@@ -560,6 +652,8 @@ export function useAxisCenterCalib() {
     axisCenterCalibAngleStep,
     axisCenterCalibSampleCount,
     axisCenterCalibSpeed,
+    axisCenterCalibZLiftAbsMm,
+    axisCenterCalibZLiftSpeed,
     axisCenterCalibSettleMs,
     axisCenterCalibLaserPulseMs,
     axisCenterCalibAutoPulse,

@@ -95,6 +95,8 @@ export const useQomo5PStore = defineStore('qomo5p', () => {
   const projectMeta = ref<QomoProjectMeta>(createEmptyMeta())
   const past = ref<QomoSnapshot[]>([])
   const future = ref<QomoSnapshot[]>([])
+  /** 导入 DXF/LJS 时是否将图形包围盒中心平移到原点；默认 false 保留原始坐标 */
+  const importRecenterToOrigin = ref(false)
   /** 画布几何拖动（平移/拖端点）：按下时截取，抬起时若发生过移动则入撤销栈 */
   const interactiveTransformBaseline = ref<QomoSnapshot | null>(null)
 
@@ -708,7 +710,9 @@ export const useQomo5PStore = defineStore('qomo5p', () => {
     const normalizedEntitiesRaw = (parsedData.entities ?? []).map((entity) =>
       normalizeEntity(entity as QomoEntityWithSurface)
     )
-    const normalizedEntities = recenterEntitiesAroundOrigin(normalizedEntitiesRaw)
+    const normalizedEntities = importRecenterToOrigin.value
+      ? recenterEntitiesAroundOrigin(normalizedEntitiesRaw)
+      : normalizedEntitiesRaw
     const nextMeta: QomoProjectMeta = {
       ...createEmptyMeta(sourceFileName),
       ...parsedData.meta,
@@ -745,7 +749,9 @@ export const useQomo5PStore = defineStore('qomo5p', () => {
   const importProjectFromDxf = (text: string, sourceFileName: string) => {
     const parsed = parseDxfToQomoEntities(text)
     const normalizedEntitiesRaw = parsed.entities.map((entity) => normalizeEntity(entity))
-    const normalizedEntities = recenterEntitiesAroundOrigin(normalizedEntitiesRaw)
+    const normalizedEntities = importRecenterToOrigin.value
+      ? recenterEntitiesAroundOrigin(normalizedEntitiesRaw)
+      : normalizedEntitiesRaw
     const nextMeta: QomoProjectMeta = {
       ...createEmptyMeta(sourceFileName),
       sourceFileName,
@@ -1075,6 +1081,7 @@ export const useQomo5PStore = defineStore('qomo5p', () => {
     entities,
     selectedEntityIds,
     projectMeta,
+    importRecenterToOrigin,
     isLoaded,
     sceneBounds,
     selectionRect,

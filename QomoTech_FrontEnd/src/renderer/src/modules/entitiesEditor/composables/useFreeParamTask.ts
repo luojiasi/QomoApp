@@ -27,6 +27,8 @@ function createRow(taskNo: number): TaskRow {
     compZ: 0,
     compAngle: 0,
     chordRatio: 2,
+    k: 0,
+    b: 0,
   }
 }
 
@@ -99,6 +101,8 @@ export function useFreeParamTask(): {
             compZ: r.compZ ?? 0,
             compAngle: r.compAngle ?? 0,
             chordRatio: r.chordRatio ?? 2,
+            k: r.k ?? 0,
+            b: r.b ?? 0,
           })
         }
         return true

@@ -66,6 +66,79 @@ def 获取4P旋转中心的补偿值() -> 中心旋转补偿请求模型:
     return 中心旋转补偿请求模型(**product4p_center_rotation.model_dump())
 # =====================================================
 
+
+
+
+# =====================================================
+# 一拖五设备旋转中心补偿值字段
+一拖五U轴旋转中心补偿值字段 = "product4p_center_rotation_ten_u_axis"
+def 读取存储的一拖五U轴旋转中心补偿值() -> 中心旋转补偿请求模型:
+    raw = 系统设置.读取系统设置字段(一拖五U轴旋转中心补偿值字段)
+    if raw is None:
+        return 中心旋转补偿请求模型()
+    try:
+        return 中心旋转补偿请求模型(
+            X=float(raw.get("X", 0)),
+            Y=float(raw.get("Y", 0)),
+            Z=float(raw.get("Z", 0)),
+        )
+    except (TypeError, ValueError):
+        return 中心旋转补偿请求模型()
+# ——————————————————————————————————————————————————————
+product4p_center_rotation_ten_u_axis = 读取存储的一拖五U轴旋转中心补偿值()
+# ——————————————————————————————————————————————————————
+
+def 保存一拖五U轴旋转中心的补偿值(payload: 中心旋转补偿请求模型) -> 中心旋转补偿请求模型:
+    标准化 = 中心旋转补偿请求模型(
+        X=round(float(payload.X), 4),
+        Y=round(float(payload.Y), 4),
+        Z=round(float(payload.Z), 4),
+    )
+    系统设置.保存系统设置字段(一拖五U轴旋转中心补偿值字段, 标准化.model_dump())
+    global product4p_center_rotation_ten_u_axis
+    product4p_center_rotation_ten_u_axis = 标准化
+    return 获取一拖五U轴旋转中心的补偿值()
+
+def 获取一拖五U轴旋转中心的补偿值() -> 中心旋转补偿请求模型:
+    return 中心旋转补偿请求模型(**product4p_center_rotation_ten_u_axis.model_dump())
+# =====================================================
+
+# =====================================================
+# 一拖五设备旋转中心补偿值字段
+一拖五R轴旋转中心点的位置字段 = "product4p_center_rotation_ten_r_axis"
+def 读取存储的一拖五R轴旋转中心点的位置() -> 中心旋转补偿请求模型:
+    raw = 系统设置.读取系统设置字段(一拖五R轴旋转中心点的位置字段)
+    if raw is None:
+        return 中心旋转补偿请求模型()
+    try:
+        return 中心旋转补偿请求模型(
+            X=float(raw.get("X", 0)),
+            Y=float(raw.get("Y", 0)),
+            Z=float(raw.get("Z", 0)),
+        )
+    except (TypeError, ValueError):
+        return 中心旋转补偿请求模型()
+# ——————————————————————————————————————————————————————
+product4p_center_rotation_ten_r_axis = 读取存储的一拖五R轴旋转中心点的位置()
+# ——————————————————————————————————————————————————————
+
+def 保存一拖五R轴旋转中心点的位置(payload: 中心旋转补偿请求模型) -> 中心旋转补偿请求模型:
+    标准化 = 中心旋转补偿请求模型(
+        X=round(float(payload.X), 4),
+        Y=round(float(payload.Y), 4),
+        Z=round(float(payload.Z), 4),
+    )
+    系统设置.保存系统设置字段(一拖五R轴旋转中心点的位置字段, 标准化.model_dump())
+    global product4p_center_rotation_ten_r_axis
+    product4p_center_rotation_ten_r_axis = 标准化
+    return 获取一拖五R轴旋转中心点的位置()
+
+def 获取一拖五R轴旋转中心点的位置() -> 中心旋转补偿请求模型:
+    return 中心旋转补偿请求模型(**product4p_center_rotation_ten_r_axis.model_dump())
+# =====================================================
+
+
+
 # =====================================================
 # 快速移动点位置字段
 快速移动点位置字段 = "quick_move_position"

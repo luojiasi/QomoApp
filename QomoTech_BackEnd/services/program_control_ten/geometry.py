@@ -3,8 +3,7 @@
 import math
 from typing import Any
 from utils.logger import 获取日志记录器
-from services.SystemSettingService import 获取4P旋转中心的补偿值
-from services.SystemSettingService import 获取快速移动点
+from services.SystemSettingService import 获取一拖五R轴旋转中心点的位置, 获取一拖五U轴旋转中心的补偿值
 from services.motion_control.config_loader import 加载运动配置
 from core.calc_rotation import 计算点绕坐标轴旋转
 
@@ -171,6 +170,8 @@ def 构建任务的数据(行数据: dict[str, Any],工位的轴位置: dict[str
         "工位的Y坐标": float(工位的轴位置.get("y", 0)),
         "工位的Z坐标": float(工位的轴位置.get("z", 0)),
         "工位的U坐标": float(工位的轴位置.get("u", 0)),
+        "K": float(行数据.get("k", 0)),
+        "B": float(行数据.get("b", 0)),
     }
 def 构建R轴的补偿(行数据: dict[str, Any]) -> dict[str, Any]:
     """构建R轴的补偿。
@@ -190,11 +191,17 @@ def 构建执行任务的参数(数据: dict[str, Any],当前平面Z的位置, �
         d = R × cos(π / N)
     其中 R = 直径/2，N = 分割数。
     """
-    X方向进行再补偿 = float(数据.get("补偿X", 0))
-    Y方向进行再补偿 = float(数据.get("补偿Y", 0))
-    Z方向进行再补偿 = float(数据.get("补偿Z", 0))
+
+    旋转中心的位置 = 获取一拖五U轴旋转中心的补偿值()
+    R轴旋转中心的位置 = 获取一拖五R轴旋转中心点的位置()
+
+    
     角度补偿 = float(数据.get("补偿角度", 0))
     弦长倍率 = float(数据.get("弦长倍率", 2))
+
+    K = float(数据.get("K", 0))
+    B = float(数据.get("B", 0))
+
 
     工位的X坐标 = float(数据.get("工位的X坐标", 0))
     工位的Y坐标 = float(数据.get("工位的Y坐标", 0))
@@ -202,6 +209,13 @@ def 构建执行任务的参数(数据: dict[str, Any],当前平面Z的位置, �
     工位的U坐标 = float(数据.get("工位的U坐标", 0))
     # 工位 U 为工程位移（距离），先转成角度再参与叠加
     转化的做坐标 = U工程位移转角度(工位的U坐标)
+
+    产品到旋转中心的高度 = float(abs(旋转中心的位置.Z)-abs(工位的Z坐标))
+    X方向进行再补偿 = math.sin(math.radians(float(数据.get("补偿X", 0)))) * 产品到旋转中心的高度
+    Y方向进行再补偿 = math.cos(math.radians(float(数据.get("补偿Y", 0)))) * 产品到旋转中心的高度
+    Z方向进行再补偿 = float(数据.get("补偿Z", 0))
+    
+    线性关系的补偿 = float((工位的Z坐标 - B)*K)
 
     直径 = float(数据.get("直径", 0))
     分割数 = int(数据.get("分割数", 0))
@@ -212,12 +226,11 @@ def 构建执行任务的参数(数据: dict[str, Any],当前平面Z的位置, �
     # 工艺相对倾角（几何换算用）
     U轴的旋转角度 = 90 - (角度 + 角度补偿) if 角度 > 0 else -90 - (角度 + 角度补偿)
 
-    旋转中心的位置 = 获取4P旋转中心的补偿值()
-    R轴旋转中心的位置 = 获取快速移动点()
+
 
     # TODO:这里可能相反
     计算得到U轴的旋转中心点与R轴旋转中心点的X轴的位置距离 = 旋转中心的位置.X - R轴旋转中心的位置.X
-    当前平面与旋转中心的Z的距离 = abs(旋转中心的位置.Z)-abs(工位的Z坐标)
+    当前平面与旋转中心的Z的距离 = float(abs(旋转中心的位置.Z)-abs(工位的Z坐标))
 
     # R轴旋转中心与U轴旋转中心的角度_大 = math.degrees(math.atan(当前平面与旋转中心的Z的距离 / 计算得到U轴的旋转中心点与R轴旋转中心点的X轴的位置距离))
     # R轴旋转中心与U轴旋转中心的角度_小 = math.degrees(math.atan(计算得到U轴的旋转中心点与R轴旋转中心点的X轴的位置距离 / 当前平面与旋转中心的Z的距离 ))
@@ -251,7 +264,7 @@ def 构建执行任务的参数(数据: dict[str, Any],当前平面Z的位置, �
     else:
         角度X = 累计高度 / math.tan(math.radians(角度))
 
-    得到等分直线中点的坐标 = {"x": 圆心到等分直线的垂直距离 - 角度X +计算得到U轴的旋转中心点与R轴旋转中心点的X轴的位置距离, "y": 0, "z": 当前平面与旋转中心的Z的距离}
+    得到等分直线中点的坐标 = {"x": 圆心到等分直线的垂直距离 - 角度X - 计算得到U轴的旋转中心点与R轴旋转中心点的X轴的位置距离 - 线性关系的补偿, "y": 0, "z": 当前平面与旋转中心的Z的距离}
     日志.info(f"圆心到等分直线的垂直距离:{圆心到等分直线的垂直距离}")
     日志.info(f"角度X:{角度X}")
     日志.info(f"计算得到U轴的旋转中心点与R轴旋转中心点的X轴的位置距离:{计算得到U轴的旋转中心点与R轴旋转中心点的X轴的位置距离}")

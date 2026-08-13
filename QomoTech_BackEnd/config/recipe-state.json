@@ -7,6 +7,14 @@
       "updatedAt": "2026-7-3 12:08:05",
       "blackeningRecipeId": "blackening-1",
       "machiningRecipeId": "machining-1"
+    },
+    {
+      "id": "main-2",
+      "name": "主配方 2",
+      "status": "draft",
+      "updatedAt": "2026-8-13 10:48:59",
+      "blackeningRecipeId": "blackening-1",
+      "machiningRecipeId": "machining-2"
     }
   ],
   "laserPowerRecipes": [
@@ -14,6 +22,15 @@
       "id": "laser-power-1",
       "name": "激光功率配方 1",
       "updatedAt": "2026-6-23 15:05:56",
+      "laserManufacturer": "默认厂家",
+      "laserPower": 950,
+      "laserFrequency": 7000,
+      "laserCurrent": 85
+    },
+    {
+      "id": "laser-power-2",
+      "name": "激光功率配方 2",
+      "updatedAt": "2026-8-13 10:48:52",
       "laserManufacturer": "默认厂家",
       "laserPower": 950,
       "laserFrequency": 7000,
@@ -62,6 +79,30 @@
       "focusCompensation": 0.08,
       "id": "horizontal-formula-1",
       "updatedAt": "2026-7-3 14:58:08"
+    },
+    {
+      "name": "水平工艺配方 2",
+      "openingShape": "V型",
+      "angleFormula": {
+        "k": 0,
+        "b": 0.54
+      },
+      "lowerOpeningFormula": {
+        "k": 5,
+        "b": 35
+      },
+      "depthCompensationFormula": {
+        "k": 2,
+        "b": 0.5
+      },
+      "upperOpeningFormula": "由系统自动计算",
+      "compensationAngleFormula": {
+        "k": 0,
+        "b": 0
+      },
+      "focusCompensation": 0.08,
+      "id": "horizontal-formula-2",
+      "updatedAt": "2026-8-13 10:48:53"
     }
   ],
   "verticalFormulaRecipes": [
@@ -98,6 +139,40 @@
       "id": "vertical-formula-1",
       "name": "123123",
       "updatedAt": "2026-7-3 12:07:28"
+    },
+    {
+      "cuttingAxis": "XY",
+      "changePercent": 10,
+      "xFeed": 0.01,
+      "xSpeed": 20,
+      "edgeCutting": {
+        "speed": 50,
+        "cutTimes": 2,
+        "cutSpeedNums": 5,
+        "change": {
+          "k": 1,
+          "b": 5
+        }
+      },
+      "middleCutting": {
+        "speed": 100,
+        "cutTimes": 1,
+        "change": {
+          "k": 0,
+          "b": 50
+        }
+      },
+      "descentCutting": {
+        "speed": 0.075,
+        "zFeed": 0.002,
+        "change": {
+          "k": 10,
+          "b": 0.075
+        }
+      },
+      "id": "vertical-formula-2",
+      "name": "垂直工艺配方 2",
+      "updatedAt": "2026-8-13 10:48:54"
     }
   ],
   "machiningRecipes": [
@@ -110,7 +185,17 @@
       "laserPowerRecipeId": "laser-power-1",
       "teachingMode": true,
       "timeoutWaitTime": 6
+    },
+    {
+      "id": "machining-2",
+      "name": "222222",
+      "updatedAt": "2026-8-13 10:48:49",
+      "teachingMode": false,
+      "horizontalFormulaId": "horizontal-formula-1",
+      "verticalFormulaId": "vertical-formula-1",
+      "laserPowerRecipeId": "laser-power-1",
+      "timeoutWaitTime": 2
     }
   ],
-  "selectedMainRecipeId": "main-1"
+  "selectedMainRecipeId": "main-2"
 }

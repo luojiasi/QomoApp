@@ -209,6 +209,13 @@
               <input v-model="invertShowImageOffsetY" type="checkbox" class="accent-sky-400" />
               反转Y
             </label>
+            <label
+              class="flex h-12 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-md border border-transparent px-1 text-[11px] text-slate-200 hover:border-slate-600 hover:bg-slate-800/60"
+              title="勾选后，下次导入 DXF/LJS 将图形包围盒中心移到原点；不勾选则保留原始坐标"
+            >
+              <input v-model="importRecenterToOrigin" type="checkbox" class="accent-sky-400" />
+              导入居中
+            </label>
           </div>
         </div>
 
@@ -1181,7 +1188,7 @@ import {
 } from './showImageOffset'
 import { storeToRefs } from 'pinia'
 const store = useQomo5PStore()
-const { viewport, layers, entities, selectedEntityIds } = storeToRefs(store)
+const { viewport, layers, entities, selectedEntityIds, importRecenterToOrigin } = storeToRefs(store)
 const { success, error } = useNotification()
 const isEllipseLikeIrregularEntity = (
   entity: QomoEntityWithSurface

@@ -134,6 +134,10 @@ export const zhTW = {
     typeFix: '修復',
     typeImprove: '最佳化',
     typeBreaking: '重要變更',
+    v0222: {
+      date: '2026-08-12',
+      c1: '圖示與正文字體改為本地打包，離線安裝機不再依賴 Google Fonts'
+    },
     v0221: {
       date: '2026-07-29',
       c1: '設定頁新增「教程影片」：開機/初始化/參數檢查/對焦/金剛石放置，系統播放器開啟（對齊 FrontEnd）'
@@ -597,6 +601,7 @@ export const zhTW = {
     logBackendUnreachable: '後端服務不可達'
   },
   changelog: {
+    v0222: '離線可用本地字體',
     v0221: '設定教程影片',
     v0220: '目標參數右側欄',
     v0219: '目標級圈補償',

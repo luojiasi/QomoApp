@@ -111,6 +111,7 @@ const moveAbs: NodeTypeDef = {
         { label: 'X 轴', value: 'X' },
         { label: 'Y 轴', value: 'Y' },
         { label: 'Z 轴', value: 'Z' },
+        { label: 'U 轴', value: 'U' },
         { label: 'R 轴', value: 'R' }
       ]
     },
@@ -433,6 +434,7 @@ const moveRel: NodeTypeDef = {
         { label: 'X 轴', value: 'X' },
         { label: 'Y 轴', value: 'Y' },
         { label: 'Z 轴', value: 'Z' },
+        { label: 'U 轴', value: 'U' },
         { label: 'R 轴', value: 'R' }
       ]
     },

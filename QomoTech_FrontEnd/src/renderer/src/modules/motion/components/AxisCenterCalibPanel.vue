@@ -48,6 +48,8 @@ onMounted(() => {
       <FormField v-model="state.axisCenterCalibAngleStep" label="角度步长" :disabled="state.isAxisCenterCalib" />
       <FormField v-model="state.axisCenterCalibSampleCount" label="采样点数" :min="3" :step="2" :disabled="state.isAxisCenterCalib" />
       <FormField v-model="state.axisCenterCalibSpeed" label="采样轴速度" :min="0.01" :step="0.1" :disabled="state.isAxisCenterCalib" />
+      <FormField v-model="state.axisCenterCalibZLiftAbsMm" label="Z抬升位置(mm)" :step="0.1" :disabled="state.isAxisCenterCalib" />
+      <FormField v-model="state.axisCenterCalibZLiftSpeed" label="Z抬升速度" :min="0.01" :step="0.1" :disabled="state.isAxisCenterCalib" />
       <FormField v-model="state.axisCenterCalibSettleMs" label="等待时间(ms)" :min="0" :step="1" :disabled="state.isAxisCenterCalib" />
       <FormField v-model="state.axisCenterCalibLaserPulseMs" label="激光时间(ms)" :min="0" :step="1" :disabled="state.isAxisCenterCalib || !state.axisCenterCalibAutoPulse" />
     </div>

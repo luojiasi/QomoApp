@@ -169,6 +169,10 @@ export const en = {
       c3: '8 new serial log translation keys (connect/disconnect/send success & failure) in all 4 languages',
       c4: 'CLAUDE.md backend communication section added, documenting API conventions and auto-detect mechanism'
     },
+    v0222: {
+      date: '2026-08-12',
+      c1: 'Bundle Material Symbols / Inter / JetBrains Mono locally so packaged installs work offline without Google Fonts'
+    },
     v0221: {
       date: '2026-07-29',
       c1: 'Settings “Tutorial Videos”: startup/init/precheck/focus/diamond placement via OS player (FrontEnd parity)'
@@ -598,6 +602,7 @@ export const en = {
     logBackendUnreachable: 'Backend unreachable'
   },
   changelog: {
+    v0222: 'Local fonts for offline installs',
     v0221: 'Settings tutorial videos',
     v0220: 'Target params right panel',
     v0219: 'Per-target turn compensation',
