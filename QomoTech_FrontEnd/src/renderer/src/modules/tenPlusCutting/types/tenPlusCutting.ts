@@ -12,6 +12,9 @@ export interface TenPlusTaskRow {
   compZ: number
   compAngle: number
   chordRatio: number
+  k: number
+  b: number
+  x: number
 }
 
 /** 编程目标：独立任务表 + 点位/圈补偿 + 工位绑定 */
@@ -85,6 +88,9 @@ export interface TenPlusFreeParamPayload {
     compZ: number
     compAngle: number
     chordRatio: number
+    k: number
+    b: number
+    x: number
     rInterval: number
     rCompensation: number
     pointXy?: string

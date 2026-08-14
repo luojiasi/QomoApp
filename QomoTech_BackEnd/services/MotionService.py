@@ -324,9 +324,7 @@ class MotionService:
             raise
         await self._刷新快照()
 
-    async def 点动(
-        self, 轴名: str, 方向: int, 速度: Optional[float] = None,
-    ) -> None:
+    async def 点动(self, 轴名: str, 方向: int, 速度: Optional[float] = None,) -> None:
         self._保证已启动()
         adapter = self._断言adapter()
         gate = self._断言safety()
@@ -363,15 +361,11 @@ class MotionService:
         日志.info(f"停止轴运动 {轴名}#{cfg.axis_no}")
         await self._刷新快照()
 
-    async def 绝对运动(
-        self, 轴名: str, 位置: float, 速度: Optional[float] = None,
-    ) -> None:
+    async def 绝对运动(self, 轴名: str, 位置: float, 速度: Optional[float] = None,) -> None:
         self._保证已启动()
         adapter = self._断言adapter()
         gate = self._断言safety()
-        cfg, 速度归一 = gate.检查单轴绝对(
-            self._状态机.当前, 轴名, 位置, 速度,
-        )
+        cfg, 速度归一 = gate.检查单轴绝对(self._状态机.当前, 轴名, 位置, 速度,)
         await adapter.设置速度(cfg.axis_no, 速度归一)
         self._状态机.触发(状态事件.MOVE_START)
         try:
@@ -382,17 +376,13 @@ class MotionService:
             raise
         await self._刷新快照()
 
-    async def 相对运动(
-        self, 轴名: str, 距离: float, 速度: Optional[float] = None,
-    ) -> None:
+    async def 相对运动(self, 轴名: str, 距离: float, 速度: Optional[float] = None,) -> None:
         self._保证已启动()
         adapter = self._断言adapter()
         gate = self._断言safety()
 
         当前位置 = self._取轴当前位置_单(轴名)
-        cfg, 速度归一 = gate.检查单轴相对(
-            self._状态机.当前, 轴名, 距离, 速度, 当前位置=当前位置,
-        )
+        cfg, 速度归一 = gate.检查单轴相对(self._状态机.当前, 轴名, 距离, 速度, 当前位置=当前位置,)
         await adapter.设置速度(cfg.axis_no, 速度归一)
         self._状态机.触发(状态事件.MOVE_START)
         try:
@@ -1233,9 +1223,7 @@ class MotionService:
         self._保证已启动()
         adapter = self._断言adapter()
         gate = self._断言safety()
-        cfg, 速度归一 = gate.检查单轴绝对(
-            self._状态机.当前, 轴名, 位置, 速度,
-        )
+        cfg, 速度归一 = gate.检查单轴绝对(self._状态机.当前, 轴名, 位置, 速度,)
         self._状态机.触发(状态事件.MOVE_START)
         try:
             await adapter.绝对运动并设速度(cfg.axis_no, 位置, 速度归一)
@@ -1258,7 +1246,7 @@ class MotionService:
         *,
         merge_enable: bool = True,
         auto_corner_decel: bool = True,
-        auto_small_circle_limit: bool = True,
+        auto_small_circle_limit: bool = False,
         auto_corner_angle: bool = False,
         decel_angle_deg: float = 15.0,
         stop_angle_deg: float = 45.0,
@@ -1277,6 +1265,14 @@ class MotionService:
                 decel_angle_deg=decel_angle_deg,
                 stop_angle_deg=stop_angle_deg,
             )
+            # 适配器推完缓冲即返回；必须等 XY 停稳，否则下一圈会叠进仍在跑的缓冲，
+            # 且 MERGE 终点速度非 0 时 IDLE 可能一直不到，程序会空等后直接失败变空闲。
+            x_ok = await self.等待静止("X")
+            y_ok = await self.等待静止("Y")
+            if not x_ok or not y_ok:
+                日志.error("连续插补XY 等待 XY 静止超时，路径点数=%s", len(路径点))
+                self._状态机.触发(状态事件.STOP, 强制=True)
+                return False
         except Exception:
             self._状态机.触发(状态事件.STOP, 强制=True)
             raise

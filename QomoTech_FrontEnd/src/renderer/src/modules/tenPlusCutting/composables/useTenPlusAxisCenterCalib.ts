@@ -1,6 +1,5 @@
-import { computed, ref, watch } from 'vue'
-import { useControllerSettingsStore } from '../stores/useControllerSettingsStore'
-import { useAuxiliaryFunctionPanelStore } from '../stores/useAuxiliaryFunctionPanelStore'
+import { computed, ref, unref, watch, type MaybeRef } from 'vue'
+import { useControllerSettingsStore } from '@/modules/motion/stores/useControllerSettingsStore'
 import {
   moveMotionAxisAbs,
   moveMotionAxisRel,
@@ -8,59 +7,62 @@ import {
   rotateUAxisByAngle,
   setMotionIoOutput,
   waitMotionIdle,
-} from '../api'
-import type { MotionAxis } from '../types'
-import { getRAxisPosition, syncRAxisPosition } from '@/modules/program/api'
-import type { RAxisPositionPayload } from '@/modules/program/types'
+} from '@/modules/motion/api'
+import type { MotionAxis } from '@/modules/motion/types'
+import {
+  axisCenterCalibDisplayAxes,
+  axisNameByNo,
+  type AxisCenterCalibPhase,
+  type AxisCenterCalibSample,
+  type AxisCenterCalibSampleState,
+} from '@/modules/motion/composables/useAxisCenterCalib'
+import {
+  getTenRAxisPosition,
+  getTenUAxisCenter,
+  syncTenRAxisPosition,
+  syncTenUAxisCenter,
+} from '@/modules/program/api'
+import type { Product4PCenterRotationPayload, RAxisPositionPayload } from '@/modules/program/types'
 import { useNotification } from '@/shared/composables/useNotification'
 import { useHardwareState } from '@/shared/api/hardware'
-import { sleep } from '../utils'
+import { sleep } from '@/modules/motion/utils'
 import { XYZ } from '@/shared/types'
 
-/** 五轴中心校准流程当前所处阶段 */
-export type AxisCenterCalibPhase = 'idle' | 'prepare' | 'safety-confirmed' | 'move-to-start' | 'sampling' | 'returning' | 'finished' | 'failed'
-/** 单个采样点在列表中的 UI/业务状态 */
-export type AxisCenterCalibSampleState = 'pending' | 'current' | 'done' | 'failed'
-/** 单次角度采样：目标角、记录到的机床坐标与人工观测偏差 */
-export type AxisCenterCalibSample = {
-  id: number
-  angle: number
-  state: AxisCenterCalibSampleState
-  machinePositions: Partial<Record<MotionAxis, number>>
-  observedOffsetX: number | null
-  observedOffsetY: number | null
-}
-
-/** 轴号 0–4 与轴名 X/Y/Z/U/R 的对应表（与控制器轴号约定一致） */
-export const axisNameByNo: MotionAxis[] = ['X', 'Y', 'Z', 'U', 'R']
-/** 在采样记录与校验中参与展示/判断的轴名列表 */
-export const axisCenterCalibDisplayAxes: MotionAxis[] = ['X', 'Y', 'Z', 'U', 'R']
 /** Z 轴号（与控制器约定一致） */
 const Z_AXIS_NO = 2
 /** 已在目标绝对位置时不再下发 Z 运动的容差（mm） */
 const AXIS_CENTER_CALIB_Z_ABS_EPS_MM = 1e-3
 
-/**
- * 五轴中心校准：按旋转轴多角度停点，人工打点/对图后记录 XYZRU，最后汇总中心相关量并写入辅助功能面板 store。
- */
-export function useAxisCenterCalib() {
-  /** 全局错误/成功提示 */
+/** 十工位 UR 旋转中心校准：流程与主页五轴校准相同，读写落到当前工位 1–10。 */
+export function useTenPlusAxisCenterCalib(tenSlotIndex: MaybeRef<number>) {
   const { error, success } = useNotification()
-  /** 硬件上报的各轴机械坐标（mposition） */
   const { mposition } = useHardwareState()
-  /** 控制器参数（轴单位、轴列表等） */
   const controllerStore = useControllerSettingsStore()
-  /** 辅助功能面板持久化（如基于中心的 XY 累计） */
-  const auxiliaryFunctionPanelStore = useAuxiliaryFunctionPanelStore()
+  const tenCenterSum = ref<Product4PCenterRotationPayload | null>(null)
 
-  /** 已保存的 R 轴旋转中心点（后端） */
+  function resolveTenSlot(): number {
+    const n = unref(tenSlotIndex)
+    if (!Number.isInteger(n) || n < 1 || n > 10) {
+      throw new Error(`工位号必须为 1–10，收到 ${String(n)}`)
+    }
+    return n
+  }
+
   const savedRAxisPosition = ref<RAxisPositionPayload | null>(null)
-  /** 正在保存 R 轴旋转中心点 */
   const isSavingRAxisPosition = ref(false)
 
-  /** 从后端加载上一次保存的中心校准偏移量。组件 onMounted 时调用。 */
-  const loadAxisCenterCalibOffset = () => {
-    auxiliaryFunctionPanelStore.loadAxisCenterCalibCenterBasedXYSum()
+  const loadAxisCenterCalibOffset = async (): Promise<void> => {
+    const slot = resolveTenSlot()
+    const res = await getTenUAxisCenter(slot)
+    if (!res.success || !res.data) {
+      error(res.message || `读取工位 ${slot} U 轴旋转中心失败`)
+      return
+    }
+    tenCenterSum.value = {
+      X: Number(res.data.X),
+      Y: Number(res.data.Y),
+      Z: Number(res.data.Z),
+    }
   }
 
   /** 是否正在执行自动校准流程（防重复点击） */
@@ -199,8 +201,8 @@ export function useAxisCenterCalib() {
       .map((sample) => sample.observedOffsetY)
       .filter((value): value is number => typeof value === 'number' && Number.isFinite(value))
 
-    const average = (values: number[]) => values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null
-    const span = (values: number[]) => values.length ? Math.max(...values) - Math.min(...values) : null
+    const average = (values: number[]): number | null => values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null
+    const span = (values: number[]): number | null => values.length ? Math.max(...values) - Math.min(...values) : null
 
     return { avgX: average(xs), avgY: average(ys), spanX: span(xs), spanY: span(ys) }
   })
@@ -229,11 +231,12 @@ export function useAxisCenterCalib() {
     return Number.isFinite(mpos) ? mpos : null
   }
 
-  /** 从后端加载已保存的 R 轴旋转中心点。 */
+  /** 从后端加载当前工位已保存的 R 轴旋转中心点。 */
   async function loadRAxisPosition(): Promise<void> {
-    const res = await getRAxisPosition()
+    const slot = resolveTenSlot()
+    const res = await getTenRAxisPosition(slot)
     if (!res.success || !res.data) {
-      error(res.message || '读取 R 轴旋转中心点失败')
+      error(res.message || `读取工位 ${slot} R 轴旋转中心失败`)
       return
     }
     savedRAxisPosition.value = {
@@ -262,9 +265,10 @@ export function useAxisCenterCalib() {
         Y: Number(Y.toFixed(3)),
         Z: Number(Z.toFixed(3)),
       }
-      const res = await syncRAxisPosition(payload)
+      const slot = resolveTenSlot()
+      const res = await syncTenRAxisPosition(slot, payload)
       if (!res.success || !res.data) {
-        error(res.message || '保存 R 轴旋转中心点失败')
+        error(res.message || `保存工位 ${slot} R 轴旋转中心失败`)
         return
       }
       savedRAxisPosition.value = {
@@ -272,7 +276,7 @@ export function useAxisCenterCalib() {
         Y: Number(res.data.Y),
         Z: Number(res.data.Z),
       }
-      success('已保存当前 XYZ 为 R 轴旋转中心点')
+      success(`已保存工位 ${slot} 的 R 轴旋转中心`)
     } finally {
       isSavingRAxisPosition.value = false
     }
@@ -401,14 +405,16 @@ export function useAxisCenterCalib() {
   async function pulseCalibrationLaser(durationMs: number): Promise<void> {
     const onResult = await setMotionIoOutput(2, true)
     if (!onResult?.success) throw new Error(onResult?.message || '激光输出打开失败')
+    let offError: string | null = null
     try {
       await sleep(durationMs)
     } finally {
       const offResult = await setMotionIoOutput(2, false)
       if (!offResult?.success) {
-        throw new Error(offResult?.message || '激光输出关闭失败')
+        offError = offResult?.message || '激光输出关闭失败'
       }
     }
+    if (offError) throw new Error(offError)
   }
 
   /**
@@ -487,13 +493,13 @@ export function useAxisCenterCalib() {
     return (mpos * units / pulsesPerRev) * 360
   }
 
-  /** 与 store 同步的「基于中心」的 X/Y 累计结果（供面板只读展示） */
-  const axisCenterCalibCenterBasedXYSum = auxiliaryFunctionPanelStore.axisCenterCalibCenterBasedXYSum
+  /** 当前工位已保存的 U 轴旋转中心（供面板只读展示） */
+  const axisCenterCalibCenterBasedXYSum = tenCenterSum
 
   /**
    * 一键执行完整采样流程：校验参数 → 逐点运动 → 可选激光 → 等待手动记录 → 算中心量并写入 store。
    */
-  const handleAxisCenterCalib = async () => {
+  const handleAxisCenterCalib = async (): Promise<void> => {
     if (isAxisCenterCalib.value) {
       error('正在五轴中心校准中')
       return
@@ -619,11 +625,24 @@ export function useAxisCenterCalib() {
         Y: Number(axisCenterCalibY.toFixed(3)),
         Z: Number(axisCenterCalibZ.toFixed(3)),
       }
-      await auxiliaryFunctionPanelStore.saveAxisCenterCalibCenterBasedXYSum(centerRotationResult)
+      const slot = resolveTenSlot()
+      const saveRes = await syncTenUAxisCenter(slot, {
+        X: centerRotationResult.X,
+        Y: centerRotationResult.Y,
+        Z: centerRotationResult.Z,
+      })
+      if (!saveRes.success || !saveRes.data) {
+        throw new Error(saveRes.message || `保存工位 ${slot} U 轴旋转中心失败`)
+      }
+      tenCenterSum.value = {
+        X: Number(saveRes.data.X),
+        Y: Number(saveRes.data.Y),
+        Z: Number(saveRes.data.Z),
+      }
 
       axisCenterCalibPhase.value = 'finished'
-      logAxisCenterCalib('采样完成，请根据相机或打点结果录入人工偏差')
-      success('五轴中心校准采样完成', '已生成采样记录，可继续录入偏差并查看统计结果')
+      logAxisCenterCalib(`工位 ${slot} 采样完成，U 轴旋转中心已写入`)
+      success(`工位 ${slot} UR 校准完成`, '已生成采样记录，可继续录入偏差并查看统计结果')
     } catch (err) {
       const message = err instanceof Error ? err.message : '五轴中心校准失败'
       axisCenterCalibPhase.value = 'failed'

@@ -34,6 +34,8 @@ export interface TaskRow {
   k: number
   /** 线性系数 B */
   b: number
+  /** 变量 X */
+  x: number
 }
 
 /** 任务参数表序列化格式 */

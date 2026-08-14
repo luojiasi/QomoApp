@@ -1705,7 +1705,7 @@ class ZMC适配器:
         *,
         merge_enable: bool = True,
         auto_corner_decel: bool = True,
-        auto_small_circle_limit: bool = True,
+        auto_small_circle_limit: bool = False,
         auto_corner_angle: bool = False,
         first_corner_angle_deg: float = 15.0,
         end_corner_angle_deg: float = 45.0,
@@ -1722,7 +1722,11 @@ class ZMC适配器:
           - 整条路径只在循环开始前设一次 FORCE_SPEED(= default_speed),不在
             循环中切速。避免破坏 ZMC look-ahead 的速度规划,保证段间速度连续。
           - 路径点字段中的 speed 会被**静默忽略**(向前兼容旧调用方,但不再生效)。
-          - MERGE 对所有参与轴开启,CORNER_MODE 默认 2+8(自动减速 + 小圆限速)。
+          - MERGE 对所有参与轴开启,保证**同一条路径内部**段间速度连续。
+          - CORNER_MODE 默认仅自动减速(bit2)；小圆限速(bit8)默认关闭，
+            避免半径小于 FullSpRadius 的整圆被按比例降到指令速度的几分之一。
+          - 未显式指定时起/终点速度为 0：单次调用是一条完整路径，结束后轴必须能进 IDLE。
+            跨两次 连续插补 的衔接不应靠 EndMoveSpeed=巡航速度，那会让 IDLE 永远不到。
           - 大于 STOP_ANGLE 的拐角会按 ZMC 内置规划自动减速;小于 DECEL_ANGLE
             的拐角不减速;之间按角度比例平滑过渡。
 
@@ -1843,15 +1847,19 @@ class ZMC适配器:
             self._校验("ZAux_Direct_SetZsmooth",
                        self._dll.ZAux_Direct_SetZsmooth(
                            主轴, float(kw["corner_radius"])), 备注=f"axis={主轴}")
-            # (4) 起点/终点速度
-            起点速度 = (
-                float(默认速度 if merge_on else 0.0)
-                if kw["start_move_speed"] is None else float(kw["start_move_speed"])
-            )
-            终点速度 = (
-                float(默认速度 if merge_on else 0.0)
-                if kw["end_move_speed"] is None else float(kw["end_move_speed"])
-            )
+            # # (4) 起点/终点速度
+            # 起点速度 = (
+            #     float(默认速度 if merge_on else 0.0)
+            #     if kw["start_move_speed"] is None else float(kw["start_move_speed"])
+            # )
+            # 终点速度 = (
+            #     float(默认速度 if merge_on else 0.0)
+            #     if kw["end_move_speed"] is None else float(kw["end_move_speed"])
+            # )
+            # (4) 起点/终点速度：单次插补结束后必须能停稳进 IDLE。
+            # MERGE 只负责本路径 361 个点之间的段间连续，不把终点速度留在巡航值。
+            起点速度 = 0.0 if kw["start_move_speed"] is None else float(kw["start_move_speed"])
+            终点速度 = 0.0 if kw["end_move_speed"] is None else float(kw["end_move_speed"])
             self._校验("ZAux_Direct_SetStartMoveSpeed",
                        self._dll.ZAux_Direct_SetStartMoveSpeed(主轴, 起点速度), 备注=f"axis={主轴}")
             self._校验("ZAux_Direct_SetEndMoveSpeed",
@@ -1986,7 +1994,7 @@ class ZMC适配器:
         *,
         merge_enable: bool = True,
         auto_corner_decel: bool = True,
-        auto_small_circle_limit: bool = True,
+        auto_small_circle_limit: bool = False,
         auto_corner_angle: bool = False,
         decel_angle_deg: float = 15.0,
         stop_angle_deg: float = 45.0,
@@ -1998,7 +2006,8 @@ class ZMC适配器:
           - 整条路径使用同一速度: 优先用入参 速度,其次用路径点首段 speed,
             最次回退到 X 轴 motion_config.speed
           - 路径点的 speed 字段被静默忽略(向前兼容,不再生效)
-          - MERGE + CORNER_MODE(2+8) 默认开启,实现段间真正连续衔接
+          - MERGE 默认开启，保证**同一条路径内部**段间速度连续
+          - 小圆限速默认关闭：整圆半径常小于 FullSpRadius(5)，开启会把实际速度压到指令的几分之一
           - 不再预先 SetSpeed —— 速度通过底层 SetForceSpeed 统一控制,
             避免临时改 motion_config 速度后再恢复的竞态
         """

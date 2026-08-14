@@ -29,6 +29,7 @@ import {
   toTenPlusTargetSummary
 } from '../utils/tenPlusPayload'
 import type { TenPlusCuttingConfig, TenPlusFreeParamPayload, TenPlusSlot, TenPlusTarget } from '../types/tenPlusCutting'
+import TenPlusCuttingPage_UrCalibDialog from '../components/TenPlusCuttingPage_UrCalibDialog.vue'
 
 type WorkMode = 'freeParam' | 'drawImage'
 
@@ -75,6 +76,8 @@ const slotBusy = ref(false)
 const moveOnSlotClick = ref(true)
 const showTeachDialog = ref(false)
 const teachDialogSlot = ref<number | null>(null)
+const showUrCalibDialog = ref(false)
+const urCalibSlot = ref<number | null>(null)
 
 const activeMainRecipes = computed(() =>
   recipeStore.recipeState.mainRecipes.filter((r) => r.status === 'active')
@@ -432,6 +435,21 @@ function closeTeachDialog(): void {
   teachDialogSlot.value = null
 }
 
+function onOpenUrCalib(): void {
+  if (selectedSlotIndex.value === null) {
+    warning('请先选择工位')
+    setStatus('请先选择工位')
+    return
+  }
+  urCalibSlot.value = selectedSlotIndex.value
+  showUrCalibDialog.value = true
+}
+
+function closeUrCalibDialog(): void {
+  showUrCalibDialog.value = false
+  urCalibSlot.value = null
+}
+
 async function confirmTeachSlot(): Promise<void> {
   const index = teachDialogSlot.value
   if (index === null || !activeTarget.value) {
@@ -522,6 +540,15 @@ onMounted(async () => {
           </div>
         </div>
       </div>
+    </Teleport>
+
+    <!-- UR 补偿校准 -->
+    <Teleport to="body">
+      <TenPlusCuttingPage_UrCalibDialog
+        v-if="showUrCalibDialog && urCalibSlot !== null"
+        :slot-index="urCalibSlot"
+        @close="closeUrCalibDialog"
+      />
     </Teleport>
 
     <!-- 开始任务：多选目标 -->
@@ -685,6 +712,9 @@ onMounted(async () => {
                 <th class="col-num">Y补偿</th>
                 <th class="col-num">Z补偿</th>
                 <th class="col-num">弦长倍率</th>
+                <th class="col-num">K</th>
+                <th class="col-num">B</th>
+                <th class="col-num">X</th>
                 <th class="col-recipe">配方</th>
                 <th class="col-act" />
               </tr>
@@ -751,6 +781,33 @@ onMounted(async () => {
                 </td>
                 <td class="col-num">
                   <input v-model.number="row.chordRatio" type="number" class="tpc-input" step="0.1" />
+                </td>
+                <td class="col-num">
+                  <input
+                    v-model.number="row.k"
+                    type="number"
+                    class="tpc-input"
+                    step="0.001"
+                    title="线性系数 K"
+                  />
+                </td>
+                <td class="col-num">
+                  <input
+                    v-model.number="row.b"
+                    type="number"
+                    class="tpc-input"
+                    step="0.001"
+                    title="线性系数 B"
+                  />
+                </td>
+                <td class="col-num">
+                  <input
+                    v-model.number="row.x"
+                    type="number"
+                    class="tpc-input"
+                    step="0.001"
+                    title="变量 X"
+                  />
                 </td>
                 <td class="col-recipe">
                   <select
@@ -860,6 +917,25 @@ onMounted(async () => {
                   <span class="tpc-slot-name">{{ boundTargetName(n) || '—' }}</span>
                 </button>
               </div>
+              <button
+                type="button"
+                class="tpc-ur-entry"
+                :class="{ ready: selectedSlotIndex !== null }"
+                @click="onOpenUrCalib"
+              >
+                <span class="tpc-ur-axes" aria-hidden="true">
+                  <span class="tpc-ur-axis u">U</span>
+                  <span class="tpc-ur-axis r">R</span>
+                </span>
+                <span class="tpc-ur-copy">
+                  <span class="tpc-ur-title">UR 补偿校准</span>
+                  <span class="tpc-ur-meta">
+                    <template v-if="selectedSlotIndex">工位 #{{ selectedSlotIndex }} · 相机对中</template>
+                    <template v-else>请先点选上方工位</template>
+                  </span>
+                </span>
+                <span class="tpc-ur-go">打开</span>
+              </button>
             </div>
           </div>
         </div>
@@ -1253,6 +1329,109 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 6px;
+}
+.tpc-ur-entry {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 56px;
+  padding: 8px 8px 8px 8px;
+  border: 1px solid #3f3f46;
+  border-radius: 10px;
+  background:
+    linear-gradient(180deg, rgba(24, 24, 27, 0.95), rgba(9, 9, 11, 0.95));
+  color: #e4e4e7;
+  cursor: pointer;
+  text-align: left;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s, transform 0.12s;
+}
+.tpc-ur-entry:hover {
+  border-color: rgba(56, 189, 248, 0.45);
+  background: linear-gradient(180deg, #1c2430, #111827);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(56, 189, 248, 0.12);
+  transform: translateY(-1px);
+}
+.tpc-ur-entry:active {
+  transform: translateY(0);
+}
+.tpc-ur-entry.ready {
+  border-color: rgba(56, 189, 248, 0.55);
+  background:
+    radial-gradient(120% 140% at 0% 0%, rgba(56, 189, 248, 0.14), transparent 55%),
+    linear-gradient(180deg, #152033, #0c1220);
+}
+.tpc-ur-entry.ready:hover {
+  border-color: rgba(125, 211, 252, 0.7);
+}
+.tpc-ur-axes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px;
+  flex-shrink: 0;
+  width: 40px;
+}
+.tpc-ur-axis {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 18px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+.tpc-ur-axis.u {
+  color: #7dd3fc;
+  background: rgba(14, 165, 233, 0.16);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+}
+.tpc-ur-axis.r {
+  color: #fcd34d;
+  background: rgba(245, 158, 11, 0.14);
+  border: 1px solid rgba(251, 191, 36, 0.38);
+}
+.tpc-ur-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.tpc-ur-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #f4f4f5;
+  line-height: 1.2;
+}
+.tpc-ur-meta {
+  font-size: 11px;
+  color: #71717a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+}
+.tpc-ur-entry.ready .tpc-ur-meta {
+  color: #7dd3fc;
+}
+.tpc-ur-go {
+  flex-shrink: 0;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #93c5fd;
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.28);
+}
+.tpc-ur-entry.ready .tpc-ur-go {
+  color: #0f172a;
+  background: #38bdf8;
+  border-color: #38bdf8;
 }
 .tpc-slot-cell {
   display: flex;

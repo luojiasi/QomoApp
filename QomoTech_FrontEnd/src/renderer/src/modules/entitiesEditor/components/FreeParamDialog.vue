@@ -171,6 +171,7 @@ async function onSendToBackend(): Promise<void> {
       chordRatio: row.chordRatio,
       k: row.k,
       b: row.b,
+      x: row.x,
       rInterval: rRotationInterval.value,
       rCompensation: rCompensationValue.value,
     })),
@@ -360,6 +361,7 @@ function isRecipeInvalid(recipe: string): boolean {
                   <th class="col-num">弦长倍率</th>
                   <th class="col-num">K</th>
                   <th class="col-num">B</th>
+                  <th class="col-num">X</th>
                   <th class="col-recipe">配方</th>
                   <th class="col-act"></th>
                 </tr>
@@ -469,6 +471,15 @@ function isRecipeInvalid(recipe: string): boolean {
                       class="fp-input numeric"
                       step="0.001"
                       title="线性系数 B"
+                    />
+                  </td>
+                  <td class="col-num">
+                    <input
+                      v-model.number="row.x"
+                      type="number"
+                      class="fp-input numeric"
+                      step="0.001"
+                      title="变量 X"
                     />
                   </td>
                   <td class="col-recipe">

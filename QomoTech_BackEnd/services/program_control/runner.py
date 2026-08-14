@@ -255,7 +255,9 @@ class ProgramRunner(ProgramContext):
 
                     if 结果 == "skip":continue
                     if 结果 == "abort":return {"success": False, "message": "程序已急停", "data": None}
-                    if 结果 is False:return {"success": False, "message": "运动失败", "data": None}
+                    if 结果 is False:
+                        await self._运动原语.清除运行输出()
+                        return {"success": False, "message": "运动失败", "data": None}
 
                 if self._是否急停请求:
                     await self._运动原语.清除运行输出()
@@ -469,9 +471,17 @@ class ProgramRunner(ProgramContext):
                     目标运行速度 = 切割速度 * 当前速度百分比
 
                     try:
-                        await self._运动.连续插补XY(路径点=原始点数据_插补数据, 速度=目标运行速度)
+                        插补成功 = await self._运动.连续插补XY(
+                            路径点=原始点数据_插补数据,
+                            速度=目标运行速度,
+                            auto_small_circle_limit=False,
+                        )
+                        if not 插补成功:
+                            日志.error("XY轴连续插补失败或等待静止超时")
+                            return False
                         当前步骤 = ProgramStep.切割次数
                     except Exception:
+                        日志.exception("XY轴连续插补异常")
                         当前步骤 = ProgramStep.清理所有状态
 
                 case ProgramStep.切割次数:
@@ -495,6 +505,10 @@ class ProgramRunner(ProgramContext):
                     if 结果.get("success"):
                         当前步骤 = ProgramStep.更新开口偏移值 if not 是否需要跳转计算下一层开口 else ProgramStep.计算下一层开口
                     else:
+                        日志.error(
+                            "等待XY轴静止超时或失败: %s",
+                            结果.get("message", "未知原因"),
+                        )
                         return False
 
                 case ProgramStep.更新开口偏移值:
@@ -1063,9 +1077,17 @@ class ProgramRunner(ProgramContext):
                     原始点数据_插补数据 = list(当前运行点位)
                     目标速度 = 切割速度 * 边缘切割速度百分比 if 是否在边缘位置 else 切割速度 * 中间切割速度百分比
                     try:
-                        await self._运动.连续插补XY(路径点=原始点数据_插补数据, 速度=目标速度)
+                        插补成功 = await self._运动.连续插补XY(
+                            路径点=原始点数据_插补数据,
+                            速度=目标速度,
+                            auto_small_circle_limit=False,
+                        )
+                        if not 插补成功:
+                            日志.error("XY轴连续插补失败或等待静止超时")
+                            return False
                         当前步骤 = ProgramStep.切割次数
                     except Exception:
+                        日志.exception("XY轴连续插补异常")
                         当前步骤 = ProgramStep.清理所有状态
 
                 case ProgramStep.切割次数:

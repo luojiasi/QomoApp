@@ -7,7 +7,7 @@
 """
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Path
 
 from utils.logger import 获取日志记录器
 from services.SystemSettingService import (
@@ -18,6 +18,10 @@ from services.SystemSettingService import (
     获取R轴旋转中心点,
     获取快速移动点,
     保存快速移动点,
+    获取一拖五U轴旋转中心的补偿值,
+    保存一拖五U轴旋转中心的补偿值,
+    获取一拖五R轴旋转中心点的位置,
+    保存一拖五R轴旋转中心点的位置,
 )
 
 from routers.apiresponse import ApiResponse
@@ -69,3 +73,61 @@ def 保存快速移动点位置(payload: 中心旋转补偿请求模型) -> ApiR
     saved = 保存快速移动点(中心旋转补偿请求模型(X=payload.X,Y=payload.Y,Z=payload.Z,))
     日志.info("保存快速移动点位置: X=%.3f Y=%.3f Z=%.3f", payload.X, payload.Y, payload.Z)
     return ApiResponse(success=True, message="保存快速移动点位置成功", data=saved.model_dump())
+
+
+@路由.get("/ten/center-rotation/{slot}", response_model=ApiResponse)
+def 获取十工位U轴旋转中心(slot: int = Path(..., ge=1, le=10)) -> ApiResponse:
+    try:
+        data = 获取一拖五U轴旋转中心的补偿值(slot).model_dump()
+    except ValueError as exc:
+        return ApiResponse(success=False, message=str(exc), data=None)
+    日志.info("读取十工位 U 轴旋转中心: slot=%s %s", slot, data)
+    return ApiResponse(success=True, message=f"读取工位 {slot} U 轴旋转中心成功", data=data)
+
+
+@路由.post("/ten/center-rotation/{slot}", response_model=ApiResponse)
+def 保存十工位U轴旋转中心(
+    payload: 中心旋转补偿请求模型,
+    slot: int = Path(..., ge=1, le=10),
+) -> ApiResponse:
+    try:
+        saved = 保存一拖五U轴旋转中心的补偿值(
+            slot,
+            中心旋转补偿请求模型(X=payload.X, Y=payload.Y, Z=payload.Z),
+        )
+    except ValueError as exc:
+        return ApiResponse(success=False, message=str(exc), data=None)
+    日志.info(
+        "保存十工位 U 轴旋转中心: slot=%s X=%.3f Y=%.3f Z=%.3f",
+        slot, payload.X, payload.Y, payload.Z,
+    )
+    return ApiResponse(success=True, message=f"保存工位 {slot} U 轴旋转中心成功", data=saved.model_dump())
+
+
+@路由.get("/ten/r-axis-position/{slot}", response_model=ApiResponse)
+def 获取十工位R轴旋转中心(slot: int = Path(..., ge=1, le=10)) -> ApiResponse:
+    try:
+        data = 获取一拖五R轴旋转中心点的位置(slot).model_dump()
+    except ValueError as exc:
+        return ApiResponse(success=False, message=str(exc), data=None)
+    日志.info("读取十工位 R 轴旋转中心: slot=%s %s", slot, data)
+    return ApiResponse(success=True, message=f"读取工位 {slot} R 轴旋转中心成功", data=data)
+
+
+@路由.post("/ten/r-axis-position/{slot}", response_model=ApiResponse)
+def 保存十工位R轴旋转中心(
+    payload: 中心旋转补偿请求模型,
+    slot: int = Path(..., ge=1, le=10),
+) -> ApiResponse:
+    try:
+        saved = 保存一拖五R轴旋转中心点的位置(
+            slot,
+            中心旋转补偿请求模型(X=payload.X, Y=payload.Y, Z=payload.Z),
+        )
+    except ValueError as exc:
+        return ApiResponse(success=False, message=str(exc), data=None)
+    日志.info(
+        "保存十工位 R 轴旋转中心: slot=%s X=%.3f Y=%.3f Z=%.3f",
+        slot, payload.X, payload.Y, payload.Z,
+    )
+    return ApiResponse(success=True, message=f"保存工位 {slot} R 轴旋转中心成功", data=saved.model_dump())

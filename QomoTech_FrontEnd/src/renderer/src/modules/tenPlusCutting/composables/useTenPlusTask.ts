@@ -26,7 +26,10 @@ function createRow(taskNo: number): TenPlusTaskRow {
     compY: 0,
     compZ: 0,
     compAngle: 0,
-    chordRatio: 2
+    chordRatio: 2,
+    k: 0,
+    b: 0,
+    x: 0
   }
 }
 
@@ -62,7 +65,10 @@ function normalizeRow(raw: Partial<TenPlusTaskRow>, fallbackNo: number): TenPlus
     compY: Number(raw.compY ?? 0),
     compZ: Number(raw.compZ ?? 0),
     compAngle: Number(raw.compAngle ?? 0),
-    chordRatio: Number(raw.chordRatio ?? 2)
+    chordRatio: Number(raw.chordRatio ?? 2),
+    k: Number(raw.k ?? 0),
+    b: Number(raw.b ?? 0),
+    x: Number(raw.x ?? 0)
   }
 }
 

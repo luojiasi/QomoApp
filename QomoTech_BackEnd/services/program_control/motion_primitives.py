@@ -113,6 +113,7 @@ class MotionPrimitives:
             except Exception:
                 日志.exception("安全拉取xy轴是否空闲 失败")
             await asyncio.sleep(休眠秒)
+        日志.error("等待 XY 轴静止超时（次数=%s 间隔=%ss）", 超时次数, 休眠秒)
         return {"success": False, "message": "等待 XY 轴静止超时"}
 
     # ------------------------------------------------------------------
