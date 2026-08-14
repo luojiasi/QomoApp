@@ -39,38 +39,20 @@ export const getRAxisPosition = async (): Promise<ApiCallResult<RAxisPositionPay
   apiCall<RAxisPositionPayload>('system-setting/r_axis_position', 'GET')
 
 /** 读取十工位指定工位的 U 轴旋转中心。 */
-export const getTenUAxisCenter = async (
-  slot: number
-): Promise<ApiCallResult<Product4PCenterRotationPayload>> =>
+export const getTenUAxisCenter = async (slot: number): Promise<ApiCallResult<Product4PCenterRotationPayload>> =>
   apiCall<Product4PCenterRotationPayload>(`system-setting/ten/center-rotation/${slot}`, 'GET')
 
 /** 保存十工位指定工位的 U 轴旋转中心。 */
-export const syncTenUAxisCenter = async (
-  slot: number,
-  payload: Product4PCenterRotationPayload
-): Promise<ApiCallResult<Product4PCenterRotationPayload>> =>
-  apiCall<Product4PCenterRotationPayload>(
-    `system-setting/ten/center-rotation/${slot}`,
-    'POST',
-    payload as unknown as Record<string, unknown>
-  )
+export const syncTenUAxisCenter = async (slot: number,payload: Product4PCenterRotationPayload): Promise<ApiCallResult<Product4PCenterRotationPayload>> =>
+  apiCall<Product4PCenterRotationPayload>(`system-setting/ten/center-rotation/${slot}`,'POST',payload as unknown as Record<string, unknown>)
 
 /** 读取十工位指定工位的 R 轴旋转中心。 */
-export const getTenRAxisPosition = async (
-  slot: number
-): Promise<ApiCallResult<RAxisPositionPayload>> =>
+export const getTenRAxisPosition = async (slot: number): Promise<ApiCallResult<RAxisPositionPayload>> =>
   apiCall<RAxisPositionPayload>(`system-setting/ten/r-axis-position/${slot}`, 'GET')
 
 /** 保存十工位指定工位的 R 轴旋转中心。 */
-export const syncTenRAxisPosition = async (
-  slot: number,
-  payload: RAxisPositionPayload
-): Promise<ApiCallResult<RAxisPositionPayload>> =>
-  apiCall<RAxisPositionPayload>(
-    `system-setting/ten/r-axis-position/${slot}`,
-    'POST',
-    payload as unknown as Record<string, unknown>
-  )
+export const syncTenRAxisPosition = async (slot: number,payload: RAxisPositionPayload): Promise<ApiCallResult<RAxisPositionPayload>> =>
+  apiCall<RAxisPositionPayload>(`system-setting/ten/r-axis-position/${slot}`,'POST',payload as unknown as Record<string, unknown>)
 
 /** 获取程序运行状态。 */
 export const getStartProgramStatus = async (): Promise<ApiCallResult<{ running?: boolean; paused?: boolean } & Record<string, unknown>>> => 
@@ -85,7 +67,5 @@ export const sendFreeParams = async (payload: Record<string, unknown>): Promise<
   apiCall('startProgram/entitiesEditFreeparam', 'POST', payload)
 
 /** 将十工位自由编辑参数下发到后端。 */
-export const sendTenPlusFreeParams = async (
-  payload: Record<string, unknown>
-): Promise<ApiCallResult<{ task_count?: number } & Record<string, unknown>>> =>
+export const sendTenPlusFreeParams = async (payload: Record<string, unknown>): Promise<ApiCallResult<{ task_count?: number } & Record<string, unknown>>> =>
   apiCall('startProgram/tenPlusEntitiesEditParams', 'POST', payload)
