@@ -422,7 +422,7 @@ def 构建执行任务的参数(数据: dict[str, Any],当前平面Z的位置, �
 
 
     if not 是否反向:
-        真正的实际半径 = 半径 + 累计高度 / math.tan(math.radians(角度))
+        真正的实际半径 = 圆心到等分直线的垂直距离 + 累计高度 / math.tan(math.radians(角度))
         初始位置直角三角形斜边 = math.hypot(真正的实际半径, 当前平面与旋转中心的Z的距离)
         在初始位置需要的角度 = math.degrees(math.atan2(真正的实际半径, 当前平面与旋转中心的Z的距离))
         日志.info(
@@ -444,7 +444,7 @@ def 构建执行任务的参数(数据: dict[str, Any],当前平面Z的位置, �
         }
     else:
         # 当切负角度的时候出现上面的高度那我就需要有高度的延长来计算，导致我的半径会变大
-        真正的实际半径 = 半径 + 累计高度 / math.tan(math.radians(abs(角度)))
+        真正的实际半径 = 圆心到等分直线的垂直距离 + 累计高度 / math.tan(math.radians(abs(角度)))
         初始位置直角三角形斜边 = math.hypot(真正的实际半径, 当前平面与旋转中心的Z的距离)
         在初始位置需要的角度 = math.degrees(math.atan2(真正的实际半径, 当前平面与旋转中心的Z的距离))
         日志.info(
