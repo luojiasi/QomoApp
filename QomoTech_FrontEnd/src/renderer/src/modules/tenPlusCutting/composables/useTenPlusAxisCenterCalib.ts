@@ -65,6 +65,49 @@ export function useTenPlusAxisCenterCalib(tenSlotIndex: MaybeRef<number>) {
     }
   }
 
+  const axisCenterCalibEditX = ref(0)
+  const axisCenterCalibEditY = ref(0)
+  const axisCenterCalibEditZ = ref(0)
+  const isApplyingAxisCenterCalibCenter = ref(false)
+
+  watch(tenCenterSum, (saved) => {
+    if (!saved) return
+    axisCenterCalibEditX.value = Number(saved.X)
+    axisCenterCalibEditY.value = Number(saved.Y)
+    axisCenterCalibEditZ.value = Number(saved.Z)
+  }, { immediate: true, deep: true })
+
+  async function applyAxisCenterCalibCenter(): Promise<void> {
+    if (isAxisCenterCalib.value || isApplyingAxisCenterCalibCenter.value) return
+    const X = Number(axisCenterCalibEditX.value)
+    const Y = Number(axisCenterCalibEditY.value)
+    const Z = Number(axisCenterCalibEditZ.value)
+    if (![X, Y, Z].every(Number.isFinite)) {
+      error('X/Y/Z 必须是有效数字')
+      return
+    }
+    isApplyingAxisCenterCalibCenter.value = true
+    try {
+      const slot = resolveTenSlot()
+      const saveRes = await syncTenUAxisCenter(slot, { X, Y, Z })
+      if (!saveRes.success || !saveRes.data) {
+        throw new Error(saveRes.message || `保存工位 ${slot} U 轴旋转中心失败`)
+      }
+      tenCenterSum.value = {
+        X: Number(saveRes.data.X),
+        Y: Number(saveRes.data.Y),
+        Z: Number(saveRes.data.Z),
+      }
+      logAxisCenterCalib(`已手动覆盖工位 ${slot} U 轴旋转中心 X=${X.toFixed(3)} Y=${Y.toFixed(3)} Z=${Z.toFixed(3)}`)
+      success(`已覆盖工位 ${slot} U 轴旋转中心`, `${X.toFixed(3)}, ${Y.toFixed(3)}, ${Z.toFixed(3)}`)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '覆盖 U 轴旋转中心失败'
+      error('覆盖失败', message)
+    } finally {
+      isApplyingAxisCenterCalibCenter.value = false
+    }
+  }
+
   /** 是否正在执行自动校准流程（防重复点击） */
   const isAxisCenterCalib = ref(false)
   /** 当前流程阶段 */
@@ -103,6 +146,10 @@ export function useTenPlusAxisCenterCalib(tenSlotIndex: MaybeRef<number>) {
   const axisCenterCalibPendingRecordSampleId = ref<number | null>(null)
   /** 与「记录位置」配套的 Promise resolve，记录完成后调用以继续流程 */
   let axisCenterCalibRecordResolver: ((snapshot: Partial<Record<MotionAxis, number>>) => void) | null = null
+  let axisCenterCalibRecordReject: ((reason: Error) => void) | null = null
+  /** 关闭窗口时置位，循环在下一次 await 后退出 */
+  let axisCenterCalibAborted = false
+  const AXIS_CENTER_CALIB_ABORTED = '用户关闭校准窗口'
 
   /**
    * 将用户输入的采样点数规范为奇数且不少于 3（中心点算法需要）。
@@ -190,21 +237,6 @@ export function useTenPlusAxisCenterCalib(tenSlotIndex: MaybeRef<number>) {
     const pulsesPerRev = axisNo === 3 ? 10000 : 6400
     const angle = (mpos * units / pulsesPerRev) * 360
     return `${angle.toFixed(3)}°`
-  })
-
-  /** 已录入的观测偏差 X/Y 的均值与极差，供面板汇总展示 */
-  const axisCenterCalibManualSummary = computed(() => {
-    const xs = axisCenterCalibSamples.value
-      .map((sample) => sample.observedOffsetX)
-      .filter((value): value is number => typeof value === 'number' && Number.isFinite(value))
-    const ys = axisCenterCalibSamples.value
-      .map((sample) => sample.observedOffsetY)
-      .filter((value): value is number => typeof value === 'number' && Number.isFinite(value))
-
-    const average = (values: number[]): number | null => values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null
-    const span = (values: number[]): number | null => values.length ? Math.max(...values) - Math.min(...values) : null
-
-    return { avgX: average(xs), avgY: average(ys), spanX: span(xs), spanY: span(ys) }
   })
 
   /** 步骤条上第 index 步的完成/当前/未开始状态 */
@@ -313,8 +345,9 @@ export function useTenPlusAxisCenterCalib(tenSlotIndex: MaybeRef<number>) {
    */
   function waitForAxisCenterCalibManualRecord(sampleId: number): Promise<Partial<Record<MotionAxis, number>>> {
     axisCenterCalibPendingRecordSampleId.value = sampleId
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       axisCenterCalibRecordResolver = resolve
+      axisCenterCalibRecordReject = reject
     })
   }
 
@@ -322,6 +355,20 @@ export function useTenPlusAxisCenterCalib(tenSlotIndex: MaybeRef<number>) {
   function clearAxisCenterCalibManualRecordWait(): void {
     axisCenterCalibPendingRecordSampleId.value = null
     axisCenterCalibRecordResolver = null
+    axisCenterCalibRecordReject = null
+  }
+
+  function throwIfAxisCenterCalibAborted(): void {
+    if (axisCenterCalibAborted) throw new Error(AXIS_CENTER_CALIB_ABORTED)
+  }
+
+  /** 关闭窗口时中止采样：解开「等人记录」并让循环在下一步退出 */
+  function abortAxisCenterCalib(): void {
+    if (!isAxisCenterCalib.value) return
+    axisCenterCalibAborted = true
+    const reject = axisCenterCalibRecordReject
+    clearAxisCenterCalibManualRecordWait()
+    reject?.(new Error(AXIS_CENTER_CALIB_ABORTED))
   }
 
   /**
@@ -379,8 +426,6 @@ export function useTenPlusAxisCenterCalib(tenSlotIndex: MaybeRef<number>) {
       angle: Number((axisCenterCalibStartAngle.value + index * axisCenterCalibAngleStep.value).toFixed(3)),
       state: 'pending' as AxisCenterCalibSampleState,
       machinePositions: {},
-      observedOffsetX: null,
-      observedOffsetY: null,
     }))
   }
 
@@ -474,25 +519,6 @@ export function useTenPlusAxisCenterCalib(tenSlotIndex: MaybeRef<number>) {
     }
   }
 
-  /** 读取校准旋转轴当前角度（度）；读不到时回退 0。 */
-  function readCurrentCalibrationAngleDegrees(axisNo: number): number {
-    const name = axisNameByNo[axisNo]
-    const axis = controllerStore.controllerSettings.axes.find((item) => item.axis_no === axisNo)
-    const mpos = Number(mposition.value[name] ?? NaN)
-    const units = Number(axis?.units)
-    if (!Number.isFinite(mpos) || !Number.isFinite(units) || units <= 0) return 0
-
-    const pulsesPerRev =
-      Number(axis?.pulses_per_rev) > 0
-        ? Number(axis?.pulses_per_rev) *
-          (Number(axis?.electronic_gear_ratio) > 0 ? Number(axis?.electronic_gear_ratio) : 1) *
-          (Number(axis?.gear_ratio) > 0 ? Number(axis?.gear_ratio) : 1)
-        : axisNo === 3
-          ? 10000
-          : 6400
-    return (mpos * units / pulsesPerRev) * 360
-  }
-
   /** 当前工位已保存的 U 轴旋转中心（供面板只读展示） */
   const axisCenterCalibCenterBasedXYSum = tenCenterSum
 
@@ -532,6 +558,7 @@ export function useTenPlusAxisCenterCalib(tenSlotIndex: MaybeRef<number>) {
 
     try {
       isAxisCenterCalib.value = true
+      axisCenterCalibAborted = false
       axisCenterCalibPhase.value = 'prepare'
       logAxisCenterCalib(`开始 ${axisCenterCalibRotationAxisLabel.value} 轴中心校准采样`)
 
@@ -539,8 +566,10 @@ export function useTenPlusAxisCenterCalib(tenSlotIndex: MaybeRef<number>) {
 
       axisCenterCalibPhase.value = 'sampling'
       const rotationAxisNo = axisCenterCalibRotationAxisNo.value
-      let previousAngle = readCurrentCalibrationAngleDegrees(rotationAxisNo)
+      // 采样角是相对开工位姿的增量，不读当前编码器去凑绝对目标
+      let previousAngle = 0
       for (let index = 0; index < axisCenterCalibSamples.value.length; index++) {
+        throwIfAxisCenterCalibAborted()
         const sample = axisCenterCalibSamples.value[index]
         axisCenterCalibSamples.value[index] = {
           ...sample,
@@ -548,24 +577,26 @@ export function useTenPlusAxisCenterCalib(tenSlotIndex: MaybeRef<number>) {
           machinePositions: {},
         }
 
-        // 第 1 点：先转到采样角；后续点在上一轮「抬 Z 后再旋转」中已到位
+        // 第 1 点：按起始角相对当前位姿旋转（工位已在 90° 也仍转 -90°）
         if (index === 0) {
-          const deltaAngle = sample.angle - previousAngle
-          logAxisCenterCalib(
-            `第 1 点相对旋转 ${deltaAngle.toFixed(3)}° → 目标 ${sample.angle.toFixed(3)}°`
-          )
+          const deltaAngle = sample.angle
+          logAxisCenterCalib(`第 1 点相对当前位姿旋转 ${deltaAngle.toFixed(3)}°`)
           await moveAxisByRelativeAngle(rotationAxisNo, deltaAngle)
+          throwIfAxisCenterCalibAborted()
           previousAngle = sample.angle
           await sleep(axisCenterCalibSettleMs.value)
+          throwIfAxisCenterCalibAborted()
         }
 
         if (axisCenterCalibAutoPulse.value && axisCenterCalibLaserPulseMs.value > 0) {
           logAxisCenterCalib(`第 ${index + 1} 点触发激光 ${axisCenterCalibLaserPulseMs.value} ms`)
           await pulseCalibrationLaser(axisCenterCalibLaserPulseMs.value)
+          throwIfAxisCenterCalibAborted()
         }
 
         logAxisCenterCalib(`第 ${index + 1} 点已到位，等待手动记录 XYZRU 位置`)
         const snapshot = await waitForAxisCenterCalibManualRecord(sample.id)
+        throwIfAxisCenterCalibAborted()
         axisCenterCalibSamples.value[index] = {
           ...axisCenterCalibSamples.value[index],
           state: 'done',
@@ -573,28 +604,30 @@ export function useTenPlusAxisCenterCalib(tenSlotIndex: MaybeRef<number>) {
         }
 
         // 标记并继续：先把 Z 移到绝对安全高度并静止，再旋转到下一点 / 回起始角
-        logAxisCenterCalib(
-          `第 ${index + 1} 点标记完成，先 Z 轴绝对移动到 ${axisCenterCalibZLiftAbsMm.value} mm`
-        )
+        logAxisCenterCalib(`第 ${index + 1} 点标记完成，先 Z 轴绝对移动到 ${axisCenterCalibZLiftAbsMm.value} mm`)
         await liftZAfterMark()
+        throwIfAxisCenterCalibAborted()
         await sleep(axisCenterCalibSettleMs.value)
+        throwIfAxisCenterCalibAborted()
 
         const nextSample = axisCenterCalibSamples.value[index + 1]
         if (nextSample) {
           const deltaToNext = nextSample.angle - previousAngle
-          logAxisCenterCalib(
-            `Z 抬升完成，再相对旋转 ${deltaToNext.toFixed(3)}° → 第 ${index + 2} 点 ${nextSample.angle.toFixed(3)}°`
-          )
+          logAxisCenterCalib(`Z 抬升完成，再相对旋转 ${deltaToNext.toFixed(3)}° → 第 ${index + 2} 点 ${nextSample.angle.toFixed(3)}°`)
           await moveAxisByRelativeAngle(rotationAxisNo, deltaToNext)
+          throwIfAxisCenterCalibAborted()
           previousAngle = nextSample.angle
           await sleep(axisCenterCalibSettleMs.value)
+          throwIfAxisCenterCalibAborted()
         } else if (axisCenterCalibReturnToStart.value) {
           axisCenterCalibPhase.value = 'returning'
           const returnDelta = 0 - previousAngle
           logAxisCenterCalib(`Z 抬升完成，再相对返回起始角 0°（增量 ${returnDelta.toFixed(3)}°）`)
           await moveAxisByRelativeAngle(rotationAxisNo, returnDelta)
+          throwIfAxisCenterCalibAborted()
           previousAngle = 0
           await sleep(axisCenterCalibSettleMs.value)
+          throwIfAxisCenterCalibAborted()
         }
       }
 
@@ -610,15 +643,13 @@ export function useTenPlusAxisCenterCalib(tenSlotIndex: MaybeRef<number>) {
 
       const beforeMiddleXSum = beforeMiddleSamples.reduce((sum, sample) => sum + (sample.machinePositions.X as number), 0)
       const beforeMiddleYSum = beforeMiddleSamples.reduce((sum, sample) => sum + (sample.machinePositions.Y as number), 0)
-      const beforeMiddleZSum = beforeMiddleSamples.reduce((sum, sample) => sum + (sample.machinePositions.Z as number), 0)
 
       const afterMiddleXSum = afterMiddleSamples.reduce((sum, sample) => sum + (sample.machinePositions.X as number), 0)
       const afterMiddleYSum = afterMiddleSamples.reduce((sum, sample) => sum + (sample.machinePositions.Y as number), 0)
-      const afterMiddleZSum = afterMiddleSamples.reduce((sum, sample) => sum + (sample.machinePositions.Z as number), 0)
 
       const axisCenterCalibX = ((beforeMiddleXSum + afterMiddleXSum) / 2)
       const axisCenterCalibY = ((beforeMiddleYSum + afterMiddleYSum) / 2)
-      const axisCenterCalibZ = (beforeMiddleZSum + afterMiddleZSum) / 2
+      const axisCenterCalibZ = samples[samples.length - 1].machinePositions.Z as number
 
       const centerRotationResult:XYZ = {
         X: Number(axisCenterCalibX.toFixed(3)),
@@ -642,9 +673,14 @@ export function useTenPlusAxisCenterCalib(tenSlotIndex: MaybeRef<number>) {
 
       axisCenterCalibPhase.value = 'finished'
       logAxisCenterCalib(`工位 ${slot} 采样完成，U 轴旋转中心已写入`)
-      success(`工位 ${slot} UR 校准完成`, '已生成采样记录，可继续录入偏差并查看统计结果')
+      success(`工位 ${slot} UR 校准完成`, '可在下方查看或修改旋转中心后点应用')
     } catch (err) {
       const message = err instanceof Error ? err.message : '五轴中心校准失败'
+      if (axisCenterCalibAborted || message === AXIS_CENTER_CALIB_ABORTED) {
+        axisCenterCalibPhase.value = 'idle'
+        logAxisCenterCalib('已取消校准')
+        return
+      }
       axisCenterCalibPhase.value = 'failed'
       axisCenterCalibErrorMessage.value = message
       const currentIndex = axisCenterCalibSamples.value.findIndex((sample) => sample.state === 'current')
@@ -686,7 +722,6 @@ export function useTenPlusAxisCenterCalib(tenSlotIndex: MaybeRef<number>) {
     axisCenterCalibStepItems,
     axisCenterCalibLivePositions,
     axisCenterCalibCurrentAngleText,
-    axisCenterCalibManualSummary,
     getAxisCenterCalibStepState,
     getAxisCenterCalibSampleClass,
     getAxisPosition,
@@ -697,8 +732,14 @@ export function useTenPlusAxisCenterCalib(tenSlotIndex: MaybeRef<number>) {
     rebuildAxisCenterCalibSamples,
     logAxisCenterCalib,
     resetAxisCenterCalibWorkflow,
+    abortAxisCenterCalib,
     handleAxisCenterCalib,
     axisCenterCalibCenterBasedXYSum,
+    axisCenterCalibEditX,
+    axisCenterCalibEditY,
+    axisCenterCalibEditZ,
+    isApplyingAxisCenterCalibCenter,
+    applyAxisCenterCalibCenter,
     loadAxisCenterCalibOffset,
     savedRAxisPosition,
     isSavingRAxisPosition,

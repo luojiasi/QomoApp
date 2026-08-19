@@ -1400,7 +1400,7 @@ class ZMC适配器:
             return {"success": False, "message": "旋转参数必须是对象"}
         try:
             旋转角度 = float(旋转参数.get("旋转角度", 0))
-            # 旋转速度 = float(旋转参数.get("旋转速度", 1))
+            旋转速度 = float(旋转参数.get("旋转速度", 1))
             每圈脉冲数 = float(旋转参数.get("每圈脉冲数", self._U轴每圈脉冲数))
             电子齿轮比 = float(旋转参数.get("电子齿轮比", self._U轴电子齿轮比))
             减速比 = float(旋转参数.get("减速比", self._U轴减速比))

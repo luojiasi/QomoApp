@@ -263,7 +263,7 @@ export const waitMotionIdle = (
     poll_interval_s
   } as unknown as Record<string, unknown>)
 
-/** 绝对运动到十工位示教点：依次移动 X/Y/Z/U。 */
+/** 绝对运动到十工位示教点：永远先动 Z，再 X/Y/U，避免水平移动时撞夹具。 */
 export async function moveToTenPlusSlot(slot: {
   x: number
   y: number
@@ -271,9 +271,9 @@ export async function moveToTenPlusSlot(slot: {
   u: number
 }): Promise<{ success: boolean; message?: string }> {
   const axes: Array<{ axis: string; position: number }> = [
+    { axis: 'Z', position: slot.z },
     { axis: 'X', position: slot.x },
     { axis: 'Y', position: slot.y },
-    { axis: 'Z', position: slot.z },
     { axis: 'U', position: slot.u }
   ]
   for (const { axis, position } of axes) {

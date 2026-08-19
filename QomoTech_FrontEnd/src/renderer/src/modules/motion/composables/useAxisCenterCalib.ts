@@ -21,14 +21,12 @@ import { XYZ } from '@/shared/types'
 export type AxisCenterCalibPhase = 'idle' | 'prepare' | 'safety-confirmed' | 'move-to-start' | 'sampling' | 'returning' | 'finished' | 'failed'
 /** 单个采样点在列表中的 UI/业务状态 */
 export type AxisCenterCalibSampleState = 'pending' | 'current' | 'done' | 'failed'
-/** 单次角度采样：目标角、记录到的机床坐标与人工观测偏差 */
+/** 单次角度采样：目标角与记录到的机床坐标 */
 export type AxisCenterCalibSample = {
   id: number
   angle: number
   state: AxisCenterCalibSampleState
   machinePositions: Partial<Record<MotionAxis, number>>
-  observedOffsetX: number | null
-  observedOffsetY: number | null
 }
 
 /** 轴号 0–4 与轴名 X/Y/Z/U/R 的对应表（与控制器轴号约定一致） */
@@ -61,6 +59,44 @@ export function useAxisCenterCalib() {
   /** 从后端加载上一次保存的中心校准偏移量。组件 onMounted 时调用。 */
   const loadAxisCenterCalibOffset = () => {
     auxiliaryFunctionPanelStore.loadAxisCenterCalibCenterBasedXYSum()
+  }
+
+  const axisCenterCalibEditX = ref(0)
+  const axisCenterCalibEditY = ref(0)
+  const axisCenterCalibEditZ = ref(0)
+  const isApplyingAxisCenterCalibCenter = ref(false)
+
+  watch(
+    () => auxiliaryFunctionPanelStore.axisCenterCalibCenterBasedXYSum,
+    (saved) => {
+      if (!saved) return
+      axisCenterCalibEditX.value = Number(saved.X)
+      axisCenterCalibEditY.value = Number(saved.Y)
+      axisCenterCalibEditZ.value = Number(saved.Z)
+    },
+    { immediate: true, deep: true },
+  )
+
+  async function applyAxisCenterCalibCenter(): Promise<void> {
+    if (isAxisCenterCalib.value || isApplyingAxisCenterCalibCenter.value) return
+    const X = Number(axisCenterCalibEditX.value)
+    const Y = Number(axisCenterCalibEditY.value)
+    const Z = Number(axisCenterCalibEditZ.value)
+    if (![X, Y, Z].every(Number.isFinite)) {
+      error('X/Y/Z 必须是有效数字')
+      return
+    }
+    isApplyingAxisCenterCalibCenter.value = true
+    try {
+      await auxiliaryFunctionPanelStore.saveAxisCenterCalibCenterBasedXYSum({ X, Y, Z })
+      logAxisCenterCalib(`已手动覆盖 U 轴旋转中心 X=${X.toFixed(3)} Y=${Y.toFixed(3)} Z=${Z.toFixed(3)}`)
+      success('已覆盖 U 轴旋转中心', `${X.toFixed(3)}, ${Y.toFixed(3)}, ${Z.toFixed(3)}`)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '覆盖 U 轴旋转中心失败'
+      error('覆盖失败', message)
+    } finally {
+      isApplyingAxisCenterCalibCenter.value = false
+    }
   }
 
   /** 是否正在执行自动校准流程（防重复点击） */
@@ -188,21 +224,6 @@ export function useAxisCenterCalib() {
     const pulsesPerRev = axisNo === 3 ? 10000 : 6400
     const angle = (mpos * units / pulsesPerRev) * 360
     return `${angle.toFixed(3)}°`
-  })
-
-  /** 已录入的观测偏差 X/Y 的均值与极差，供面板汇总展示 */
-  const axisCenterCalibManualSummary = computed(() => {
-    const xs = axisCenterCalibSamples.value
-      .map((sample) => sample.observedOffsetX)
-      .filter((value): value is number => typeof value === 'number' && Number.isFinite(value))
-    const ys = axisCenterCalibSamples.value
-      .map((sample) => sample.observedOffsetY)
-      .filter((value): value is number => typeof value === 'number' && Number.isFinite(value))
-
-    const average = (values: number[]) => values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null
-    const span = (values: number[]) => values.length ? Math.max(...values) - Math.min(...values) : null
-
-    return { avgX: average(xs), avgY: average(ys), spanX: span(xs), spanY: span(ys) }
   })
 
   /** 步骤条上第 index 步的完成/当前/未开始状态 */
@@ -375,8 +396,6 @@ export function useAxisCenterCalib() {
       angle: Number((axisCenterCalibStartAngle.value + index * axisCenterCalibAngleStep.value).toFixed(3)),
       state: 'pending' as AxisCenterCalibSampleState,
       machinePositions: {},
-      observedOffsetX: null,
-      observedOffsetY: null,
     }))
   }
 
@@ -604,15 +623,13 @@ export function useAxisCenterCalib() {
 
       const beforeMiddleXSum = beforeMiddleSamples.reduce((sum, sample) => sum + (sample.machinePositions.X as number), 0)
       const beforeMiddleYSum = beforeMiddleSamples.reduce((sum, sample) => sum + (sample.machinePositions.Y as number), 0)
-      const beforeMiddleZSum = beforeMiddleSamples.reduce((sum, sample) => sum + (sample.machinePositions.Z as number), 0)
 
       const afterMiddleXSum = afterMiddleSamples.reduce((sum, sample) => sum + (sample.machinePositions.X as number), 0)
       const afterMiddleYSum = afterMiddleSamples.reduce((sum, sample) => sum + (sample.machinePositions.Y as number), 0)
-      const afterMiddleZSum = afterMiddleSamples.reduce((sum, sample) => sum + (sample.machinePositions.Z as number), 0)
 
       const axisCenterCalibX = ((beforeMiddleXSum + afterMiddleXSum) / 2)
       const axisCenterCalibY = ((beforeMiddleYSum + afterMiddleYSum) / 2)
-      const axisCenterCalibZ = (beforeMiddleZSum + afterMiddleZSum) / 2
+      const axisCenterCalibZ = samples[samples.length - 1].machinePositions.Z as number
 
       const centerRotationResult:XYZ = {
         X: Number(axisCenterCalibX.toFixed(3)),
@@ -622,8 +639,8 @@ export function useAxisCenterCalib() {
       await auxiliaryFunctionPanelStore.saveAxisCenterCalibCenterBasedXYSum(centerRotationResult)
 
       axisCenterCalibPhase.value = 'finished'
-      logAxisCenterCalib('采样完成，请根据相机或打点结果录入人工偏差')
-      success('五轴中心校准采样完成', '已生成采样记录，可继续录入偏差并查看统计结果')
+      logAxisCenterCalib('采样完成，U 轴旋转中心已写入')
+      success('五轴中心校准采样完成', '可在下方查看或修改旋转中心后点应用')
     } catch (err) {
       const message = err instanceof Error ? err.message : '五轴中心校准失败'
       axisCenterCalibPhase.value = 'failed'
@@ -667,7 +684,6 @@ export function useAxisCenterCalib() {
     axisCenterCalibStepItems,
     axisCenterCalibLivePositions,
     axisCenterCalibCurrentAngleText,
-    axisCenterCalibManualSummary,
     getAxisCenterCalibStepState,
     getAxisCenterCalibSampleClass,
     getAxisPosition,
@@ -680,6 +696,11 @@ export function useAxisCenterCalib() {
     resetAxisCenterCalibWorkflow,
     handleAxisCenterCalib,
     axisCenterCalibCenterBasedXYSum,
+    axisCenterCalibEditX,
+    axisCenterCalibEditY,
+    axisCenterCalibEditZ,
+    isApplyingAxisCenterCalibCenter,
+    applyAxisCenterCalibCenter,
     loadAxisCenterCalibOffset,
     savedRAxisPosition,
     isSavingRAxisPosition,

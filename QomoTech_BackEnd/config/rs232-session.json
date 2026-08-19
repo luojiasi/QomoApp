@@ -1,6 +1,6 @@
 {
   "port": {
-    "portName": "COM11",
+    "portName": "COM12",
     "baudRate": 9600,
     "dataBits": 8,
     "parity": "none",
@@ -11,7 +11,7 @@
   },
   "send": {
     "mode": "ascii",
-    "payload": "",
+    "payload": "LD1 1",
     "appendCr": true,
     "appendLf": true,
     "autoSend": false,

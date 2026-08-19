@@ -2,19 +2,19 @@
   "mainRecipes": [
     {
       "id": "main-1",
-      "name": "121212",
+      "name": "默认值",
       "status": "active",
-      "updatedAt": "2026-7-3 12:08:05",
+      "updatedAt": "2026-8-17 10:05:40",
       "blackeningRecipeId": "blackening-1",
-      "machiningRecipeId": "machining-1"
+      "machiningRecipeId": "machining-4"
     },
     {
       "id": "main-2",
-      "name": "主配方 2",
-      "status": "draft",
-      "updatedAt": "2026-8-13 10:48:59",
+      "name": "固定",
+      "status": "active",
+      "updatedAt": "2026-8-17 10:05:31",
       "blackeningRecipeId": "blackening-1",
-      "machiningRecipeId": "machining-2"
+      "machiningRecipeId": "machining-3"
     }
   ],
   "laserPowerRecipes": [
@@ -57,19 +57,19 @@
   ],
   "horizontalFormulaRecipes": [
     {
-      "name": "123123",
-      "openingShape": "V型",
+      "name": "带角度固定没开口",
+      "openingShape": "//型",
       "angleFormula": {
         "k": 0,
-        "b": 0
+        "b": 0.54
       },
       "lowerOpeningFormula": {
-        "k": 50,
-        "b": 0
+        "k": 0,
+        "b": 50
       },
       "depthCompensationFormula": {
-        "k": 2,
-        "b": 0.5
+        "k": 0,
+        "b": 0
       },
       "upperOpeningFormula": "由系统自动计算",
       "compensationAngleFormula": {
@@ -78,10 +78,34 @@
       },
       "focusCompensation": 0.08,
       "id": "horizontal-formula-1",
-      "updatedAt": "2026-7-3 14:58:08"
+      "updatedAt": "2026-8-17 10:04:23"
     },
     {
-      "name": "水平工艺配方 2",
+      "name": "固定800开口",
+      "openingShape": "//型",
+      "angleFormula": {
+        "k": 0,
+        "b": 0
+      },
+      "lowerOpeningFormula": {
+        "k": 0,
+        "b": 400
+      },
+      "depthCompensationFormula": {
+        "k": 0,
+        "b": 0
+      },
+      "upperOpeningFormula": "由系统自动计算",
+      "compensationAngleFormula": {
+        "k": 0,
+        "b": 0
+      },
+      "focusCompensation": 0.08,
+      "id": "horizontal-formula-2",
+      "updatedAt": "2026-8-17 10:23:46"
+    },
+    {
+      "name": "深度相关",
       "openingShape": "V型",
       "angleFormula": {
         "k": 0,
@@ -101,8 +125,8 @@
         "b": 0
       },
       "focusCompensation": 0.08,
-      "id": "horizontal-formula-2",
-      "updatedAt": "2026-8-13 10:48:53"
+      "id": "horizontal-formula-3",
+      "updatedAt": "2026-8-17 10:04:11"
     }
   ],
   "verticalFormulaRecipes": [
@@ -179,23 +203,43 @@
     {
       "id": "machining-1",
       "name": "123123",
-      "updatedAt": "2026-8-6 15:13:47",
+      "updatedAt": "2026-8-18 17:01:15",
       "horizontalFormulaId": "horizontal-formula-1",
       "verticalFormulaId": "vertical-formula-1",
       "laserPowerRecipeId": "laser-power-1",
-      "teachingMode": true,
+      "teachingMode": false,
       "timeoutWaitTime": 6
     },
     {
       "id": "machining-2",
       "name": "222222",
-      "updatedAt": "2026-8-13 10:48:49",
+      "updatedAt": "2026-8-18 17:01:15",
       "teachingMode": false,
       "horizontalFormulaId": "horizontal-formula-1",
       "verticalFormulaId": "vertical-formula-1",
       "laserPowerRecipeId": "laser-power-1",
       "timeoutWaitTime": 2
+    },
+    {
+      "id": "machining-3",
+      "name": "固定800开口",
+      "updatedAt": "2026-8-18 17:01:15",
+      "teachingMode": false,
+      "timeoutWaitTime": 2,
+      "horizontalFormulaId": "horizontal-formula-2",
+      "verticalFormulaId": "vertical-formula-2",
+      "laserPowerRecipeId": "laser-power-1"
+    },
+    {
+      "id": "machining-4",
+      "name": "默认值",
+      "updatedAt": "2026-8-17 15:14:39",
+      "teachingMode": false,
+      "timeoutWaitTime": 2,
+      "horizontalFormulaId": "horizontal-formula-3",
+      "verticalFormulaId": "vertical-formula-2",
+      "laserPowerRecipeId": "laser-power-1"
     }
   ],
-  "selectedMainRecipeId": "main-2"
+  "selectedMainRecipeId": "main-1"
 }

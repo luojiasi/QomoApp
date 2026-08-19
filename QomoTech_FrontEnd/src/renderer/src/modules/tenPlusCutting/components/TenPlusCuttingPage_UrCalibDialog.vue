@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { provide, toRef } from 'vue'
+import { onUnmounted, provide, toRef } from 'vue'
 import AxisCenterCalibPanel from '@/modules/motion/components/AxisCenterCalibPanel.vue'
 import CameraPic from '@/modules/camera/CameraPic.vue'
 import { useMotionKeyboard } from '@/modules/motion/composables/useMotionKeyboard'
@@ -15,13 +15,17 @@ const emit = defineEmits<{
 
 const axisCalib = useTenPlusAxisCenterCalib(toRef(props, 'slotIndex'))
 provide('axisCalib', axisCalib)
-const { isAxisCenterCalib } = axisCalib
+const { abortAxisCenterCalib } = axisCalib
 useMotionKeyboard()
 
 function tryClose(): void {
-  if (isAxisCenterCalib.value) return
+  abortAxisCenterCalib()
   emit('close')
 }
+
+onUnmounted(() => {
+  abortAxisCenterCalib()
+})
 </script>
 
 <template>
@@ -32,7 +36,6 @@ function tryClose(): void {
         <button
           type="button"
           class="tpc-ur-close"
-          :disabled="isAxisCenterCalib"
           @click="tryClose"
         >
           关闭

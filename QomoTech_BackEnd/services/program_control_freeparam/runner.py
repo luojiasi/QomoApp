@@ -297,6 +297,7 @@ class ProgramRunnerFreeParam:
 
         多少圈进行补偿值 = float(该序号R轴的补偿.get("多少圈进行一次补偿", 0))
         补偿值 = float(该序号R轴的补偿.get("补偿值", 0))
+        是否反向 = bool(执行任务的参数.get("是否反向", False))
 
         是否完全旋转完毕 = False
 
@@ -383,8 +384,10 @@ class ProgramRunnerFreeParam:
                         当前步骤 = ProgramFreeParamsStep.清理所有状态
 
                 case ProgramFreeParamsStep.切割R轴:
-
-                    构建切割直线的坐标X = 执行任务的参数.get("切割中点的坐标").get("X") + 当前开口值
+                    if not 是否反向:
+                        构建切割直线的坐标X = 执行任务的参数.get("切割中点的坐标").get("X") + 当前开口值
+                    else:
+                        构建切割直线的坐标X = 执行任务的参数.get("切割中点的坐标").get("X") - 当前开口值
                     构建切割直线的坐标Y起点 = float(执行任务的参数.get("切割中点的坐标").get("Y"))
                     插补运行的路径点= [{"x": 构建切割直线的坐标X, "y": 构建切割直线的坐标Y起点}]
                     当前速度百分比 = 边缘切割速度百分比 if 是否在边缘位置 else 中间切割速度百分比
@@ -399,8 +402,10 @@ class ProgramRunnerFreeParam:
                         当前步骤 = ProgramFreeParamsStep.清理所有状态
 
                 case ProgramFreeParamsStep.切割直线:
-
-                    构建切割直线的坐标X = 执行任务的参数.get("切割中点的坐标").get("X") + 当前开口值
+                    if not 是否反向:
+                        构建切割直线的坐标X = 执行任务的参数.get("切割中点的坐标").get("X") + 当前开口值
+                    else:
+                        构建切割直线的坐标X = 执行任务的参数.get("切割中点的坐标").get("X") - 当前开口值
                     构建切割直线的坐标Y起点 = float(执行任务的参数.get("切割中点的坐标").get("Y") + float((执行任务的参数.get("最长的那条边的切割长度")/2)))
                     构建切割直线的坐标Y终点 = float(执行任务的参数.get("切割中点的坐标").get("Y") - float((执行任务的参数.get("最长的那条边的切割长度")/2)))
                     插补运行的路径点 = [{"x": 构建切割直线的坐标X, "y": 构建切割直线的坐标Y起点}, {"x": 构建切割直线的坐标X, "y": 构建切割直线的坐标Y终点}]

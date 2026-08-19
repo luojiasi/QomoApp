@@ -6,6 +6,7 @@ from services.program_control_ten.motion_primitives import 十工位的额外运
 from services.program_control_ten.step import ProgramFreeParamsStep
 from services.program_control_ten.ten_plus_cutting_persistence import 按工位号取点位
 from services.MotionService import MotionService
+from services.program_control.recipe_resolver import 读取示教模式, 读取超时等待时间
 from services.program_control_ten.geometry import (
     构建R轴的补偿,
     构建任务的数据,
@@ -194,6 +195,7 @@ class ProgramRunnerTenPlus:
                         首个工位Z = 当前Z
                     日志.info(f"[TenPlus] 目标 {目标名} 工位#{工位号} → " + f"XYZU=({当前X}, {当前Y}, {当前Z}, {当前U})")
                     try:
+                        # print("well")
                         await self._运动到示教工位(当前X, 当前Y, 当前Z, 当前U)
                     except Exception as e:
                         日志.error(f"目标 {目标名} 运动到示教工位失败: {e}")
@@ -245,8 +247,8 @@ class ProgramRunnerTenPlus:
                 self._广播状态变更(force=True)
 
     async def _运动到示教工位(self, x: float, y: float, z: float, u: float) -> None:
-        """按 TENPLUSCUTTING 示教坐标做 XYZU 绝对定位（与前端 moveToTenPlusSlot 一致）。"""
-        for 轴名, 位置 in (("X", x), ("Y", y), ("Z", z), ("U", u)):
+        """按 TENPLUSCUTTING 示教坐标做绝对定位：永远先动 Z，再 X/Y/U（与前端 moveToTenPlusSlot 一致）。"""
+        for 轴名, 位置 in (("Z", z), ("X", x), ("Y", y), ("U", u)):
             await self._运动.绝对运动(轴名, 位置)
             await self._运动.等待静止(轴名)
 
@@ -301,12 +303,17 @@ class ProgramRunnerTenPlus:
         是否完成切割 = False
         当前步骤 = ProgramFreeParamsStep.准备开始
 
+        任务选择的加工配方 = dict((配方数据.get("selectedMachining") or [{}])[0])
         任务选择的扫黑配方 = dict(配方数据.get("selectedBlackeningRecipe")[0])
         任务选择的扫黑激光参数 = dict(配方数据.get("selectedBlackeningLaser")[0])
         任务选择的加工激光参数 = dict(配方数据.get("selectedMachiningLaser")[0])
         任务选择的水平配方参数 = dict(配方数据.get("selectedHorizontal")[0])
         任务选择的垂直配方参数 = dict(配方数据.get("selectedVertical")[0])
 
+        是否进行示教模式 = 读取示教模式(任务选择的加工配方)
+        超时等待时间 = 读取超时等待时间(任务选择的加工配方)
+        XY空闲超时次数 = max(1, int(超时等待时间 * 1000))
+        XY等待静止超时秒 = XY空闲超时次数 * 0.05
         是否打开扫黑 = bool(任务选择的扫黑配方.get("enabled",False))
         扫黑下降步长 = float(任务选择的扫黑配方.get("descentStep",0))
         扫黑的速度 = float(任务选择的扫黑配方.get("blackeningSpeed",0))
@@ -377,6 +384,7 @@ class ProgramRunnerTenPlus:
 
         多少圈进行补偿值 = float(该序号R轴的补偿.get("多少圈进行一次补偿", 0))
         补偿值 = float(该序号R轴的补偿.get("补偿值", 0))
+        是否反向 = bool(执行任务的参数.get("是否反向", False))
 
         是否完全旋转完毕 = False
 
@@ -430,8 +438,8 @@ class ProgramRunnerTenPlus:
                         切割直线的结果 = await self._运动.连续插补XY(路径点=插补运行的路径点,速度=20)
                         await asyncio.sleep(0.1)
 
-                        等待X轴静止结果 = await self._运动.等待静止("X")
-                        等待Y轴静止结果 = await self._运动.等待静止("Y")
+                        等待X轴静止结果 = await self._运动.等待静止("X", 超时秒=XY等待静止超时秒)
+                        等待Y轴静止结果 = await self._运动.等待静止("Y", 超时秒=XY等待静止超时秒)
                         if 等待X轴静止结果 and 等待Y轴静止结果:
                             当前步骤 = ProgramFreeParamsStep.打开激光设备
                     except Exception:
@@ -439,7 +447,8 @@ class ProgramRunnerTenPlus:
                         当前步骤 = ProgramFreeParamsStep.清理所有状态
 
                 case ProgramFreeParamsStep.打开激光设备:
-                    await self._十工位的运动.开启激光()
+                    if 是否进行示教模式:
+                        await self._十工位的运动.开启激光()
                     当前步骤 = ProgramFreeParamsStep.Z轴下降
 
                 case ProgramFreeParamsStep.Z轴下降:
@@ -462,7 +471,8 @@ class ProgramRunnerTenPlus:
                                 await self._运动.R轴一直进行旋转()
                                 R轴是否进行持续旋转打开 = True
                             当前步骤 = ProgramFreeParamsStep.切割R轴
-                            await self._十工位的运动.开启激光()
+                            if 是否进行示教模式:
+                                await self._十工位的运动.开启激光()
                         else:   
                             日志.info("判断高度切割直线")
                             当前步骤 = ProgramFreeParamsStep.切割直线
@@ -471,8 +481,11 @@ class ProgramRunnerTenPlus:
                         当前步骤 = ProgramFreeParamsStep.清理所有状态
 
                 case ProgramFreeParamsStep.切割R轴:
-
-                    构建切割直线的坐标X = 执行任务的参数.get("切割中点的坐标").get("X") + 当前开口值
+                    if not 是否反向:
+                        构建切割直线的坐标X = 执行任务的参数.get("切割中点的坐标").get("X") + 当前开口值
+                    else:
+                        构建切割直线的坐标X = 执行任务的参数.get("切割中点的坐标").get("X") - 当前开口值
+                    # 构建切割直线的坐标X = 执行任务的参数.get("切割中点的坐标").get("X") + 当前开口值
                     构建切割直线的坐标Y起点 = float(执行任务的参数.get("切割中点的坐标").get("Y"))
                     插补运行的路径点= [{"x": 构建切割直线的坐标X, "y": 构建切割直线的坐标Y起点}]
                     当前速度百分比 = 边缘切割速度百分比 if 是否在边缘位置 else 中间切割速度百分比
@@ -487,8 +500,11 @@ class ProgramRunnerTenPlus:
                         当前步骤 = ProgramFreeParamsStep.清理所有状态
 
                 case ProgramFreeParamsStep.切割直线:
-
-                    构建切割直线的坐标X = 执行任务的参数.get("切割中点的坐标").get("X") + 当前开口值
+                    if not 是否反向:
+                        构建切割直线的坐标X = 执行任务的参数.get("切割中点的坐标").get("X") + 当前开口值
+                    else:
+                        构建切割直线的坐标X = 执行任务的参数.get("切割中点的坐标").get("X") - 当前开口值
+                    # 构建切割直线的坐标X = 执行任务的参数.get("切割中点的坐标").get("X") + 当前开口值
                     构建切割直线的坐标Y起点 = float(执行任务的参数.get("切割中点的坐标").get("Y") + float((执行任务的参数.get("最长的那条边的切割长度")/2)))
                     构建切割直线的坐标Y终点 = float(执行任务的参数.get("切割中点的坐标").get("Y") - float((执行任务的参数.get("最长的那条边的切割长度")/2)))
                     插补运行的路径点 = [{"x": 构建切割直线的坐标X, "y": 构建切割直线的坐标Y起点}, {"x": 构建切割直线的坐标X, "y": 构建切割直线的坐标Y终点}]
@@ -511,8 +527,8 @@ class ProgramRunnerTenPlus:
 
                 case ProgramFreeParamsStep.等待X轴和Y轴插补结束:
                     try:
-                        等待X轴静止结果 = await self._运动.等待静止("X")
-                        等待Y轴静止结果 = await self._运动.等待静止("Y")
+                        等待X轴静止结果 = await self._运动.等待静止("X", 超时秒=XY等待静止超时秒)
+                        等待Y轴静止结果 = await self._运动.等待静止("Y", 超时秒=XY等待静止超时秒)
                         if 等待X轴静止结果 and 等待Y轴静止结果:
                             当前步骤 = ProgramFreeParamsStep.更新开口偏移值
                         else:

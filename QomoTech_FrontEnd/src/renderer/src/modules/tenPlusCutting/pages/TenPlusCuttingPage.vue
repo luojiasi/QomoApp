@@ -7,10 +7,11 @@ import { useProgramRunner } from '@/modules/program/composables/useProgramRunner
 import {
   getTenPlusCutting,
   saveTenPlusCutting,
-  moveToTenPlusSlot
+  moveToTenPlusSlot,
+  setMotionIoOutput
 } from '@/modules/motion/api'
 import { sendTenPlusFreeParams } from '@/modules/program/api'
-import { TEN_PLUS_GRID_ORDER } from '../constants/tenPlusCutting'
+import { TEN_PLUS_GRID_ORDER, TEN_PLUS_STATION_OUTPUT_PORTS, slotIndexToOutputPort } from '../constants/tenPlusCutting'
 import {
   useTenPlusTask,
   isDiameterInvalid,
@@ -372,6 +373,23 @@ async function persistTenPlusConfig(): Promise<boolean> {
   return true
 }
 
+async function openSlotOutput(slotIndex: number): Promise<void> {
+  if (!controllerConnected.value) return
+  const port = slotIndexToOutputPort(slotIndex)
+  if (port === null) return
+  try {
+    for (const io of TEN_PLUS_STATION_OUTPUT_PORTS) {
+      const res = await setMotionIoOutput(io, io === port)
+      if (!res.success) {
+        warning(res.message || `设置输出口 ${io} 失败`)
+        return
+      }
+    }
+  } catch (e) {
+    warning(e instanceof Error ? e.message : `打开工位 #${slotIndex} 输出口失败`)
+  }
+}
+
 async function onSlotClick(index: number): Promise<void> {
   const target = activeTarget.value
   if (!target) return
@@ -379,6 +397,7 @@ async function onSlotClick(index: number): Promise<void> {
   if (!slot) return
 
   selectedSlotIndex.value = index
+  await openSlotOutput(index)
 
   if (!slot.taught) {
     setStatus(`已选中工位 #${index}（未示教，请先示教）`)
