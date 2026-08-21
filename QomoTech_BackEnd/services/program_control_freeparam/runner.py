@@ -6,10 +6,25 @@ import asyncio
 from services.program_control_freeparam.motion_primitives import 自由编辑参数的额外运动控制
 from services.program_control_freeparam.step import ProgramFreeParamsStep
 from services.MotionService import MotionService
+from services.program_control.recipe_resolver import 读取示教模式, 读取超时等待时间
 from services.program_control_freeparam.geometry import 构建R轴的补偿, 构建任务的数据, 构建执行任务的参数, 构建配方数据, 计算开口范围, 更新V型开口偏移, 更新平行型开口偏移
-from utils.logger import 获取日志记录器
+from utils.logger import 获取日志记录器, 格式化异常位置
 
 日志 = 获取日志记录器("自由参数切割程序")
+
+
+def _转浮点(值: Any, 字段: str, 默认: float | None = 0.0) -> float:
+    """将配方字段转为 float。空字符串会报出字段名，避免 float('') 看不出位置。"""
+    if isinstance(值, str) and 值.strip() == "":
+        raise ValueError(f"{字段} 为空字符串，无法转为数字")
+    if 值 is None:
+        if 默认 is None:
+            raise ValueError(f"{字段} 缺失，无法转为数字")
+        return float(默认)
+    try:
+        return float(值)
+    except (TypeError, ValueError):
+        raise ValueError(f"{字段}={值!r} 无法转为数字") from None
 
 
 
@@ -167,21 +182,22 @@ class ProgramRunnerFreeParam:
                 for 序号, 行数据 in enumerate(实体数据):
                     当前序号 = 序号 + 1
                     日志.info(f"\n[FreeParam] ======== 任务 {当前序号}/{任务总数} ========")
-                    该序号R轴的补偿 = 构建R轴的补偿(行数据)
-                    该序号的参数 = 构建任务的数据(行数据)
-                    该序号的配方 = 构建配方数据(配方数据,该序号的参数.get("配方ID"))
-                    # 当前平面的Z轴位置：往上逐个累加前面任务的高度
-                    累计高度 = sum(float(实体数据[k].get("height", 0)) for k in range(序号))
-                    所有高度总和 = sum(float(实体数据[k].get("height", 0)) for k in range(len(实体数据)))
-                    
-                    执行任务的参数 = 构建执行任务的参数(该序号的参数,当前Z, 所有高度总和, 累计高度)
-                    self.更新进度(current_task_index=当前序号, current_task_jindubaifenbi=0)
                     try:
+                        该序号R轴的补偿 = 构建R轴的补偿(行数据)
+                        该序号的参数 = 构建任务的数据(行数据)
+                        该序号的配方 = 构建配方数据(配方数据,该序号的参数.get("配方ID"))
+                        # 当前平面的Z轴位置：往上逐个累加前面任务的高度
+                        累计高度 = sum(float(实体数据[k].get("height", 0)) for k in range(序号))
+                        所有高度总和 = sum(float(实体数据[k].get("height", 0)) for k in range(len(实体数据)))
+
+                        执行任务的参数 = 构建执行任务的参数(该序号的参数,当前Z, 所有高度总和, 累计高度)
+                        self.更新进度(current_task_index=当前序号, current_task_jindubaifenbi=0)
                         print(执行任务的参数)
                         await self._切割(配方数据=该序号的配方,执行任务的参数=执行任务的参数,该序号R轴的补偿 = 该序号R轴的补偿 ,起始点的位置 = {"x":当前X,"y":当前Y,"z":当前Z})
                     except Exception as e:
-                        日志.error(f"任务 {当前序号} 执行失败: {e}")
-                        return {"success": False, "message": f"任务 {当前序号} 执行失败: {e}"}
+                        位置 = 格式化异常位置(e)
+                        日志.error(f"任务 {当前序号} 执行失败: {位置}", exc_info=True)
+                        return {"success": False, "message": f"任务 {当前序号} 执行失败: {位置}"}
 
                     if self._是否急停请求:
                         await self._自由编辑参数的运动.关闭吹风()
@@ -221,65 +237,70 @@ class ProgramRunnerFreeParam:
         是否完成切割 = False
         当前步骤 = ProgramFreeParamsStep.准备开始
 
+        任务选择的加工配方 = dict((配方数据.get("selectedMachining") or [{}])[0])
         任务选择的扫黑配方 = dict(配方数据.get("selectedBlackeningRecipe")[0])
         任务选择的扫黑激光参数 = dict(配方数据.get("selectedBlackeningLaser")[0])
         任务选择的加工激光参数 = dict(配方数据.get("selectedMachiningLaser")[0])
         任务选择的水平配方参数 = dict(配方数据.get("selectedHorizontal")[0])
         任务选择的垂直配方参数 = dict(配方数据.get("selectedVertical")[0])
 
+        是否进行示教模式 = 读取示教模式(任务选择的加工配方)
+        超时等待时间 = 读取超时等待时间(任务选择的加工配方)
+        XY空闲超时次数 = max(1, int(超时等待时间 * 1000))
+        XY等待静止超时秒 = XY空闲超时次数 * 0.05
         是否打开扫黑 = bool(任务选择的扫黑配方.get("enabled",False))
-        扫黑下降步长 = float(任务选择的扫黑配方.get("descentStep",0))
-        扫黑的速度 = float(任务选择的扫黑配方.get("blackeningSpeed",0))
-        扫黑的焦距补偿 = float(任务选择的扫黑配方.get("jiaojubuchang",0))
-        扫黑的步进 = float(任务选择的扫黑配方.get("blackeningStep",0))
-        扫黑的开口K = float(任务选择的扫黑配方.get("saoheikaikou",{}).get("k",0))
-        扫黑的开口B = float(任务选择的扫黑配方.get("saoheikaikou",{}).get("b",0))
+        扫黑下降步长 = _转浮点(任务选择的扫黑配方.get("descentStep", 0), "扫黑配方.descentStep")
+        扫黑的速度 = _转浮点(任务选择的扫黑配方.get("blackeningSpeed", 0), "扫黑配方.blackeningSpeed")
+        扫黑的焦距补偿 = _转浮点(任务选择的扫黑配方.get("jiaojubuchang", 0), "扫黑配方.jiaojubuchang")
+        扫黑的步进 = _转浮点(任务选择的扫黑配方.get("blackeningStep", 0), "扫黑配方.blackeningStep")
+        扫黑的开口K = _转浮点(任务选择的扫黑配方.get("saoheikaikou", {}).get("k", 0), "扫黑配方.saoheikaikou.k")
+        扫黑的开口B = _转浮点(任务选择的扫黑配方.get("saoheikaikou", {}).get("b", 0), "扫黑配方.saoheikaikou.b")
 
-        扫黑功率 = float(任务选择的扫黑激光参数.get("laserPower"))
-        扫黑频率 = float(任务选择的扫黑激光参数.get("laserFrequency"))
-        扫黑电流 = float(任务选择的扫黑激光参数.get("laserCurrent"))
+        扫黑功率 = _转浮点(任务选择的扫黑激光参数.get("laserPower"), "扫黑激光.laserPower", 默认=None)
+        扫黑频率 = _转浮点(任务选择的扫黑激光参数.get("laserFrequency"), "扫黑激光.laserFrequency", 默认=None)
+        扫黑电流 = _转浮点(任务选择的扫黑激光参数.get("laserCurrent"), "扫黑激光.laserCurrent", 默认=None)
 
-        加工功率 = float(任务选择的加工激光参数.get("laserPower"))
-        加工频率 = float(任务选择的加工激光参数.get("laserFrequency"))
-        加工电流 = float(任务选择的加工激光参数.get("laserCurrent"))
+        加工功率 = _转浮点(任务选择的加工激光参数.get("laserPower"), "加工激光.laserPower", 默认=None)
+        加工频率 = _转浮点(任务选择的加工激光参数.get("laserFrequency"), "加工激光.laserFrequency", 默认=None)
+        加工电流 = _转浮点(任务选择的加工激光参数.get("laserCurrent"), "加工激光.laserCurrent", 默认=None)
 
         水平的开口形状 = str(任务选择的水平配方参数.get("openingShape", ""))
-        水平的焦距补偿 = float(任务选择的水平配方参数.get("focusCompensation", 0))
-        水平的角度K = float(任务选择的水平配方参数.get("angleFormula",{}).get("k",0))
-        水平的角度B = float(任务选择的水平配方参数.get("angleFormula",{}).get("b",0))
-        水平的下开口K = float(任务选择的水平配方参数.get("lowerOpeningFormula",{}).get("k",0))
-        水平的下开口B = float(任务选择的水平配方参数.get("lowerOpeningFormula",{}).get("b",0))
-        水平的深度补偿K = float(任务选择的水平配方参数.get("depthCompensationFormula",{}).get("k",0))
-        水平的深度补偿B = float(任务选择的水平配方参数.get("depthCompensationFormula",{}).get("b",0))
-        水平的补偿角度K = float(任务选择的水平配方参数.get("compensationAngleFormula",{}).get("k",0))
-        水平的补偿角度B = float(任务选择的水平配方参数.get("compensationAngleFormula",{}).get("b",0))
+        水平的焦距补偿 = _转浮点(任务选择的水平配方参数.get("focusCompensation", 0), "水平配方.focusCompensation")
+        水平的角度K = _转浮点(任务选择的水平配方参数.get("angleFormula", {}).get("k", 0), "水平配方.angleFormula.k")
+        水平的角度B = _转浮点(任务选择的水平配方参数.get("angleFormula", {}).get("b", 0), "水平配方.angleFormula.b")
+        水平的下开口K = _转浮点(任务选择的水平配方参数.get("lowerOpeningFormula", {}).get("k", 0), "水平配方.lowerOpeningFormula.k")
+        水平的下开口B = _转浮点(任务选择的水平配方参数.get("lowerOpeningFormula", {}).get("b", 0), "水平配方.lowerOpeningFormula.b")
+        水平的深度补偿K = _转浮点(任务选择的水平配方参数.get("depthCompensationFormula", {}).get("k", 0), "水平配方.depthCompensationFormula.k")
+        水平的深度补偿B = _转浮点(任务选择的水平配方参数.get("depthCompensationFormula", {}).get("b", 0), "水平配方.depthCompensationFormula.b")
+        水平的补偿角度K = _转浮点(任务选择的水平配方参数.get("compensationAngleFormula", {}).get("k", 0), "水平配方.compensationAngleFormula.k")
+        水平的补偿角度B = _转浮点(任务选择的水平配方参数.get("compensationAngleFormula", {}).get("b", 0), "水平配方.compensationAngleFormula.b")
 
         当前开口值 = 0
-        X轴的偏移量 = float(任务选择的垂直配方参数.get("xFeed",0))
-        插补的运行速度 = float(任务选择的垂直配方参数.get("xSpeed",0))
+        X轴的偏移量 = _转浮点(任务选择的垂直配方参数.get("xFeed", 0), "垂直配方.xFeed")
+        插补的运行速度 = _转浮点(任务选择的垂直配方参数.get("xSpeed", 0), "垂直配方.xSpeed")
         切割轴 = str(任务选择的垂直配方参数.get("cuttingAxis", ""))
 
-        垂直的变化百分比 = float(任务选择的垂直配方参数.get("changePercent",10))
-        垂直的每次下降步长量 = float(任务选择的垂直配方参数.get("descentCutting",{}).get("speed",0.075))
-        垂直的每次下降步长量减少量 = float(任务选择的垂直配方参数.get("descentCutting",{}).get("zFeed",0))
+        垂直的变化百分比 = _转浮点(任务选择的垂直配方参数.get("changePercent", 10), "垂直配方.changePercent")
+        垂直的每次下降步长量 = _转浮点(任务选择的垂直配方参数.get("descentCutting", {}).get("speed", 0.075), "垂直配方.descentCutting.speed")
+        垂直的每次下降步长量减少量 = _转浮点(任务选择的垂直配方参数.get("descentCutting", {}).get("zFeed", 0), "垂直配方.descentCutting.zFeed")
 
         当前切割次数 = 0
         是否在边缘位置 = True
-        垂直的边缘切割速度百分比 = float(任务选择的垂直配方参数.get("edgeCutting",{}).get("speed",50))
+        垂直的边缘切割速度百分比 = _转浮点(任务选择的垂直配方参数.get("edgeCutting", {}).get("speed", 50), "垂直配方.edgeCutting.speed")
         边缘切割速度百分比 = 垂直的边缘切割速度百分比/100
-        垂直的边缘切割次数 = float(任务选择的垂直配方参数.get("edgeCutting",{}).get("cutTimes",1))
-        垂直的边缘切割速量 = float(任务选择的垂直配方参数.get("edgeCutting",{}).get("cutSpeedNums",1))
-        垂直的边缘切割变化率K = float(任务选择的垂直配方参数.get("edgeCutting",{}).get("change",{}).get("k",0))
-        垂直的边缘切割变化率B = float(任务选择的垂直配方参数.get("edgeCutting",{}).get("change",{}).get("b",0))
+        垂直的边缘切割次数 = _转浮点(任务选择的垂直配方参数.get("edgeCutting", {}).get("cutTimes", 1), "垂直配方.edgeCutting.cutTimes")
+        垂直的边缘切割速量 = _转浮点(任务选择的垂直配方参数.get("edgeCutting", {}).get("cutSpeedNums", 1), "垂直配方.edgeCutting.cutSpeedNums")
+        垂直的边缘切割变化率K = _转浮点(任务选择的垂直配方参数.get("edgeCutting", {}).get("change", {}).get("k", 0), "垂直配方.edgeCutting.change.k")
+        垂直的边缘切割变化率B = _转浮点(任务选择的垂直配方参数.get("edgeCutting", {}).get("change", {}).get("b", 0), "垂直配方.edgeCutting.change.b")
 
-        垂直的中间切割速度百分比 = float(任务选择的垂直配方参数.get("middleCutting",{}).get("speed",100))
+        垂直的中间切割速度百分比 = _转浮点(任务选择的垂直配方参数.get("middleCutting", {}).get("speed", 100), "垂直配方.middleCutting.speed")
         中间切割速度百分比 = 垂直的中间切割速度百分比/100
-        垂直的中间切割次数 = float(任务选择的垂直配方参数.get("middleCutting",{}).get("cutTimes",1))
-        垂直的中间切割变化率K = float(任务选择的垂直配方参数.get("middleCutting",{}).get("change",{}).get("k",0))
-        垂直的中间切割变化率B = float(任务选择的垂直配方参数.get("middleCutting",{}).get("change",{}).get("b",0))
+        垂直的中间切割次数 = _转浮点(任务选择的垂直配方参数.get("middleCutting", {}).get("cutTimes", 1), "垂直配方.middleCutting.cutTimes")
+        垂直的中间切割变化率K = _转浮点(任务选择的垂直配方参数.get("middleCutting", {}).get("change", {}).get("k", 0), "垂直配方.middleCutting.change.k")
+        垂直的中间切割变化率B = _转浮点(任务选择的垂直配方参数.get("middleCutting", {}).get("change", {}).get("b", 0), "垂直配方.middleCutting.change.b")
 
-        累计下降量 = 0 
-        产品的高度 = float(执行任务的参数.get("切割产品的高度"))
+        累计下降量 = 0
+        产品的高度 = _转浮点(执行任务的参数.get("切割产品的高度"), "执行参数.切割产品的高度", 默认=None)
         上层量 = 0
         
         角度 = 水平的角度K* 产品的高度 + 水平的角度B
@@ -295,8 +316,8 @@ class ProgramRunnerFreeParam:
         当前R轴旋转分割数 = 1 
         准备开始切割下一次的第一次 = False
 
-        多少圈进行补偿值 = float(该序号R轴的补偿.get("多少圈进行一次补偿", 0))
-        补偿值 = float(该序号R轴的补偿.get("补偿值", 0))
+        多少圈进行补偿值 = _转浮点(该序号R轴的补偿.get("多少圈进行一次补偿", 0), "R轴补偿.多少圈进行一次补偿")
+        补偿值 = _转浮点(该序号R轴的补偿.get("补偿值", 0), "R轴补偿.补偿值")
         是否反向 = bool(执行任务的参数.get("是否反向", False))
 
         是否完全旋转完毕 = False
@@ -343,8 +364,8 @@ class ProgramRunnerFreeParam:
                         切割直线的结果 = await self._运动.连续插补XY(路径点=插补运行的路径点,速度=20)
                         await asyncio.sleep(0.1)
 
-                        等待X轴静止结果 = await self._运动.等待静止("X")
-                        等待Y轴静止结果 = await self._运动.等待静止("Y")
+                        等待X轴静止结果 = await self._运动.等待静止("X", 超时秒=XY等待静止超时秒)
+                        等待Y轴静止结果 = await self._运动.等待静止("Y", 超时秒=XY等待静止超时秒)
                         if 等待X轴静止结果 and 等待Y轴静止结果:
                             当前步骤 = ProgramFreeParamsStep.打开激光设备
                     except Exception:
@@ -352,7 +373,8 @@ class ProgramRunnerFreeParam:
                         当前步骤 = ProgramFreeParamsStep.清理所有状态
 
                 case ProgramFreeParamsStep.打开激光设备:
-                    await self._自由编辑参数的运动.开启激光()
+                    if 是否进行示教模式:
+                        await self._自由编辑参数的运动.开启激光()
                     当前步骤 = ProgramFreeParamsStep.Z轴下降
 
                 case ProgramFreeParamsStep.Z轴下降:
@@ -375,7 +397,8 @@ class ProgramRunnerFreeParam:
                                 await self._运动.R轴一直进行旋转()
                                 R轴是否进行持续旋转打开 = True
                             当前步骤 = ProgramFreeParamsStep.切割R轴
-                            await self._自由编辑参数的运动.开启激光()
+                            if 是否进行示教模式:
+                                await self._自由编辑参数的运动.开启激光()
                         else:   
                             日志.info("判断高度切割直线")
                             当前步骤 = ProgramFreeParamsStep.切割直线
@@ -428,8 +451,8 @@ class ProgramRunnerFreeParam:
 
                 case ProgramFreeParamsStep.等待X轴和Y轴插补结束:
                     try:
-                        等待X轴静止结果 = await self._运动.等待静止("X")
-                        等待Y轴静止结果 = await self._运动.等待静止("Y")
+                        等待X轴静止结果 = await self._运动.等待静止("X", 超时秒=XY等待静止超时秒)
+                        等待Y轴静止结果 = await self._运动.等待静止("Y", 超时秒=XY等待静止超时秒)
                         if 等待X轴静止结果 and 等待Y轴静止结果:
                             当前步骤 = ProgramFreeParamsStep.更新开口偏移值
                         else:
@@ -577,7 +600,8 @@ class ProgramRunnerFreeParam:
 
                         当前步骤 = ProgramFreeParamsStep.移动到最开始的位置
 
-                    await self._自由编辑参数的运动.开启激光()
+                    if 是否进行示教模式:
+                        await self._自由编辑参数的运动.开启激光()
                 case ProgramFreeParamsStep.清理所有状态:
                     self._是否跳过请求 = False
                     await self._自由编辑参数的运动.关闭吹风()

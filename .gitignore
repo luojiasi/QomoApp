@@ -37,3 +37,6 @@ Thumbs.db
 .npm-cache-tmp/
 .pytest_cache/
 docs/
+
+# 超大教程视频（约 204MB，超过 GitHub 100MB 限制，仅保留本地，勿提交）
+**/resources/videos/操作流程.mp4

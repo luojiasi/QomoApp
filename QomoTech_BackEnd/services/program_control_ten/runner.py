@@ -17,7 +17,7 @@ from services.program_control_ten.geometry import (
     更新V型开口偏移,
     更新平行型开口偏移,
 )
-from utils.logger import 获取日志记录器
+from utils.logger import 获取日志记录器, 格式化异常位置
 
 日志 = 获取日志记录器("自由参数切割程序")
 
@@ -222,8 +222,9 @@ class ProgramRunnerTenPlus:
                                 工位号=工位号,
                             )
                         except Exception as e:
-                            日志.error(f"目标 {目标名} 行 {序号 + 1} 执行失败: {e}")
-                            return {"success": False,"message": f"目标 {目标名} 行 {序号 + 1} 执行失败: {e}"}
+                            位置 = 格式化异常位置(e)
+                            日志.error(f"目标 {目标名} 行 {序号 + 1} 执行失败: {位置}", exc_info=True)
+                            return {"success": False, "message": f"目标 {目标名} 行 {序号 + 1} 执行失败: {位置}"}
 
                         if self._是否急停请求:
                             await self._十工位的运动.关闭吹风()

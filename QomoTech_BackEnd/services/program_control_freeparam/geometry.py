@@ -4,7 +4,7 @@ import math
 from typing import Any
 from utils.logger import 获取日志记录器
 from services.SystemSettingService import 获取4P旋转中心的补偿值
-from services.SystemSettingService import 获取快速移动点
+from services.SystemSettingService import 获取R轴旋转中心点
 from core.calc_rotation import 计算点绕坐标轴旋转
 
 日志 = 获取日志记录器("freeparamgeometry")
@@ -14,7 +14,7 @@ def 构建配方数据(配方数据: dict[str, Any], 配方ID: str) -> dict[str,
     """根据配方ID从完整配方数据中查找主配方 → 加工/扫黑 → 子配方链。
 
     返回: {
-        selectedVertical, selectedHorizontal, selectedMachiningLaser,
+        selectedMachining, selectedVertical, selectedHorizontal, selectedMachiningLaser,
         selectedBlackeningLaser, selectedBlackeningRecipe
     }
     """
@@ -79,6 +79,7 @@ def 构建配方数据(配方数据: dict[str, Any], 配方ID: str) -> dict[str,
             break
 
     return {
+        "selectedMachining": [加工配方] if 加工配方 else [],
         "selectedVertical": [垂直配方] if 垂直配方 else [],
         "selectedHorizontal": [水平配方] if 水平配方 else [],
         "selectedMachiningLaser": [加工激光配方] if 加工激光配方 else [],
@@ -147,7 +148,7 @@ def 构建执行任务的参数(数据: dict[str, Any],当前平面Z的位置, �
     """
 
     U轴旋转中心的位置 = 获取4P旋转中心的补偿值()
-    R轴旋转中心的位置 = 获取快速移动点()
+    R轴旋转中心的位置 = 获取R轴旋转中心点()
     工位的X坐标 = R轴旋转中心的位置.X
     工位的Y坐标 = R轴旋转中心的位置.Y
     工位的Z坐标 = R轴旋转中心的位置.Z

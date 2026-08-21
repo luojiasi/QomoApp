@@ -143,6 +143,7 @@ components → composables → store → infra
 - `.venv/`、`dist/`、`build/`、`__pycache__/`、`*.pyc`
 - 真实密钥/证书
 - 未通过 `npm run typecheck` 的代码
+- `**/resources/videos/操作流程.mp4`（约 204MB，超过 GitHub 限制；本地保留，勿 `git add`）
 
 ### 3.8 变更边界
 

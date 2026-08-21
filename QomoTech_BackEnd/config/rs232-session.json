@@ -1,6 +1,6 @@
 {
   "port": {
-    "portName": "COM12",
+    "portName": "COM11",
     "baudRate": 9600,
     "dataBits": 8,
     "parity": "none",
@@ -11,7 +11,7 @@
   },
   "send": {
     "mode": "ascii",
-    "payload": "LD1 1",
+    "payload": "pn",
     "appendCr": true,
     "appendLf": true,
     "autoSend": false,
@@ -23,7 +23,7 @@
     "showTimestamp": true,
     "autoScroll": true
   },
-  "receiveBuffer": "",
+  "receiveBuffer": "14:57:00 08821147700000276",
   "quickCommands": [
     {
       "id": "send-current",

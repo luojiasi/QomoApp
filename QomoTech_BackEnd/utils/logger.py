@@ -18,6 +18,7 @@ import os
 import queue
 import sys
 import threading
+import traceback
 from datetime import datetime, date
 
 
@@ -138,7 +139,10 @@ class _Qomo格式化器(logging.Formatter):
 
     def format(self, 记录: logging.LogRecord):
         时间戳 = self.formatTime(记录)
-        return f"[{时间戳}] [{记录.name}] {记录.getMessage()}"
+        消息 = f"[{时间戳}] [{记录.name}] {记录.getMessage()}"
+        if 记录.exc_info and 记录.exc_info[0] is not None:
+            消息 += "\n" + "".join(traceback.format_exception(*记录.exc_info)).rstrip()
+        return 消息
 
 
 # ---------------------------------------------------------------------------
@@ -316,6 +320,16 @@ def 获取日志记录器(名称: str) -> logging.Logger:
     """获取子日志记录器。名称会作为日志输出中的 [标签]。"""
     _确保根记录器存在()
     return logging.getLogger(f"qomo.{名称}")
+
+
+def 格式化异常位置(异常: BaseException) -> str:
+    """把异常信息附上抛出点的 文件名:行号 函数名，便于日志直接定位。"""
+    帧列表 = traceback.extract_tb(异常.__traceback__)
+    if not 帧列表:
+        return str(异常)
+    末帧 = 帧列表[-1]
+    文件名 = os.path.basename(末帧.filename)
+    return f"{异常} [{文件名}:{末帧.lineno} {末帧.name}]"
 
 
 def 停止():

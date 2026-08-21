@@ -789,7 +789,7 @@ onMounted(async () => {
                       v-model="recipe.teachingMode"
                       type="checkbox"
                       class="mt-0.5 h-4 w-4"
-                      title="是否是示教模式"
+                      title="是否示教激光模式"
                       @change="markProcessRecipeUpdated(recipe)"
                     />
                   </td>
