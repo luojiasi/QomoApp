@@ -2,10 +2,22 @@ import { ref, computed, watch } from 'vue'
 import { useNotification } from '@/shared/composables/useNotification'
 import { useControllerSettingsStore } from '../stores/useControllerSettingsStore'
 import { useAuxiliaryFunctionPanelStore } from '../stores/useAuxiliaryFunctionPanelStore'
-import { zeroMotionAxis, moveMotionAxisRel, getMotionIoInput } from '../api'
+import { zeroMotionAxis, moveMotionAxisRel, getMotionIoInput, waitMotionIdle } from '../api'
 import { waitControllerConnected } from '@/shared/api/hardware'
+import { AXIS_NO_TO_NAME } from '../config/controllerDefaults'
 
 import { sleep } from '../utils'
+
+const SEEK_TRAVEL_MM = 5000
+const BACKOFF_MM = 5
+const FAST_SEEK_SPEED = 50
+const SLOW_SEEK_SPEED = 5
+const FAST_SEEK_TIMEOUT_MS = 30000
+const SLOW_SEEK_TIMEOUT_MS = 20000
+const DEFAULT_LEAVE_X_MM = 80
+const DEFAULT_LEAVE_Y_MM = -80
+const DEFAULT_LEAVE_Z_MM = -40
+const LEAVE_SPEED = 50
 
   /** 回零流程编排：三轴回零、回零状态持久化、启动时自动回零。 */
 export function useHome() {
@@ -82,6 +94,50 @@ export function useHome() {
     error(title, names.join('/'))
   }
 
+  const waitAxisIdle = async (axisNo: number): Promise<boolean> => {
+    const axisName = AXIS_NO_TO_NAME[axisNo]
+    if (!axisName) return false
+    const res = await waitMotionIdle(axisName)
+    return Boolean(res?.success && res.data !== false)
+  }
+
+  const seekAxisToLimit = async (
+    axisNo: number,
+    seekDeltaMm: number,
+    useFwdLimit: boolean,
+    speed: number,
+    timeoutMs: number
+  ): Promise<boolean> => {
+    const move = await moveMotionAxisRel(axisNo, seekDeltaMm, { speed })
+    if (!move?.success) return false
+    return waitAxisUpperLimitInputFalse(axisNo, useFwdLimit, timeoutMs)
+  }
+
+  const homeAxisTwoSpeed = async (
+    axisNo: number,
+    seekSign: number,
+    useFwdLimit: boolean
+  ): Promise<boolean> => {
+    const seekDeltaMm = seekSign * SEEK_TRAVEL_MM
+    if (!(await seekAxisToLimit(axisNo, seekDeltaMm, useFwdLimit, FAST_SEEK_SPEED, FAST_SEEK_TIMEOUT_MS))) {
+      return false
+    }
+    const backoff = await moveMotionAxisRel(axisNo, -seekSign * BACKOFF_MM, { speed: FAST_SEEK_SPEED })
+    if (!backoff?.success) return false
+    if (!(await waitAxisIdle(axisNo))) return false
+    return seekAxisToLimit(axisNo, seekDeltaMm, useFwdLimit, SLOW_SEEK_SPEED, SLOW_SEEK_TIMEOUT_MS)
+  }
+
+  const moveRelAndWait = async (
+    axisNo: number,
+    deltaMm: number,
+    options?: { speed?: number; controllerSettings?: typeof controllerStore.controllerSettings }
+  ): Promise<boolean> => {
+    const move = await moveMotionAxisRel(axisNo, deltaMm, options)
+    if (!move?.success) return false
+    return waitAxisIdle(axisNo)
+  }
+
   const handleHome = async () => {
     if (isMovingHome.value) return
     isMovingHome.value = true
@@ -93,23 +149,17 @@ export function useHome() {
         return
       }
 
-      const UP_TRAVEL_MM = 5000
-      const [moveX, moveY, moveZ] = await Promise.all([
-        moveMotionAxisRel(0, -UP_TRAVEL_MM, { speed: 5 }),
-        moveMotionAxisRel(1, UP_TRAVEL_MM, { speed: 5 }),
-        moveMotionAxisRel(2, UP_TRAVEL_MM, { speed: 5 })
-      ])
-      if (!moveX?.success || !moveY?.success || !moveZ?.success) {
-        failHome('回零运动发送失败', [[moveX?.success, 'X'], [moveY?.success, 'Y'], [moveZ?.success, 'Z']])
+      const zSeekOk = await homeAxisTwoSpeed(2, 1, true)
+      if (!zSeekOk) {
+        failHome('寻限位失败', [[false, 'Z']])
         return
       }
-      const [okX, okY, okZ] = await Promise.all([
-        waitAxisUpperLimitInputFalse(0, false),
-        waitAxisUpperLimitInputFalse(1, true),
-        waitAxisUpperLimitInputFalse(2, true)
+      const [xSeekOk, ySeekOk] = await Promise.all([
+        homeAxisTwoSpeed(0, -1, false),
+        homeAxisTwoSpeed(1, 1, true)
       ])
-      if (!okX || !okY || !okZ) {
-        failHome('等待轴上限位超时', [[okX, 'X'], [okY, 'Y'], [okZ, 'Z']])
+      if (!xSeekOk || !ySeekOk) {
+        failHome('寻限位失败', [[xSeekOk, 'X'], [ySeekOk, 'Y']])
         return
       }
 
@@ -118,33 +168,36 @@ export function useHome() {
         zeroMotionAxis(1),
         zeroMotionAxis(2)
       ])
-      if (!zz?.success && !zx?.success && !zy?.success) {
+      if (!zx?.success || !zy?.success || !zz?.success) {
         failHome('清零失败,请检查控制器设置', [[zx?.success, 'X'], [zy?.success, 'Y'], [zz?.success, 'Z']])
         return
       }
 
       const quickMoveToPosition = await auxiliaryFunctionPanelStore.loadAuxiliaryFunctionPanelQuickMoveToPosition()
-      if (!quickMoveToPosition || (quickMoveToPosition.X === 0 && quickMoveToPosition.Y === 0 && quickMoveToPosition.Z === 0)) {
-        const [moveX2, moveY2, moveZ2] = await Promise.all([
-          moveMotionAxisRel(0, 80, { controllerSettings: controllerStore.controllerSettings }),
-          moveMotionAxisRel(1, -80, { controllerSettings: controllerStore.controllerSettings }),
-          moveMotionAxisRel(2, -40, { controllerSettings: controllerStore.controllerSettings })
-        ])
-        if (!moveX2?.success || !moveY2?.success || !moveZ2?.success) {
-          failHome('回零运动失败', [[moveX2?.success, 'X'], [moveY2?.success, 'Y'], [moveZ2?.success, 'Z']])
-          return
-        }
+      const useDefaultLeave =
+        !quickMoveToPosition ||
+        (quickMoveToPosition.X === 0 && quickMoveToPosition.Y === 0 && quickMoveToPosition.Z === 0)
+      const leaveX = useDefaultLeave ? DEFAULT_LEAVE_X_MM : quickMoveToPosition.X
+      const leaveY = useDefaultLeave ? DEFAULT_LEAVE_Y_MM : quickMoveToPosition.Y
+      const leaveZ = useDefaultLeave ? DEFAULT_LEAVE_Z_MM : quickMoveToPosition.Z
+      const leaveSpeed = { speed: LEAVE_SPEED }
+
+      const [leaveXOk, leaveYOk] = await Promise.all([
+        moveRelAndWait(0, leaveX, leaveSpeed),
+        moveRelAndWait(1, leaveY, leaveSpeed)
+      ])
+      if (!leaveXOk || !leaveYOk) {
+        failHome('回零离开限位失败', [[leaveXOk, 'X'], [leaveYOk, 'Y']])
+        return
+      }
+      const leaveZOk = await moveRelAndWait(2, leaveZ, leaveSpeed)
+      if (!leaveZOk) {
+        failHome('回零离开限位失败', [[false, 'Z']])
+        return
+      }
+      if (useDefaultLeave) {
         success('回零完成', '建议前往辅助功能区添加确定点移动位置')
       } else {
-        const [moveX2, moveY2, moveZ2] = await Promise.all([
-          moveMotionAxisRel(0, quickMoveToPosition.X, { controllerSettings: controllerStore.controllerSettings }),
-          moveMotionAxisRel(1, quickMoveToPosition.Y, { controllerSettings: controllerStore.controllerSettings }),
-          moveMotionAxisRel(2, quickMoveToPosition.Z, { controllerSettings: controllerStore.controllerSettings })
-        ])
-        if (!moveX2?.success || !moveY2?.success || !moveZ2?.success) {
-          failHome('回零运动失败', [[moveX2?.success, 'X'], [moveY2?.success, 'Y'], [moveZ2?.success, 'Z']])
-          return
-        }
         success('回零完成')
       }
 

@@ -16,3 +16,19 @@ export function slotIndexToOutputPort(slotIndex: number): number | null {
   }
   return ((slotIndex - 1) % 5) + 3
 }
+
+/** 弦长倍率默认值；台面行仍可编辑 */
+export const TEN_PLUS_DEFAULT_CHORD_RATIO = 1.2
+
+/** 角度为 0（台面行）时锁定为默认值、不可编辑的字段 */
+export const TEN_PLUS_TABLE_ANGLE_LOCKED_DEFAULTS = {
+  height: 0,
+  divisions: 0,
+  compAngle: 0,
+  compX: 0,
+  compY: 90,
+  compZ: 0,
+  k: 0,
+  b: 0,
+  x: 0
+} as const

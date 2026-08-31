@@ -7,12 +7,13 @@ import type {
 
 export function toTenPlusTargetSummary(target: TenPlusTarget): TenPlusTargetSummary | null {
   if (target.slotIndex === null || target.slotIndex === undefined) return null
-  if (!target.pointXy || !String(target.pointXy).trim()) return null
+  if (!target.pointXyz || !String(target.pointXyz).trim()) return null
   return {
     id: target.id,
     name: target.name,
     slotIndex: target.slotIndex,
-    pointXy: target.pointXy,
+    pointXyz: target.pointXyz,
+    oppositeCut: target.oppositeCut,
     rInterval: target.rInterval,
     rCompensation: target.rCompensation
   }
@@ -23,7 +24,8 @@ export function buildTenPlusRowsFromTarget(
   opts: {
     rInterval: number
     rCompensation: number
-    pointXy?: string
+    oppositeCut?: boolean
+    pointXyz?: string
     slotIndex?: number | null
     targetId?: string
     targetName?: string
@@ -46,7 +48,8 @@ export function buildTenPlusRowsFromTarget(
     x: row.x,
     rInterval: opts.rInterval,
     rCompensation: opts.rCompensation,
-    pointXy: opts.pointXy,
+    oppositeCut: opts.oppositeCut,
+    pointXyz: opts.pointXyz,
     slotIndex: opts.slotIndex,
     targetId: opts.targetId,
     targetName: opts.targetName
@@ -66,7 +69,8 @@ export function buildTenPlusRowsFromTargets(selected: TenPlusTarget[]): TenPlusF
       ...buildTenPlusRowsFromTarget(target.rows, {
         rInterval: target.rInterval,
         rCompensation: target.rCompensation,
-        pointXy: target.pointXy,
+        oppositeCut: target.oppositeCut,
+        pointXyz: target.pointXyz,
         slotIndex: target.slotIndex,
         targetId: target.id,
         targetName: target.name

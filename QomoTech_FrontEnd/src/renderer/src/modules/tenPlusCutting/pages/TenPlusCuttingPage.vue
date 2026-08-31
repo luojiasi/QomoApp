@@ -17,13 +17,16 @@ import {
   isDiameterInvalid,
   isAngleInvalid,
   isHeightInvalid,
+  isTableAngle,
   isDivisionsInvalid,
-  isRecipeInvalid
+  isRecipeInvalid,
+  applyTableAngleLockedFields
 } from '../composables/useTenPlusTask'
 import {
   createEmptyTenPlusConfig,
   normalizeTenPlusConfig,
-  formatPointXy
+  formatPointXyz,
+  parsePointXyz
 } from '../utils/tenPlusConfig'
 import {
   buildTenPlusRowsFromTargets,
@@ -97,13 +100,25 @@ function setStatus(msg: string): void {
   statusMsg.value = msg
 }
 
-function capturePointXy(): void {
+function onRowAngleChange(row: TenPlusTarget['rows'][number], e: Event): void {
+  const v = Number((e.target as HTMLInputElement).value)
+  if (isTableAngle(v)) applyTableAngleLockedFields(row)
+}
+
+function capturePointXyz(): void {
   const target = activeTarget.value
   if (!target) return
-  const x = formatAxis(mposition.value['X'])
-  const y = formatAxis(mposition.value['Y'])
-  target.pointXy = `(${x},${y})`
+  const x = Number(mposition.value['X'])
+  const y = Number(mposition.value['Y'])
+  const z = Number(mposition.value['Z'])
+  if ([x, y, z].some((v) => Number.isNaN(v))) {
+    warning('当前坐标无效，无法获取点位')
+    return
+  }
+  target.pointXyz = formatPointXyz(x, y, z)
 }
+
+const activePointAxes = computed(() => parsePointXyz(activeTarget.value?.pointXyz ?? ''))
 
 function handleAddTarget(): void {
   const target = addTarget(`目标 ${targets.length + 1}`)
@@ -176,14 +191,14 @@ function toggleDialogSelected(id: string, checked: boolean): void {
 
 function targetReadyForStart(target: TenPlusTarget): boolean {
   if (target.slotIndex === null || target.slotIndex === undefined) return false
-  if (!target.pointXy || !String(target.pointXy).trim()) return false
+  if (!target.pointXyz || !String(target.pointXyz).trim()) return false
   if (!target.rows.length) return false
   return true
 }
 
 function targetStartBlockReason(target: TenPlusTarget): string {
   if (target.slotIndex === null || target.slotIndex === undefined) return '未绑定工位'
-  if (!target.pointXy || !String(target.pointXy).trim()) return '无点位 XY'
+  if (!target.pointXyz || !String(target.pointXyz).trim()) return '无点位 XYZ'
   if (!target.rows.length) return '无任务行'
   return ''
 }
@@ -404,7 +419,7 @@ async function onSlotClick(index: number): Promise<void> {
     return
   }
 
-  const ok = bindActiveTargetToSlot(index, formatPointXy(slot.x, slot.y))
+  const ok = bindActiveTargetToSlot(index)
   if (!ok) {
     warning('绑定工位失败')
     return
@@ -499,7 +514,7 @@ async function confirmTeachSlot(): Promise<void> {
     const saved = await persistTenPlusConfig()
     if (!saved) return
     if (activeTarget.value.slotIndex === index) {
-      activeTarget.value.pointXy = formatPointXy(x, y)
+      activeTarget.value.pointXyz = formatPointXyz(x, y, z)
     }
     success(`工位 #${index} 示教已保存`)
     setStatus(`工位 #${index} 示教完成`)
@@ -763,10 +778,18 @@ onMounted(async () => {
                     min="-90"
                     max="90"
                     :title="isAngleInvalid(row.angle) ? '角度必须在 -90~90 之间' : ''"
+                    @input="onRowAngleChange(row, $event)"
                   />
                 </td>
                 <td class="col-num">
-                  <input v-model.number="row.compAngle" type="number" class="tpc-input" step="0.01" />
+                  <input
+                    v-model.number="row.compAngle"
+                    type="number"
+                    class="tpc-input"
+                    step="0.01"
+                    :disabled="isTableAngle(row.angle)"
+                    :title="isTableAngle(row.angle) ? '台面行（角度为 0）角度补偿固定为默认值' : ''"
+                  />
                 </td>
                 <td class="col-num">
                   <input
@@ -777,7 +800,14 @@ onMounted(async () => {
                     min="0"
                     max="20"
                     step="0.001"
-                    :title="isHeightInvalid(row.height) ? '高度必须在 0~20 之间' : ''"
+                    :disabled="isTableAngle(row.angle)"
+                    :title="
+                      isTableAngle(row.angle)
+                        ? '台面行（角度为 0）高度固定为 0'
+                        : isHeightInvalid(row.height)
+                          ? '高度必须在 0~20 之间'
+                          : ''
+                    "
                   />
                 </td>
                 <td class="col-num">
@@ -786,17 +816,45 @@ onMounted(async () => {
                     type="number"
                     class="tpc-input"
                     :class="{ invalid: isDivisionsInvalid(row.divisions) }"
-                    :title="isDivisionsInvalid(row.divisions) ? '分割数须为 0 或 3~360' : ''"
+                    :disabled="isTableAngle(row.angle)"
+                    :title="
+                      isTableAngle(row.angle)
+                        ? '台面行（角度为 0）分割数固定为默认值'
+                        : isDivisionsInvalid(row.divisions)
+                          ? '分割数须为 0 或 3~360'
+                          : ''
+                    "
                   />
                 </td>
                 <td class="col-num">
-                  <input v-model.number="row.compX" type="number" class="tpc-input" step="0.001" />
+                  <input
+                    v-model.number="row.compX"
+                    type="number"
+                    class="tpc-input"
+                    step="0.001"
+                    :disabled="isTableAngle(row.angle)"
+                    :title="isTableAngle(row.angle) ? '台面行（角度为 0）X补偿固定为默认值' : ''"
+                  />
                 </td>
                 <td class="col-num">
-                  <input v-model.number="row.compY" type="number" class="tpc-input" step="0.001" />
+                  <input
+                    v-model.number="row.compY"
+                    type="number"
+                    class="tpc-input"
+                    step="0.001"
+                    :disabled="isTableAngle(row.angle)"
+                    :title="isTableAngle(row.angle) ? '台面行（角度为 0）Y补偿固定为默认值' : ''"
+                  />
                 </td>
                 <td class="col-num">
-                  <input v-model.number="row.compZ" type="number" class="tpc-input" step="0.001" />
+                  <input
+                    v-model.number="row.compZ"
+                    type="number"
+                    class="tpc-input"
+                    step="0.001"
+                    :disabled="isTableAngle(row.angle)"
+                    :title="isTableAngle(row.angle) ? '台面行（角度为 0）Z补偿固定为默认值' : ''"
+                  />
                 </td>
                 <td class="col-num">
                   <input v-model.number="row.chordRatio" type="number" class="tpc-input" step="0.1" />
@@ -807,7 +865,8 @@ onMounted(async () => {
                     type="number"
                     class="tpc-input"
                     step="0.001"
-                    title="线性系数 K"
+                    :disabled="isTableAngle(row.angle)"
+                    :title="isTableAngle(row.angle) ? '台面行（角度为 0）K 固定为默认值' : '线性系数 K'"
                   />
                 </td>
                 <td class="col-num">
@@ -816,7 +875,8 @@ onMounted(async () => {
                     type="number"
                     class="tpc-input"
                     step="0.001"
-                    title="线性系数 B"
+                    :disabled="isTableAngle(row.angle)"
+                    :title="isTableAngle(row.angle) ? '台面行（角度为 0）B 固定为默认值' : '线性系数 B'"
                   />
                 </td>
                 <td class="col-num">
@@ -825,7 +885,8 @@ onMounted(async () => {
                     type="number"
                     class="tpc-input"
                     step="0.001"
-                    title="变量 X"
+                    :disabled="isTableAngle(row.angle)"
+                    :title="isTableAngle(row.angle) ? '台面行（角度为 0）X 固定为默认值' : '变量 X'"
                   />
                 </td>
                 <td class="col-recipe">
@@ -886,19 +947,36 @@ onMounted(async () => {
           </div>
 
           <div class="tpc-card">
-            <div class="tpc-card-title">点位 XY</div>
-            <div class="tpc-xy-row">
-              <input
-                :value="activeTarget.pointXy"
-                type="text"
-                class="tpc-input tpc-xy"
-                placeholder="(x,y)"
-                readonly
-              />
-              <button type="button" class="tpc-btn-sm" title="获取当前机床 XY" @click="capturePointXy">
+            <div class="tpc-card-head">
+              <div class="tpc-card-title">点位 XYZ</div>
+              <button type="button" class="tpc-btn-sm" title="获取当前机床 XYZ" @click="capturePointXyz">
                 获取
               </button>
             </div>
+            <div class="tpc-xyz-grid">
+              <div class="tpc-xyz-cell">
+                <span class="tpc-xyz-axis axis-x">X</span>
+                <span class="tpc-xyz-val" :class="{ empty: activePointAxes.x === '—' }">{{
+                  activePointAxes.x
+                }}</span>
+              </div>
+              <div class="tpc-xyz-cell">
+                <span class="tpc-xyz-axis axis-y">Y</span>
+                <span class="tpc-xyz-val" :class="{ empty: activePointAxes.y === '—' }">{{
+                  activePointAxes.y
+                }}</span>
+              </div>
+              <div class="tpc-xyz-cell">
+                <span class="tpc-xyz-axis axis-z">Z</span>
+                <span class="tpc-xyz-val" :class="{ empty: activePointAxes.z === '—' }">{{
+                  activePointAxes.z
+                }}</span>
+              </div>
+            </div>
+            <label class="tpc-switch-row" title="是否对该目标做对切">
+              <span>是否对切</span>
+              <input v-model="activeTarget.oppositeCut" type="checkbox" class="tpc-switch" />
+            </label>
 
             <div class="tpc-slot-block">
               <div class="tpc-slot-head">
@@ -1261,6 +1339,12 @@ onMounted(async () => {
   appearance: textfield;
   -moz-appearance: textfield;
 }
+.tpc-input:disabled,
+.tpc-select:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  color: #71717a;
+}
 
 .tpc-params-body {
   flex: 1;
@@ -1291,6 +1375,12 @@ onMounted(async () => {
   font-weight: 600;
   color: #e4e4e7;
 }
+.tpc-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
 .tpc-field {
   display: flex;
   flex-direction: column;
@@ -1298,12 +1388,90 @@ onMounted(async () => {
   font-size: 11px;
   color: #71717a;
 }
-.tpc-xy-row {
-  display: flex;
+.tpc-xyz-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 6px;
 }
-.tpc-xy {
-  flex: 1;
+.tpc-xyz-cell {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 7px;
+  border: 1px solid #27272a;
+  border-radius: 6px;
+  background: #09090b;
+}
+.tpc-xyz-axis {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1;
+}
+.tpc-xyz-axis.axis-x {
+  color: #f59e0b;
+}
+.tpc-xyz-axis.axis-y {
+  color: #4ade80;
+}
+.tpc-xyz-axis.axis-z {
+  color: #60a5fa;
+}
+.tpc-xyz-val {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: #e4e4e7;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+.tpc-xyz-val.empty {
+  color: #52525b;
+}
+.tpc-switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid #27272a;
+  border-radius: 6px;
+  background: #09090b;
+  color: #a1a1aa;
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+.tpc-switch {
+  appearance: none;
+  width: 32px;
+  height: 18px;
+  margin: 0;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: #3f3f46;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.tpc-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #e4e4e7;
+  transition: transform 0.15s;
+}
+.tpc-switch:checked {
+  background: #16a34a;
+}
+.tpc-switch:checked::after {
+  transform: translateX(14px);
 }
 .tpc-slot-block {
   display: flex;

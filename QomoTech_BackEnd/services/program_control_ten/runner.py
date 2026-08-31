@@ -13,6 +13,7 @@ from services.program_control_ten.geometry import (
     构建总任务目标,
     构建执行任务的参数,
     构建配方数据,
+    判断是否存在台面且计算位置,
     计算开口范围,
     更新V型开口偏移,
     更新平行型开口偏移,
@@ -170,7 +171,11 @@ class ProgramRunnerTenPlus:
 
                 全局已完成行 = 0
                 首个工位Z: float | None = None
-
+                是否存在台面, 清晰点距离自动切台面的位置 = 判断是否存在台面且计算位置(目标列表)
+                日志.info(
+                    f"[TenPlus] 是否存在台面={是否存在台面} "
+                    f"清晰点距离自动切台面的位置={清晰点距离自动切台面的位置}"
+                )
                 for 目标序号, 目标 in enumerate(目标列表):
                     行列表 = list(目标.get("rows") or [])
                     目标名 = str(目标.get("name") or 目标.get("id") or 目标序号 + 1)
@@ -211,7 +216,7 @@ class ProgramRunnerTenPlus:
                         该序号的配方 = 构建配方数据(配方数据, 该序号的参数.get("配方ID"))
                         累计高度 = sum(float(行列表[k].get("height", 0)) for k in range(序号))
                         所有高度总和 = sum(float(行列表[k].get("height", 0)) for k in range(len(行列表)))
-                        执行任务的参数 = 构建执行任务的参数(该序号的参数, 当前Z, 所有高度总和, 累计高度)
+                        执行任务的参数 = 构建执行任务的参数(该序号的参数,当前Z,所有高度总和,累计高度,是否存在台面,清晰点距离自动切台面的位置)
                         self.更新进度(current_task_index=当前序号, current_task_jindubaifenbi=0)
                         try:
                             await self._切割(
@@ -386,6 +391,8 @@ class ProgramRunnerTenPlus:
         多少圈进行补偿值 = float(该序号R轴的补偿.get("多少圈进行一次补偿", 0))
         补偿值 = float(该序号R轴的补偿.get("补偿值", 0))
         是否反向 = bool(执行任务的参数.get("是否反向", False))
+        是否对切 = bool(执行任务的参数.get("是否对切", True))
+        日志.info(f"[TenPlus] 是否对切={是否对切}")
 
         是否完全旋转完毕 = False
 
@@ -433,15 +440,13 @@ class ProgramRunnerTenPlus:
                     起点Y = 执行任务的参数.get("切割中点的坐标").get("Y")
                     起点Z = 执行任务的参数.get("切割中点的坐标").get("Z")
                     try:
-                        await self._运动.绝对运动("Z", 起点Z)
-
                         插补运行的路径点 = [{"x": 起点X, "y": 起点Y}]
-                        切割直线的结果 = await self._运动.连续插补XY(路径点=插补运行的路径点,速度=20)
-                        await asyncio.sleep(0.1)
-
+                        await self._运动.连续插补XY(路径点=插补运行的路径点, 速度=20)
                         等待X轴静止结果 = await self._运动.等待静止("X", 超时秒=XY等待静止超时秒)
                         等待Y轴静止结果 = await self._运动.等待静止("Y", 超时秒=XY等待静止超时秒)
                         if 等待X轴静止结果 and 等待Y轴静止结果:
+                            await self._运动.绝对运动("Z", 起点Z)
+                            await self._运动.等待轴到位(轴名与位置=[("Z", 起点Z)], 容差=0.01)
                             当前步骤 = ProgramFreeParamsStep.打开激光设备
                     except Exception:
                         日志.info("移动到最开始的位置失败")

@@ -3,7 +3,9 @@ import {
   LEGACY_TASK_TABLE_FORMAT,
   TEN_PLUS_FILE_EXT,
   TEN_PLUS_FILE_FORMAT,
-  TEN_PLUS_FILE_VERSION
+  TEN_PLUS_FILE_VERSION,
+  TEN_PLUS_DEFAULT_CHORD_RATIO,
+  TEN_PLUS_TABLE_ANGLE_LOCKED_DEFAULTS
 } from '../constants/tenPlusCutting'
 import type { SerializedTenPlusTargets, TenPlusTarget, TenPlusTaskRow } from '../types/tenPlusCutting'
 
@@ -18,7 +20,7 @@ function createRow(taskNo: number): TenPlusTaskRow {
     id: nextId('task'),
     taskNo,
     diameter: 0,
-    angle: 0,
+    angle: 90,
     height: 0,
     divisions: 12,
     recipe: '',
@@ -26,7 +28,7 @@ function createRow(taskNo: number): TenPlusTaskRow {
     compY: 90,
     compZ: 0,
     compAngle: 0,
-    chordRatio: 2,
+    chordRatio: TEN_PLUS_DEFAULT_CHORD_RATIO,
     k: 0,
     b: 0,
     x: 0
@@ -37,7 +39,8 @@ function createTarget(name: string): TenPlusTarget {
   return {
     id: nextId('target'),
     name,
-    pointXy: '',
+    pointXyz: '',
+    oppositeCut: true,
     slotIndex: null,
     rInterval: 0,
     rCompensation: 0,
@@ -52,12 +55,21 @@ function normalizeSlotIndex(raw: unknown): number | null {
   return n
 }
 
+export function isTableAngle(v: number): boolean {
+  return Number(v) === 0
+}
+
+export function applyTableAngleLockedFields(row: TenPlusTaskRow): void {
+  Object.assign(row, TEN_PLUS_TABLE_ANGLE_LOCKED_DEFAULTS)
+}
+
 function normalizeRow(raw: Partial<TenPlusTaskRow>, fallbackNo: number): TenPlusTaskRow {
-  return {
+  const angle = Number(raw.angle ?? 90)
+  const row: TenPlusTaskRow = {
     id: raw.id || nextId('task'),
     taskNo: raw.taskNo ?? fallbackNo,
     diameter: Number(raw.diameter ?? 0),
-    angle: Number(raw.angle ?? 0),
+    angle,
     height: Number(raw.height ?? 0),
     divisions: Number(raw.divisions ?? 12),
     recipe: typeof raw.recipe === 'string' ? raw.recipe : '',
@@ -65,18 +77,37 @@ function normalizeRow(raw: Partial<TenPlusTaskRow>, fallbackNo: number): TenPlus
     compY: Number(raw.compY ?? 90),
     compZ: Number(raw.compZ ?? 0),
     compAngle: Number(raw.compAngle ?? 0),
-    chordRatio: Number(raw.chordRatio ?? 2),
+    chordRatio: Number(raw.chordRatio ?? TEN_PLUS_DEFAULT_CHORD_RATIO),
     k: Number(raw.k ?? 0),
     b: Number(raw.b ?? 0),
     x: Number(raw.x ?? 0)
   }
+  if (isTableAngle(angle)) applyTableAngleLockedFields(row)
+  return row
 }
 
-function legacyPointXyFromRows(rows: Array<Partial<TenPlusTaskRow> & { pointXy?: string }>): string {
+function legacyPointFromRows(
+  rows: Array<Partial<TenPlusTaskRow> & { pointXyz?: string; pointXy?: string }>
+): string {
   for (const r of rows) {
+    if (typeof r.pointXyz === 'string' && r.pointXyz.trim()) return r.pointXyz.trim()
     if (typeof r.pointXy === 'string' && r.pointXy.trim()) return r.pointXy.trim()
   }
   return ''
+}
+
+function resolvePointXyz(
+  raw: Partial<TenPlusTarget> & { pointXy?: string },
+  rowsSrc: Array<Partial<TenPlusTaskRow> & { pointXyz?: string; pointXy?: string }>
+): string {
+  if (typeof raw.pointXyz === 'string' && raw.pointXyz.trim()) return raw.pointXyz.trim()
+  if (typeof raw.pointXy === 'string' && raw.pointXy.trim()) return raw.pointXy.trim()
+  return legacyPointFromRows(rowsSrc)
+}
+
+function resolveOppositeCut(raw: unknown): boolean {
+  if (typeof raw === 'boolean') return raw
+  return true
 }
 
 function legacyRCompFromRows(
@@ -97,7 +128,16 @@ function legacyRCompFromRows(
 
 function normalizeTarget(
   raw: Partial<TenPlusTarget> & {
-    rows?: Array<Partial<TenPlusTaskRow> & { pointXy?: string; rInterval?: number; rCompensation?: number }>
+    pointXy?: string
+    rows?: Array<
+      Partial<TenPlusTaskRow> & {
+        pointXyz?: string
+        pointXy?: string
+        rInterval?: number
+        rCompensation?: number
+        oppositeCut?: boolean
+      }
+    >
   },
   fallbackName: string
 ): TenPlusTarget {
@@ -107,10 +147,7 @@ function normalizeTarget(
   rows.forEach((r, i) => {
     r.taskNo = i + 1
   })
-  const pointXy =
-    typeof raw.pointXy === 'string' && raw.pointXy.trim()
-      ? raw.pointXy.trim()
-      : legacyPointXyFromRows(rowsSrc)
+  const pointXyz = resolvePointXyz(raw, rowsSrc)
   const legacyR = legacyRCompFromRows(rowsSrc)
   const rInterval =
     typeof raw.rInterval === 'number' && !Number.isNaN(raw.rInterval)
@@ -120,10 +157,12 @@ function normalizeTarget(
     typeof raw.rCompensation === 'number' && !Number.isNaN(raw.rCompensation)
       ? Number(raw.rCompensation)
       : legacyR.rCompensation
+  const oppositeCut = resolveOppositeCut(raw.oppositeCut)
   return {
     id: raw.id || nextId('target'),
     name: (raw.name && String(raw.name).trim()) || fallbackName,
-    pointXy,
+    pointXyz,
+    oppositeCut,
     slotIndex: normalizeSlotIndex((raw as { slotIndex?: unknown }).slotIndex),
     rInterval,
     rCompensation,
@@ -201,7 +240,7 @@ export function useTenPlusTask() {
     })
   }
 
-  function bindActiveTargetToSlot(slotIndex: number, pointXy?: string): boolean {
+  function bindActiveTargetToSlot(slotIndex: number, pointXyz?: string): boolean {
     const target = activeTarget.value
     if (!target) return false
     const idx = normalizeSlotIndex(slotIndex)
@@ -212,8 +251,8 @@ export function useTenPlusTask() {
       }
     }
     target.slotIndex = idx
-    if (typeof pointXy === 'string') {
-      target.pointXy = pointXy
+    if (typeof pointXyz === 'string') {
+      target.pointXyz = pointXyz
     }
     return true
   }
@@ -259,23 +298,23 @@ export function useTenPlusTask() {
       }
 
       if (parsed.format === LEGACY_TASK_TABLE_FORMAT && Array.isArray(parsed.rows)) {
-        const rawRows = parsed.rows as Array<Partial<TenPlusTaskRow> & { pointXy?: string }>
+        const rawRows = parsed.rows as Array<Partial<TenPlusTaskRow> & { pointXyz?: string; pointXy?: string }>
         const rows =
           rawRows.length > 0 ? rawRows.map((r, i) => normalizeRow(r, i + 1)) : [createRow(1)]
         rows.forEach((r, i) => {
           r.taskNo = i + 1
         })
-        const migratedXy = legacyPointXyFromRows(rawRows)
+        const migratedXyz = legacyPointFromRows(rawRows)
         if (targets.length === 0) {
           const t = createTarget('目标 1')
           t.rows = rows
-          t.pointXy = migratedXy
+          t.pointXyz = migratedXyz
           targets.push(t)
           activeTargetId.value = t.id
         } else {
           const cur = activeTarget.value ?? targets[0]
           cur.rows.splice(0, cur.rows.length, ...rows)
-          if (migratedXy) cur.pointXy = migratedXy
+          if (migratedXyz) cur.pointXyz = migratedXyz
           activeTargetId.value = cur.id
         }
         return true

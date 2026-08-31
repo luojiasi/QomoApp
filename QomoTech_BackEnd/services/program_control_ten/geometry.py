@@ -4,6 +4,7 @@ import math
 from typing import Any
 from utils.logger import 获取日志记录器
 from services.SystemSettingService import 获取一拖五R轴旋转中心点的位置, 获取一拖五U轴旋转中心的补偿值
+from services.program_control_ten.ten_plus_cutting_persistence import 按工位号取点位
 from services.motion_control.config_loader import 加载运动配置
 from core.calc_rotation import 计算点绕坐标轴旋转
 
@@ -51,6 +52,57 @@ def 构建总任务目标(目标列表: list[dict[str, Any]]) -> list[dict[str, 
             顺序.append(键)
         分组[键]["rows"].append(行)
     return [分组[k] for k in 顺序]
+
+
+def _解析点位XYZ(raw: Any) -> tuple[float, float, float] | None:
+    """解析前端下发的点位字符串，格式 "(x,y,z)"。"""
+    if raw is None:
+        return None
+    文本 = str(raw).strip()
+    if not 文本:
+        return None
+    内层 = 文本.strip("()[]").replace("，", ",")
+    分段 = [p.strip() for p in 内层.split(",") if p.strip()]
+    if len(分段) < 3:
+        return None
+    try:
+        return float(分段[0]), float(分段[1]), float(分段[2])
+    except ValueError:
+        return None
+
+
+def 判断是否存在台面且计算位置(目标列表: list[dict[str, Any]]) -> tuple[bool, float]:
+    """查找每个目标的参数行：存在角度为 0 的一行则视为存在台面。
+
+    发现台面时读取：该工位一拖五 U 轴旋转中心、该工位示教点位、该行下发的台面设置点位 XYZ。
+    """
+    for 目标 in 目标列表 or []:
+        for 行 in 目标.get("rows") or []:
+            角度 = float(行.get("angle") or 0)
+            if 角度 != 0:
+                continue
+            try:
+                工位号 = int(行.get("slotIndex"))
+            except (TypeError, ValueError):
+                日志.warning("[TenPlus] 发现台面但缺少工位号: 目标=%s",目标.get("name") or 目标.get("id"))
+                return True, 0.0
+
+            旋转中心的位置 = 获取一拖五U轴旋转中心的补偿值(工位号)
+            该工位的的位置 = 按工位号取点位(工位号)
+            if 该工位的的位置 is None:
+                日志.warning("[TenPlus] 发现台面但工位未示教: 目标=%s 工位=%s",目标.get("name") or 目标.get("id"),工位号)
+                return True, 0.0
+            台面设置的位置 = _解析点位XYZ(行.get("pointXyz"))
+            if 台面设置的位置 is None:
+                日志.warning("[TenPlus] 发现台面但缺少台面设置点位 XYZ: 目标=%s 工位=%s",目标.get("name") or 目标.get("id"),工位号)
+                return True, 0.0
+
+            台面设置的位置X, 台面设置的位置Y, 台面设置的位置Z = 台面设置的位置
+            当前平面与旋转中心的Z的距离 = float(abs(旋转中心的位置.Z) - abs(float(该工位的的位置.get("z", 0))))
+            旋转90之后与旋转中心的X的距离 = abs(float(abs(台面设置的位置X) - abs(旋转中心的位置.X)))
+            距离 = 当前平面与旋转中心的Z的距离 - 旋转90之后与旋转中心的X的距离
+            return True, 距离
+    return False, 0.0
 
 def 构建配方数据(配方数据: dict[str, Any], 配方ID: str) -> dict[str, Any]:
     """根据配方ID从完整配方数据中查找主配方 → 加工/扫黑 → 子配方链。
@@ -150,6 +202,7 @@ def 更新平行型开口偏移(*,上开口值: float,正切角度: float,累计
 
 def 构建任务的数据(行数据: dict[str, Any], 工位的轴位置: dict[str, Any], 工位号: int) -> dict[str, Any]:
     """将前端解析的行数据转换为切割任务的数据。"""
+    台面点 = _解析点位XYZ(行数据.get("pointXyz"))
     return {
         "配方ID": str(行数据.get("recipeId", "")),
         "直径": float(行数据.get("diameter", 0)),
@@ -160,15 +213,19 @@ def 构建任务的数据(行数据: dict[str, Any], 工位的轴位置: dict[st
         "补偿Y": float(行数据.get("compY", 0)),
         "补偿Z": float(行数据.get("compZ", 0)),
         "补偿角度": float(行数据.get("compAngle", 0)),
-        "弦长倍率": float(行数据.get("chordRatio", 2)),
+        "弦长倍率": float(行数据.get("chordRatio", 1.2)),
         "工位号": int(工位号),
         "工位的X坐标": float(工位的轴位置.get("x", 0)),
         "工位的Y坐标": float(工位的轴位置.get("y", 0)),
         "工位的Z坐标": float(工位的轴位置.get("z", 0)),
         "工位的U坐标": float(工位的轴位置.get("u", 0)),
+        "台面X": float(台面点[0]) if 台面点 else None,
+        "台面Y": float(台面点[1]) if 台面点 else None,
+        "台面Z": float(台面点[2]) if 台面点 else None,
         "K": float(行数据.get("k", 0)),
         "B": float(行数据.get("b", 0)),
         "X": float(行数据.get("x", 0)),
+        "是否对切": bool(行数据.get("oppositeCut", True)),
     }
 
 def 构建R轴的补偿(行数据: dict[str, Any]) -> dict[str, Any]:
@@ -356,7 +413,7 @@ def 构建R轴的补偿(行数据: dict[str, Any]) -> dict[str, Any]:
 
 
 
-def 构建执行任务的参数(数据: dict[str, Any],当前平面Z的位置, 所有高度总和: float = 0.0, 累计高度: float = 0.0 ) -> dict[str, Any]:
+def 构建执行任务的参数(数据: dict[str, Any],当前平面Z的位置, 所有高度总和: float = 0.0, 累计高度: float = 0.0 , 是否存在台面:bool = False,清晰点距离自动切台面的位置:float=0.0) -> dict[str, Any]:
 
     """将前端解析的行数据转换为执行任务的参数。
 
@@ -369,7 +426,7 @@ def 构建执行任务的参数(数据: dict[str, Any],当前平面Z的位置, �
     旋转中心的位置 = 获取一拖五U轴旋转中心的补偿值(工位号)
     R轴旋转中心的位置 = 获取一拖五R轴旋转中心点的位置(工位号)
     计算得到U轴的旋转中心点与R轴旋转中心点的X轴的位置距离 = R轴旋转中心的位置.X - 旋转中心的位置.X 
-    工位的Z坐标 = float(数据.get("工位的Z坐标", 0))
+    工位的Z坐标 = float(数据.get("工位的Z坐标", 0))-清晰点距离自动切台面的位置
     当前平面与旋转中心的Z的距离 = float(abs(旋转中心的位置.Z)-abs(工位的Z坐标))
 
     工位的X坐标 = float(数据.get("工位的X坐标", 0))
@@ -377,24 +434,26 @@ def 构建执行任务的参数(数据: dict[str, Any],当前平面Z的位置, �
     工位的U坐标 = float(数据.get("工位的U坐标", 0))
     转化的做坐标 = U工程位移转角度(工位的U坐标)
 
-
     
     高度 = float(数据.get("高度", 0))
 
-    分割数 = int(数据.get("分割数", 0))
-    是否启用R轴旋转 = True if 分割数 == 0 or 分割数 >= 48 else False
-    R轴旋转角度 = 360 / 分割数 if 分割数 > 0 else 0.0
-
     角度 = float(数据.get("角度", 0))
     角度补偿 = float(数据.get("补偿角度", 0))
+    这个是否为台面数据 = True if 角度 == 0 else False
     U轴的旋转角度 = 90 - (角度 + 角度补偿) if 角度 > 0 else -(-90 - (角度 + 角度补偿))
 
-    是否反向 =False if 角度 > 0 else True
+    是否对切 = bool(数据.get("是否对切", True))
+    分割数 = int(数据.get("分割数", 0))
+    是否启用R轴旋转 = 是否对切 if 这个是否为台面数据 else (分割数 == 0 or 分割数 >= 48)
+    R轴旋转角度 = 360 / 分割数 if 分割数 > 0 else 0.0
+
+    是否反向 =False if 角度 >= 0 else True
 
     直径 = float(数据.get("直径", 0))
     半径 = 直径 / 2
-    圆心到等分直线的垂直距离 = round(半径 * math.cos(math.pi / 分割数),4) if  not 是否启用R轴旋转 else 半径
-    弦长 = round(2 * 半径 * math.sin(math.pi / 分割数),4) if not 是否启用R轴旋转 else 0.0
+    _用等分弦 = (not 是否启用R轴旋转) and 分割数 > 0
+    圆心到等分直线的垂直距离 = round(半径 * math.cos(math.pi / 分割数), 4) if _用等分弦 else 半径
+    弦长 = round(2 * 半径 * math.sin(math.pi / 分割数), 4) if _用等分弦 else 0.0
 
 
 
@@ -416,12 +475,12 @@ def 构建执行任务的参数(数据: dict[str, Any],当前平面Z的位置, �
         缩放的圆的半径 = abs((高度 / math.tan(math.radians(角度)) + 半径))
 
 
-    弦长倍率 = float(数据.get("弦长倍率", 2))
+    弦长倍率 = float(数据.get("弦长倍率", 1.2))
     最长那条边的切割长度 = 缩放的圆的半径 * 弦长倍率 if 缩放的圆的半径 > 弦长 else 弦长 * 弦长倍率
 
 
 
-    if not 是否反向:
+    if not 是否反向 and not 这个是否为台面数据:
         真正的实际半径 = 圆心到等分直线的垂直距离 + 累计高度 / math.tan(math.radians(角度))
         初始位置直角三角形斜边 = math.hypot(真正的实际半径, 当前平面与旋转中心的Z的距离)
         在初始位置需要的角度 = math.degrees(math.atan2(真正的实际半径, 当前平面与旋转中心的Z的距离))
@@ -432,16 +491,15 @@ def 构建执行任务的参数(数据: dict[str, Any],当前平面Z的位置, �
         X需要移动的位置偏移量 = math.sin(math.radians(U轴的旋转角度+在初始位置需要的角度)) * 初始位置直角三角形斜边
         偏移后的三角形的高度 = math.cos(math.radians(U轴的旋转角度+在初始位置需要的角度)) * 初始位置直角三角形斜边
         从旋转圆心下降的距离 = 当前平面与旋转中心的Z的距离 - 偏移后的三角形的高度
+
+        X方向进行再补偿 = round(math.sin(math.radians(float(数据.get("补偿X", 0)))) * 从旋转圆心下降的距离,4)
+        Y方向进行再补偿 = round(math.cos(math.radians(float(数据.get("补偿Y", 0)))) * 从旋转圆心下降的距离,4)
+        Z方向进行再补偿 = round(float(数据.get("补偿Z", 0)),4)
+        R与U通过旋转之后得到的的值 = round(math.sin(math.radians(U轴的旋转角度))*计算得到U轴的旋转中心点与R轴旋转中心点的X轴的位置距离,4)
         日志.info(
             f"X需要移动的位置偏移量={X需要移动的位置偏移量} "
             f"偏移后的三角形的高度={偏移后的三角形的高度} "
             f"从旋转圆心下降的距离={从旋转圆心下降的距离} "
-        )
-        X方向进行再补偿 = math.sin(math.radians(float(数据.get("补偿X", 0)))) * 从旋转圆心下降的距离
-        Y方向进行再补偿 = math.cos(math.radians(float(数据.get("补偿Y", 0)))) * 从旋转圆心下降的距离
-        Z方向进行再补偿 = float(数据.get("补偿Z", 0))
-        R与U通过旋转之后得到的的值 = math.sin(math.radians(U轴的旋转角度))*计算得到U轴的旋转中心点与R轴旋转中心点的X轴的位置距离
-        日志.info(
             f"X方向进行再补偿={X方向进行再补偿} "
             f"Y方向进行再补偿={Y方向进行再补偿} "
             f"Z方向进行再补偿={Z方向进行再补偿} "
@@ -452,7 +510,7 @@ def 构建执行任务的参数(数据: dict[str, Any],当前平面Z的位置, �
             "Y": 工位的Y坐标+Y方向进行再补偿,
             "Z": 工位的Z坐标-从旋转圆心下降的距离+Z方向进行再补偿,
         }
-    else:
+    elif 是否反向 and not 这个是否为台面数据:
         # 当切负角度的时候出现上面的高度那我就需要有高度的延长来计算，导致我的半径会变大
         真正的实际半径 = 圆心到等分直线的垂直距离 + 累计高度 / math.tan(math.radians(abs(角度)))
         初始位置直角三角形斜边 = math.hypot(真正的实际半径, 当前平面与旋转中心的Z的距离)
@@ -464,16 +522,15 @@ def 构建执行任务的参数(数据: dict[str, Any],当前平面Z的位置, �
         X需要移动的位置偏移量 = math.sin(math.radians(U轴的旋转角度-在初始位置需要的角度)) * 初始位置直角三角形斜边
         偏移后的三角形的高度 = math.cos(math.radians(U轴的旋转角度-在初始位置需要的角度)) * 初始位置直角三角形斜边
         从旋转圆心下降的距离 = 当前平面与旋转中心的Z的距离 - 偏移后的三角形的高度
+
+        X方向进行再补偿 = round(math.sin(math.radians(float(数据.get("补偿X", 0)))) * 从旋转圆心下降的距离,4)
+        Y方向进行再补偿 = round(math.cos(math.radians(float(数据.get("补偿Y", 0)))) * 从旋转圆心下降的距离,4)
+        Z方向进行再补偿 = round(float(数据.get("补偿Z", 0)),4)
+        R与U通过旋转之后得到的的值 = round(math.sin(math.radians(U轴的旋转角度))*计算得到U轴的旋转中心点与R轴旋转中心点的X轴的位置距离,4)
         日志.info(
             f"X需要移动的位置偏移量={X需要移动的位置偏移量} "
             f"偏移后的三角形的高度={偏移后的三角形的高度} "
             f"从旋转圆心下降的距离={从旋转圆心下降的距离} "
-        )
-        X方向进行再补偿 = math.sin(math.radians(float(数据.get("补偿X", 0)))) * 从旋转圆心下降的距离
-        Y方向进行再补偿 = math.cos(math.radians(float(数据.get("补偿Y", 0)))) * 从旋转圆心下降的距离
-        Z方向进行再补偿 = float(数据.get("补偿Z", 0))
-        R与U通过旋转之后得到的的值 = math.sin(math.radians(U轴的旋转角度))*计算得到U轴的旋转中心点与R轴旋转中心点的X轴的位置距离
-        日志.info(
             f"X方向进行再补偿={X方向进行再补偿} "
             f"Y方向进行再补偿={Y方向进行再补偿} "
             f"Z方向进行再补偿={Z方向进行再补偿} "
@@ -484,6 +541,21 @@ def 构建执行任务的参数(数据: dict[str, Any],当前平面Z的位置, �
             "Y": 工位的Y坐标+Y方向进行再补偿,
             "Z": 工位的Z坐标-从旋转圆心下降的距离+Z方向进行再补偿,
         }
+    elif 这个是否为台面数据:
+        台面X = 数据.get("台面X")
+        台面Y = 数据.get("台面Y")
+        台面Z = 数据.get("台面Z")
+        if 台面X is None or 台面Y is None or 台面Z is None:
+            raise ValueError("台面行缺少点位 XYZ，无法构建切割中点")
+        切割中点的坐标 = {
+            "X": float(台面X),
+            "Y": float(台面Y),
+            "Z": float(台面Z),
+        }
+        最长那条边的切割长度 = round(直径 * 弦长倍率,4)
+        切割产品的高度 = round(直径 * 弦长倍率,4)
+        日志.info("[TenPlus] 台面切割中点直接使用点位 XYZ=(%.3f,%.3f,%.3f)",切割中点的坐标["X"],切割中点的坐标["Y"],切割中点的坐标["Z"],)
+
 
     # 下发 U 轴：工艺倾角 + 工位示教 U（转化的做坐标）
     U轴的旋转角度 = U轴的旋转角度 + 转化的做坐标
@@ -498,4 +570,6 @@ def 构建执行任务的参数(数据: dict[str, Any],当前平面Z的位置, �
         "切割中点的坐标":切割中点的坐标,
         "切割产品的高度":切割产品的高度,
         "最长的那条边的切割长度":最长那条边的切割长度,
+        "这个数据是否是台面数据": 这个是否为台面数据,
+        "是否对切":是否对切,
     }

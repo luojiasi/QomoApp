@@ -42,6 +42,22 @@ export function normalizeTenPlusConfig(raw: unknown): TenPlusCuttingConfig {
   return base
 }
 
-export function formatPointXy(x: number, y: number): string {
-  return `(${x.toFixed(3)},${y.toFixed(3)})`
+export function formatPointXyz(x: number, y: number, z: number): string {
+  return `(${x.toFixed(3)},${y.toFixed(3)},${z.toFixed(3)})`
+}
+
+export function parsePointXyz(raw: string): { x: string; y: string; z: string } {
+  const empty = { x: '—', y: '—', z: '—' }
+  if (!raw || !String(raw).trim()) return empty
+  const inner = String(raw)
+    .trim()
+    .replace(/^[(\[]/, '')
+    .replace(/[)\]]$/, '')
+  const parts = inner.split(/[,，\s]+/).filter(Boolean)
+  if (parts.length < 2) return empty
+  return {
+    x: parts[0] ?? '—',
+    y: parts[1] ?? '—',
+    z: parts[2] ?? '—'
+  }
 }

@@ -21,7 +21,10 @@ export interface TenPlusTaskRow {
 export interface TenPlusTarget {
   id: string
   name: string
-  pointXy: string
+  /** 该目标的点位 XYZ，格式 "(x,y,z)"；读档兼容旧字段 pointXy */
+  pointXyz: string
+  /** 是否对切，默认 true；读档缺省视为 true */
+  oppositeCut: boolean
   slotIndex: number | null
   rInterval: number
   rCompensation: number
@@ -61,7 +64,8 @@ export interface TenPlusTargetSummary {
   id: string
   name: string
   slotIndex: number
-  pointXy: string
+  pointXyz: string
+  oppositeCut: boolean
   rInterval: number
   rCompensation: number
 }
@@ -93,7 +97,8 @@ export interface TenPlusFreeParamPayload {
     x: number
     rInterval: number
     rCompensation: number
-    pointXy?: string
+    oppositeCut?: boolean
+    pointXyz?: string
     slotIndex?: number | null
     targetId?: string
     targetName?: string
