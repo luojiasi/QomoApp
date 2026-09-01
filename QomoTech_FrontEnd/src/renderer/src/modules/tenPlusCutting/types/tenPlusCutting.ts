@@ -2,6 +2,8 @@
 export interface TenPlusTaskRow {
   id: string
   taskNo: number
+  /** 路径类型，取值见 TEN_PLUS_PATH_TYPE_OPTIONS */
+  pathType: string
   diameter: number
   angle: number
   height: number
@@ -11,6 +13,8 @@ export interface TenPlusTaskRow {
   compY: number
   compZ: number
   compAngle: number
+  /** 直径百分比，默认 100 */
+  diameterPercent: number
   chordRatio: number
   k: number
   b: number
@@ -82,6 +86,7 @@ export interface TenPlusFreeParamPayload {
   targets: TenPlusTargetSummary[]
   rows: Array<{
     taskNo: number
+    pathType: string
     diameter: number
     angle: number
     height: number
@@ -91,6 +96,7 @@ export interface TenPlusFreeParamPayload {
     compY: number
     compZ: number
     compAngle: number
+    diameterPercent: number
     chordRatio: number
     k: number
     b: number

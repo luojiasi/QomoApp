@@ -205,6 +205,7 @@ def 构建任务的数据(行数据: dict[str, Any], 工位的轴位置: dict[st
     台面点 = _解析点位XYZ(行数据.get("pointXyz"))
     return {
         "配方ID": str(行数据.get("recipeId", "")),
+        "路径类型": str(行数据.get("pathType", "equalSegments")),
         "直径": float(行数据.get("diameter", 0)),
         "角度": float(行数据.get("angle", 0)),
         "高度": float(行数据.get("height", 0)),
@@ -213,6 +214,7 @@ def 构建任务的数据(行数据: dict[str, Any], 工位的轴位置: dict[st
         "补偿Y": float(行数据.get("compY", 0)),
         "补偿Z": float(行数据.get("compZ", 0)),
         "补偿角度": float(行数据.get("compAngle", 0)),
+        "直径百分比": float(行数据.get("diameterPercent", 100)),
         "弦长倍率": float(行数据.get("chordRatio", 1.2)),
         "工位号": int(工位号),
         "工位的X坐标": float(工位的轴位置.get("x", 0)),
@@ -449,7 +451,8 @@ def 构建执行任务的参数(数据: dict[str, Any],当前平面Z的位置, �
 
     是否反向 =False if 角度 >= 0 else True
 
-    直径 = float(数据.get("直径", 0))
+    直径百分比 = float(数据.get("直径百分比", 100))
+    直径 = float(数据.get("直径", 0)) * (直径百分比 / 100.0)
     半径 = 直径 / 2
     _用等分弦 = (not 是否启用R轴旋转) and 分割数 > 0
     圆心到等分直线的垂直距离 = round(半径 * math.cos(math.pi / 分割数), 4) if _用等分弦 else 半径

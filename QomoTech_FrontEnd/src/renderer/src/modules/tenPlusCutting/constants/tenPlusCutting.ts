@@ -20,11 +20,28 @@ export function slotIndexToOutputPort(slotIndex: number): number | null {
 /** 弦长倍率默认值；台面行仍可编辑 */
 export const TEN_PLUS_DEFAULT_CHORD_RATIO = 1.2
 
+/** 直径百分比默认值（100 表示按原直径） */
+export const TEN_PLUS_DEFAULT_DIAMETER_PERCENT = 100
+
+/** 任务行路径类型。新增选项只在此数组追加 { value, label }。 */
+export const TEN_PLUS_PATH_TYPE_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
+  { value: 'equalSegments', label: '等分线段' },
+  { value: 'curve', label: '曲线' },
+  { value: 'Line', label: '直线' }
+]
+
+export const TEN_PLUS_DEFAULT_PATH_TYPE = TEN_PLUS_PATH_TYPE_OPTIONS[0]?.value ?? 'equalSegments'
+
+export function resolveTenPlusPathType(raw: unknown): string {
+  const value = typeof raw === 'string' ? raw : ''
+  if (TEN_PLUS_PATH_TYPE_OPTIONS.some((item) => item.value === value)) return value
+  return TEN_PLUS_DEFAULT_PATH_TYPE
+}
+
 /** 角度为 0（台面行）时锁定为默认值、不可编辑的字段 */
 export const TEN_PLUS_TABLE_ANGLE_LOCKED_DEFAULTS = {
   height: 0,
   divisions: 0,
-  compAngle: 0,
   compX: 0,
   compY: 90,
   compZ: 0,

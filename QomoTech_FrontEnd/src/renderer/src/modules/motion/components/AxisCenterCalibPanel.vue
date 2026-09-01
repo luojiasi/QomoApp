@@ -29,9 +29,9 @@ function ruDiffToneClass(delta: number): string {
 
 function ruDiffValueClass(delta: number): string {
   const abs = Math.abs(delta)
-  if (abs <= 0.1) return 'text-emerald-200'
-  if (abs <= 0.2) return 'text-amber-200'
-  return 'text-red-200'
+  if (abs <= 0.1) return 'text-emerald-700'
+  if (abs <= 0.2) return 'text-amber-700'
+  return 'text-red-700'
 }
 
 function formatRuDiff(delta: number): string {
@@ -96,7 +96,7 @@ function formatRuDiff(delta: number): string {
       <StatusCard label="失败信息" :value="state.axisCenterCalibErrorMessage || '-'" />
     </div>
     <div class="space-y-2 rounded-xl border border-amber-400/55 bg-amber-400/10 p-3">
-      <p class="text-xs font-medium text-amber-200">将当前 XYZ 记为 R 轴旋转中心</p>
+      <p class="text-xs font-medium text-(--app-text-primary)">将当前 XYZ 记为 R 轴旋转中心</p>
       <button
         type="button"
         :disabled="state.isAxisCenterCalib || state.isSavingRAxisPosition"

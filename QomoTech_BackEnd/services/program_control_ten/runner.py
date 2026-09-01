@@ -304,6 +304,18 @@ class ProgramRunnerTenPlus:
         except Exception as exc:
             日志.error(f"关闭输出口失败: 工位#{工位号} OUT[{输出口}]: {exc}")
             return False
+    async def _关闭所有输出口(self) -> bool:
+        try:
+            await self._运动.设置输出(3, False)
+            await self._运动.设置输出(4, False)
+            await self._运动.设置输出(5, False)
+            await self._运动.设置输出(6, False)
+            await self._运动.设置输出(7, False)
+            日志.info(f"关闭所有输出口")
+            return True
+        except Exception as exc:
+            日志.error(f"关闭所有输出口失败: {exc}")
+            return False
 
     async def _切割(self,配方数据:dict[str, Any],执行任务的参数:dict[str, Any],该序号R轴的补偿:dict[str, Any],起始点的位置:dict[str, Any],工位号:int)->bool:
         是否完成切割 = False
@@ -414,6 +426,8 @@ class ProgramRunnerTenPlus:
                         日志.error("准备开始：控制器未连接，进入清理")
                         当前步骤 = ProgramFreeParamsStep.清理所有状态
                 case ProgramFreeParamsStep.根据工位号打开输出口:
+                    await self._关闭所有输出口()
+                    await asyncio.sleep(0.2)
                     if await self._根据工位号打开输出口(工位号):
                         当前步骤 = ProgramFreeParamsStep.U轴进行角度旋转
                     else:

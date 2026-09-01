@@ -337,13 +337,17 @@ class ProgramRunnerFreeParam:
                     if 是否连上:
                         await self._自由编辑参数的运动.开启吹风()
                         当前步骤 = ProgramFreeParamsStep.U轴进行角度旋转
-
-
+                    else:
+                        日志.error("准备开始：控制器未连接，进入清理")
+                        当前步骤 = ProgramFreeParamsStep.清理所有状态
                 case ProgramFreeParamsStep.U轴进行角度旋转:
                     旋转角度 = 执行任务的参数.get("U轴的旋转角度")
                     旋转结果 = await self._运动.U轴旋转角度(旋转角度)
-                    if not 旋转结果.get('success'): 当前步骤 = ProgramFreeParamsStep.清理所有状态
-                    当前步骤 = ProgramFreeParamsStep.判断是否到达旋转角度
+                    if not 旋转结果.get("success"):
+                        日志.error(f"U轴旋转失败（目标={旋转角度}°）: {旋转结果.get('message')}")
+                        当前步骤 = ProgramFreeParamsStep.清理所有状态
+                    else:
+                        当前步骤 = ProgramFreeParamsStep.判断是否到达旋转角度
 
                 case ProgramFreeParamsStep.判断是否到达旋转角度:
                     是否到达旋转角度 = await self._运动.U轴是否到达旋转角度(旋转角度)

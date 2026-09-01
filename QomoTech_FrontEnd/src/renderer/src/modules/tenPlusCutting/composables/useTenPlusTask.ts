@@ -5,7 +5,10 @@ import {
   TEN_PLUS_FILE_FORMAT,
   TEN_PLUS_FILE_VERSION,
   TEN_PLUS_DEFAULT_CHORD_RATIO,
-  TEN_PLUS_TABLE_ANGLE_LOCKED_DEFAULTS
+  TEN_PLUS_DEFAULT_DIAMETER_PERCENT,
+  TEN_PLUS_DEFAULT_PATH_TYPE,
+  TEN_PLUS_TABLE_ANGLE_LOCKED_DEFAULTS,
+  resolveTenPlusPathType
 } from '../constants/tenPlusCutting'
 import type { SerializedTenPlusTargets, TenPlusTarget, TenPlusTaskRow } from '../types/tenPlusCutting'
 
@@ -19,6 +22,7 @@ function createRow(taskNo: number): TenPlusTaskRow {
   return {
     id: nextId('task'),
     taskNo,
+    pathType: TEN_PLUS_DEFAULT_PATH_TYPE,
     diameter: 0,
     angle: 90,
     height: 0,
@@ -28,6 +32,7 @@ function createRow(taskNo: number): TenPlusTaskRow {
     compY: 90,
     compZ: 0,
     compAngle: 0,
+    diameterPercent: TEN_PLUS_DEFAULT_DIAMETER_PERCENT,
     chordRatio: TEN_PLUS_DEFAULT_CHORD_RATIO,
     k: 0,
     b: 0,
@@ -68,6 +73,7 @@ function normalizeRow(raw: Partial<TenPlusTaskRow>, fallbackNo: number): TenPlus
   const row: TenPlusTaskRow = {
     id: raw.id || nextId('task'),
     taskNo: raw.taskNo ?? fallbackNo,
+    pathType: resolveTenPlusPathType(raw.pathType),
     diameter: Number(raw.diameter ?? 0),
     angle,
     height: Number(raw.height ?? 0),
@@ -77,6 +83,9 @@ function normalizeRow(raw: Partial<TenPlusTaskRow>, fallbackNo: number): TenPlus
     compY: Number(raw.compY ?? 90),
     compZ: Number(raw.compZ ?? 0),
     compAngle: Number(raw.compAngle ?? 0),
+    diameterPercent: Number.isFinite(Number(raw.diameterPercent))
+      ? Number(raw.diameterPercent)
+      : TEN_PLUS_DEFAULT_DIAMETER_PERCENT,
     chordRatio: Number(raw.chordRatio ?? TEN_PLUS_DEFAULT_CHORD_RATIO),
     k: Number(raw.k ?? 0),
     b: Number(raw.b ?? 0),

@@ -33,6 +33,7 @@ export function buildTenPlusRowsFromTarget(
 ): TenPlusFreeParamPayload['rows'] {
   return rows.map((row) => ({
     taskNo: row.taskNo,
+    pathType: row.pathType,
     diameter: row.diameter,
     angle: row.angle,
     height: row.height,
@@ -42,6 +43,7 @@ export function buildTenPlusRowsFromTarget(
     compY: row.compY,
     compZ: row.compZ,
     compAngle: row.compAngle,
+    diameterPercent: row.diameterPercent,
     chordRatio: row.chordRatio,
     k: row.k,
     b: row.b,

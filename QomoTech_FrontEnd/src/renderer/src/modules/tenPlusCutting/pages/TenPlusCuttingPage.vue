@@ -11,7 +11,12 @@ import {
   setMotionIoOutput
 } from '@/modules/motion/api'
 import { sendTenPlusFreeParams } from '@/modules/program/api'
-import { TEN_PLUS_GRID_ORDER, TEN_PLUS_STATION_OUTPUT_PORTS, slotIndexToOutputPort } from '../constants/tenPlusCutting'
+import {
+  TEN_PLUS_GRID_ORDER,
+  TEN_PLUS_PATH_TYPE_OPTIONS,
+  TEN_PLUS_STATION_OUTPUT_PORTS,
+  slotIndexToOutputPort
+} from '../constants/tenPlusCutting'
 import {
   useTenPlusTask,
   isDiameterInvalid,
@@ -34,6 +39,7 @@ import {
 } from '../utils/tenPlusPayload'
 import type { TenPlusCuttingConfig, TenPlusFreeParamPayload, TenPlusSlot, TenPlusTarget } from '../types/tenPlusCutting'
 import TenPlusCuttingPage_UrCalibDialog from '../components/TenPlusCuttingPage_UrCalibDialog.vue'
+import TenPlusCuttingPage_CompDialog from '../components/TenPlusCuttingPage_CompDialog.vue'
 
 type WorkMode = 'freeParam' | 'drawImage'
 
@@ -82,6 +88,15 @@ const showTeachDialog = ref(false)
 const teachDialogSlot = ref<number | null>(null)
 const showUrCalibDialog = ref(false)
 const urCalibSlot = ref<number | null>(null)
+const compDialogRow = ref<TenPlusTarget['rows'][number] | null>(null)
+
+function openCompDialog(row: TenPlusTarget['rows'][number]): void {
+  compDialogRow.value = row
+}
+
+function closeCompDialog(): void {
+  compDialogRow.value = null
+}
 
 const activeMainRecipes = computed(() =>
   recipeStore.recipeState.mainRecipes.filter((r) => r.status === 'active')
@@ -576,6 +591,15 @@ onMounted(async () => {
       </div>
     </Teleport>
 
+    <!-- 行补偿值 -->
+    <Teleport to="body">
+      <TenPlusCuttingPage_CompDialog
+        v-if="compDialogRow"
+        :row="compDialogRow"
+        @close="closeCompDialog"
+      />
+    </Teleport>
+
     <!-- UR 补偿校准 -->
     <Teleport to="body">
       <TenPlusCuttingPage_UrCalibDialog
@@ -736,26 +760,39 @@ onMounted(async () => {
           <table class="tpc-table">
             <thead>
               <tr>
+                <th class="col-path">类型</th>
                 <th class="col-no">序号</th>
                 <th class="col-num">直径 (mm)</th>
                 <th class="col-num">角度 (°)</th>
-                <th class="col-num">角度补偿</th>
                 <th class="col-num">高度 (mm)</th>
                 <th class="col-num">分割数</th>
-                <th class="col-num">X补偿</th>
-                <th class="col-num">Y补偿</th>
-                <th class="col-num">Z补偿</th>
                 <th class="col-num">弦长倍率</th>
-                <th class="col-num">K</th>
-                <th class="col-num">B</th>
-                <th class="col-num">X</th>
                 <th class="col-recipe">配方</th>
+                <th class="col-comp">补偿</th>
                 <th class="col-act" />
               </tr>
             </thead>
             <tbody>
               <tr v-for="row in taskRows" :key="row.id">
-                <td class="col-no muted">{{ row.taskNo }}</td>
+                <td class="col-path">
+                  <div class="tpc-path-seg" role="radiogroup" aria-label="类型">
+                    <button
+                      v-for="item in TEN_PLUS_PATH_TYPE_OPTIONS"
+                      :key="item.value"
+                      type="button"
+                      role="radio"
+                      :aria-checked="row.pathType === item.value"
+                      :class="{ on: row.pathType === item.value }"
+                      :title="item.label"
+                      @click="row.pathType = item.value"
+                    >
+                      {{ item.label }}
+                    </button>
+                  </div>
+                </td>
+                <td class="col-no">
+                  <span class="tpc-task-no">{{ row.taskNo }}</span>
+                </td>
                 <td class="col-num">
                   <input
                     v-model.number="row.diameter"
@@ -779,16 +816,6 @@ onMounted(async () => {
                     max="90"
                     :title="isAngleInvalid(row.angle) ? '角度必须在 -90~90 之间' : ''"
                     @input="onRowAngleChange(row, $event)"
-                  />
-                </td>
-                <td class="col-num">
-                  <input
-                    v-model.number="row.compAngle"
-                    type="number"
-                    class="tpc-input"
-                    step="0.01"
-                    :disabled="isTableAngle(row.angle)"
-                    :title="isTableAngle(row.angle) ? '台面行（角度为 0）角度补偿固定为默认值' : ''"
                   />
                 </td>
                 <td class="col-num">
@@ -827,67 +854,7 @@ onMounted(async () => {
                   />
                 </td>
                 <td class="col-num">
-                  <input
-                    v-model.number="row.compX"
-                    type="number"
-                    class="tpc-input"
-                    step="0.001"
-                    :disabled="isTableAngle(row.angle)"
-                    :title="isTableAngle(row.angle) ? '台面行（角度为 0）X补偿固定为默认值' : ''"
-                  />
-                </td>
-                <td class="col-num">
-                  <input
-                    v-model.number="row.compY"
-                    type="number"
-                    class="tpc-input"
-                    step="0.001"
-                    :disabled="isTableAngle(row.angle)"
-                    :title="isTableAngle(row.angle) ? '台面行（角度为 0）Y补偿固定为默认值' : ''"
-                  />
-                </td>
-                <td class="col-num">
-                  <input
-                    v-model.number="row.compZ"
-                    type="number"
-                    class="tpc-input"
-                    step="0.001"
-                    :disabled="isTableAngle(row.angle)"
-                    :title="isTableAngle(row.angle) ? '台面行（角度为 0）Z补偿固定为默认值' : ''"
-                  />
-                </td>
-                <td class="col-num">
                   <input v-model.number="row.chordRatio" type="number" class="tpc-input" step="0.1" />
-                </td>
-                <td class="col-num">
-                  <input
-                    v-model.number="row.k"
-                    type="number"
-                    class="tpc-input"
-                    step="0.001"
-                    :disabled="isTableAngle(row.angle)"
-                    :title="isTableAngle(row.angle) ? '台面行（角度为 0）K 固定为默认值' : '线性系数 K'"
-                  />
-                </td>
-                <td class="col-num">
-                  <input
-                    v-model.number="row.b"
-                    type="number"
-                    class="tpc-input"
-                    step="0.001"
-                    :disabled="isTableAngle(row.angle)"
-                    :title="isTableAngle(row.angle) ? '台面行（角度为 0）B 固定为默认值' : '线性系数 B'"
-                  />
-                </td>
-                <td class="col-num">
-                  <input
-                    v-model.number="row.x"
-                    type="number"
-                    class="tpc-input"
-                    step="0.001"
-                    :disabled="isTableAngle(row.angle)"
-                    :title="isTableAngle(row.angle) ? '台面行（角度为 0）X 固定为默认值' : '变量 X'"
-                  />
                 </td>
                 <td class="col-recipe">
                   <select
@@ -901,6 +868,16 @@ onMounted(async () => {
                       {{ recipeLabel(r) }}
                     </option>
                   </select>
+                </td>
+                <td class="col-comp">
+                  <button
+                    type="button"
+                    class="tpc-btn-sm"
+                    title="修改角度补偿、XYZ 补偿、K/B/X"
+                    @click="openCompDialog(row)"
+                  >
+                    修改补偿值
+                  </button>
                 </td>
                 <td class="col-act">
                   <button
@@ -1074,13 +1051,18 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.tpc-page,
+.tpc-dlg-overlay,
+.tpc-slot-tip {
+  --tpc-accent: #0ea5e9;
+}
 .tpc-page {
   display: flex;
   flex-direction: column;
   height: 100vh;
   height: 100dvh;
-  background: #09090b;
-  color: #d4d4d8;
+  background: var(--app-bg);
+  color: var(--app-text-primary);
   overflow: hidden;
 }
 
@@ -1090,19 +1072,20 @@ onMounted(async () => {
   justify-content: space-between;
   gap: 16px;
   padding: 12px 16px;
-  border-bottom: 1px solid #27272a;
+  border-bottom: 1px solid var(--app-border);
   flex-shrink: 0;
+  background: var(--app-card);
 }
 .tpc-title {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-  color: #e4e4e7;
+  color: var(--app-text-primary);
 }
 .tpc-sub {
   margin: 2px 0 0;
   font-size: 12px;
-  color: #71717a;
+  color: var(--app-text-muted);
 }
 .tpc-top-left {
   display: flex;
@@ -1119,29 +1102,30 @@ onMounted(async () => {
   padding: 6px 12px;
   font-size: 12px;
   font-weight: 500;
-  color: #eff6ff;
-  background: #1d4ed8;
-  border: 1px solid #1d4ed8;
+  color: var(--app-text-muted);
+  background: var(--app-card-soft);
+  border: 1px solid var(--app-border);
   border-radius: 6px;
   text-decoration: none;
-  transition: background 0.15s;
+  transition: color 0.15s, background 0.15s;
 }
 .tpc-home-link:hover {
-  background: #2563eb;
+  color: var(--app-text-primary);
+  background: var(--app-card);
 }
 .tpc-mode-btn {
   padding: 6px 12px;
   font-size: 12px;
-  border: 1px solid #27272a;
+  border: 1px solid var(--app-border);
   border-radius: 6px;
-  background: #18181b;
-  color: #a1a1aa;
+  background: var(--app-card-soft);
+  color: var(--app-text-secondary);
   cursor: pointer;
 }
 .tpc-mode-btn.active {
-  border-color: #3b82f6;
-  color: #93c5fd;
-  background: #172554;
+  border-color: var(--tpc-accent);
+  color: var(--app-text-primary);
+  background: color-mix(in srgb, var(--tpc-accent) 14%, var(--app-card));
 }
 
 .tpc-body {
@@ -1159,8 +1143,8 @@ onMounted(async () => {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  background: #131316;
-  border: 1px solid #27272a;
+  background: var(--app-card);
+  border: 1px solid var(--app-border);
   border-radius: 10px;
   overflow: hidden;
 }
@@ -1172,23 +1156,24 @@ onMounted(async () => {
   justify-content: space-between;
   gap: 8px;
   padding: 10px 12px;
-  border-bottom: 1px solid #27272a;
+  border-bottom: 1px solid var(--app-border);
   font-size: 12px;
-  color: #a1a1aa;
+  color: var(--app-text-secondary);
   flex-shrink: 0;
+  background: var(--app-card-soft);
 }
 .tpc-kicker {
   font-weight: 600;
-  color: #e4e4e7;
+  color: var(--app-text-primary);
   margin-right: 8px;
 }
 .tpc-active-name {
-  color: #93c5fd;
+  color: color-mix(in srgb, var(--tpc-accent) 72%, var(--app-text-primary));
   margin-right: 8px;
 }
 .tpc-hint {
   font-size: 11px;
-  color: #52525b;
+  color: var(--app-text-muted);
 }
 
 .tpc-targets-list {
@@ -1203,15 +1188,15 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 4px;
-  border: 1px solid #27272a;
+  border: 1px solid var(--app-border);
   border-radius: 8px;
-  background: #18181b;
+  background: var(--app-card-soft);
   padding: 4px;
   cursor: pointer;
 }
 .tpc-target-item.active {
-  border-color: #3b82f6;
-  background: #172554;
+  border-color: var(--tpc-accent);
+  background: color-mix(in srgb, var(--tpc-accent) 12%, var(--app-card));
 }
 .tpc-target-main {
   flex: 1;
@@ -1228,7 +1213,7 @@ onMounted(async () => {
 }
 .tpc-target-index {
   font-size: 11px;
-  color: #71717a;
+  color: var(--app-text-muted);
   font-variant-numeric: tabular-nums;
 }
 .tpc-target-text {
@@ -1238,28 +1223,28 @@ onMounted(async () => {
 }
 .tpc-target-name {
   font-size: 13px;
-  color: #e4e4e7;
+  color: var(--app-text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .tpc-target-meta {
   font-size: 11px;
-  color: #71717a;
+  color: var(--app-text-muted);
 }
 .tpc-target-del,
 .tpc-row-del {
   background: none;
   border: none;
-  color: #71717a;
+  color: var(--app-text-muted);
   cursor: pointer;
   padding: 4px 6px;
   border-radius: 4px;
 }
 .tpc-target-del:hover:not(:disabled),
 .tpc-row-del:hover:not(:disabled) {
-  color: #f87171;
-  background: #27272a;
+  color: #dc2626;
+  background: color-mix(in srgb, #dc2626 10%, var(--app-card));
 }
 .tpc-target-del:disabled,
 .tpc-row-del:disabled {
@@ -1270,9 +1255,9 @@ onMounted(async () => {
   width: 100%;
   padding: 6px 8px;
   font-size: 13px;
-  color: #e4e4e7;
-  background: #09090b;
-  border: 1px solid #3b82f6;
+  color: var(--app-text-primary);
+  background: var(--app-input-bg);
+  border: 1px solid var(--tpc-accent);
   border-radius: 6px;
   outline: none;
 }
@@ -1285,6 +1270,7 @@ onMounted(async () => {
 }
 .tpc-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 12px;
 }
@@ -1292,22 +1278,85 @@ onMounted(async () => {
   position: sticky;
   top: 0;
   z-index: 1;
-  background: #18181b;
-  color: #71717a;
+  background: var(--app-card-soft);
+  color: var(--app-text-muted);
   font-weight: 500;
   padding: 6px 4px;
-  border-bottom: 1px solid #27272a;
+  border-bottom: 1px solid var(--app-border);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .tpc-table td {
   padding: 4px;
-  border-bottom: 1px solid #1f1f23;
+  border-bottom: 1px solid var(--app-border);
+  overflow: hidden;
+  vertical-align: middle;
 }
-.col-no { width: 40px; text-align: center; }
-.col-num { width: 72px; }
-.col-recipe { min-width: 110px; }
-.col-act { width: 32px; }
-.muted { color: #71717a; }
+.tpc-table th,
+.tpc-table td {
+  width: calc(78% / 9);
+}
+.tpc-table .col-path {
+  width: 22%;
+}
+.col-no { text-align: center; }
+.tpc-task-no {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: #fff;
+  background: var(--tpc-accent);
+}
+.col-comp .tpc-btn-sm {
+  width: 100%;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+.muted { color: var(--app-text-muted); }
+
+.tpc-path-seg {
+  display: flex;
+  gap: 2px;
+  min-width: 0;
+  padding: 2px;
+  background: var(--app-input-bg);
+  border: 1px solid var(--app-border);
+  border-radius: 6px;
+}
+.tpc-path-seg button {
+  flex: 1;
+  min-width: 0;
+  padding: 3px 5px;
+  font-size: 11px;
+  line-height: 1.2;
+  font-family: inherit;
+  color: var(--app-text-muted);
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tpc-path-seg button:hover:not(.on) {
+  color: var(--app-text-secondary);
+  background: var(--app-card-soft);
+}
+.tpc-path-seg button.on {
+  color: var(--app-text-primary);
+  background: color-mix(in srgb, var(--tpc-accent) 16%, var(--app-card));
+  box-shadow: inset 0 0 0 1px var(--tpc-accent);
+}
 
 .tpc-input,
 .tpc-select {
@@ -1315,20 +1364,33 @@ onMounted(async () => {
   padding: 4px 6px;
   font-size: 12px;
   font-family: inherit;
-  color: #d4d4d8;
-  background: #09090b;
-  border: 1px solid #27272a;
+  color: var(--app-text-primary);
+  background: var(--app-input-bg);
+  border: 1px solid var(--app-border);
   border-radius: 4px;
   outline: none;
 }
+.tpc-input[type="number"] {
+  text-align: center;
+}
+.tpc-select {
+  appearance: none;
+  padding-right: 18px;
+  color-scheme: inherit;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath stroke='%2364748b' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round' d='m1 1 4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  background-size: 10px 6px;
+  cursor: pointer;
+}
 .tpc-input:focus,
 .tpc-select:focus {
-  border-color: #3b82f6;
+  border-color: var(--tpc-accent);
 }
 .tpc-input.invalid,
 .tpc-select.invalid {
   border-color: #ef4444;
-  background: rgba(127, 29, 29, 0.25);
+  background: color-mix(in srgb, #ef4444 12%, var(--app-input-bg));
 }
 .tpc-input::-webkit-outer-spin-button,
 .tpc-input::-webkit-inner-spin-button {
@@ -1343,7 +1405,7 @@ onMounted(async () => {
 .tpc-select:disabled {
   opacity: 0.45;
   cursor: not-allowed;
-  color: #71717a;
+  color: var(--app-text-muted);
 }
 
 .tpc-params-body {
@@ -1358,13 +1420,13 @@ onMounted(async () => {
 .tpc-params-empty {
   padding: 24px 12px;
   text-align: center;
-  color: #52525b;
+  color: var(--app-text-muted);
   font-size: 12px;
 }
 .tpc-card {
-  border: 1px solid #27272a;
+  border: 1px solid var(--app-border);
   border-radius: 8px;
-  background: #18181b;
+  background: var(--app-card-soft);
   padding: 10px;
   display: flex;
   flex-direction: column;
@@ -1373,7 +1435,7 @@ onMounted(async () => {
 .tpc-card-title {
   font-size: 12px;
   font-weight: 600;
-  color: #e4e4e7;
+  color: var(--app-text-primary);
 }
 .tpc-card-head {
   display: flex;
@@ -1386,7 +1448,7 @@ onMounted(async () => {
   flex-direction: column;
   gap: 4px;
   font-size: 11px;
-  color: #71717a;
+  color: var(--app-text-muted);
 }
 .tpc-xyz-grid {
   display: grid;
@@ -1399,9 +1461,9 @@ onMounted(async () => {
   flex-direction: column;
   gap: 4px;
   padding: 6px 7px;
-  border: 1px solid #27272a;
+  border: 1px solid var(--app-border);
   border-radius: 6px;
-  background: #09090b;
+  background: var(--app-input-bg);
 }
 .tpc-xyz-axis {
   font-size: 10px;
@@ -1410,25 +1472,25 @@ onMounted(async () => {
   line-height: 1;
 }
 .tpc-xyz-axis.axis-x {
-  color: #f59e0b;
+  color: #d97706;
 }
 .tpc-xyz-axis.axis-y {
-  color: #4ade80;
+  color: #16a34a;
 }
 .tpc-xyz-axis.axis-z {
-  color: #60a5fa;
+  color: #2563eb;
 }
 .tpc-xyz-val {
   font-size: 12px;
   font-variant-numeric: tabular-nums;
-  color: #e4e4e7;
+  color: var(--app-text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   line-height: 1.2;
 }
 .tpc-xyz-val.empty {
-  color: #52525b;
+  color: var(--app-text-muted);
 }
 .tpc-switch-row {
   display: flex;
@@ -1436,10 +1498,10 @@ onMounted(async () => {
   justify-content: space-between;
   gap: 8px;
   padding: 6px 8px;
-  border: 1px solid #27272a;
+  border: 1px solid var(--app-border);
   border-radius: 6px;
-  background: #09090b;
-  color: #a1a1aa;
+  background: var(--app-input-bg);
+  color: var(--app-text-secondary);
   font-size: 12px;
   cursor: pointer;
   user-select: none;
@@ -1451,7 +1513,7 @@ onMounted(async () => {
   margin: 0;
   flex-shrink: 0;
   border-radius: 999px;
-  background: #3f3f46;
+  background: var(--app-border);
   position: relative;
   cursor: pointer;
   transition: background 0.15s;
@@ -1464,7 +1526,8 @@ onMounted(async () => {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: #e4e4e7;
+  background: var(--app-card);
+  box-shadow: 0 0 0 1px var(--app-border);
   transition: transform 0.15s;
 }
 .tpc-switch:checked {
@@ -1472,6 +1535,8 @@ onMounted(async () => {
 }
 .tpc-switch:checked::after {
   transform: translateX(14px);
+  box-shadow: none;
+  background: #fff;
 }
 .tpc-slot-block {
   display: flex;
@@ -1485,7 +1550,7 @@ onMounted(async () => {
   justify-content: space-between;
   gap: 8px;
   font-size: 12px;
-  color: #a1a1aa;
+  color: var(--app-text-secondary);
 }
 .tpc-slot-head-actions {
   display: flex;
@@ -1499,18 +1564,18 @@ onMounted(async () => {
   gap: 4px;
   cursor: pointer;
   user-select: none;
-  color: #a1a1aa;
+  color: var(--app-text-secondary);
   font-size: 11px;
   white-space: nowrap;
 }
 .tpc-slot-move input {
   margin: 0;
-  accent-color: #4ade80;
+  accent-color: #16a34a;
 }
 .tpc-slot-hint {
   margin: 0;
   font-size: 11px;
-  color: #f0b429;
+  color: #d97706;
 }
 .tpc-slot-grid {
   display: grid;
@@ -1523,34 +1588,29 @@ onMounted(async () => {
   gap: 10px;
   width: 100%;
   min-height: 56px;
-  padding: 8px 8px 8px 8px;
-  border: 1px solid #3f3f46;
+  padding: 8px;
+  border: 1px solid var(--app-border);
   border-radius: 10px;
-  background:
-    linear-gradient(180deg, rgba(24, 24, 27, 0.95), rgba(9, 9, 11, 0.95));
-  color: #e4e4e7;
+  background: var(--app-card);
+  color: var(--app-text-primary);
   cursor: pointer;
   text-align: left;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
   transition: border-color 0.15s, background 0.15s, box-shadow 0.15s, transform 0.12s;
 }
 .tpc-ur-entry:hover {
-  border-color: rgba(56, 189, 248, 0.45);
-  background: linear-gradient(180deg, #1c2430, #111827);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(56, 189, 248, 0.12);
+  border-color: color-mix(in srgb, #0ea5e9 55%, var(--app-border));
+  background: color-mix(in srgb, #0ea5e9 8%, var(--app-card));
   transform: translateY(-1px);
 }
 .tpc-ur-entry:active {
   transform: translateY(0);
 }
 .tpc-ur-entry.ready {
-  border-color: rgba(56, 189, 248, 0.55);
-  background:
-    radial-gradient(120% 140% at 0% 0%, rgba(56, 189, 248, 0.14), transparent 55%),
-    linear-gradient(180deg, #152033, #0c1220);
+  border-color: color-mix(in srgb, #0ea5e9 50%, var(--app-border));
+  background: color-mix(in srgb, #0ea5e9 10%, var(--app-card));
 }
 .tpc-ur-entry.ready:hover {
-  border-color: rgba(125, 211, 252, 0.7);
+  border-color: #0ea5e9;
 }
 .tpc-ur-axes {
   display: grid;
@@ -1571,14 +1631,14 @@ onMounted(async () => {
   font-variant-numeric: tabular-nums;
 }
 .tpc-ur-axis.u {
-  color: #7dd3fc;
-  background: rgba(14, 165, 233, 0.16);
-  border: 1px solid rgba(56, 189, 248, 0.4);
+  color: color-mix(in srgb, #0ea5e9 55%, var(--app-text-primary));
+  background: color-mix(in srgb, #0ea5e9 16%, var(--app-card));
+  border: 1px solid color-mix(in srgb, #0ea5e9 40%, var(--app-border));
 }
 .tpc-ur-axis.r {
-  color: #fcd34d;
-  background: rgba(245, 158, 11, 0.14);
-  border: 1px solid rgba(251, 191, 36, 0.38);
+  color: color-mix(in srgb, #f59e0b 55%, var(--app-text-primary));
+  background: color-mix(in srgb, #f59e0b 16%, var(--app-card));
+  border: 1px solid color-mix(in srgb, #f59e0b 40%, var(--app-border));
 }
 .tpc-ur-copy {
   display: flex;
@@ -1591,19 +1651,19 @@ onMounted(async () => {
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.02em;
-  color: #f4f4f5;
+  color: var(--app-text-primary);
   line-height: 1.2;
 }
 .tpc-ur-meta {
   font-size: 11px;
-  color: #71717a;
+  color: var(--app-text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   font-variant-numeric: tabular-nums;
 }
 .tpc-ur-entry.ready .tpc-ur-meta {
-  color: #7dd3fc;
+  color: color-mix(in srgb, #0ea5e9 55%, var(--app-text-primary));
 }
 .tpc-ur-go {
   flex-shrink: 0;
@@ -1611,14 +1671,14 @@ onMounted(async () => {
   border-radius: 999px;
   font-size: 11px;
   font-weight: 600;
-  color: #93c5fd;
-  background: rgba(59, 130, 246, 0.12);
-  border: 1px solid rgba(59, 130, 246, 0.28);
+  color: color-mix(in srgb, #0ea5e9 55%, var(--app-text-primary));
+  background: color-mix(in srgb, #0ea5e9 12%, var(--app-card));
+  border: 1px solid color-mix(in srgb, #0ea5e9 28%, var(--app-border));
 }
 .tpc-ur-entry.ready .tpc-ur-go {
-  color: #0f172a;
-  background: #38bdf8;
-  border-color: #38bdf8;
+  color: #fff;
+  background: #0ea5e9;
+  border-color: #0ea5e9;
 }
 .tpc-slot-cell {
   display: flex;
@@ -1628,10 +1688,10 @@ onMounted(async () => {
   gap: 2px;
   min-height: 48px;
   padding: 6px 4px;
-  border: 1px solid #3f3f46;
+  border: 1px solid var(--app-border);
   border-radius: 8px;
-  background: #09090b;
-  color: #a1a1aa;
+  background: var(--app-input-bg);
+  color: var(--app-text-secondary);
   cursor: pointer;
   text-align: center;
   transition: border-color 0.12s, background 0.12s, box-shadow 0.12s;
@@ -1640,22 +1700,22 @@ onMounted(async () => {
   opacity: 0.72;
 }
 .tpc-slot-cell.slot-taught {
-  border-color: rgba(74, 222, 128, 0.45);
-  background: rgba(74, 222, 128, 0.08);
+  border-color: color-mix(in srgb, #16a34a 45%, var(--app-border));
+  background: color-mix(in srgb, #16a34a 10%, var(--app-card));
 }
 .tpc-slot-cell.slot-selected {
-  border-color: rgba(59, 130, 246, 0.55);
-  background: rgba(59, 130, 246, 0.12);
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.18);
+  border-color: color-mix(in srgb, var(--tpc-accent) 55%, var(--app-border));
+  background: color-mix(in srgb, var(--tpc-accent) 12%, var(--app-card));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--tpc-accent) 18%, transparent);
 }
 .tpc-slot-cell.slot-bound {
-  border-color: #f0b429;
-  background: rgba(240, 180, 41, 0.12);
-  box-shadow: 0 0 0 2px rgba(240, 180, 41, 0.22);
-  color: #f0b429;
+  border-color: #d97706;
+  background: color-mix(in srgb, #d97706 12%, var(--app-card));
+  box-shadow: 0 0 0 2px color-mix(in srgb, #d97706 22%, transparent);
+  color: color-mix(in srgb, #d97706 50%, var(--app-text-primary));
 }
 .tpc-slot-cell:hover {
-  border-color: rgba(59, 130, 246, 0.4);
+  border-color: color-mix(in srgb, var(--tpc-accent) 40%, var(--app-border));
 }
 .tpc-slot-no {
   font-size: 14px;
@@ -1677,10 +1737,10 @@ onMounted(async () => {
   min-width: 108px;
   padding: 8px 10px;
   border-radius: 8px;
-  border: 1px solid #3f3f46;
-  background: #18181b;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
-  color: #e4e4e7;
+  border: 1px solid var(--app-border);
+  background: var(--app-card);
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--app-text-primary) 16%, transparent);
+  color: var(--app-text-primary);
   font-size: 11px;
   line-height: 1.5;
   pointer-events: none;
@@ -1688,11 +1748,11 @@ onMounted(async () => {
 }
 .tpc-slot-tip-title {
   margin-bottom: 2px;
-  color: #a1a1aa;
+  color: var(--app-text-secondary);
   font-weight: 600;
 }
 .tpc-slot-tip-empty {
-  color: #71717a;
+  color: var(--app-text-muted);
 }
 
 .tpc-draw-empty {
@@ -1701,13 +1761,13 @@ onMounted(async () => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: #71717a;
+  color: var(--app-text-muted);
   gap: 8px;
 }
 .tpc-draw-title {
   margin: 0;
   font-size: 16px;
-  color: #a1a1aa;
+  color: var(--app-text-secondary);
 }
 .tpc-draw-desc {
   margin: 0;
@@ -1719,16 +1779,16 @@ onMounted(async () => {
   align-items: center;
   gap: 10px;
   padding: 10px 16px;
-  border-top: 1px solid #27272a;
+  border-top: 1px solid var(--app-border);
   flex-shrink: 0;
-  background: #131316;
+  background: var(--app-card);
 }
 .tpc-confirm {
   display: flex;
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: #a1a1aa;
+  color: var(--app-text-secondary);
   user-select: none;
 }
 .tpc-status {
@@ -1737,7 +1797,7 @@ onMounted(async () => {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 12px;
-  color: #71717a;
+  color: var(--app-text-muted);
 }
 .tpc-footer-spacer {
   flex: 1;
@@ -1748,10 +1808,10 @@ onMounted(async () => {
 
 .tpc-btn,
 .tpc-btn-sm {
-  border: 1px solid #27272a;
+  border: 1px solid var(--app-border);
   border-radius: 6px;
-  background: #18181b;
-  color: #a1a1aa;
+  background: var(--app-card-soft);
+  color: var(--app-text-secondary);
   cursor: pointer;
   font-size: 12px;
   transition: all 0.15s;
@@ -1765,8 +1825,9 @@ onMounted(async () => {
 }
 .tpc-btn:hover:not(:disabled),
 .tpc-btn-sm:hover:not(:disabled) {
-  background: #27272a;
-  color: #e4e4e7;
+  background: var(--app-card);
+  color: var(--app-text-primary);
+  border-color: var(--tpc-accent);
 }
 .tpc-btn:disabled,
 .tpc-btn-sm:disabled {
@@ -1775,17 +1836,20 @@ onMounted(async () => {
 }
 .tpc-btn.primary,
 .tpc-btn.start {
-  background: #1d4ed8;
-  border-color: #1d4ed8;
-  color: #eff6ff;
+  background: color-mix(in srgb, var(--tpc-accent) 15%, var(--app-card));
+  border-color: color-mix(in srgb, var(--tpc-accent) 50%, var(--app-border));
+  color: var(--app-text-primary);
 }
 .tpc-btn.primary:hover:not(:disabled),
 .tpc-btn.start:hover:not(:disabled) {
-  background: #2563eb;
+  background: var(--tpc-accent);
+  border-color: var(--tpc-accent);
+  color: #fff;
 }
 .tpc-btn-sm.add {
-  border-color: #1d4ed8;
-  color: #93c5fd;
+  border-color: color-mix(in srgb, var(--tpc-accent) 50%, var(--app-border));
+  color: var(--app-text-primary);
+  background: color-mix(in srgb, var(--tpc-accent) 10%, var(--app-card));
 }
 
 .tpc-dlg-overlay {
@@ -1795,16 +1859,17 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.6);
+  background: color-mix(in srgb, var(--app-text-primary) 35%, transparent);
 }
 .tpc-dlg-card {
   width: 420px;
   max-width: 92vw;
-  background: #131316;
-  border: 1px solid #27272a;
+  background: var(--app-card);
+  border: 1px solid var(--app-border);
   border-radius: 12px;
   padding: 16px;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 16px 48px color-mix(in srgb, var(--app-text-primary) 18%, transparent);
+  color: var(--app-text-primary);
 }
 .tpc-dlg-wide {
   width: 520px;
@@ -1812,20 +1877,20 @@ onMounted(async () => {
 .tpc-dlg-head {
   font-size: 15px;
   font-weight: 600;
-  color: #e4e4e7;
+  color: var(--app-text-primary);
   margin-bottom: 8px;
 }
 .tpc-dlg-body {
   margin: 0 0 12px;
   font-size: 13px;
-  color: #a1a1aa;
+  color: var(--app-text-secondary);
 }
 .tpc-dlg-meta {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
   font-size: 12px;
-  color: #71717a;
+  color: var(--app-text-muted);
   margin-bottom: 14px;
   font-variant-numeric: tabular-nums;
 }
@@ -1847,14 +1912,14 @@ onMounted(async () => {
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  border: 1px solid #27272a;
+  border: 1px solid var(--app-border);
   border-radius: 8px;
-  background: #18181b;
+  background: var(--app-card-soft);
   cursor: pointer;
 }
 .tpc-start-item.selected {
-  border-color: #3b82f6;
-  background: #172554;
+  border-color: var(--tpc-accent);
+  background: color-mix(in srgb, var(--tpc-accent) 12%, var(--app-card));
 }
 .tpc-start-item.disabled {
   opacity: 0.55;
@@ -1862,7 +1927,7 @@ onMounted(async () => {
 }
 .tpc-start-index {
   font-size: 11px;
-  color: #71717a;
+  color: var(--app-text-muted);
 }
 .tpc-start-text {
   display: flex;
@@ -1871,10 +1936,10 @@ onMounted(async () => {
 }
 .tpc-start-name {
   font-size: 13px;
-  color: #e4e4e7;
+  color: var(--app-text-primary);
 }
 .tpc-start-meta {
   font-size: 11px;
-  color: #71717a;
+  color: var(--app-text-muted);
 }
 </style>

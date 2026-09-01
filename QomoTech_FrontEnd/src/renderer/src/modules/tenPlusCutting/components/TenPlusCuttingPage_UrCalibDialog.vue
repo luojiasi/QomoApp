@@ -75,17 +75,18 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.6);
+  background: color-mix(in srgb, var(--app-text-primary) 35%, transparent);
 }
 .tpc-ur-card {
   width: min(1280px, 96vw);
   height: min(88vh, 900px);
   display: flex;
   flex-direction: column;
-  background: #131316;
-  border: 1px solid #27272a;
+  background: var(--app-card);
+  border: 1px solid var(--app-border);
   border-radius: 12px;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+  color: var(--app-text-primary);
+  box-shadow: 0 16px 48px color-mix(in srgb, var(--app-text-primary) 18%, transparent);
 }
 .tpc-ur-head {
   display: flex;
@@ -95,18 +96,21 @@ onUnmounted(() => {
   padding: 14px 16px 10px;
   font-size: 15px;
   font-weight: 600;
-  color: #e4e4e7;
-  border-bottom: 1px solid #27272a;
+  color: var(--app-text-primary);
+  border-bottom: 1px solid var(--app-border);
   flex-shrink: 0;
 }
 .tpc-ur-close {
-  border: 1px solid #3f3f46;
-  background: #18181b;
-  color: #d4d4d8;
+  border: 1px solid var(--app-border);
+  background: var(--app-card-soft);
+  color: var(--app-text-primary);
   border-radius: 8px;
   padding: 4px 10px;
   font-size: 12px;
   cursor: pointer;
+}
+.tpc-ur-close:hover {
+  border-color: #0ea5e9;
 }
 .tpc-ur-close:disabled {
   opacity: 0.5;
@@ -132,11 +136,11 @@ onUnmounted(() => {
   min-height: 220px;
   overflow: hidden;
   border-radius: 8px;
-  background: #09090b;
+  background: #0b1220;
   outline: none;
 }
 .tpc-ur-cam-view:focus {
-  box-shadow: 0 0 0 1px #38bdf8;
+  box-shadow: 0 0 0 1px #0ea5e9;
 }
 .tpc-ur-crosshair {
   position: absolute;
@@ -157,11 +161,11 @@ onUnmounted(() => {
   flex-shrink: 0;
   font-size: 11px;
   line-height: 1.55;
-  color: #a1a1aa;
+  color: var(--app-text-secondary);
 }
 .tpc-ur-keys-title {
   margin: 0 0 4px;
-  color: #d4d4d8;
+  color: var(--app-text-primary);
 }
 .tpc-ur-keys ul {
   margin: 0;
@@ -171,14 +175,15 @@ onUnmounted(() => {
 .tpc-ur-keys kbd {
   display: inline-block;
   padding: 0 4px;
-  border: 1px solid #3f3f46;
+  border: 1px solid var(--app-border);
   border-radius: 4px;
-  background: #18181b;
-  color: #e4e4e7;
+  background: var(--app-card-soft);
+  color: var(--app-text-primary);
   font-size: 10px;
 }
 .tpc-ur-panel {
   min-height: 0;
   overflow: auto;
+  color: var(--app-text-primary);
 }
 </style>
