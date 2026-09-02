@@ -11,10 +11,18 @@ import {
   TEN_PLUS_DEFAULT_CORNER_RATIO,
   TEN_PLUS_DEFAULT_LINE_LENGTH,
   TEN_PLUS_DEFAULT_LINE_WIDTH,
+  TEN_PLUS_DEFAULT_ARC_START,
+  TEN_PLUS_DEFAULT_ARC_END,
+  TEN_PLUS_DEFAULT_ARC_OFFSET,
+  TEN_PLUS_DEFAULT_SUPERELLIPSE_N,
+  TEN_PLUS_DEFAULT_CURVE_KIND,
   TEN_PLUS_DEFAULT_PATH_TYPE,
   TEN_PLUS_TABLE_ANGLE_LOCKED_DEFAULTS,
+  resolveTenPlusCurveKind,
   resolveTenPlusPathType
 } from '../constants/tenPlusCutting'
+import { TEN_PLUS_CUSHION_EXPONENT_MAX, TEN_PLUS_CUSHION_EXPONENT_MIN } from '../constants/shapePreset'
+import type { TenPlusQuickShapeRowDraft } from '../types/shapePreset'
 import type { SerializedTenPlusTargets, TenPlusTarget, TenPlusTaskRow } from '../types/tenPlusCutting'
 
 let seq = 0
@@ -32,6 +40,13 @@ function createRow(taskNo: number): TenPlusTaskRow {
     length: TEN_PLUS_DEFAULT_LINE_LENGTH,
     width: TEN_PLUS_DEFAULT_LINE_WIDTH,
     cornerRatio: TEN_PLUS_DEFAULT_CORNER_RATIO,
+    arcStart: TEN_PLUS_DEFAULT_ARC_START,
+    arcEnd: TEN_PLUS_DEFAULT_ARC_END,
+    arcOffsetX: TEN_PLUS_DEFAULT_ARC_OFFSET,
+    arcOffsetY: TEN_PLUS_DEFAULT_ARC_OFFSET,
+    curveKind: TEN_PLUS_DEFAULT_CURVE_KIND,
+    superellipseN: TEN_PLUS_DEFAULT_SUPERELLIPSE_N,
+    sameLayer: false,
     angle: 90,
     height: 0,
     divisions: 12,
@@ -81,6 +96,9 @@ export function applyTableAngleLockedFields(row: TenPlusTaskRow): void {
 
 function normalizeRow(raw: Partial<TenPlusTaskRow>, fallbackNo: number): TenPlusTaskRow {
   const angle = Number(raw.angle ?? 90)
+  const superellipseN = Number.isFinite(Number(raw.superellipseN))
+    ? Number(raw.superellipseN)
+    : TEN_PLUS_DEFAULT_SUPERELLIPSE_N
   const row: TenPlusTaskRow = {
     id: raw.id || nextId('task'),
     taskNo: raw.taskNo ?? fallbackNo,
@@ -91,6 +109,19 @@ function normalizeRow(raw: Partial<TenPlusTaskRow>, fallbackNo: number): TenPlus
     cornerRatio: Number.isFinite(Number(raw.cornerRatio))
       ? Number(raw.cornerRatio)
       : TEN_PLUS_DEFAULT_CORNER_RATIO,
+    arcStart: Number.isFinite(Number(raw.arcStart))
+      ? Number(raw.arcStart)
+      : TEN_PLUS_DEFAULT_ARC_START,
+    arcEnd: Number.isFinite(Number(raw.arcEnd)) ? Number(raw.arcEnd) : TEN_PLUS_DEFAULT_ARC_END,
+    arcOffsetX: Number.isFinite(Number(raw.arcOffsetX))
+      ? Number(raw.arcOffsetX)
+      : TEN_PLUS_DEFAULT_ARC_OFFSET,
+    arcOffsetY: Number.isFinite(Number(raw.arcOffsetY))
+      ? Number(raw.arcOffsetY)
+      : TEN_PLUS_DEFAULT_ARC_OFFSET,
+    curveKind: resolveTenPlusCurveKind(raw.curveKind, superellipseN),
+    superellipseN,
+    sameLayer: raw.sameLayer === true,
     angle,
     height: Number(raw.height ?? 0),
     divisions: Number(raw.divisions ?? 12),
@@ -260,6 +291,22 @@ export function useTenPlusTask() {
     target.rows.push(createRow(nextNo))
   }
 
+  /** 用快捷形状草稿追加到当前目标末尾 */
+  function appendQuickShapeRows(drafts: TenPlusQuickShapeRowDraft[]): void {
+    const target = activeTarget.value
+    if (!target || drafts.length === 0) return
+    const start = target.rows.length
+    target.rows.push(
+      ...drafts.map((draft, i) => ({
+        ...createRow(start + i + 1),
+        ...draft
+      }))
+    )
+    target.rows.forEach((row, i) => {
+      row.taskNo = i + 1
+    })
+  }
+
   function removeRow(rowId: string): void {
     const target = activeTarget.value
     if (!target) return
@@ -369,6 +416,7 @@ export function useTenPlusTask() {
     renameTarget,
     removeTarget,
     addRow,
+    appendQuickShapeRows,
     removeRow,
     bindActiveTargetToSlot,
     exportToFile,
@@ -379,6 +427,11 @@ export function useTenPlusTask() {
 export function isDiameterInvalid(v: number): boolean {
   const n = Number(v)
   return Number.isNaN(n) || n < 0 || n > 200
+}
+
+export function isSuperellipseNInvalid(n: number): boolean {
+  const v = Number(n)
+  return !Number.isFinite(v) || v < TEN_PLUS_CUSHION_EXPONENT_MIN || v > TEN_PLUS_CUSHION_EXPONENT_MAX
 }
 
 export function isAngleInvalid(v: number): boolean {
@@ -404,6 +457,12 @@ export function isCornerRatioInvalid(cornerRatio: number, length: number, width:
   if (!Number.isFinite(ratio) || ratio <= 0 || ratio >= 50) return true
   const corner = (ratio / 100) * Number(width)
   return !(corner > 0) || 2 * corner >= Number(length)
+}
+
+export function isArcAngleInvalid(start: number, end: number): boolean {
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return true
+  if (start < -360 || start > 360 || end < -360 || end > 360) return true
+  return start === end
 }
 
 export function isRecipeInvalid(recipe: string): boolean {

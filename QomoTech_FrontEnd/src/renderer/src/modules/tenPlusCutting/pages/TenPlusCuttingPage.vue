@@ -15,19 +15,32 @@ import {
 import { sendTenPlusFreeParams } from '@/modules/program/api'
 import {
   TEN_PLUS_CORNER_RATIO_RECOMMENDATIONS,
+  TEN_PLUS_CURVE_KIND_OPTIONS,
+  TEN_PLUS_CURVE_KIND_SUPERELLIPSE,
+  TEN_PLUS_CURVE_PATH_TYPE,
   TEN_PLUS_GRID_ORDER,
   TEN_PLUS_PATH_TYPE_OPTIONS,
   TEN_PLUS_STATION_OUTPUT_PORTS,
+  isCurvePath,
   isUnequalLinePath,
-  slotIndexToOutputPort
+  isSuperellipseCurve,
+  resolveTenPlusCurveKind,
+  slotIndexToOutputPort,
+  tenPlusPathTypeTitle
 } from '../constants/tenPlusCutting'
+import {
+  TEN_PLUS_CUSHION_DEFAULT_EXPONENT,
+  TEN_PLUS_QUICK_SHAPE_OPTIONS
+} from '../constants/shapePreset'
 import {
   useTenPlusTask,
   isDiameterInvalid,
+  isSuperellipseNInvalid,
   isAngleInvalid,
   isHeightInvalid,
   isTableAngle,
   isCornerRatioInvalid,
+  isArcAngleInvalid,
   isDivisionsInvalid,
   isRecipeInvalid,
   applyTableAngleLockedFields
@@ -42,9 +55,12 @@ import {
   buildTenPlusRowsFromTargets,
   toTenPlusTargetSummary
 } from '../utils/tenPlusPayload'
+import { buildQuickShapeRowDrafts } from '../utils/tenPlusShapePresets'
 import type { TenPlusCuttingConfig, TenPlusFreeParamPayload, TenPlusSlot, TenPlusTarget } from '../types/tenPlusCutting'
+import type { TenPlusQuickShapeInput } from '../types/shapePreset'
 import TenPlusCuttingPage_UrCalibDialog from '../components/TenPlusCuttingPage_UrCalibDialog.vue'
 import TenPlusCuttingPage_CompDialog from '../components/TenPlusCuttingPage_CompDialog.vue'
+import TenPlusCuttingPage_ShapePresetDialog from '../components/TenPlusCuttingPage_ShapePresetDialog.vue'
 
 type WorkMode = 'freeParam' | 'drawImage'
 
@@ -68,6 +84,7 @@ const {
   renameTarget,
   removeTarget,
   addRow,
+  appendQuickShapeRows,
   removeRow,
   bindActiveTargetToSlot,
   exportToFile,
@@ -95,6 +112,7 @@ const showTeachDialog = ref(false)
 const teachDialogSlot = ref<number | null>(null)
 const showUrCalibDialog = ref(false)
 const urCalibSlot = ref<number | null>(null)
+const showQuickShapeDialog = ref(false)
 const compDialogRow = ref<TenPlusTarget['rows'][number] | null>(null)
 
 function openCompDialog(row: TenPlusTarget['rows'][number]): void {
@@ -103,6 +121,30 @@ function openCompDialog(row: TenPlusTarget['rows'][number]): void {
 
 function closeCompDialog(): void {
   compDialogRow.value = null
+}
+
+function openQuickShapeDialog(): void {
+  if (!activeTarget.value) {
+    warning('请先选择目标')
+    return
+  }
+  showQuickShapeDialog.value = true
+}
+
+function closeQuickShapeDialog(): void {
+  showQuickShapeDialog.value = false
+}
+
+function confirmQuickShape(input: TenPlusQuickShapeInput): void {
+  try {
+    appendQuickShapeRows(buildQuickShapeRowDrafts(input))
+    showQuickShapeDialog.value = false
+    const label =
+      TEN_PLUS_QUICK_SHAPE_OPTIONS.find((item) => item.value === input.shape)?.label ?? '快捷形状'
+    success(`已将${label}写入当前目标`)
+  } catch (err) {
+    warning(err instanceof Error ? err.message : '生成快捷形状失败')
+  }
 }
 
 const activeMainRecipes = computed(() =>
@@ -168,14 +210,82 @@ function cancelRename(): void {
   renameDraft.value = ''
 }
 
+function applyCurveKind(row: TenPlusTarget['rows'][number], kind: string): void {
+  row.pathType = TEN_PLUS_CURVE_PATH_TYPE
+  row.curveKind = kind
+  if (kind === TEN_PLUS_CURVE_KIND_SUPERELLIPSE && isSuperellipseNInvalid(row.superellipseN)) {
+    row.superellipseN = TEN_PLUS_CUSHION_DEFAULT_EXPONENT
+  }
+}
+
+function onPathTypeChange(row: TenPlusTarget['rows'][number], pathType: string): void {
+  if (isCurvePath(pathType)) {
+    applyCurveKind(row, resolveTenPlusCurveKind(row.curveKind, row.superellipseN))
+    return
+  }
+  row.pathType = pathType
+  row.sameLayer = false
+}
+
+const curveKindPickerRow = ref<TenPlusTarget['rows'][number] | null>(null)
+const curveKindPickerPos = ref({ top: 0, left: 0 })
+const curveKindPickerCurrent = computed(() => {
+  const row = curveKindPickerRow.value
+  if (!row) return ''
+  return resolveTenPlusCurveKind(row.curveKind, row.superellipseN)
+})
+
+function closeCurveKindPicker(): void {
+  curveKindPickerRow.value = null
+}
+
+function onCurvePathDblclick(
+  row: TenPlusTarget['rows'][number],
+  itemValue: string,
+  event: MouseEvent
+): void {
+  if (itemValue !== TEN_PLUS_CURVE_PATH_TYPE) return
+  applyCurveKind(row, resolveTenPlusCurveKind(row.curveKind, row.superellipseN))
+  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
+  curveKindPickerRow.value = row
+  curveKindPickerPos.value = { top: rect.bottom + 6, left: rect.left }
+}
+
+function selectCurveKind(kind: string): void {
+  const row = curveKindPickerRow.value
+  if (!row) return
+  applyCurveKind(row, kind)
+  closeCurveKindPicker()
+}
+
 function validateTargetRows(targetName: string, rows: TenPlusTarget['rows']): string | null {
-  for (const row of rows) {
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i]
     const at = `${targetName} #${row.taskNo}`
     if (isUnequalLinePath(row.pathType)) {
       if (isDiameterInvalid(row.length)) return `${at}: 长必须在 0~200 之间`
       if (isDiameterInvalid(row.width)) return `${at}: 宽必须在 0~200 之间`
       if (isCornerRatioInvalid(row.cornerRatio, row.length, row.width)) {
         return `${at}: 切角比例须在 0~50% 之间，且切角量不得超过长的一半`
+      }
+    } else if (isCurvePath(row.pathType)) {
+      if (isSuperellipseCurve(row.pathType, row.curveKind, row.superellipseN)) {
+        if (isDiameterInvalid(row.length) || Number(row.length) <= 0) return `${at}: 长必须在 0 以上、200 以内`
+        if (isDiameterInvalid(row.width) || Number(row.width) <= 0) return `${at}: 宽必须在 0 以上、200 以内`
+        if (isSuperellipseNInvalid(row.superellipseN)) return `${at}: 指数 n 须在 1.5–12 之间`
+      } else if (isDiameterInvalid(row.diameter) || Number(row.diameter) <= 0) {
+        return `${at}: 半径必须在 0 以上、200 以内`
+      }
+      if (isArcAngleInvalid(row.arcStart, row.arcEnd)) {
+        return `${at}: 起始角与结束角须在 ±360° 内且不能相同`
+      }
+      if (row.sameLayer) {
+        if (i === 0) return `${at}: 首行不能勾选同层`
+        if (isTableAngle(row.angle)) return `${at}: 台面行不能勾选同层`
+        const prev = rows[i - 1]
+        if (!prev || prev.angle !== row.angle) {
+          return `${at}: 同层行的角度必须与上一行相同`
+        }
       }
     } else {
       if (isDiameterInvalid(row.diameter)) return `${at}: 外接圆直径必须在 0~200 之间`
@@ -385,10 +495,11 @@ function onSlotHoverLeave(): void {
 const divisionColumnLabel = computed((): string => {
   const rows = taskRows.value
   if (rows.length === 0) return '分割数'
-  const unequalCount = rows.filter((r) => isUnequalLinePath(r.pathType)).length
-  if (unequalCount === 0) return '分割数'
-  if (unequalCount === rows.length) return '切角 (%)'
-  return '分割数 / 切角 (%)'
+  const labels: string[] = []
+  if (rows.some((r) => r.pathType === 'equalSegments')) labels.push('分割数')
+  if (rows.some((r) => isUnequalLinePath(r.pathType))) labels.push('切角 (%)')
+  if (rows.some((r) => isCurvePath(r.pathType))) labels.push('起止角')
+  return labels.length > 0 ? labels.join(' / ') : '分割数'
 })
 
 /** 只要有一行走非等分直线，表头就挂上切角比例的推荐值说明 */
@@ -674,6 +785,35 @@ onMounted(async () => {
       </div>
     </Teleport>
 
+    <!-- 曲线子类型选择 -->
+    <Teleport to="body">
+      <div
+        v-if="curveKindPickerRow"
+        class="tpc-curve-kind-overlay"
+        @click="closeCurveKindPicker"
+      >
+        <div
+          class="tpc-curve-kind-menu"
+          role="menu"
+          aria-label="曲线子类型"
+          :style="{ top: `${curveKindPickerPos.top}px`, left: `${curveKindPickerPos.left}px` }"
+          @click.stop
+        >
+          <button
+            v-for="item in TEN_PLUS_CURVE_KIND_OPTIONS"
+            :key="item.value"
+            type="button"
+            role="menuitemradio"
+            :aria-checked="curveKindPickerCurrent === item.value"
+            :class="{ on: curveKindPickerCurrent === item.value }"
+            @click="selectCurveKind(item.value)"
+          >
+            {{ item.label }}
+          </button>
+        </div>
+      </div>
+    </Teleport>
+
     <!-- 切角比例推荐值悬浮提示 -->
     <Teleport to="body">
       <div
@@ -728,6 +868,15 @@ onMounted(async () => {
         v-if="compDialogRow"
         :row="compDialogRow"
         @close="closeCompDialog"
+      />
+    </Teleport>
+
+    <!-- 快捷形状编辑 -->
+    <Teleport to="body">
+      <TenPlusCuttingPage_ShapePresetDialog
+        v-if="showQuickShapeDialog"
+        @close="closeQuickShapeDialog"
+        @confirm="confirmQuickShape"
       />
     </Teleport>
 
@@ -893,7 +1042,21 @@ onMounted(async () => {
               <tr>
                 <th class="col-path">类型</th>
                 <th class="col-no">序号</th>
-                <th class="col-num">尺寸 (mm)</th>
+                <th class="col-same" title="勾选后与上一行同一高度平面，不叠层">同层</th>
+                <th class="col-size">
+                  <span class="tpc-th-with-help">
+                    尺寸 (mm)
+                    <button
+                      type="button"
+                      class="tpc-shape-preset-btn"
+                      :disabled="!activeTarget"
+                      title="按外接尺寸生成垫型等快捷形状到当前目标"
+                      @click="openQuickShapeDialog"
+                    >
+                      快捷形状编辑
+                    </button>
+                  </span>
+                </th>
                 <th class="col-num">角度 (°)</th>
                 <th class="col-num">高度 (mm)</th>
                 <th class="col-num">
@@ -920,7 +1083,7 @@ onMounted(async () => {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="row in taskRows" :key="row.id">
+              <tr v-for="(row, rowIndex) in taskRows" :key="row.id">
                 <td class="col-path">
                   <div class="tpc-path-seg" role="radiogroup" aria-label="类型">
                     <button
@@ -930,8 +1093,14 @@ onMounted(async () => {
                       role="radio"
                       :aria-checked="row.pathType === item.value"
                       :class="{ on: row.pathType === item.value }"
-                      :title="item.label"
-                      @click="row.pathType = item.value"
+                      :aria-label="tenPlusPathTypeTitle(item.value, item.label, row.curveKind, row.superellipseN)"
+                      :title="
+                        item.value === TEN_PLUS_CURVE_PATH_TYPE
+                          ? `${tenPlusPathTypeTitle(item.value, item.label, row.curveKind, row.superellipseN)}（双击选择子类型）`
+                          : item.label
+                      "
+                      @click="onPathTypeChange(row, item.value)"
+                      @dblclick.stop="onCurvePathDblclick(row, item.value, $event)"
                     >
                       {{ item.label }}
                     </button>
@@ -940,7 +1109,24 @@ onMounted(async () => {
                 <td class="col-no">
                   <span class="tpc-task-no">{{ row.taskNo }}</span>
                 </td>
-                <td class="col-num">
+                <td class="col-same">
+                  <input
+                    v-model="row.sameLayer"
+                    type="checkbox"
+                    class="tpc-same-layer"
+                    :disabled="rowIndex === 0 || !isCurvePath(row.pathType) || isTableAngle(row.angle)"
+                    :title="
+                      rowIndex === 0
+                        ? '首行没有上一行可同层'
+                        : !isCurvePath(row.pathType)
+                          ? '同层仅用于曲线段编组'
+                          : isTableAngle(row.angle)
+                            ? '台面行不能同层'
+                            : '与上一行同一高度平面，不把上一行高度叠上去'
+                    "
+                  />
+                </td>
+                <td class="col-size">
                   <div v-if="isUnequalLinePath(row.pathType)" class="tpc-size-pair">
                     <label>
                       <span>长</span>
@@ -966,6 +1152,85 @@ onMounted(async () => {
                         min="0"
                         max="200"
                         :title="isDiameterInvalid(row.width) ? '宽必须在 0~200 之间' : ''"
+                      />
+                    </label>
+                  </div>
+                  <div
+                    v-else-if="isSuperellipseCurve(row.pathType, row.curveKind, row.superellipseN)"
+                    class="tpc-size-pair tpc-size-curve"
+                  >
+                    <label>
+                      <span>长</span>
+                      <input
+                        v-model.number="row.length"
+                        type="number"
+                        class="tpc-input"
+                        :class="{ invalid: isDiameterInvalid(row.length) || Number(row.length) <= 0 }"
+                        step="0.01"
+                        min="0"
+                        max="200"
+                        :title="'超椭圆外接长 (mm)'"
+                      />
+                    </label>
+                    <label>
+                      <span>宽</span>
+                      <input
+                        v-model.number="row.width"
+                        type="number"
+                        class="tpc-input"
+                        :class="{ invalid: isDiameterInvalid(row.width) || Number(row.width) <= 0 }"
+                        step="0.01"
+                        min="0"
+                        max="200"
+                        :title="'超椭圆外接宽 (mm)'"
+                      />
+                    </label>
+                    <label>
+                      <span>n</span>
+                      <input
+                        v-model.number="row.superellipseN"
+                        type="number"
+                        class="tpc-input"
+                        :class="{ invalid: isSuperellipseNInvalid(row.superellipseN) }"
+                        step="0.1"
+                        min="1.5"
+                        max="12"
+                        :title="'超椭圆指数 n，2≈椭圆，4=垫型'"
+                      />
+                    </label>
+                  </div>
+                  <div v-else-if="isCurvePath(row.pathType)" class="tpc-size-pair tpc-size-curve">
+                    <label>
+                      <span>半径</span>
+                      <input
+                        v-model.number="row.diameter"
+                        type="number"
+                        class="tpc-input"
+                        :class="{ invalid: isDiameterInvalid(row.diameter) }"
+                        step="0.01"
+                        min="0"
+                        max="200"
+                        :title="isDiameterInvalid(row.diameter) ? '半径必须在 0~200 之间' : '这一段弧自己的半径'"
+                      />
+                    </label>
+                    <label>
+                      <span>偏X</span>
+                      <input
+                        v-model.number="row.arcOffsetX"
+                        type="number"
+                        class="tpc-input"
+                        step="0.01"
+                        :title="'圆心相对工位中心的 X 偏移'"
+                      />
+                    </label>
+                    <label>
+                      <span>偏Y</span>
+                      <input
+                        v-model.number="row.arcOffsetY"
+                        type="number"
+                        class="tpc-input"
+                        step="0.01"
+                        :title="'圆心相对工位中心的 Y 偏移'"
                       />
                     </label>
                   </div>
@@ -1018,8 +1283,32 @@ onMounted(async () => {
                   />
                 </td>
                 <td class="col-num">
+                  <div v-if="isCurvePath(row.pathType)" class="tpc-size-pair">
+                    <label>
+                      <span>起</span>
+                      <input
+                        v-model.number="row.arcStart"
+                        type="number"
+                        class="tpc-input"
+                        :class="{ invalid: isArcAngleInvalid(row.arcStart, row.arcEnd) }"
+                        step="1"
+                        :title="'圆弧起始角 (°)，+X 为 0，逆时针为正'"
+                      />
+                    </label>
+                    <label>
+                      <span>终</span>
+                      <input
+                        v-model.number="row.arcEnd"
+                        type="number"
+                        class="tpc-input"
+                        :class="{ invalid: isArcAngleInvalid(row.arcStart, row.arcEnd) }"
+                        step="1"
+                        :title="'圆弧结束角 (°)'"
+                      />
+                    </label>
+                  </div>
                   <input
-                    v-if="isUnequalLinePath(row.pathType)"
+                    v-else-if="isUnequalLinePath(row.pathType)"
                     v-model.number="row.cornerRatio"
                     type="number"
                     class="tpc-input"
@@ -1528,17 +1817,60 @@ onMounted(async () => {
 }
 .tpc-table th,
 .tpc-table td {
-  width: calc(78% / 9);
+  width: auto;
 }
 .tpc-table .col-path {
-  width: 22%;
+  width: 20%;
 }
-.col-no { text-align: center; }
+.tpc-table .col-no {
+  width: 36px;
+  padding-left: 2px;
+  padding-right: 2px;
+  text-align: center;
+}
+.tpc-table .col-same {
+  width: 32px;
+  padding-left: 0;
+  padding-right: 2px;
+  text-align: center;
+}
+.tpc-table .col-size {
+  width: 18%;
+  min-width: 188px;
+}
+.tpc-table .col-num {
+  width: 7%;
+}
+.tpc-table .col-recipe {
+  width: 10%;
+}
+.tpc-table .col-comp {
+  width: 88px;
+}
+.tpc-table .col-act {
+  width: 28px;
+  padding-left: 2px;
+  padding-right: 2px;
+}
+.tpc-same-layer {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--tpc-accent);
+  cursor: pointer;
+}
+.tpc-same-layer:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
 .tpc-size-pair {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 4px;
   min-width: 0;
+}
+.tpc-size-curve {
+  grid-template-columns: 1.2fr 0.9fr 0.9fr;
 }
 .tpc-size-pair label {
   display: flex;
@@ -1559,6 +1891,32 @@ onMounted(async () => {
   display: inline-flex;
   align-items: center;
   gap: 5px;
+}
+.tpc-shape-preset-btn {
+  flex: 0 0 auto;
+  height: 18px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: inherit;
+  line-height: 1;
+  letter-spacing: 0;
+  color: var(--tpc-accent);
+  background: color-mix(in srgb, var(--tpc-accent) 12%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tpc-accent) 28%, transparent);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.tpc-shape-preset-btn:hover:not(:disabled) {
+  color: #fff;
+  background: var(--tpc-accent);
+  box-shadow: none;
+}
+.tpc-shape-preset-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 .tpc-corner-help {
   flex: 0 0 auto;
@@ -1643,6 +2001,7 @@ onMounted(async () => {
   border: 0;
   border-radius: 6px;
   cursor: pointer;
+  user-select: none;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1662,6 +2021,43 @@ onMounted(async () => {
   box-shadow:
     0 0.5px 0 color-mix(in srgb, #fff 55%, transparent) inset,
     0 1px 2px color-mix(in srgb, var(--app-text-primary) 12%, transparent);
+}
+
+.tpc-curve-kind-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10060;
+}
+.tpc-curve-kind-menu {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  min-width: 128px;
+  padding: 4px;
+  border-radius: 8px;
+  border: 1px solid var(--app-border);
+  background: var(--app-card);
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--app-text-primary) 16%, transparent);
+}
+.tpc-curve-kind-menu button {
+  padding: 7px 10px;
+  font-size: 12px;
+  font-family: inherit;
+  text-align: left;
+  color: var(--app-text-secondary);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.tpc-curve-kind-menu button:hover {
+  color: var(--app-text-primary);
+  background: color-mix(in srgb, var(--app-text-primary) 8%, transparent);
+}
+.tpc-curve-kind-menu button.on {
+  color: var(--app-text-primary);
+  font-weight: 650;
+  background: color-mix(in srgb, var(--app-text-primary) 10%, transparent);
 }
 
 .tpc-input,

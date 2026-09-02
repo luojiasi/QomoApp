@@ -14,10 +14,11 @@ from services.program_control_ten.geometry import (
     构建执行任务的参数,
     构建配方数据,
     判断是否存在台面且计算位置,
-    取行的实际高度,
+    取同层累计高度,
     计算开口范围,
     更新V型开口偏移,
     更新平行型开口偏移,
+    曲线路径,
 )
 from utils.logger import 获取日志记录器, 格式化异常位置
 
@@ -233,9 +234,17 @@ class ProgramRunnerTenPlus:
                         该序号R轴的补偿 = 构建R轴的补偿(行数据)
                         该序号的参数 = 构建任务的数据(行数据, 工位的轴位置, 工位号)
                         该序号的配方 = 构建配方数据(配方数据, 该序号的参数.get("配方ID"))
-                        累计高度 = sum(取行的实际高度(行列表[k]) for k in range(序号))
-                        所有高度总和 = sum(取行的实际高度(行列表[k]) for k in range(len(行列表)))
+                        累计高度 = 取同层累计高度(行列表, 序号)
+                        所有高度总和 = 取同层累计高度(行列表, len(行列表))
                         执行任务的参数 = 构建执行任务的参数(该序号的参数,当前Z,所有高度总和,累计高度,是否存在台面,清晰点距离自动切台面的位置)
+                        if str(行数据.get("pathType", "")) == 曲线路径:
+                            本中 = (float(行数据.get("arcStart", 0)) + float(行数据.get("arcEnd", 0))) / 2.0
+                            if 行数据.get("sameLayer") and 序号 > 0:
+                                上一 = 行列表[序号 - 1]
+                                上中 = (float(上一.get("arcStart", 0)) + float(上一.get("arcEnd", 0))) / 2.0
+                                执行任务的参数["同层R轴步进角"] = 本中 - 上中
+                            else:
+                                执行任务的参数["同层R轴步进角"] = 本中
                         self.更新进度(current_task_index=当前序号, current_task_jindubaifenbi=0)
                         try:
                             await self._切割(
@@ -427,6 +436,7 @@ class ProgramRunnerTenPlus:
         日志.info(f"[TenPlus] 是否对切={是否对切}")
 
         是否完全旋转完毕 = False
+        曲线点列反向走 = False
 
 
         while 当前步骤< ProgramFreeParamsStep.结束当前任务:
@@ -464,15 +474,23 @@ class ProgramRunnerTenPlus:
                 case ProgramFreeParamsStep.判断是否到达旋转角度:
                     是否到达旋转角度 = await self._运动.U轴是否到达旋转角度(旋转角度)
                     if 是否到达旋转角度:
+                        同层步进 = float(执行任务的参数.get("同层R轴步进角") or 0)
+                        if abs(同层步进) > 1e-9:
+                            await self._运动.R轴旋转的圈数(同层步进 / 360.0)
                         当前步骤 = ProgramFreeParamsStep.移动到最开始的位置
                     else:
                         日志.error(f"U轴旋转未到达目标角度（{旋转角度}°），进入清理")
                         当前步骤 = ProgramFreeParamsStep.清理所有状态
 
                 case ProgramFreeParamsStep.移动到最开始的位置:
-                    起点X = 当前边的参数.get("切割中点的坐标").get("X")
-                    起点Y = 当前边的参数.get("切割中点的坐标").get("Y")
-                    起点Z = 当前边的参数.get("切割中点的坐标").get("Z")
+                    起点 = 当前边的参数.get("切割中点的坐标")
+                    插补预览 = 当前边的参数.get("插补路径点") or []
+                    if 插补预览:
+                        起点 = 插补预览[0]
+                        曲线点列反向走 = False
+                    起点X = 起点.get("X")
+                    起点Y = 起点.get("Y")
+                    起点Z = 起点.get("Z")
                     try:
                         插补运行的路径点 = [{"x": 起点X, "y": 起点Y}]
                         await self._运动.连续插补XY(路径点=插补运行的路径点, 速度=20)
@@ -539,14 +557,21 @@ class ProgramRunnerTenPlus:
                         当前步骤 = ProgramFreeParamsStep.清理所有状态
 
                 case ProgramFreeParamsStep.切割直线:
-                    if not 是否反向:
-                        构建切割直线的坐标X = 当前边的参数.get("切割中点的坐标").get("X") + 当前开口值
+                    开口符号 = 1.0 if not 是否反向 else -1.0
+                    曲线点列 = 当前边的参数.get("插补路径点") or []
+                    if 曲线点列:
+                        本趟点列 = reversed(曲线点列) if 曲线点列反向走 else 曲线点列
+                        插补运行的路径点 = [
+                            {"x": float(p["X"]) + 开口符号 * 当前开口值, "y": float(p["Y"])}
+                            for p in 本趟点列
+                        ]
+                        曲线点列反向走 = not 曲线点列反向走
                     else:
-                        构建切割直线的坐标X = 当前边的参数.get("切割中点的坐标").get("X") - 当前开口值
-                    本条边的切割长度 = float(当前边的参数.get("最长的那条边的切割长度"))
-                    构建切割直线的坐标Y起点 = float(当前边的参数.get("切割中点的坐标").get("Y") + 本条边的切割长度 / 2)
-                    构建切割直线的坐标Y终点 = float(当前边的参数.get("切割中点的坐标").get("Y") - 本条边的切割长度 / 2)
-                    插补运行的路径点 = [{"x": 构建切割直线的坐标X, "y": 构建切割直线的坐标Y起点}, {"x": 构建切割直线的坐标X, "y": 构建切割直线的坐标Y终点}]
+                        构建切割直线的坐标X = 当前边的参数.get("切割中点的坐标").get("X") + 开口符号 * 当前开口值
+                        本条边的切割长度 = float(当前边的参数.get("最长的那条边的切割长度"))
+                        构建切割直线的坐标Y起点 = float(当前边的参数.get("切割中点的坐标").get("Y") + 本条边的切割长度 / 2)
+                        构建切割直线的坐标Y终点 = float(当前边的参数.get("切割中点的坐标").get("Y") - 本条边的切割长度 / 2)
+                        插补运行的路径点 = [{"x": 构建切割直线的坐标X, "y": 构建切割直线的坐标Y起点}, {"x": 构建切割直线的坐标X, "y": 构建切割直线的坐标Y终点}]
 
                     当前速度百分比 = 边缘切割速度百分比 if 是否在边缘位置 else 中间切割速度百分比
                     目标运行速度 = 插补的运行速度 * 当前速度百分比

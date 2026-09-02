@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>垫型（Cushion）超椭圆 —— 四分之一 + R轴旋转演示</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #181b22;
+    --text: #e7eaf0;
+    --muted: #8b93a5;
+    --accent: #4da3ff;
+    --accent2: #ff7a59;
+    --accent3: #4dd8a8;
+    --border: #2a2f3a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+      "Microsoft YaHei", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 28px 16px 40px;
+  }
+  h1 { font-size: 22px; font-weight: 650; margin: 0 0 4px; letter-spacing: -0.02em; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 20px; }
+  .wrap {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  canvas {
+    background: #0a0c10;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.45);
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 20px;
+    width: 300px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .field label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .field label b { color: var(--text); font-variant-numeric: tabular-nums; }
+  input[type="range"] { width: 100%; accent-color: var(--accent); cursor: pointer; }
+  .legend { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; font-size: 12px; color: var(--muted); }
+  .legend .row { display: flex; align-items: center; gap: 8px; }
+  .swatch { width: 14px; height: 14px; border-radius: 4px; flex-shrink: 0; }
+  .note {
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--muted);
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+  }
+  .formula {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    background: #0a0c10;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 12px;
+    color: var(--accent3);
+    line-height: 1.7;
+    white-space: nowrap;
+    overflow-x: auto;
+  }
+</style>
+</head>
+<body>
+  <h1>垫型（Cushion）= 超椭圆 Superellipse</h1>
+  <p class="sub">四分之一弧 + R轴每 90° 旋转一次，共四次拼成完整垫型（正方形 a=b 才成立）</p>
+
+  <div class="wrap">
+    <canvas id="cv" width="620" height="620"></canvas>
+    <div class="panel">
+      <div class="field">
+        <label>半长 <b id="va">1.00</b></label>
+        <input id="a" type="range" min="0.4" max="1.6" step="0.01" value="1.0" />
+      </div>
+      <div class="field">
+        <label>半宽 <b id="vb">1.00</b></label>
+        <input id="b" type="range" min="0.4" max="1.6" step="0.01" value="1.0" />
+      </div>
+      <div class="field">
+        <label>指数 n（圆角程度）<b id="vn">4.0</b></label>
+        <input id="n" type="range" min="1.5" max="12" step="0.1" value="4.0" />
+      </div>
+      <div class="field">
+        <label>R轴当前角度 <b id="vang">0°</b></label>
+        <input id="ang" type="range" min="0" max="360" step="1" value="0" />
+      </div>
+      <div class="formula">r(θ) = a·b / [ (b·|cosθ|)ⁿ + (a·|sinθ|)ⁿ ]^(1/n)</div>
+      <div class="legend">
+        <div class="row"><span class="swatch" style="background:var(--accent3)"></span> 完整垫型（超椭圆轮廓）</div>
+        <div class="row"><span class="swatch" style="background:var(--accent)"></span> 四分之一弧（第一象限 θ∈0°~90°）</div>
+        <div class="row"><span class="swatch" style="background:var(--accent2)"></span> 其余三段（每次 R轴 +90°）</div>
+        <div class="row"><span class="swatch" style="background:#ffd166"></span> R轴当前角度的半径 r(θ)</div>
+      </div>
+      <div class="note">
+        正方形垫型（a=b）有 4 重旋转对称：第一象限弧绕中心每转 90° 与自身重合。
+        若 a≠b（矩形垫型）只有 2 重对称，需用 180° 对拼，不能用四分之一×90°。
+      </div>
+    </div>
+  </div>
+
+<script>
+(function () {
+  const cv = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+  const W = cv.width, H = cv.height;
+  const CX = W / 2, CY = H / 2;
+  const SCALE = 150; // 单位 a/b=1 时对应的像素
+
+  const elA = document.getElementById('a');
+  const elB = document.getElementById('b');
+  const elN = document.getElementById('n');
+  const elAng = document.getElementById('ang');
+  const va = document.getElementById('va');
+  const vb = document.getElementById('vb');
+  const vn = document.getElementById('vn');
+  const vang = document.getElementById('vang');
+
+  function radius(thetaRad, a, b, n) {
+    // r = a*b / [ (b*|cos|)^n + (a*|sin|)^n ]^(1/n)
+    const c = Math.abs(Math.cos(thetaRad));
+    const s = Math.abs(Math.sin(thetaRad));
+    const denom = Math.pow(Math.pow(b * c, n) + Math.pow(a * s, n), 1 / n);
+    if (denom === 0) return 0;
+    return (a * b) / denom;
+  }
+
+  function px(x, y) {
+    return [CX + x * SCALE, CY - y * SCALE];
+  }
+
+  function drawOutline(a, b, n, segments) {
+    ctx.beginPath();
+    for (let i = 0; i <= segments; i++) {
+      const t = (i / segments) * Math.PI * 2;
+      const r = radius(t, a, b, n);
+      const [x, y] = px(r * Math.cos(t), r * Math.sin(t));
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  function drawQuarterArc(a, b, n, offsetDeg, color, segments) {
+    // 一段 90° 弧，从 offsetDeg 到 offsetDeg+90°，用极坐标连线
+    ctx.beginPath();
+    for (let i = 0; i <= segments; i++) {
+      const t = (offsetDeg + (i / segments) * 90) * Math.PI / 180;
+      const r = radius(t, a, b, n);
+      const [x, y] = px(r * Math.cos(t), r * Math.sin(t));
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  }
+
+  function render() {
+    const a = parseFloat(elA.value);
+    const b = parseFloat(elB.value);
+    const n = parseFloat(elN.value);
+    const ang = parseFloat(elAng.value);
+
+    va.textContent = a.toFixed(2);
+    vb.textContent = b.toFixed(2);
+    vn.textContent = n.toFixed(1);
+    vang.textContent = ang.toFixed(0) + '°';
+
+    ctx.clearRect(0, 0, W, H);
+
+    // 网格
+    ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+    ctx.lineWidth = 1;
+    for (let i = -4; i <= 4; i++) {
+      const [x1] = px(i, -2); const [x2] = px(i, 2);
+      ctx.beginPath(); ctx.moveTo(x1, 0); ctx.lineTo(x2, H); ctx.stroke();
+      const [, y1] = px(-2, i); const [, y2] = px(2, i);
+      ctx.beginPath(); ctx.moveTo(0, y1); ctx.lineTo(W, y2); ctx.stroke();
+    }
+
+    // 坐标轴
+    ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+    ctx.beginPath(); ctx.moveTo(CX, 0); ctx.lineTo(CX, H); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, CY); ctx.lineTo(W, CY); ctx.stroke();
+
+    // 完整垫型（细描边）
+    ctx.strokeStyle = '#4dd8a8';
+    ctx.lineWidth = 1.5;
+    drawOutline(a, b, n, 720);
+
+    // 四段 90° 弧：第一段（accent），其余三段（accent2）
+    const SEG = 60;
+    drawQuarterArc(a, b, n, 0, '#4da3ff', SEG);
+    drawQuarterArc(a, b, n, 90, '#ff7a59', SEG);
+    drawQuarterArc(a, b, n, 180, '#ff7a59', SEG);
+    drawQuarterArc(a, b, n, 270, '#ff7a59', SEG);
+
+    // R轴当前角度的半径线
+    const t = ang * Math.PI / 180;
+    const r = radius(t, a, b, n);
+    const [ex, ey] = px(r * Math.cos(t), r * Math.sin(t));
+    ctx.strokeStyle = '#ffd166';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 5]);
+    ctx.beginPath(); ctx.moveTo(CX, CY); ctx.lineTo(ex, ey); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#ffd166';
+    ctx.beginPath(); ctx.arc(ex, ey, 5, 0, Math.PI * 2); ctx.fill();
+
+    // 中心点
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(CX, CY, 3.5, 0, Math.PI * 2); ctx.fill();
+  }
+
+  [elA, elB, elN, elAng].forEach((el) => el.addEventListener('input', render));
+  render();
+})();
+</script>
+</body>
+</html>

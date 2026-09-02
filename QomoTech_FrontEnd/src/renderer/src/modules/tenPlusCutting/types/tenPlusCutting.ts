@@ -11,6 +11,27 @@ export interface TenPlusTaskRow {
   width: number
   /** 非等分直线：切角比例 (%)，切角在宽度方向的投影占宽的百分比 */
   cornerRatio: number
+  /**
+   * 曲线：圆弧起始角 / 结束角（度），相对该段自己的圆心，+X 为 0° 逆时针。
+   * 一段弧一行；同一圈腰棱用 sameLayer 编组。
+   */
+  arcStart: number
+  arcEnd: number
+  /** 曲线：圆心相对工位中心的偏移 (mm) */
+  arcOffsetX: number
+  arcOffsetY: number
+  /**
+   * 曲线子类型，取值见 TEN_PLUS_CURVE_KIND_OPTIONS。
+   * `circle` = 中心圆（半径+偏心）；`superellipse` = 超椭圆（长/宽/n）。
+   */
+  curveKind: string
+  /**
+   * 超椭圆指数 n。仅 curveKind=superellipse 时生效；长/宽为外接尺寸。
+   * 旧档无 curveKind 时，n>0 仍按超椭圆兼容。
+   */
+  superellipseN: number
+  /** 曲线：与上一行同一切割高度平面，不叠层 */
+  sameLayer: boolean
   angle: number
   height: number
   divisions: number
@@ -103,6 +124,13 @@ export interface TenPlusFreeParamPayload {
     length: number
     width: number
     cornerRatio: number
+    arcStart: number
+    arcEnd: number
+    arcOffsetX: number
+    arcOffsetY: number
+    curveKind: string
+    superellipseN: number
+    sameLayer: boolean
     angle: number
     height: number
     divisions: number

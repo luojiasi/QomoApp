@@ -73,8 +73,66 @@ export const TEN_PLUS_PATH_TYPE_OPTIONS: ReadonlyArray<{ value: string; label: s
 export const TEN_PLUS_DEFAULT_PATH_TYPE = TEN_PLUS_PATH_TYPE_OPTIONS[0]?.value ?? 'equalSegments'
 
 export const TEN_PLUS_UNEQUAL_LINE_PATH_TYPE = 'unEqualSegments'
+export const TEN_PLUS_CURVE_PATH_TYPE = 'curve'
 
-export function isUnequalLinePath(pathType: string): boolean {return pathType === TEN_PLUS_UNEQUAL_LINE_PATH_TYPE}
+/** 曲线子类型。主选项仍是「曲线」，子类型用于悬停提示与后端按类型取参。 */
+export const TEN_PLUS_CURVE_KIND_CIRCLE = 'circle'
+export const TEN_PLUS_CURVE_KIND_SUPERELLIPSE = 'superellipse'
+export const TEN_PLUS_CURVE_KIND_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
+  { value: TEN_PLUS_CURVE_KIND_CIRCLE, label: '中心圆曲线' },
+  { value: TEN_PLUS_CURVE_KIND_SUPERELLIPSE, label: '超椭圆' }
+]
+export const TEN_PLUS_DEFAULT_CURVE_KIND = TEN_PLUS_CURVE_KIND_CIRCLE
+
+/** 曲线默认：朝 +X 的 90° 鼓边（垫形一圈可连续四行，后三行勾同层） */
+export const TEN_PLUS_DEFAULT_ARC_START = -45
+export const TEN_PLUS_DEFAULT_ARC_END = 45
+export const TEN_PLUS_DEFAULT_ARC_OFFSET = 0
+/** 0 = 普通圆弧；垫型快捷形状写入 >0 的超椭圆指数 */
+export const TEN_PLUS_DEFAULT_SUPERELLIPSE_N = 0
+
+export function isUnequalLinePath(pathType: string): boolean {
+  return pathType === TEN_PLUS_UNEQUAL_LINE_PATH_TYPE
+}
+
+export function isCurvePath(pathType: string): boolean {
+  return pathType === TEN_PLUS_CURVE_PATH_TYPE
+}
+
+export function resolveTenPlusCurveKind(raw: unknown, superellipseN = 0): string {
+  const value = typeof raw === 'string' ? raw : ''
+  if (TEN_PLUS_CURVE_KIND_OPTIONS.some((item) => item.value === value)) return value
+  if (Number(superellipseN) > 0) return TEN_PLUS_CURVE_KIND_SUPERELLIPSE
+  return TEN_PLUS_DEFAULT_CURVE_KIND
+}
+
+export function tenPlusCurveKindLabel(curveKind: string, superellipseN = 0): string {
+  const kind = resolveTenPlusCurveKind(curveKind, superellipseN)
+  return TEN_PLUS_CURVE_KIND_OPTIONS.find((item) => item.value === kind)?.label ?? '曲线'
+}
+
+export function tenPlusPathTypeTitle(
+  itemValue: string,
+  itemLabel: string,
+  curveKind: string,
+  superellipseN = 0
+): string {
+  if (itemValue === TEN_PLUS_CURVE_PATH_TYPE) {
+    return tenPlusCurveKindLabel(curveKind, superellipseN)
+  }
+  return itemLabel
+}
+
+export function isSuperellipseCurve(
+  pathType: string,
+  curveKind: string,
+  superellipseN = 0
+): boolean {
+  return (
+    isCurvePath(pathType) &&
+    resolveTenPlusCurveKind(curveKind, superellipseN) === TEN_PLUS_CURVE_KIND_SUPERELLIPSE
+  )
+}
 
 export function resolveTenPlusPathType(raw: unknown): string {
   const value = typeof raw === 'string' ? raw : ''
