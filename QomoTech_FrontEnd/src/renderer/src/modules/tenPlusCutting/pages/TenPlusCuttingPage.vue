@@ -8,13 +8,17 @@ import {
   getTenPlusCutting,
   saveTenPlusCutting,
   moveToTenPlusSlot,
-  setMotionIoOutput
+  setMotionIoOutput,
+  rotateRAxisCont,
+  stopMotionJog
 } from '@/modules/motion/api'
 import { sendTenPlusFreeParams } from '@/modules/program/api'
 import {
+  TEN_PLUS_CORNER_RATIO_RECOMMENDATIONS,
   TEN_PLUS_GRID_ORDER,
   TEN_PLUS_PATH_TYPE_OPTIONS,
   TEN_PLUS_STATION_OUTPUT_PORTS,
+  isUnequalLinePath,
   slotIndexToOutputPort
 } from '../constants/tenPlusCutting'
 import {
@@ -23,6 +27,7 @@ import {
   isAngleInvalid,
   isHeightInvalid,
   isTableAngle,
+  isCornerRatioInvalid,
   isDivisionsInvalid,
   isRecipeInvalid,
   applyTableAngleLockedFields
@@ -82,6 +87,8 @@ const dialogSelectedIds = ref<string[]>([])
 const tenPlusConfig = ref<TenPlusCuttingConfig>(createEmptyTenPlusConfig())
 const selectedSlotIndex = ref<number | null>(null)
 const slotBusy = ref(false)
+const rAxisBusy = ref(false)
+const rAxisSpinning = ref(false)
 /** 点击已示教工位时是否运动到该点，默认开启 */
 const moveOnSlotClick = ref(true)
 const showTeachDialog = ref(false)
@@ -164,10 +171,18 @@ function cancelRename(): void {
 function validateTargetRows(targetName: string, rows: TenPlusTarget['rows']): string | null {
   for (const row of rows) {
     const at = `${targetName} #${row.taskNo}`
-    if (isDiameterInvalid(row.diameter)) return `${at}: 直径必须在 0~200 之间`
+    if (isUnequalLinePath(row.pathType)) {
+      if (isDiameterInvalid(row.length)) return `${at}: 长必须在 0~200 之间`
+      if (isDiameterInvalid(row.width)) return `${at}: 宽必须在 0~200 之间`
+      if (isCornerRatioInvalid(row.cornerRatio, row.length, row.width)) {
+        return `${at}: 切角比例须在 0~50% 之间，且切角量不得超过长的一半`
+      }
+    } else {
+      if (isDiameterInvalid(row.diameter)) return `${at}: 外接圆直径必须在 0~200 之间`
+      if (isDivisionsInvalid(row.divisions)) return `${at}: 分割数须为 0 或 3~360`
+    }
     if (isAngleInvalid(row.angle)) return `${at}: 角度必须在 -90~90 之间`
     if (isHeightInvalid(row.height)) return `${at}: 高度必须在 0~20 之间`
-    if (isDivisionsInvalid(row.divisions)) return `${at}: 分割数须为 0 或 3~360`
     if (isRecipeInvalid(row.recipe)) return `${at}: 未选择配方`
   }
   return null
@@ -363,6 +378,42 @@ function onSlotHoverLeave(): void {
   hoverSlotIndex.value = null
 }
 
+/**
+ * 第 5 列的表头：等分线段按「分割数」下刀，非等分直线的轮廓边数固定，
+ * 改由「切角 (%)」决定形状，两者不会同时生效，只有混用路径类型时才并列显示。
+ */
+const divisionColumnLabel = computed((): string => {
+  const rows = taskRows.value
+  if (rows.length === 0) return '分割数'
+  const unequalCount = rows.filter((r) => isUnequalLinePath(r.pathType)).length
+  if (unequalCount === 0) return '分割数'
+  if (unequalCount === rows.length) return '切角 (%)'
+  return '分割数 / 切角 (%)'
+})
+
+/** 只要有一行走非等分直线，表头就挂上切角比例的推荐值说明 */
+const showCornerHelp = computed((): boolean =>
+  taskRows.value.some((r) => isUnequalLinePath(r.pathType))
+)
+
+const cornerTipVisible = ref(false)
+const cornerTipPos = ref({ top: 0, left: 0 })
+
+function onCornerTipEnter(event: Event): void {
+  const el = event.currentTarget as HTMLElement | null
+  if (!el) return
+  const rect = el.getBoundingClientRect()
+  cornerTipPos.value = {
+    top: rect.top - 8,
+    left: rect.left + rect.width / 2
+  }
+  cornerTipVisible.value = true
+}
+
+function onCornerTipLeave(): void {
+  cornerTipVisible.value = false
+}
+
 function boundTargetName(slotIndex: number): string {
   const hit = targets.find((t) => t.slotIndex === slotIndex)
   return hit?.name?.trim() || ''
@@ -494,6 +545,64 @@ function onOpenUrCalib(): void {
   showUrCalibDialog.value = true
 }
 
+function requireSelectedSlotForRAxis(): number | null {
+  const index = selectedSlotIndex.value
+  if (index === null) {
+    warning('请先选中一个工位格')
+    setStatus('请先选中一个工位格')
+    return null
+  }
+  if (!controllerConnected.value) {
+    warning('请先连接控制器')
+    setStatus('请先连接控制器')
+    return null
+  }
+  return index
+}
+
+async function onStartSelectedSlotRSpin(): Promise<void> {
+  const index = requireSelectedSlotForRAxis()
+  if (index === null || rAxisBusy.value) return
+  rAxisBusy.value = true
+  try {
+    await openSlotOutput(index)
+    const res = await rotateRAxisCont()
+    if (!res.success) {
+      warning(res.message || `工位 #${index} R 轴持续旋转失败`)
+      setStatus(res.message || `工位 #${index} R 轴持续旋转失败`)
+      return
+    }
+    rAxisSpinning.value = true
+    success(`工位 #${index} R 轴已开始持续旋转`)
+    setStatus(`工位 #${index} R 轴持续旋转中`)
+  } catch (e) {
+    warning(e instanceof Error ? e.message : `工位 #${index} R 轴持续旋转失败`)
+  } finally {
+    rAxisBusy.value = false
+  }
+}
+
+async function onPauseSelectedSlotRSpin(): Promise<void> {
+  const index = requireSelectedSlotForRAxis()
+  if (index === null || rAxisBusy.value) return
+  rAxisBusy.value = true
+  try {
+    const res = await stopMotionJog('R')
+    if (!res.success) {
+      warning(res.message || `工位 #${index} R 轴暂停失败`)
+      setStatus(res.message || `工位 #${index} R 轴暂停失败`)
+      return
+    }
+    rAxisSpinning.value = false
+    success(`工位 #${index} R 轴已暂停`)
+    setStatus(`工位 #${index} R 轴已暂停旋转`)
+  } catch (e) {
+    warning(e instanceof Error ? e.message : `工位 #${index} R 轴暂停失败`)
+  } finally {
+    rAxisBusy.value = false
+  }
+}
+
 function closeUrCalibDialog(): void {
   showUrCalibDialog.value = false
   urCalibSlot.value = null
@@ -562,6 +671,28 @@ onMounted(async () => {
           <div>U {{ formatAxis(hoverSlot.u) }}</div>
         </template>
         <div v-else class="tpc-slot-tip-empty">未示教</div>
+      </div>
+    </Teleport>
+
+    <!-- 切角比例推荐值悬浮提示 -->
+    <Teleport to="body">
+      <div
+        v-if="cornerTipVisible"
+        class="tpc-slot-tip tpc-corner-tip"
+        :style="{ top: `${cornerTipPos.top}px`, left: `${cornerTipPos.left}px` }"
+      >
+        <div class="tpc-slot-tip-title">切角比例推荐值</div>
+        <div
+          v-for="item in TEN_PLUS_CORNER_RATIO_RECOMMENDATIONS"
+          :key="item.shape"
+          class="tpc-corner-tip-row"
+        >
+          <span class="tpc-corner-tip-shape">{{ item.shape }}</span>
+          <span class="tpc-corner-tip-alias">{{ item.alias }}</span>
+          <span class="tpc-corner-tip-value">{{ item.value }}%</span>
+          <span class="tpc-corner-tip-range">{{ item.range }}</span>
+        </div>
+        <div class="tpc-corner-tip-note">切角在宽度方向的投影占宽的百分比</div>
       </div>
     </Teleport>
 
@@ -762,10 +893,26 @@ onMounted(async () => {
               <tr>
                 <th class="col-path">类型</th>
                 <th class="col-no">序号</th>
-                <th class="col-num">直径 (mm)</th>
+                <th class="col-num">尺寸 (mm)</th>
                 <th class="col-num">角度 (°)</th>
                 <th class="col-num">高度 (mm)</th>
-                <th class="col-num">分割数</th>
+                <th class="col-num">
+                  <span class="tpc-th-with-help">
+                    {{ divisionColumnLabel }}
+                    <button
+                      v-if="showCornerHelp"
+                      type="button"
+                      class="tpc-corner-help"
+                      aria-label="查看切角比例推荐值2"
+                      @mouseenter="onCornerTipEnter"
+                      @mouseleave="onCornerTipLeave"
+                      @focus="onCornerTipEnter"
+                      @blur="onCornerTipLeave"
+                    >
+                      ?
+                    </button>
+                  </span>
+                </th>
                 <th class="col-num">弦长倍率</th>
                 <th class="col-recipe">配方</th>
                 <th class="col-comp">补偿</th>
@@ -794,16 +941,49 @@ onMounted(async () => {
                   <span class="tpc-task-no">{{ row.taskNo }}</span>
                 </td>
                 <td class="col-num">
-                  <input
-                    v-model.number="row.diameter"
-                    type="number"
-                    class="tpc-input"
-                    :class="{ invalid: isDiameterInvalid(row.diameter) }"
-                    step="0.01"
-                    min="0"
-                    max="200"
-                    :title="isDiameterInvalid(row.diameter) ? '直径必须在 0~200 之间' : ''"
-                  />
+                  <div v-if="isUnequalLinePath(row.pathType)" class="tpc-size-pair">
+                    <label>
+                      <span>长</span>
+                      <input
+                        v-model.number="row.length"
+                        type="number"
+                        class="tpc-input"
+                        :class="{ invalid: isDiameterInvalid(row.length) }"
+                        step="0.01"
+                        min="0"
+                        max="200"
+                        :title="isDiameterInvalid(row.length) ? '长必须在 0~200 之间' : ''"
+                      />
+                    </label>
+                    <label>
+                      <span>宽</span>
+                      <input
+                        v-model.number="row.width"
+                        type="number"
+                        class="tpc-input"
+                        :class="{ invalid: isDiameterInvalid(row.width) }"
+                        step="0.01"
+                        min="0"
+                        max="200"
+                        :title="isDiameterInvalid(row.width) ? '宽必须在 0~200 之间' : ''"
+                      />
+                    </label>
+                  </div>
+                  <div v-else class="tpc-size-pair tpc-size-single">
+                    <label>
+                      <span>外接圆直径</span>
+                      <input
+                        v-model.number="row.diameter"
+                        type="number"
+                        class="tpc-input"
+                        :class="{ invalid: isDiameterInvalid(row.diameter) }"
+                        step="0.01"
+                        min="0"
+                        max="200"
+                        :title="isDiameterInvalid(row.diameter) ? '外接圆直径必须在 0~200 之间' : ''"
+                      />
+                    </label>
+                  </div>
                 </td>
                 <td class="col-num">
                   <input
@@ -839,6 +1019,22 @@ onMounted(async () => {
                 </td>
                 <td class="col-num">
                   <input
+                    v-if="isUnequalLinePath(row.pathType)"
+                    v-model.number="row.cornerRatio"
+                    type="number"
+                    class="tpc-input"
+                    :class="{ invalid: isCornerRatioInvalid(row.cornerRatio, row.length, row.width) }"
+                    step="0.1"
+                    min="0"
+                    max="50"
+                    :title="
+                      isCornerRatioInvalid(row.cornerRatio, row.length, row.width)
+                        ? '切角比例须在 0~50% 之间，且切角量不得超过长的一半'
+                        : '切角在宽度方向的投影占宽的百分比；轮廓固定 8 条边，无需分割数'
+                    "
+                  />
+                  <input
+                    v-else
                     v-model.number="row.divisions"
                     type="number"
                     class="tpc-input"
@@ -990,6 +1186,43 @@ onMounted(async () => {
                   <span class="tpc-slot-no">{{ n }}</span>
                   <span class="tpc-slot-name">{{ boundTargetName(n) || '—' }}</span>
                 </button>
+              </div>
+              <div
+                class="tpc-r-card"
+                :class="{ ready: selectedSlotIndex !== null, spinning: rAxisSpinning }"
+              >
+                <span class="tpc-r-badge" aria-hidden="true">R</span>
+                <span class="tpc-r-copy">
+                  <span class="tpc-r-title">R 轴旋转</span>
+                  <span class="tpc-r-meta">
+                    <template v-if="selectedSlotIndex">
+                      工位 #{{ selectedSlotIndex }}
+                      <template v-if="rAxisSpinning"> · 旋转中</template>
+                      <template v-else-if="!controllerConnected"> · 未连接</template>
+                    </template>
+                    <template v-else>请先点选上方工位</template>
+                  </span>
+                </span>
+                <span class="tpc-r-ops">
+                  <button
+                    type="button"
+                    class="tpc-r-op start"
+                    :disabled="slotBusy || rAxisBusy || selectedSlotIndex === null || !controllerConnected"
+                    title="选中工位 R 轴持续旋转"
+                    @click="onStartSelectedSlotRSpin"
+                  >
+                    持续旋转
+                  </button>
+                  <button
+                    type="button"
+                    class="tpc-r-op pause"
+                    :disabled="slotBusy || rAxisBusy || selectedSlotIndex === null || !controllerConnected"
+                    title="选中工位 R 轴暂停旋转"
+                    @click="onPauseSelectedSlotRSpin"
+                  >
+                    暂停
+                  </button>
+                </span>
               </div>
               <button
                 type="button"
@@ -1301,20 +1534,85 @@ onMounted(async () => {
   width: 22%;
 }
 .col-no { text-align: center; }
+.tpc-size-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  min-width: 0;
+}
+.tpc-size-pair label {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.tpc-size-pair span {
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--app-text-muted);
+}
+.tpc-size-single {
+  grid-template-columns: 1fr;
+}
+.tpc-th-with-help {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.tpc-corner-help {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  font-size: 10px;
+  font-weight: 650;
+  font-family: inherit;
+  line-height: 1;
+  color: var(--app-text-muted);
+  background: color-mix(in srgb, var(--app-text-primary) 7%, transparent);
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--app-text-primary) 9%, transparent);
+  transition:
+    color 0.16s ease,
+    background 0.16s ease,
+    box-shadow 0.16s ease,
+    transform 0.16s ease;
+}
+.tpc-corner-help:hover,
+.tpc-corner-help:focus-visible {
+  color: #fff;
+  background: var(--tpc-accent);
+  box-shadow:
+    inset 0 0.5px 0 color-mix(in srgb, #fff 45%, transparent),
+    0 2px 6px color-mix(in srgb, var(--tpc-accent) 42%, transparent);
+  outline: none;
+  transform: translateY(-0.5px);
+}
+.tpc-corner-help:active {
+  transform: scale(0.9);
+}
 .tpc-task-no {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 22px;
+  min-width: 24px;
   height: 22px;
-  padding: 0 6px;
-  border-radius: 999px;
+  padding: 0 7px;
+  border-radius: 7px;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
   line-height: 1;
-  color: #fff;
-  background: var(--tpc-accent);
+  color: var(--app-text-secondary);
+  background: color-mix(in srgb, var(--app-text-primary) 7%, var(--app-card));
+  box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--app-text-primary) 10%, var(--app-border));
 }
 .col-comp .tpc-btn-sm {
   width: 100%;
@@ -1325,37 +1623,45 @@ onMounted(async () => {
 
 .tpc-path-seg {
   display: flex;
-  gap: 2px;
+  gap: 0;
   min-width: 0;
-  padding: 2px;
-  background: var(--app-input-bg);
-  border: 1px solid var(--app-border);
-  border-radius: 6px;
+  padding: 3px;
+  background: color-mix(in srgb, var(--app-text-primary) 8%, var(--app-card-soft));
+  border: 0;
+  border-radius: 8px;
 }
 .tpc-path-seg button {
   flex: 1;
   min-width: 0;
-  padding: 3px 5px;
+  padding: 4px 5px;
   font-size: 11px;
+  font-weight: 500;
   line-height: 1.2;
   font-family: inherit;
   color: var(--app-text-muted);
   background: transparent;
   border: 0;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  transition:
+    color 0.16s ease,
+    background 0.16s ease,
+    box-shadow 0.16s ease,
+    font-weight 0.16s ease;
 }
 .tpc-path-seg button:hover:not(.on) {
   color: var(--app-text-secondary);
-  background: var(--app-card-soft);
 }
 .tpc-path-seg button.on {
   color: var(--app-text-primary);
-  background: color-mix(in srgb, var(--tpc-accent) 16%, var(--app-card));
-  box-shadow: inset 0 0 0 1px var(--tpc-accent);
+  font-weight: 650;
+  background: var(--app-card);
+  box-shadow:
+    0 0.5px 0 color-mix(in srgb, #fff 55%, transparent) inset,
+    0 1px 2px color-mix(in srgb, var(--app-text-primary) 12%, transparent);
 }
 
 .tpc-input,
@@ -1582,6 +1888,116 @@ onMounted(async () => {
   grid-template-columns: 1fr 1fr;
   gap: 6px;
 }
+.tpc-r-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 56px;
+  padding: 8px;
+  border: 1px solid var(--app-border);
+  border-radius: 10px;
+  background: var(--app-card);
+}
+.tpc-r-card.ready {
+  border-color: color-mix(in srgb, #f59e0b 45%, var(--app-border));
+  background: color-mix(in srgb, #f59e0b 8%, var(--app-card));
+}
+.tpc-r-card.spinning {
+  border-color: color-mix(in srgb, #16a34a 50%, var(--app-border));
+  background: color-mix(in srgb, #16a34a 8%, var(--app-card));
+}
+.tpc-r-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: color-mix(in srgb, #f59e0b 60%, var(--app-text-primary));
+  background: color-mix(in srgb, #f59e0b 16%, var(--app-card));
+  border: 1px solid color-mix(in srgb, #f59e0b 40%, var(--app-border));
+}
+.tpc-r-card.spinning .tpc-r-badge {
+  color: #fff;
+  background: #16a34a;
+  border-color: #16a34a;
+}
+.tpc-r-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.tpc-r-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--app-text-primary);
+  line-height: 1.2;
+}
+.tpc-r-meta {
+  font-size: 11px;
+  color: var(--app-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+}
+.tpc-r-card.ready .tpc-r-meta {
+  color: color-mix(in srgb, #f59e0b 55%, var(--app-text-primary));
+}
+.tpc-r-card.spinning .tpc-r-meta {
+  color: color-mix(in srgb, #16a34a 55%, var(--app-text-primary));
+}
+.tpc-r-ops {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.tpc-r-op {
+  min-width: 72px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+  border: 1px solid var(--app-border);
+  background: var(--app-card-soft);
+  color: var(--app-text-secondary);
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.tpc-r-op.start {
+  color: color-mix(in srgb, #16a34a 55%, var(--app-text-primary));
+  background: color-mix(in srgb, #16a34a 12%, var(--app-card));
+  border-color: color-mix(in srgb, #16a34a 28%, var(--app-border));
+}
+.tpc-r-op.start:hover:not(:disabled) {
+  color: #fff;
+  background: #16a34a;
+  border-color: #16a34a;
+}
+.tpc-r-op.pause {
+  color: color-mix(in srgb, #d97706 55%, var(--app-text-primary));
+  background: color-mix(in srgb, #d97706 12%, var(--app-card));
+  border-color: color-mix(in srgb, #d97706 28%, var(--app-border));
+}
+.tpc-r-op.pause:hover:not(:disabled) {
+  color: #fff;
+  background: #d97706;
+  border-color: #d97706;
+}
+.tpc-r-op:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
 .tpc-ur-entry {
   display: flex;
   align-items: center;
@@ -1753,6 +2169,38 @@ onMounted(async () => {
 }
 .tpc-slot-tip-empty {
   color: var(--app-text-muted);
+}
+.tpc-corner-tip {
+  min-width: 200px;
+}
+.tpc-corner-tip-row {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  align-items: baseline;
+  gap: 6px;
+}
+.tpc-corner-tip-shape {
+  font-weight: 600;
+}
+.tpc-corner-tip-alias {
+  color: var(--app-text-muted);
+  font-size: 10px;
+}
+.tpc-corner-tip-value {
+  color: var(--tpc-accent);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.tpc-corner-tip-range {
+  color: var(--app-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.tpc-corner-tip-note {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--app-border);
+  color: var(--app-text-muted);
+  font-size: 10px;
 }
 
 .tpc-draw-empty {

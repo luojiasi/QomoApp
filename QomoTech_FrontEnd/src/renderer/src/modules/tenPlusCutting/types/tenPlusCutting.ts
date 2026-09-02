@@ -5,6 +5,12 @@ export interface TenPlusTaskRow {
   /** 路径类型，取值见 TEN_PLUS_PATH_TYPE_OPTIONS */
   pathType: string
   diameter: number
+  /** 非等分直线：长 (mm) */
+  length: number
+  /** 非等分直线：宽 (mm) */
+  width: number
+  /** 非等分直线：切角比例 (%)，切角在宽度方向的投影占宽的百分比 */
+  cornerRatio: number
   angle: number
   height: number
   divisions: number
@@ -15,6 +21,12 @@ export interface TenPlusTaskRow {
   compAngle: number
   /** 直径百分比，默认 100 */
   diameterPercent: number
+  /** 高度百分比，默认 100 */
+  heightPercent: number
+  /** 是否用钻石比例换算直径百分比与高度百分比；仅前端换算入口，不下发 */
+  useDiamondRatio: boolean
+  /** 钻石比例百分比；仅前端换算入口，不下发 */
+  diamondPercent: number
   chordRatio: number
   k: number
   b: number
@@ -88,6 +100,9 @@ export interface TenPlusFreeParamPayload {
     taskNo: number
     pathType: string
     diameter: number
+    length: number
+    width: number
+    cornerRatio: number
     angle: number
     height: number
     divisions: number
@@ -97,6 +112,7 @@ export interface TenPlusFreeParamPayload {
     compZ: number
     compAngle: number
     diameterPercent: number
+    heightPercent: number
     chordRatio: number
     k: number
     b: number
@@ -109,4 +125,12 @@ export interface TenPlusFreeParamPayload {
     targetId?: string
     targetName?: string
   }>
+}
+
+/** UR 校准相机十字线：横/竖各自线宽与颜色 */
+export interface TenPlusUrCrosshairSettings {
+  hColor: string
+  vColor: string
+  hWidth: number
+  vWidth: number
 }

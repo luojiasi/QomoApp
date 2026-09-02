@@ -68,9 +68,7 @@ def 串口工作台同步(请求体: 串口发送接收请求响应模型,) -> �
 
 
 @路由.post("/send", response_model=返回数据类型模型)
-def 串口发送(
-    请求体: 串口仅发送请求模型,
-) -> 返回数据类型模型:
+def 串口发送(请求体: 串口仅发送请求模型,) -> 返回数据类型模型:
     svc = _rs232()
     if not svc.是否已连接():
         return 返回数据类型模型(success=False,message="串口未打开，请先调用 /api/rs232/open",data=None,)

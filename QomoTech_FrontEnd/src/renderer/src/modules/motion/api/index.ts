@@ -154,6 +154,19 @@ export const rotateRAxisByTurns = async (payload: RAxisRotateRequestPayload): Pr
     { params: payload } as unknown as Record<string, unknown>
   )
 
+/** R 轴持续旋转；speed 不传则用控制器当前速度。 */
+export const rotateRAxisCont = async (speed?: number): Promise<ApiCallResult<Record<string, unknown>>> => {
+  const body: Record<string, unknown> = {}
+  if (typeof speed === 'number' && Number.isFinite(speed) && speed > 0) {
+    body.speed = speed
+  }
+  return apiCall('motion/r/rotate-cont', 'POST', body)
+}
+
+/** 停止指定轴当前运动（含持续旋转）。 */
+export const stopMotionJog = async (axis: MotionAxis): Promise<ApiCallResult<Record<string, unknown>>> =>
+  apiCall('motion/jog/stop', 'POST', { axis } as unknown as Record<string, unknown>)
+
 // -----------------------------------------------------------------------------
 // IO
 // -----------------------------------------------------------------------------

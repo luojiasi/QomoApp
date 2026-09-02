@@ -1,3 +1,13 @@
+export const TEN_PLUS_UR_CROSSHAIR_STORAGE_KEY = 'qomo.tenPlus.urCrosshair'
+export const TEN_PLUS_UR_CROSSHAIR_WIDTH_MIN = 1
+export const TEN_PLUS_UR_CROSSHAIR_WIDTH_MAX = 10
+export const TEN_PLUS_UR_CROSSHAIR_DEFAULTS = {
+  hColor: '#f87171',
+  vColor: '#60a5fa',
+  hWidth: 2,
+  vWidth: 2
+} as const
+
 export const TEN_PLUS_SLOT_COUNT = 10
 export const TEN_PLUS_FILE_VERSION = '2.3.0'
 export const TEN_PLUS_FILE_EXT = '.jjs'
@@ -23,14 +33,48 @@ export const TEN_PLUS_DEFAULT_CHORD_RATIO = 1.2
 /** 直径百分比默认值（100 表示按原直径） */
 export const TEN_PLUS_DEFAULT_DIAMETER_PERCENT = 100
 
+/** 高度百分比默认值（100 表示按原高度） */
+export const TEN_PLUS_DEFAULT_HEIGHT_PERCENT = 100
+
+/** 钻石比例百分比默认值 */
+export const TEN_PLUS_DEFAULT_DIAMOND_PERCENT = 0
+
+/** 非等分直线的长、宽默认值 (mm) */
+export const TEN_PLUS_DEFAULT_LINE_LENGTH = 4
+export const TEN_PLUS_DEFAULT_LINE_WIDTH = 4
+
+/**
+ * 非等分直线（切角矩形）切角比例默认值 (%)。
+ * 沿用行业 corner ratio 定义：切角在宽度方向的投影占宽的百分比。
+ */
+export const TEN_PLUS_DEFAULT_CORNER_RATIO = 14
+
+/**
+ * 切角比例推荐值：两种切工的外轮廓公式完全相同，只是行业惯用比例不同。
+ * 来源：AGS 祖母绿切工几何规范、US10448713 专利、Octonus/Helium 雷迪恩实测报告。
+ */
+export const TEN_PLUS_CORNER_RATIO_RECOMMENDATIONS: ReadonlyArray<{
+  shape: string
+  alias: string
+  value: number
+  range: string
+}> = [
+  { shape: '祖母绿', alias: 'Emerald', value: 14, range: '13.5%–14.5%' },
+  { shape: '雷迪恩', alias: 'Radiant', value: 15, range: '13.6%–16.7%' }
+]
+
 /** 任务行路径类型。新增选项只在此数组追加 { value, label }。 */
 export const TEN_PLUS_PATH_TYPE_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
   { value: 'equalSegments', label: '等分线段' },
   { value: 'curve', label: '曲线' },
-  { value: 'Line', label: '直线' }
+  { value: 'unEqualSegments', label: '非等分直线' }
 ]
 
 export const TEN_PLUS_DEFAULT_PATH_TYPE = TEN_PLUS_PATH_TYPE_OPTIONS[0]?.value ?? 'equalSegments'
+
+export const TEN_PLUS_UNEQUAL_LINE_PATH_TYPE = 'unEqualSegments'
+
+export function isUnequalLinePath(pathType: string): boolean {return pathType === TEN_PLUS_UNEQUAL_LINE_PATH_TYPE}
 
 export function resolveTenPlusPathType(raw: unknown): string {
   const value = typeof raw === 'string' ? raw : ''
@@ -41,6 +85,7 @@ export function resolveTenPlusPathType(raw: unknown): string {
 /** 角度为 0（台面行）时锁定为默认值、不可编辑的字段 */
 export const TEN_PLUS_TABLE_ANGLE_LOCKED_DEFAULTS = {
   height: 0,
+  heightPercent: TEN_PLUS_DEFAULT_HEIGHT_PERCENT,
   divisions: 0,
   compX: 0,
   compY: 90,

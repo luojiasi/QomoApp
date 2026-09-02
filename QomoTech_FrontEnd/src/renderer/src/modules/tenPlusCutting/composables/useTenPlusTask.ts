@@ -6,6 +6,11 @@ import {
   TEN_PLUS_FILE_VERSION,
   TEN_PLUS_DEFAULT_CHORD_RATIO,
   TEN_PLUS_DEFAULT_DIAMETER_PERCENT,
+  TEN_PLUS_DEFAULT_HEIGHT_PERCENT,
+  TEN_PLUS_DEFAULT_DIAMOND_PERCENT,
+  TEN_PLUS_DEFAULT_CORNER_RATIO,
+  TEN_PLUS_DEFAULT_LINE_LENGTH,
+  TEN_PLUS_DEFAULT_LINE_WIDTH,
   TEN_PLUS_DEFAULT_PATH_TYPE,
   TEN_PLUS_TABLE_ANGLE_LOCKED_DEFAULTS,
   resolveTenPlusPathType
@@ -24,6 +29,9 @@ function createRow(taskNo: number): TenPlusTaskRow {
     taskNo,
     pathType: TEN_PLUS_DEFAULT_PATH_TYPE,
     diameter: 0,
+    length: TEN_PLUS_DEFAULT_LINE_LENGTH,
+    width: TEN_PLUS_DEFAULT_LINE_WIDTH,
+    cornerRatio: TEN_PLUS_DEFAULT_CORNER_RATIO,
     angle: 90,
     height: 0,
     divisions: 12,
@@ -33,6 +41,9 @@ function createRow(taskNo: number): TenPlusTaskRow {
     compZ: 0,
     compAngle: 0,
     diameterPercent: TEN_PLUS_DEFAULT_DIAMETER_PERCENT,
+    heightPercent: TEN_PLUS_DEFAULT_HEIGHT_PERCENT,
+    useDiamondRatio: false,
+    diamondPercent: TEN_PLUS_DEFAULT_DIAMOND_PERCENT,
     chordRatio: TEN_PLUS_DEFAULT_CHORD_RATIO,
     k: 0,
     b: 0,
@@ -75,6 +86,11 @@ function normalizeRow(raw: Partial<TenPlusTaskRow>, fallbackNo: number): TenPlus
     taskNo: raw.taskNo ?? fallbackNo,
     pathType: resolveTenPlusPathType(raw.pathType),
     diameter: Number(raw.diameter ?? 0),
+    length: Number(raw.length ?? TEN_PLUS_DEFAULT_LINE_LENGTH),
+    width: Number(raw.width ?? TEN_PLUS_DEFAULT_LINE_WIDTH),
+    cornerRatio: Number.isFinite(Number(raw.cornerRatio))
+      ? Number(raw.cornerRatio)
+      : TEN_PLUS_DEFAULT_CORNER_RATIO,
     angle,
     height: Number(raw.height ?? 0),
     divisions: Number(raw.divisions ?? 12),
@@ -86,6 +102,13 @@ function normalizeRow(raw: Partial<TenPlusTaskRow>, fallbackNo: number): TenPlus
     diameterPercent: Number.isFinite(Number(raw.diameterPercent))
       ? Number(raw.diameterPercent)
       : TEN_PLUS_DEFAULT_DIAMETER_PERCENT,
+    heightPercent: Number.isFinite(Number(raw.heightPercent))
+      ? Number(raw.heightPercent)
+      : TEN_PLUS_DEFAULT_HEIGHT_PERCENT,
+    useDiamondRatio: raw.useDiamondRatio === true,
+    diamondPercent: Number.isFinite(Number(raw.diamondPercent))
+      ? Number(raw.diamondPercent)
+      : TEN_PLUS_DEFAULT_DIAMOND_PERCENT,
     chordRatio: Number(raw.chordRatio ?? TEN_PLUS_DEFAULT_CHORD_RATIO),
     k: Number(raw.k ?? 0),
     b: Number(raw.b ?? 0),
@@ -354,7 +377,8 @@ export function useTenPlusTask() {
 }
 
 export function isDiameterInvalid(v: number): boolean {
-  return Number.isNaN(v) || v < 0 || v > 200
+  const n = Number(v)
+  return Number.isNaN(n) || n < 0 || n > 200
 }
 
 export function isAngleInvalid(v: number): boolean {
@@ -369,6 +393,17 @@ export function isDivisionsInvalid(v: number): boolean {
   if (Number.isNaN(v)) return true
   if (v === 0) return false
   return v < 3 || v > 360
+}
+
+/**
+ * 切角比例校验：0–50% 之间，且切掉的量不能吃穿长边。
+ * 切角量 c = 切角比例% × 宽，需同时满足 2c < 宽（等价于比例 < 50%）与 2c < 长。
+ */
+export function isCornerRatioInvalid(cornerRatio: number, length: number, width: number): boolean {
+  const ratio = Number(cornerRatio)
+  if (!Number.isFinite(ratio) || ratio <= 0 || ratio >= 50) return true
+  const corner = (ratio / 100) * Number(width)
+  return !(corner > 0) || 2 * corner >= Number(length)
 }
 
 export function isRecipeInvalid(recipe: string): boolean {

@@ -46,7 +46,7 @@ function handleImgError(): void {
       @error="handleImgError"
     />
     <div v-else class="flex h-full w-full items-center justify-center">
-      <p class="app-text-muted text-sm">
+      <p class="text-sm text-slate-400">
         {{ showHint ? '正在接收相机图像…' : '' }}
       </p>
     </div>
