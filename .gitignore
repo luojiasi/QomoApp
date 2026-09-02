@@ -18,6 +18,9 @@ QomoTech_BackEnd/logs/
 QomoTech_BackEnd/**/__pycache__/
 QomoTech_BackEnd/**/*.pyc
 
+# QomoTech_BackEnd: config 的手工备份副本（运行时配置，勿提交）
+QomoTech_BackEnd/config_/
+
 # Node/Electron/Vite/Vue
 node_modules/
 dist/
