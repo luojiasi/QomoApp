@@ -14,6 +14,7 @@ from services.program_control_ten.geometry import (
     构建执行任务的参数,
     构建配方数据,
     判断是否存在台面且计算位置,
+    取行的实际高度,
     计算开口范围,
     更新V型开口偏移,
     更新平行型开口偏移,
@@ -21,6 +22,24 @@ from services.program_control_ten.geometry import (
 from utils.logger import 获取日志记录器, 格式化异常位置
 
 日志 = 获取日志记录器("自由参数切割程序")
+
+
+def 取当前边的参数(执行任务的参数: dict[str, Any], 边序号: int) -> dict[str, Any]:
+    """取第 N 条切割边的中点坐标、切割长度与 R 轴步进角。
+
+    等分线段的每条弦中心距、长度、步进都相同，退化成整份参数直接复用；
+    非等分直线（切角矩形）8 条边各不相同，从 边参数列表 里按序号取。
+    """
+    边参数列表 = 执行任务的参数.get("边参数列表") or []
+    if 边参数列表:
+        return 边参数列表[(max(1, int(边序号)) - 1) % len(边参数列表)]
+
+    分割数 = int(执行任务的参数.get("R轴旋转的分割数") or 0)
+    return {
+        "切割中点的坐标": 执行任务的参数.get("切割中点的坐标"),
+        "最长的那条边的切割长度": 执行任务的参数.get("最长的那条边的切割长度"),
+        "相对旋转角度": (360.0 / 分割数) if 分割数 > 0 else 0.0,
+    }
 
 
 
@@ -214,8 +233,8 @@ class ProgramRunnerTenPlus:
                         该序号R轴的补偿 = 构建R轴的补偿(行数据)
                         该序号的参数 = 构建任务的数据(行数据, 工位的轴位置, 工位号)
                         该序号的配方 = 构建配方数据(配方数据, 该序号的参数.get("配方ID"))
-                        累计高度 = sum(float(行列表[k].get("height", 0)) for k in range(序号))
-                        所有高度总和 = sum(float(行列表[k].get("height", 0)) for k in range(len(行列表)))
+                        累计高度 = sum(取行的实际高度(行列表[k]) for k in range(序号))
+                        所有高度总和 = sum(取行的实际高度(行列表[k]) for k in range(len(行列表)))
                         执行任务的参数 = 构建执行任务的参数(该序号的参数,当前Z,所有高度总和,累计高度,是否存在台面,清晰点距离自动切台面的位置)
                         self.更新进度(current_task_index=当前序号, current_task_jindubaifenbi=0)
                         try:
@@ -398,6 +417,7 @@ class ProgramRunnerTenPlus:
 
         旋转任务的的分割数 = 执行任务的参数.get("R轴旋转的分割数")
         当前R轴旋转分割数 = 1 
+        当前边的参数 = 取当前边的参数(执行任务的参数, 当前R轴旋转分割数)
         准备开始切割下一次的第一次 = False
 
         多少圈进行补偿值 = float(该序号R轴的补偿.get("多少圈进行一次补偿", 0))
@@ -450,9 +470,9 @@ class ProgramRunnerTenPlus:
                         当前步骤 = ProgramFreeParamsStep.清理所有状态
 
                 case ProgramFreeParamsStep.移动到最开始的位置:
-                    起点X = 执行任务的参数.get("切割中点的坐标").get("X")
-                    起点Y = 执行任务的参数.get("切割中点的坐标").get("Y")
-                    起点Z = 执行任务的参数.get("切割中点的坐标").get("Z")
+                    起点X = 当前边的参数.get("切割中点的坐标").get("X")
+                    起点Y = 当前边的参数.get("切割中点的坐标").get("Y")
+                    起点Z = 当前边的参数.get("切割中点的坐标").get("Z")
                     try:
                         插补运行的路径点 = [{"x": 起点X, "y": 起点Y}]
                         await self._运动.连续插补XY(路径点=插补运行的路径点, 速度=20)
@@ -473,7 +493,7 @@ class ProgramRunnerTenPlus:
 
                 case ProgramFreeParamsStep.Z轴下降:
                     # TODO:还有什么东西要去做
-                    目标Z轴的位置 = -累计下降量 + 执行任务的参数.get("切割中点的坐标").get("Z")
+                    目标Z轴的位置 = -累计下降量 + 当前边的参数.get("切割中点的坐标").get("Z")
                     await self._运动.绝对运动("Z", 目标Z轴的位置)
                     等到轴停止结果 =  await self._运动.等待轴到位(轴名与位置=[("Z",目标Z轴的位置)],容差=0.01)
                     await asyncio.sleep(0.1)
@@ -502,11 +522,10 @@ class ProgramRunnerTenPlus:
 
                 case ProgramFreeParamsStep.切割R轴:
                     if not 是否反向:
-                        构建切割直线的坐标X = 执行任务的参数.get("切割中点的坐标").get("X") + 当前开口值
+                        构建切割直线的坐标X = 当前边的参数.get("切割中点的坐标").get("X") + 当前开口值
                     else:
-                        构建切割直线的坐标X = 执行任务的参数.get("切割中点的坐标").get("X") - 当前开口值
-                    # 构建切割直线的坐标X = 执行任务的参数.get("切割中点的坐标").get("X") + 当前开口值
-                    构建切割直线的坐标Y起点 = float(执行任务的参数.get("切割中点的坐标").get("Y"))
+                        构建切割直线的坐标X = 当前边的参数.get("切割中点的坐标").get("X") - 当前开口值
+                    构建切割直线的坐标Y起点 = float(当前边的参数.get("切割中点的坐标").get("Y"))
                     插补运行的路径点= [{"x": 构建切割直线的坐标X, "y": 构建切割直线的坐标Y起点}]
                     当前速度百分比 = 边缘切割速度百分比 if 是否在边缘位置 else 中间切割速度百分比
                     目标运行速度 = 插补的运行速度 * 当前速度百分比
@@ -521,12 +540,12 @@ class ProgramRunnerTenPlus:
 
                 case ProgramFreeParamsStep.切割直线:
                     if not 是否反向:
-                        构建切割直线的坐标X = 执行任务的参数.get("切割中点的坐标").get("X") + 当前开口值
+                        构建切割直线的坐标X = 当前边的参数.get("切割中点的坐标").get("X") + 当前开口值
                     else:
-                        构建切割直线的坐标X = 执行任务的参数.get("切割中点的坐标").get("X") - 当前开口值
-                    # 构建切割直线的坐标X = 执行任务的参数.get("切割中点的坐标").get("X") + 当前开口值
-                    构建切割直线的坐标Y起点 = float(执行任务的参数.get("切割中点的坐标").get("Y") + float((执行任务的参数.get("最长的那条边的切割长度")/2)))
-                    构建切割直线的坐标Y终点 = float(执行任务的参数.get("切割中点的坐标").get("Y") - float((执行任务的参数.get("最长的那条边的切割长度")/2)))
+                        构建切割直线的坐标X = 当前边的参数.get("切割中点的坐标").get("X") - 当前开口值
+                    本条边的切割长度 = float(当前边的参数.get("最长的那条边的切割长度"))
+                    构建切割直线的坐标Y起点 = float(当前边的参数.get("切割中点的坐标").get("Y") + 本条边的切割长度 / 2)
+                    构建切割直线的坐标Y终点 = float(当前边的参数.get("切割中点的坐标").get("Y") - 本条边的切割长度 / 2)
                     插补运行的路径点 = [{"x": 构建切割直线的坐标X, "y": 构建切割直线的坐标Y起点}, {"x": 构建切割直线的坐标X, "y": 构建切割直线的坐标Y终点}]
 
                     当前速度百分比 = 边缘切割速度百分比 if 是否在边缘位置 else 中间切割速度百分比
@@ -643,7 +662,8 @@ class ProgramRunnerTenPlus:
                     else:
                         当前R轴旋转分割数 += 1
                         准备开始切割下一次的第一次 = False
-                        R轴旋转圈数 = float(1 / 旋转任务的的分割数) if 旋转任务的的分割数 > 0 else 0.0
+                        当前边的参数 = 取当前边的参数(执行任务的参数, 当前R轴旋转分割数)
+                        R轴旋转圈数 = float(当前边的参数.get("相对旋转角度", 0.0)) / 360.0
                         await self._运动.R轴旋转的圈数(R轴旋转圈数)
 
                         if 多少圈进行补偿值 > 0 and 当前R轴旋转分割数 % int(多少圈进行补偿值) == 0:
@@ -696,7 +716,7 @@ class ProgramRunnerTenPlus:
 
                         当前步骤 = ProgramFreeParamsStep.移动到最开始的位置
 
-                    await self._十工位的运动.开启激光()
+                    # await self._十工位的运动.开启激光()
                 case ProgramFreeParamsStep.清理所有状态:
                     self._是否跳过请求 = False
                     await self._十工位的运动.关闭吹风()
