@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>马眼 / 橄榄形（Marquise / Navette）—— 两段圆弧</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #181b22;
+    --text: #e7eaf0;
+    --muted: #8b93a5;
+    --accent: #4da3ff;
+    --accent2: #ff7a59;
+    --accent3: #4dd8a8;
+    --border: #2a2f3a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+      "Microsoft YaHei", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 28px 16px 40px;
+  }
+  h1 { font-size: 22px; font-weight: 650; margin: 0 0 4px; letter-spacing: -0.02em; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 20px; }
+  .wrap {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  canvas {
+    background: #0a0c10;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.45);
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 20px;
+    width: 300px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .field label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .field label b { color: var(--text); font-variant-numeric: tabular-nums; }
+  input[type="range"] { width: 100%; accent-color: var(--accent); cursor: pointer; }
+  .stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .stat {
+    background: #0a0c10;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+  }
+  .stat .k { font-size: 11px; color: var(--muted); }
+  .stat .v { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .legend { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; font-size: 12px; color: var(--muted); }
+  .legend .row { display: flex; align-items: center; gap: 8px; }
+  .swatch { width: 14px; height: 14px; border-radius: 4px; flex-shrink: 0; }
+  .note {
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--muted);
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+  }
+  .formula {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    background: #0a0c10;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 12px;
+    color: var(--accent3);
+    line-height: 1.7;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+  <h1>马眼 / 橄榄形（Marquise）＝ 两段对称圆弧</h1>
+  <p class="sub">左右两段等半径弧，两端收成尖点；上下镜像 + 左右镜像（2 条对称轴）</p>
+
+  <div class="wrap">
+    <canvas id="cv" width="620" height="620"></canvas>
+    <div class="panel">
+      <div class="field">
+        <label>半宽 w <b id="vw">1.00</b></label>
+        <input id="w" type="range" min="0.3" max="1.6" step="0.01" value="1.0" />
+      </div>
+      <div class="field">
+        <label>半长 l <b id="vl">2.00</b></label>
+        <input id="l" type="range" min="0.5" max="4.0" step="0.01" value="2.0" />
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="k">总长 (2l)</div><div class="v" id="sLen">—</div></div>
+        <div class="stat"><div class="k">总宽 (2w)</div><div class="v" id="sWid">—</div></div>
+        <div class="stat"><div class="k">长宽比 l/w</div><div class="v" id="sRatio">—</div></div>
+        <div class="stat"><div class="k">圆弧半径 R</div><div class="v" id="sR">—</div></div>
+      </div>
+
+      <div class="formula">R = (l² + w²) / (2w)<br/>d = (l² − w²) / (2w)</div>
+
+      <div class="legend">
+        <div class="row"><span class="swatch" style="background:var(--accent)"></span> 右侧弧（圆心 −d）</div>
+        <div class="row"><span class="swatch" style="background:var(--accent2)"></span> 左侧弧（圆心 +d）</div>
+        <div class="row"><span class="swatch" style="background:#ffd166"></span> 对称轴 / 圆心 / 尖点</div>
+      </div>
+
+      <div class="note">
+        马眼 = 透镜（lens）形状：两段等半径圆弧，两端各一个尖点。
+        长宽比理想 <b>2:1</b>（行业 1.75–2.25）；l/w = √3 ≈ 1.73 时是 vesica piscis。
+        有 2 条对称轴（上下 + 左右），但没有旋转对称，需沿完整轮廓走一圈。
+      </div>
+    </div>
+  </div>
+
+<script>
+(function () {
+  const cv = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+  const W = cv.width, H = cv.height;
+  const CX = W / 2, CY = H / 2;
+
+  const elW = document.getElementById('w');
+  const elL = document.getElementById('l');
+  const vw = document.getElementById('vw');
+  const vl = document.getElementById('vl');
+  const sLen = document.getElementById('sLen');
+  const sWid = document.getElementById('sWid');
+  const sRatio = document.getElementById('sRatio');
+  const sR = document.getElementById('sR');
+
+  function makePx(w, l) {
+    const scale = Math.min(160, (CY - 30) / Math.max(l, w));
+    return function (x, y) {
+      return [CX + x * scale, CY - y * scale];
+    };
+  }
+
+  function arcPoints(cx, cy, r, t0, t1, steps) {
+    const pts = [];
+    for (let i = 0; i <= steps; i++) {
+      const t = t0 + (t1 - t0) * (i / steps);
+      pts.push([cx + r * Math.cos(t), cy + r * Math.sin(t)]);
+    }
+    return pts;
+  }
+
+  function trace(pts, px) {
+    ctx.beginPath();
+    pts.forEach(([x, y], i) => {
+      const [sx, sy] = px(x, y);
+      if (i === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
+    });
+    ctx.stroke();
+  }
+
+  function render() {
+    const w = parseFloat(elW.value);
+    const l = parseFloat(elL.value);
+    vw.textContent = w.toFixed(2);
+    vl.textContent = l.toFixed(2);
+
+    const px = makePx(w, l);
+    const R = (l * l + w * w) / (2 * w);
+    const d = (l * l - w * w) / (2 * w);
+
+    // 右侧弧：圆心 (-d, 0)，从下尖点到上尖点（经过顶点 (w,0)，向右凸）
+    const theta0 = Math.atan2(l, d);   // 上尖点相对圆心(-d,0)的角度
+
+    sLen.textContent = (2 * l).toFixed(2);
+    sWid.textContent = (2 * w).toFixed(2);
+    sRatio.textContent = (l / w).toFixed(3) + ':1';
+    sR.textContent = R.toFixed(3);
+
+    ctx.clearRect(0, 0, W, H);
+
+    // 网格
+    ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+    ctx.lineWidth = 1;
+    const span = Math.ceil(Math.max(l, w));
+    for (let i = -span; i <= span; i++) {
+      const [x1] = px(i, 0); ctx.beginPath(); ctx.moveTo(x1, 0); ctx.lineTo(x1, H); ctx.stroke();
+      const [, y1] = px(0, i); ctx.beginPath(); ctx.moveTo(0, y1); ctx.lineTo(W, y1); ctx.stroke();
+    }
+
+    // 对称轴
+    ctx.strokeStyle = 'rgba(255,209,102,0.45)';
+    ctx.setLineDash([6, 5]);
+    ctx.beginPath();
+    let [ax0, ay0] = px(0, l + 8), [ax1, ay1] = px(0, -l - 8);
+    ctx.moveTo(ax0, ay0); ctx.lineTo(ax1, ay1); ctx.stroke();
+    ctx.beginPath();
+    [ax0, ay0] = px(-w - 8, 0); [ax1, ay1] = px(w + 8, 0);
+    ctx.moveTo(ax0, ay0); ctx.lineTo(ax1, ay1); ctx.stroke();
+    ctx.setLineDash([]);
+
+    const SEG = 90;
+
+    // 右侧弧：圆心 (-d, 0)，角度 -theta0 -> +theta0（向右凸）
+    const right = arcPoints(-d, 0, R, -theta0, theta0, SEG);
+    ctx.strokeStyle = '#4da3ff';
+    ctx.lineWidth = 3;
+    trace(right, px);
+
+    // 左侧弧：圆心 (+d, 0)，角度 π-theta0 -> π+theta0（向左凸）
+    const left = arcPoints(d, 0, R, Math.PI - theta0, Math.PI + theta0, SEG);
+    ctx.strokeStyle = '#ff7a59';
+    trace(left, px);
+
+    // 圆心
+    ctx.fillStyle = '#ffd166';
+    [[-d, 0], [d, 0]].forEach(([x, y]) => {
+      const [sx, sy] = px(x, y);
+      ctx.beginPath(); ctx.arc(sx, sy, 3.5, 0, Math.PI * 2); ctx.fill();
+    });
+
+    // 尖点
+    ctx.fillStyle = '#fff';
+    [[0, l], [0, -l]].forEach(([x, y]) => {
+      const [sx, sy] = px(x, y);
+      ctx.beginPath(); ctx.arc(sx, sy, 4, 0, Math.PI * 2); ctx.fill();
+    });
+  }
+
+  [elW, elL].forEach((el) => el.addEventListener('input', render));
+  render();
+})();
+</script>
+</body>
+</html>

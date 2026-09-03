@@ -1,17 +1,20 @@
 import type { TenPlusTaskRow } from './tenPlusCutting'
 
 /** 快捷形状 id；新增形状只在此联合上追加 */
-export type TenPlusQuickShapeId = 'cushion'
+export type TenPlusQuickShapeId = 'cushion' | 'teardrop'
 
-/** 快捷形状弹窗提交的尺寸。垫型用超椭圆：长/宽为外接尺寸，n 为圆角指数。 */
+/**
+ * 快捷形状弹窗提交的尺寸。两种形状都填长/宽：
+ * 垫型：外接长宽；水滴：长=a+L、宽=2a，再换成半宽 a 与尖端深度 L。
+ */
 export interface TenPlusQuickShapeInput {
   shape: TenPlusQuickShapeId
   length: number
   width: number
   height: number
-  /** 超椭圆指数 n：2≈椭圆，4=垫型，越大越接近矩形 */
+  /** 超椭圆指数 n。水滴忽略。 */
   exponent: number
-  /** 腰棱倾角，垫型默认 90 */
+  /** 腰棱倾角，默认 90 */
   angle: number
 }
 
