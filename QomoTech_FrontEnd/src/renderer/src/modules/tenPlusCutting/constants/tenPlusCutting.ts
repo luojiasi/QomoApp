@@ -63,17 +63,61 @@ export const TEN_PLUS_CORNER_RATIO_RECOMMENDATIONS: ReadonlyArray<{
   { shape: '雷迪恩', alias: 'Radiant', value: 15, range: '13.6%–16.7%' }
 ]
 
-/** 任务行路径类型。新增选项只在此数组追加 { value, label }。 */
+/** 任务行全部合法 pathType（含不单独占按钮的子类型）。读档校验用这个。 */
 export const TEN_PLUS_PATH_TYPE_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
   { value: 'equalSegments', label: '等分线段' },
   { value: 'curve', label: '曲线' },
-  { value: 'unEqualSegments', label: '非等分直线' }
+  { value: 'unEqualSegments', label: '非等分直线' },
+  { value: 'singleLine', label: '单直线' }
+]
+
+/** 类型列按钮。非等分直线并进等分线段，双击选子类型。 */
+export const TEN_PLUS_PATH_TYPE_BUTTONS: ReadonlyArray<{ value: string; label: string }> = [
+  { value: 'equalSegments', label: '等分线段' },
+  { value: 'curve', label: '曲线' },
+  { value: 'singleLine', label: '单直线' }
 ]
 
 export const TEN_PLUS_DEFAULT_PATH_TYPE = TEN_PLUS_PATH_TYPE_OPTIONS[0]?.value ?? 'equalSegments'
 
+export const TEN_PLUS_EQUAL_LINE_PATH_TYPE = 'equalSegments'
 export const TEN_PLUS_UNEQUAL_LINE_PATH_TYPE = 'unEqualSegments'
 export const TEN_PLUS_CURVE_PATH_TYPE = 'curve'
+export const TEN_PLUS_SINGLE_LINE_PATH_TYPE = 'singleLine'
+
+/** 等分线段按钮下的子类型。下发仍用原来的 pathType，不新增字段。 */
+export const TEN_PLUS_LINE_KIND_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
+  { value: TEN_PLUS_EQUAL_LINE_PATH_TYPE, label: '等分线段' },
+  { value: TEN_PLUS_UNEQUAL_LINE_PATH_TYPE, label: '非等分直线' }
+]
+
+/** 单直线默认：+X 上一根竖线，相对该工位 R 轴旋转中心 (mm) */
+export const TEN_PLUS_DEFAULT_LINE_START_X = 1
+export const TEN_PLUS_DEFAULT_LINE_START_Y = -1
+export const TEN_PLUS_DEFAULT_LINE_END_X = 1
+export const TEN_PLUS_DEFAULT_LINE_END_Y = 1
+
+export const TEN_PLUS_LINE_PARAM_MODE_ENDPOINTS = 'endpoints'
+export const TEN_PLUS_LINE_PARAM_MODE_MID_LENGTH = 'midLength'
+export const TEN_PLUS_LINE_PARAM_MODE_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
+  { value: TEN_PLUS_LINE_PARAM_MODE_ENDPOINTS, label: '起终点' },
+  { value: TEN_PLUS_LINE_PARAM_MODE_MID_LENGTH, label: '中点长' }
+]
+export const TEN_PLUS_DEFAULT_LINE_PARAM_MODE = TEN_PLUS_LINE_PARAM_MODE_ENDPOINTS
+export const TEN_PLUS_DEFAULT_LINE_MID_X = 1
+export const TEN_PLUS_DEFAULT_LINE_MID_Y = 0
+/** 与默认起终点 (1,-1)→(1,1) 的长度一致 */
+export const TEN_PLUS_DEFAULT_SINGLE_LINE_LENGTH = 2
+
+export function resolveTenPlusLineParamMode(raw: unknown): string {
+  const value = typeof raw === 'string' ? raw : ''
+  if (TEN_PLUS_LINE_PARAM_MODE_OPTIONS.some((item) => item.value === value)) return value
+  return TEN_PLUS_DEFAULT_LINE_PARAM_MODE
+}
+
+export function isLineParamMidLength(mode: string): boolean {
+  return resolveTenPlusLineParamMode(mode) === TEN_PLUS_LINE_PARAM_MODE_MID_LENGTH
+}
 
 /** 曲线子类型。主选项仍是「曲线」，子类型用于悬停提示与后端按类型取参。 */
 export const TEN_PLUS_CURVE_KIND_CIRCLE = 'circle'
@@ -91,12 +135,30 @@ export const TEN_PLUS_DEFAULT_ARC_OFFSET = 0
 /** 0 = 普通圆弧；垫型快捷形状写入 >0 的超椭圆指数 */
 export const TEN_PLUS_DEFAULT_SUPERELLIPSE_N = 0
 
+export function isEqualLinePath(pathType: string): boolean {
+  return pathType === TEN_PLUS_EQUAL_LINE_PATH_TYPE
+}
+
 export function isUnequalLinePath(pathType: string): boolean {
   return pathType === TEN_PLUS_UNEQUAL_LINE_PATH_TYPE
 }
 
+/** 类型列「等分线段」按钮覆盖等分 / 非等分两种 pathType */
+export function isEqualLineGroup(pathType: string): boolean {
+  return isEqualLinePath(pathType) || isUnequalLinePath(pathType)
+}
+
 export function isCurvePath(pathType: string): boolean {
   return pathType === TEN_PLUS_CURVE_PATH_TYPE
+}
+
+export function isSingleLinePath(pathType: string): boolean {
+  return pathType === TEN_PLUS_SINGLE_LINE_PATH_TYPE
+}
+
+/** 曲线 / 单直线：段间靠法线差转 R，同层勾选有效 */
+export function isRStepPath(pathType: string): boolean {
+  return isCurvePath(pathType) || isSingleLinePath(pathType)
 }
 
 export function resolveTenPlusCurveKind(raw: unknown, superellipseN = 0): string {
@@ -111,14 +173,24 @@ export function tenPlusCurveKindLabel(curveKind: string, superellipseN = 0): str
   return TEN_PLUS_CURVE_KIND_OPTIONS.find((item) => item.value === kind)?.label ?? '曲线'
 }
 
+export function tenPlusLineKindLabel(pathType: string): string {
+  return (
+    TEN_PLUS_LINE_KIND_OPTIONS.find((item) => item.value === pathType)?.label ?? '等分线段'
+  )
+}
+
 export function tenPlusPathTypeTitle(
   itemValue: string,
   itemLabel: string,
   curveKind: string,
-  superellipseN = 0
+  superellipseN = 0,
+  rowPathType = ''
 ): string {
   if (itemValue === TEN_PLUS_CURVE_PATH_TYPE) {
     return tenPlusCurveKindLabel(curveKind, superellipseN)
+  }
+  if (itemValue === TEN_PLUS_EQUAL_LINE_PATH_TYPE) {
+    return tenPlusLineKindLabel(isEqualLineGroup(rowPathType) ? rowPathType : TEN_PLUS_EQUAL_LINE_PATH_TYPE)
   }
   return itemLabel
 }

@@ -20,6 +20,21 @@ export interface TenPlusTaskRow {
   /** 曲线：圆心相对工位中心的偏移 (mm) */
   arcOffsetX: number
   arcOffsetY: number
+  /** 单直线：起点 / 终点，相对该工位 R 轴旋转中心 (mm) */
+  lineStartX: number
+  lineStartY: number
+  lineEndX: number
+  lineEndY: number
+  /**
+   * 单直线参数形式，取值见 TEN_PLUS_LINE_PARAM_MODE_OPTIONS。
+   * `endpoints` = 起终点；`midLength` = 中点 + 长度（过中点、沿工件 Y）。
+   */
+  lineParamMode: string
+  /** 单直线：中点，相对该工位 R 轴旋转中心 (mm)；仅 midLength 下发生效 */
+  lineMidX: number
+  lineMidY: number
+  /** 单直线：长度 (mm)；仅 midLength 下发生效 */
+  lineLength: number
   /**
    * 曲线子类型，取值见 TEN_PLUS_CURVE_KIND_OPTIONS。
    * `circle` = 中心圆（半径+偏心）；`superellipse` = 超椭圆（长/宽/n）。
@@ -128,6 +143,14 @@ export interface TenPlusFreeParamPayload {
     arcEnd: number
     arcOffsetX: number
     arcOffsetY: number
+    lineStartX: number
+    lineStartY: number
+    lineEndX: number
+    lineEndY: number
+    lineParamMode: string
+    lineMidX: number
+    lineMidY: number
+    lineLength: number
     curveKind: string
     superellipseN: number
     sameLayer: boolean

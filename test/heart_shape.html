@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>爱心（Heart）—— 顶部两相切半圆 + 底部两侧弧</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #181b22;
+    --text: #e7eaf0;
+    --muted: #8b93a5;
+    --accent: #f43f5e;
+    --accent2: #ff7a59;
+    --accent3: #4dd8a8;
+    --border: #2a2f3a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+      "Microsoft YaHei", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 28px 16px 40px;
+  }
+  h1 { font-size: 22px; font-weight: 650; margin: 0 0 4px; letter-spacing: -0.02em; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 20px; text-align: center; max-width: 720px; line-height: 1.6; }
+  .wrap { display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; align-items: flex-start; }
+  canvas {
+    background: #0a0c10;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.45);
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 20px;
+    width: 300px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .field label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .field label b { color: var(--text); font-variant-numeric: tabular-nums; }
+  input[type="range"] { width: 100%; accent-color: var(--accent); cursor: pointer; }
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat { background: #0a0c10; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
+  .stat .k { font-size: 11px; color: var(--muted); }
+  .stat .v { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .legend { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; font-size: 12px; color: var(--muted); }
+  .legend .row { display: flex; align-items: center; gap: 8px; }
+  .swatch { width: 14px; height: 14px; border-radius: 4px; flex-shrink: 0; }
+  .note {
+    font-size: 12px; line-height: 1.6; color: var(--muted);
+    border-top: 1px solid var(--border); padding-top: 12px;
+  }
+  .formula {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    background: #0a0c10; border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 12px; font-size: 12px;
+    color: var(--accent3); line-height: 1.7; overflow-x: auto; white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+  <h1>爱心（Heart）＝ 顶部两个相切半圆 + 底部两个侧弧</h1>
+  <p class="sub">
+    顶部两个等半径半圆（lobe）在 cleft 凹口处相切，底部两侧弧收到底部唯一尖端。
+    只有<b>左右镜像对称</b>，上下不对称、无旋转对称。
+  </p>
+
+  <div class="wrap">
+    <canvas id="cv" width="620" height="620"></canvas>
+    <div class="panel">
+      <div class="field">
+        <label>半宽 a <b id="va">2.00</b></label>
+        <input id="a" type="range" min="0.8" max="4" step="0.01" value="2.0" />
+      </div>
+      <div class="field">
+        <label>尖端深度 L <b id="vL">3.00</b></label>
+        <input id="L" type="range" min="0.5" max="6" step="0.01" value="3.0" />
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="k">总宽 (2a)</div><div class="v" id="sWid">—</div></div>
+        <div class="stat"><div class="k">总高 (a/2+L)</div><div class="v" id="sHei">—</div></div>
+        <div class="stat"><div class="k">高:宽</div><div class="v" id="sRatio">—</div></div>
+        <div class="stat"><div class="k">尖端夹角</div><div class="v" id="sTip">—</div></div>
+      </div>
+
+      <div class="formula">lobe 半径 = a/2（圆心 ±a/2）<br/>cx = (a² − L²) / (2a)<br/>R  = (a² + L²) / (2a)</div>
+
+      <div class="legend">
+        <div class="row"><span class="swatch" style="background:var(--accent3)"></span> 顶部两 lobe 半圆（相切于 cleft）</div>
+        <div class="row"><span class="swatch" style="background:#4da3ff"></span> 右侧弧（尖端 → 右端）</div>
+        <div class="row"><span class="swatch" style="background:var(--accent2)"></span> 左侧弧（左端 → 尖端）</div>
+        <div class="row"><span class="swatch" style="background:#ffd166"></span> cleft 凹口 / 尖端 / 圆心</div>
+      </div>
+
+      <div class="note">
+        顶部 = 两个半径 a/2 的半圆，圆心 ±a/2，在 (0,0) 外切形成 cleft 凹口；
+        底部两个侧弧与水滴完全同公式（cx、R）。4 段圆弧首尾相接闭合。
+      </div>
+    </div>
+  </div>
+
+<script>
+(function () {
+  const cv = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+  const W = cv.width, H = cv.height;
+  const CX = W / 2, CY = H / 2;
+
+  const elA = document.getElementById('a');
+  const elL = document.getElementById('L');
+  const va = document.getElementById('va');
+  const vL = document.getElementById('vL');
+  const sWid = document.getElementById('sWid');
+  const sHei = document.getElementById('sHei');
+  const sRatio = document.getElementById('sRatio');
+  const sTip = document.getElementById('sTip');
+
+  function makePx(a, L) {
+    const topY = a / 2 + 2;
+    const bottomY = L + 2;
+    const scale = Math.min((W / 2 - 40) / (a + 2), (CY - 30) / Math.max(topY, bottomY));
+    return function (x, y) {
+      // 让 cleft 在原点，爱心主体居中
+      return [CX + x * scale, CY - y * scale];
+    };
+  }
+
+  function arcPoints(cx, cy, r, t0, t1, steps) {
+    const pts = [];
+    for (let i = 0; i <= steps; i++) {
+      const t = t0 + (t1 - t0) * (i / steps);
+      pts.push([cx + r * Math.cos(t), cy + r * Math.sin(t)]);
+    }
+    return pts;
+  }
+
+  function trace(pts, px) {
+    ctx.beginPath();
+    pts.forEach(([x, y], i) => {
+      const [sx, sy] = px(x, y);
+      if (i === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
+    });
+    ctx.stroke();
+  }
+
+  function render() {
+    const a = parseFloat(elA.value);
+    const L = parseFloat(elL.value);
+    va.textContent = a.toFixed(2);
+    vL.textContent = L.toFixed(2);
+
+    const px = makePx(a, L);
+    const cx = (a * a - L * L) / (2 * a);
+    const R = (a * a + L * L) / (2 * a);
+    const tipRight = Math.atan2(-L, -cx);
+    let tipLeft = Math.atan2(-L, cx);
+    if (tipLeft < 0) tipLeft += 2 * Math.PI;
+    const tipDeg = 2 * Math.atan(Math.abs(a * a - L * L) / (2 * a * L)) * 180 / Math.PI;
+
+    const totalW = 2 * a;
+    const totalH = a / 2 + L;
+    sWid.textContent = totalW.toFixed(2);
+    sHei.textContent = totalH.toFixed(2);
+    sRatio.textContent = (totalH / totalW).toFixed(3) + ':1';
+    sTip.textContent = tipDeg.toFixed(1) + '°';
+
+    ctx.clearRect(0, 0, W, H);
+
+    // 网格
+    ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+    ctx.lineWidth = 1;
+    const span = Math.ceil(Math.max(a, L));
+    for (let i = -span; i <= span; i++) {
+      const [gx1] = px(i, 0); ctx.beginPath(); ctx.moveTo(gx1, 0); ctx.lineTo(gx1, H); ctx.stroke();
+      const [, gy1] = px(0, i); ctx.beginPath(); ctx.moveTo(0, gy1); ctx.lineTo(W, gy1); ctx.stroke();
+    }
+
+    // 对称轴（y 轴）
+    ctx.strokeStyle = 'rgba(255,209,102,0.45)';
+    ctx.setLineDash([6, 5]);
+    ctx.beginPath();
+    let [ax0, ay0] = px(0, a / 2 + 6), [ax1, ay1] = px(0, -L - 6);
+    ctx.moveTo(ax0, ay0); ctx.lineTo(ax1, ay1); ctx.stroke();
+    ctx.setLineDash([]);
+
+    const SEG = 90;
+
+    // 左上 lobe 半圆：cleft(0,0) -> 左端(-a,0)，θ 0→π
+    const lobeL = arcPoints(-a / 2, 0, a / 2, 0, Math.PI, SEG);
+    ctx.strokeStyle = '#4dd8a8';
+    ctx.lineWidth = 3;
+    trace(lobeL, px);
+
+    // 右上 lobe 半圆：右端(a,0) -> cleft(0,0)，θ 0→π
+    const lobeR = arcPoints(a / 2, 0, a / 2, 0, Math.PI, SEG);
+    ctx.strokeStyle = '#4dd8a8';
+    trace(lobeR, px);
+
+    // 右侧弧：尖端(0,-L) -> 右端(a,0)，θ tipRight→0
+    const right = arcPoints(cx, 0, R, tipRight, 0, SEG);
+    ctx.strokeStyle = '#4da3ff';
+    trace(right, px);
+
+    // 左侧弧：左端(-a,0) -> 尖端(0,-L)，θ π→tipLeft
+    const left = arcPoints(-cx, 0, R, Math.PI, tipLeft, SEG);
+    ctx.strokeStyle = '#ff7a59';
+    trace(left, px);
+
+    // 圆心标记
+    ctx.fillStyle = '#ffd166';
+    [[-a / 2, 0], [a / 2, 0], [cx, 0], [-cx, 0]].forEach(([x, y]) => {
+      const [sx, sy] = px(x, y);
+      ctx.beginPath(); ctx.arc(sx, sy, 3, 0, Math.PI * 2); ctx.fill();
+    });
+
+    // cleft 凹口（两个半圆切点）
+    ctx.fillStyle = '#ffd166';
+    let [cx0, cy0] = px(0, 0);
+    ctx.beginPath(); ctx.arc(cx0, cy0, 4, 0, Math.PI * 2); ctx.fill();
+
+    // 尖端
+    ctx.fillStyle = '#fff';
+    [cx0, cy0] = px(0, -L);
+    ctx.beginPath(); ctx.arc(cx0, cy0, 4.5, 0, Math.PI * 2); ctx.fill();
+  }
+
+  [elA, elL].forEach((el) => el.addEventListener('input', render));
+  render();
+})();
+</script>
+</body>
+</html>

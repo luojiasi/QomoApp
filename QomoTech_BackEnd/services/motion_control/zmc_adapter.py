@@ -1530,15 +1530,15 @@ class ZMC适配器:
     # ------------------------------------------------------------------
 
     async def R轴旋转的圈数(self, 旋转圈数: float) -> Dict[str, Any]:
-        """简化版 R 轴旋转 —— 只传圈数，不改速度，顺时针相对运动。"""
+        """R 轴相对旋转：正数顺时针，负数逆时针。圈数为 0 则不转。"""
         if not isinstance(旋转圈数, (int, float)):
             return {"success": False, "message": "旋转圈数必须是数字"}
         旋转圈数 = float(旋转圈数)
-        if 旋转圈数 <= 0:
-            return {"success": False, "message": "旋转圈数必须大于 0"}
+        if abs(旋转圈数) < 1e-12:
+            return {"success": True, "message": "R 轴圈数为 0，无需旋转"}
 
         每圈脉冲数 = self._R轴每圈脉冲数 * self._R轴电子齿轮比 * self._R轴减速比
-        方向归一 = 1  # 顺时针
+        方向归一 = 1.0 if 旋转圈数 > 0 else -1.0
         try:
             状态 = await self.读全部轴状态()
         except ZMCError as exc:
@@ -1549,7 +1549,7 @@ class ZMC适配器:
             return {"success": False, "message": "R 轴 units 未配置或非法"}
 
         每圈距离 = 每圈脉冲数 / axis_units
-        输入圈数 = 旋转圈数 * 方向归一
+        输入圈数 = abs(旋转圈数) * 方向归一
         实际增量圈数 = 输入圈数
 
         旋转位移 = 实际增量圈数 * 每圈距离

@@ -19,6 +19,7 @@ from services.program_control_ten.geometry import (
     更新V型开口偏移,
     更新平行型开口偏移,
     曲线路径,
+    单直线路径,
     归一化角度,
 )
 from utils.logger import 获取日志记录器, 格式化异常位置
@@ -239,13 +240,13 @@ class ProgramRunnerTenPlus:
                         累计高度 = 取同层累计高度(行列表, 序号)
                         所有高度总和 = 取同层累计高度(行列表, len(行列表))
                         执行任务的参数 = 构建执行任务的参数(该序号的参数,当前Z,所有高度总和,累计高度,是否存在台面,清晰点距离自动切台面的位置)
-                        if str(行数据.get("pathType", "")) == 曲线路径:
+                        if str(行数据.get("pathType", "")) in (曲线路径, 单直线路径):
                             边列表 = 执行任务的参数.get("边参数列表") or []
                             本中 = float(边列表[0].get("法线角度", 0)) if 边列表 else 0.0
                             if 行数据.get("sameLayer") and 序号 > 0 and 上一曲线法线 is not None:
-                                执行任务的参数["同层R轴步进角"] = 归一化角度(本中 - 上一曲线法线)
+                                执行任务的参数["同层R轴步进角"] = 归一化角度(上一曲线法线 - 本中)
                             else:
-                                执行任务的参数["同层R轴步进角"] = 本中
+                                执行任务的参数["同层R轴步进角"] = 归一化角度(-本中)
                             上一曲线法线 = float(边列表[-1].get("法线角度", 本中)) if 边列表 else 本中
                         else:
                             上一曲线法线 = None
@@ -686,6 +687,11 @@ class ProgramRunnerTenPlus:
                 case ProgramFreeParamsStep.判断R轴是否转动一圈:
                     if 当前R轴旋转分割数 > (旋转任务的的分割数-1):
                         是否完全旋转完毕 = True
+                        当前R轴旋转分割数 += 1
+                        当前边的参数 = 取当前边的参数(执行任务的参数, 当前R轴旋转分割数)
+                        R轴旋转圈数 = float(当前边的参数.get("相对旋转角度", 0.0)) / 360.0
+
+                        await self._运动.R轴旋转的圈数(R轴旋转圈数)
                         当前R轴旋转分割数 = 1
                         当前步骤 = ProgramFreeParamsStep.清理所有状态
                     else:

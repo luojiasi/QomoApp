@@ -19,6 +19,7 @@ import type {
 const PREVIEW_OUTLINE_SEGMENTS = 360
 const PREVIEW_QUARTER_SEGMENTS = 60
 const PREVIEW_TEARDROP_SEGMENTS = 90
+const PREVIEW_MARQUISE_SEGMENTS = 90
 
 export interface CushionPreviewPoint {
   x: number
@@ -40,6 +41,15 @@ export interface TeardropGeometry {
   tipRightDeg: number
   tipLeftDeg: number
   tipAngleDeg: number
+}
+
+/** 与 test/marquise_shape.html 同一套：半长 l、半宽 w。 */
+export interface MarquiseGeometry {
+  l: number
+  w: number
+  R: number
+  d: number
+  theta0Deg: number
 }
 
 /**
@@ -111,6 +121,23 @@ export function teardropGeometry(a: number, L: number): TeardropGeometry {
   return { a, L, cx, r, tipRightDeg, tipLeftDeg, tipAngleDeg }
 }
 
+/** 马眼：总长=2l、总宽=2w。与 test/marquise_shape.html 同一套。 */
+export function marquiseGeometry(l: number, w: number): MarquiseGeometry {
+  const R = (l * l + w * w) / (2 * w)
+  const d = (l * l - w * w) / (2 * w)
+  const theta0Deg = (Math.atan2(l, d) * 180) / Math.PI
+  return { l, w, R, d, theta0Deg }
+}
+
+/** 中心圆 X 镜像：偏X 取反，起止角改为 180°−角。预览与下发草稿必须同一套。 */
+function mirrorCenterCircleX(
+  offsetX: number,
+  start: number,
+  end: number
+): { offsetX: number; start: number; end: number } {
+  return { offsetX: -offsetX, start: 180 - start, end: 180 - end }
+}
+
 function sampleCircleArc(
   cx: number,
   cy: number,
@@ -134,9 +161,12 @@ export function buildTeardropPreview(input: TenPlusQuickShapeInput): CushionPrev
   if (describeQuickShapeError(input)) return null
   const { a, L } = teardropFromSize(input.length, input.width)
   const g = teardropGeometry(a, L)
-  const top = sampleCircleArc(0, 0, g.a, 180, 0, PREVIEW_TEARDROP_SEGMENTS)
-  const right = sampleCircleArc(g.cx, 0, g.r, 0, g.tipRightDeg, PREVIEW_TEARDROP_SEGMENTS)
-  const left = sampleCircleArc(-g.cx, 0, g.r, g.tipLeftDeg, 180, PREVIEW_TEARDROP_SEGMENTS)
+  const topM = mirrorCenterCircleX(0, 180, 0)
+  const rightM = mirrorCenterCircleX(g.cx, 0, g.tipRightDeg)
+  const leftM = mirrorCenterCircleX(-g.cx, g.tipLeftDeg, 180)
+  const top = sampleCircleArc(topM.offsetX, 0, g.a, topM.start, topM.end, PREVIEW_TEARDROP_SEGMENTS)
+  const right = sampleCircleArc(rightM.offsetX, 0, g.r, rightM.start, rightM.end, PREVIEW_TEARDROP_SEGMENTS)
+  const left = sampleCircleArc(leftM.offsetX, 0, g.r, leftM.start, leftM.end, PREVIEW_TEARDROP_SEGMENTS)
   return {
     a,
     b: a,
@@ -145,15 +175,32 @@ export function buildTeardropPreview(input: TenPlusQuickShapeInput): CushionPrev
   }
 }
 
+export function buildMarquisePreview(input: TenPlusQuickShapeInput): CushionPreviewModel | null {
+  if (describeQuickShapeError(input)) return null
+  const g = marquiseGeometry(input.length / 2, input.width / 2)
+  const leftM = mirrorCenterCircleX(-g.d, -g.theta0Deg, g.theta0Deg)
+  const rightM = mirrorCenterCircleX(g.d, 180 - g.theta0Deg, 180 + g.theta0Deg)
+  const left = sampleCircleArc(leftM.offsetX, 0, g.R, leftM.start, leftM.end, PREVIEW_MARQUISE_SEGMENTS)
+  const right = sampleCircleArc(rightM.offsetX, 0, g.R, rightM.start, rightM.end, PREVIEW_MARQUISE_SEGMENTS)
+  return {
+    a: g.l,
+    b: g.w,
+    outline: [...left, ...right.slice(1)],
+    quarters: [left, right]
+  }
+}
+
 export function buildQuickShapePreview(input: TenPlusQuickShapeInput): CushionPreviewModel | null {
   if (input.shape === 'teardrop') return buildTeardropPreview(input)
+  if (input.shape === 'marquise') return buildMarquisePreview(input)
   return buildCushionPreview(input)
 }
 
 /**
  * 由快捷形状尺寸生成任务行草稿。
  * 垫型：超椭圆四分之一弧 × 4，后 3 行 sameLayer。
- * 水滴：长/宽 → a=宽/2、L=长−a；沿轮廓顶→右→左(反向)，后 2 行 sameLayer。
+ * 水滴：长/宽 → a=宽/2、L=长−a；X 镜像后沿轮廓顶→左→右，后 2 行 sameLayer。
+ * 马眼：长/宽 → 半长 l、半宽 w；两段等半径中心圆，X 镜像后左弧→右弧，第 2 行 sameLayer。
  */
 export function buildQuickShapeRowDrafts(
   input: TenPlusQuickShapeInput
@@ -163,6 +210,8 @@ export function buildQuickShapeRowDrafts(
       return buildCushionDrafts(input)
     case 'teardrop':
       return buildTeardropDrafts(input)
+    case 'marquise':
+      return buildMarquiseDrafts(input)
     default: {
       const _never: never = input.shape
       throw new Error(`未实现的快捷形状：${String(_never)}`)
@@ -195,6 +244,13 @@ export function describeQuickShapeError(input: TenPlusQuickShapeInput): string |
     const { r } = teardropGeometry(a, L)
     if (!(a <= 200) || !(r > 0) || r > 200) {
       return '换算后的半宽或侧弧半径超出 0~200 mm，请减小长或增大宽'
+    }
+    return null
+  }
+  if (input.shape === 'marquise') {
+    const { R } = marquiseGeometry(input.length / 2, input.width / 2)
+    if (!(R > 0) || R > 200) {
+      return '换算后的圆弧半径超出 0~200 mm，请减小长或增大宽'
     }
     return null
   }
@@ -259,10 +315,25 @@ function buildTeardropDrafts(input: TenPlusQuickShapeInput): TenPlusQuickShapeRo
   if (err) throw new Error(err)
   const { a, L } = teardropFromSize(input.length, input.width)
   const g = teardropGeometry(a, L)
-  // 沿轮廓闭合：左肩→右肩→尖端→左肩。左弧反向，否则段与段首尾对不上。
+  const top = mirrorCenterCircleX(0, 180, 0)
+  const right = mirrorCenterCircleX(g.cx, 0, g.tipRightDeg)
+  const left = mirrorCenterCircleX(-g.cx, g.tipLeftDeg, 180)
+  // X 镜像后沿轮廓闭合：右肩→左肩→尖端→右肩。
   return [
-    circleDraft(input, a, 0, 180, 0, false),
-    circleDraft(input, g.r, g.cx, 0, g.tipRightDeg, true),
-    circleDraft(input, g.r, -g.cx, g.tipLeftDeg, 180, true)
+    circleDraft(input, a, top.offsetX, top.start, top.end, false),
+    circleDraft(input, g.r, right.offsetX, right.start, right.end, true),
+    circleDraft(input, g.r, left.offsetX, left.start, left.end, true)
+  ]
+}
+
+function buildMarquiseDrafts(input: TenPlusQuickShapeInput): TenPlusQuickShapeRowDraft[] {
+  const err = describeQuickShapeError(input)
+  if (err) throw new Error(err)
+  const g = marquiseGeometry(input.length / 2, input.width / 2)
+  const left = mirrorCenterCircleX(-g.d, -g.theta0Deg, g.theta0Deg)
+  const right = mirrorCenterCircleX(g.d, 180 - g.theta0Deg, 180 + g.theta0Deg)
+  return [
+    circleDraft(input, g.R, left.offsetX, left.start, left.end, false),
+    circleDraft(input, g.R, right.offsetX, right.start, right.end, true)
   ]
 }

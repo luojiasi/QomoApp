@@ -43,7 +43,9 @@ export function computeDiamondDiameterPercent(row: TenPlusTaskRow): number | nul
   if (diameter === 0) return null
   const targetHeight = (diameter * percent) / 100
   const inset = targetHeight / Math.tan((angle * Math.PI) / 180)
-  return ((diameter - 2 * inset) / diameter) * 100
+  const raw = ((diameter - 2 * inset) / diameter) * 100
+  if (!Number.isFinite(raw)) return null
+  return Math.max(0, Math.min(100, raw))
 }
 
 export function computeDiamondRatio(row: TenPlusTaskRow): TenPlusDiamondRatio {

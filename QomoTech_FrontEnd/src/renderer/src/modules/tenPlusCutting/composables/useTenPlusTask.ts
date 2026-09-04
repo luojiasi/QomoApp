@@ -14,11 +14,20 @@ import {
   TEN_PLUS_DEFAULT_ARC_START,
   TEN_PLUS_DEFAULT_ARC_END,
   TEN_PLUS_DEFAULT_ARC_OFFSET,
+  TEN_PLUS_DEFAULT_LINE_START_X,
+  TEN_PLUS_DEFAULT_LINE_START_Y,
+  TEN_PLUS_DEFAULT_LINE_END_X,
+  TEN_PLUS_DEFAULT_LINE_END_Y,
+  TEN_PLUS_DEFAULT_LINE_PARAM_MODE,
+  TEN_PLUS_DEFAULT_LINE_MID_X,
+  TEN_PLUS_DEFAULT_LINE_MID_Y,
+  TEN_PLUS_DEFAULT_SINGLE_LINE_LENGTH,
   TEN_PLUS_DEFAULT_SUPERELLIPSE_N,
   TEN_PLUS_DEFAULT_CURVE_KIND,
   TEN_PLUS_DEFAULT_PATH_TYPE,
   TEN_PLUS_TABLE_ANGLE_LOCKED_DEFAULTS,
   resolveTenPlusCurveKind,
+  resolveTenPlusLineParamMode,
   resolveTenPlusPathType
 } from '../constants/tenPlusCutting'
 import { TEN_PLUS_CUSHION_EXPONENT_MAX, TEN_PLUS_CUSHION_EXPONENT_MIN } from '../constants/shapePreset'
@@ -44,6 +53,14 @@ function createRow(taskNo: number): TenPlusTaskRow {
     arcEnd: TEN_PLUS_DEFAULT_ARC_END,
     arcOffsetX: TEN_PLUS_DEFAULT_ARC_OFFSET,
     arcOffsetY: TEN_PLUS_DEFAULT_ARC_OFFSET,
+    lineStartX: TEN_PLUS_DEFAULT_LINE_START_X,
+    lineStartY: TEN_PLUS_DEFAULT_LINE_START_Y,
+    lineEndX: TEN_PLUS_DEFAULT_LINE_END_X,
+    lineEndY: TEN_PLUS_DEFAULT_LINE_END_Y,
+    lineParamMode: TEN_PLUS_DEFAULT_LINE_PARAM_MODE,
+    lineMidX: TEN_PLUS_DEFAULT_LINE_MID_X,
+    lineMidY: TEN_PLUS_DEFAULT_LINE_MID_Y,
+    lineLength: TEN_PLUS_DEFAULT_SINGLE_LINE_LENGTH,
     curveKind: TEN_PLUS_DEFAULT_CURVE_KIND,
     superellipseN: TEN_PLUS_DEFAULT_SUPERELLIPSE_N,
     sameLayer: false,
@@ -119,6 +136,20 @@ function normalizeRow(raw: Partial<TenPlusTaskRow>, fallbackNo: number): TenPlus
     arcOffsetY: Number.isFinite(Number(raw.arcOffsetY))
       ? Number(raw.arcOffsetY)
       : TEN_PLUS_DEFAULT_ARC_OFFSET,
+    lineStartX: Number.isFinite(Number(raw.lineStartX))
+      ? Number(raw.lineStartX)
+      : TEN_PLUS_DEFAULT_LINE_START_X,
+    lineStartY: Number.isFinite(Number(raw.lineStartY))
+      ? Number(raw.lineStartY)
+      : TEN_PLUS_DEFAULT_LINE_START_Y,
+    lineEndX: Number.isFinite(Number(raw.lineEndX)) ? Number(raw.lineEndX) : TEN_PLUS_DEFAULT_LINE_END_X,
+    lineEndY: Number.isFinite(Number(raw.lineEndY)) ? Number(raw.lineEndY) : TEN_PLUS_DEFAULT_LINE_END_Y,
+    lineParamMode: resolveTenPlusLineParamMode(raw.lineParamMode),
+    lineMidX: Number.isFinite(Number(raw.lineMidX)) ? Number(raw.lineMidX) : TEN_PLUS_DEFAULT_LINE_MID_X,
+    lineMidY: Number.isFinite(Number(raw.lineMidY)) ? Number(raw.lineMidY) : TEN_PLUS_DEFAULT_LINE_MID_Y,
+    lineLength: Number.isFinite(Number(raw.lineLength))
+      ? Number(raw.lineLength)
+      : TEN_PLUS_DEFAULT_SINGLE_LINE_LENGTH,
     curveKind: resolveTenPlusCurveKind(raw.curveKind, superellipseN),
     superellipseN,
     sameLayer: raw.sameLayer === true,
@@ -291,8 +322,8 @@ export function useTenPlusTask() {
     target.rows.push(createRow(nextNo))
   }
 
-  /** 用快捷形状草稿追加到当前目标末尾 */
-  function appendQuickShapeRows(drafts: TenPlusQuickShapeRowDraft[]): void {
+  /** 用草稿追加到当前目标末尾 */
+  function appendRowDrafts(drafts: Array<Partial<TenPlusTaskRow>>): void {
     const target = activeTarget.value
     if (!target || drafts.length === 0) return
     const start = target.rows.length
@@ -305,6 +336,11 @@ export function useTenPlusTask() {
     target.rows.forEach((row, i) => {
       row.taskNo = i + 1
     })
+  }
+
+  /** 用快捷形状草稿追加到当前目标末尾 */
+  function appendQuickShapeRows(drafts: TenPlusQuickShapeRowDraft[]): void {
+    appendRowDrafts(drafts)
   }
 
   function removeRow(rowId: string): void {
@@ -417,6 +453,7 @@ export function useTenPlusTask() {
     removeTarget,
     addRow,
     appendQuickShapeRows,
+    appendRowDrafts,
     removeRow,
     bindActiveTargetToSlot,
     exportToFile,
@@ -463,6 +500,30 @@ export function isArcAngleInvalid(start: number, end: number): boolean {
   if (!Number.isFinite(start) || !Number.isFinite(end)) return true
   if (start < -360 || start > 360 || end < -360 || end > 360) return true
   return start === end
+}
+
+export function isLineCoordInvalid(v: number): boolean {
+  const n = Number(v)
+  return !Number.isFinite(n) || n < -200 || n > 200
+}
+
+export function isSingleLineDegenerate(
+  startX: number,
+  startY: number,
+  endX: number,
+  endY: number
+): boolean {
+  if (
+    isLineCoordInvalid(startX) ||
+    isLineCoordInvalid(startY) ||
+    isLineCoordInvalid(endX) ||
+    isLineCoordInvalid(endY)
+  ) {
+    return true
+  }
+  const dx = Number(endX) - Number(startX)
+  const dy = Number(endY) - Number(startY)
+  return dx * dx + dy * dy < 1e-12
 }
 
 export function isRecipeInvalid(recipe: string): boolean {

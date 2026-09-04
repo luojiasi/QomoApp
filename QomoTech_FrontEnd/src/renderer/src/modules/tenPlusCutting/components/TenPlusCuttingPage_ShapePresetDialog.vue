@@ -5,6 +5,8 @@ import {
   TEN_PLUS_CUSHION_DEFAULT_WIDTH,
   TEN_PLUS_CUSHION_EXPONENT_MAX,
   TEN_PLUS_CUSHION_EXPONENT_MIN,
+  TEN_PLUS_MARQUISE_DEFAULT_LENGTH,
+  TEN_PLUS_MARQUISE_DEFAULT_WIDTH,
   TEN_PLUS_QUICK_SHAPE_OPTIONS,
   TEN_PLUS_TEARDROP_DEFAULT_LENGTH,
   TEN_PLUS_TEARDROP_DEFAULT_WIDTH
@@ -14,6 +16,7 @@ import {
   buildQuickShapePreview,
   createDefaultQuickShapeInput,
   describeQuickShapeError,
+  marquiseGeometry,
   pointsToSvgPolyline,
   teardropFromSize,
   teardropGeometry
@@ -39,11 +42,19 @@ const teardropInfo = computed(() => {
   return teardropGeometry(a, L)
 })
 
+const marquiseInfo = computed(() => {
+  if (form.shape !== 'marquise' || errorText.value) return null
+  return marquiseGeometry(form.length / 2, form.width / 2)
+})
+
 const subtitle = computed(() => {
   if (form.shape === 'teardrop') {
-    return '长=a+L、宽=2a；沿轮廓顶→右→左（反向），同层三段中心圆'
+    return '长=a+L、宽=2a；X 镜像后沿轮廓顶→左→右，同层三段中心圆'
   }
-  return '超椭圆垫型，轮廓转 45°；第一段朝右，R 每次 +90°'
+  if (form.shape === 'marquise') {
+    return '长=2l、宽=2w；两段等半径中心圆，X 镜像后左弧→右弧，第 2 行同层'
+  }
+  return '超椭圆垫型，轮廓转 45°；第一段 135°~225°（X 镜像），R 每次 +90°'
 })
 
 const previewScale = computed(() => {
@@ -60,7 +71,7 @@ const previewHalf = PREVIEW_SIZE / 2
 
 const outlinePoints = computed(() => {
   const model = preview.value
-  if (!model || form.shape === 'teardrop') return ''
+  if (!model || form.shape !== 'cushion') return ''
   return pointsToSvgPolyline(model.outline, previewScale.value)
 })
 
@@ -86,6 +97,11 @@ function onShapeChange(): void {
     form.width = TEN_PLUS_TEARDROP_DEFAULT_WIDTH
     return
   }
+  if (form.shape === 'marquise') {
+    form.length = TEN_PLUS_MARQUISE_DEFAULT_LENGTH
+    form.width = TEN_PLUS_MARQUISE_DEFAULT_WIDTH
+    return
+  }
   form.length = TEN_PLUS_CUSHION_DEFAULT_LENGTH
   form.width = TEN_PLUS_CUSHION_DEFAULT_WIDTH
 }
@@ -101,6 +117,44 @@ function onConfirm(): void {
     angle: Number(form.angle)
   })
 }
+
+interface ShapeEqItem {
+  symbol: string
+  formula: string
+  value: string
+}
+
+const shapeEqs = computed((): ShapeEqItem[] => {
+  if (errorText.value) return []
+  if (form.shape === 'teardrop' && teardropInfo.value) {
+    const g = teardropInfo.value
+    return [
+      { symbol: 'a', formula: '宽 / 2', value: g.a.toFixed(2) },
+      { symbol: 'L', formula: '长 − a', value: g.L.toFixed(2) },
+      { symbol: 'cx', formula: '(a² − L²) / 2a', value: g.cx.toFixed(2) },
+      { symbol: 'r', formula: '(a² + L²) / 2a', value: g.r.toFixed(2) },
+      { symbol: '尖角', formula: '', value: `${g.tipAngleDeg.toFixed(1)}°` }
+    ]
+  }
+  if (form.shape === 'marquise' && marquiseInfo.value) {
+    const g = marquiseInfo.value
+    return [
+      { symbol: 'l', formula: '长 / 2', value: g.l.toFixed(2) },
+      { symbol: 'w', formula: '宽 / 2', value: g.w.toFixed(2) },
+      { symbol: 'R', formula: '(l² + w²) / 2w', value: g.R.toFixed(2) },
+      { symbol: 'd', formula: '(l² − w²) / 2w', value: g.d.toFixed(2) },
+      { symbol: 'θ', formula: 'atan2(l, d)', value: `${g.theta0Deg.toFixed(1)}°` }
+    ]
+  }
+  if (form.shape === 'cushion') {
+    return [
+      { symbol: 'a', formula: '长 / 2', value: (form.length / 2).toFixed(2) },
+      { symbol: 'b', formula: '宽 / 2', value: (form.width / 2).toFixed(2) },
+      { symbol: 'n', formula: '2 椭圆 · 4 垫型', value: Number(form.exponent).toFixed(1) }
+    ]
+  }
+  return []
+})
 </script>
 
 <template>
@@ -161,20 +215,25 @@ function onConfirm(): void {
             </label>
           </div>
 
-          <p v-if="form.shape === 'cushion'" class="tpc-shape-hint">
-            r(θ) = a·b / [(b·|cosθ|)ⁿ + (a·|sinθ|)ⁿ]^(1/n)
-            · n=2 椭圆 · n=4 垫型
-          </p>
-          <p v-else-if="form.shape === 'teardrop' && teardropInfo" class="tpc-shape-hint">
-            a = 宽/2 = {{ teardropInfo.a.toFixed(2) }}
-            · L = 长 − a = {{ teardropInfo.L.toFixed(2) }}
-            · cx = (a²−L²)/(2a) · r = (a²+L²)/(2a)
-            · 尖角 {{ teardropInfo.tipAngleDeg.toFixed(1) }}°
-          </p>
+          <div v-if="shapeEqs.length" class="tpc-shape-eqs" aria-live="polite">
+            <div v-for="item in shapeEqs" :key="item.symbol" class="tpc-shape-eq">
+              <span class="tpc-shape-eq-sym">{{ item.symbol }}</span>
+              <span class="tpc-shape-eq-form">{{ item.formula ? `= ${item.formula}` : '' }}</span>
+              <span class="tpc-shape-eq-val">= {{ item.value }}</span>
+            </div>
+            <p v-if="form.shape === 'cushion'" class="tpc-shape-eq-note">
+              r(θ) = a·b / [(b·|cosθ|)ⁿ + (a·|sinθ|)ⁿ]^(1/n)
+            </p>
+          </div>
           <p v-if="errorText" class="tpc-shape-error">{{ errorText }}</p>
         </div>
 
-        <div class="tpc-shape-preview" :aria-label="form.shape === 'teardrop' ? '水滴预览' : '垫型预览'">
+        <div
+          class="tpc-shape-preview"
+          :aria-label="
+            form.shape === 'teardrop' ? '水滴预览' : form.shape === 'marquise' ? '马眼预览' : '垫型预览'
+          "
+        >
           <svg
             class="tpc-shape-svg"
             :width="PREVIEW_SIZE"
@@ -212,13 +271,17 @@ function onConfirm(): void {
           </svg>
           <div v-if="form.shape === 'cushion'" class="tpc-shape-legend">
             <span><i class="tpc-shape-swatch outline" />完整轮廓</span>
-            <span><i class="tpc-shape-swatch q0" />右侧 −45°–45°</span>
-            <span><i class="tpc-shape-swatch qn" />其余三段（R +90°）</span>
+            <span><i class="tpc-shape-swatch q0" />第一段</span>
+            <span><i class="tpc-shape-swatch qn" />其余三段</span>
+          </div>
+          <div v-else-if="form.shape === 'marquise'" class="tpc-shape-legend">
+            <span><i class="tpc-shape-swatch q0" />左弧 · 下尖 → 上尖</span>
+            <span><i class="tpc-shape-swatch qn" />右弧 · 上尖 → 下尖</span>
           </div>
           <div v-else class="tpc-shape-legend">
-            <span><i class="tpc-shape-swatch outline" />顶部半圆</span>
-            <span><i class="tpc-shape-swatch q0" />右侧弧（右肩 → 尖端）</span>
-            <span><i class="tpc-shape-swatch qn" />左侧弧（尖端 → 左肩）</span>
+            <span><i class="tpc-shape-swatch outline" />顶弧</span>
+            <span><i class="tpc-shape-swatch q0" />右肩 → 尖端</span>
+            <span><i class="tpc-shape-swatch qn" />尖端 → 左肩</span>
           </div>
         </div>
       </div>
@@ -337,19 +400,61 @@ function onConfirm(): void {
   outline: none;
   border-color: var(--tpc-accent, #0071e3);
 }
-.tpc-shape-hint,
+.tpc-shape-eqs {
+  margin-top: 12px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--app-text-primary) 5%, var(--app-card));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #fff 22%, var(--app-border));
+}
+.tpc-shape-eq {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 8px;
+  min-height: 26px;
+  padding: 3px 2px;
+}
+.tpc-shape-eq + .tpc-shape-eq {
+  border-top: 1px solid color-mix(in srgb, var(--app-text-primary) 8%, transparent);
+}
+.tpc-shape-eq-sym {
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--app-text-primary);
+}
+.tpc-shape-eq-form {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--app-text-muted);
+}
+.tpc-shape-eq-val {
+  font-size: 13px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: var(--app-text-primary);
+}
+.tpc-shape-eq-note {
+  margin: 6px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid color-mix(in srgb, var(--app-text-primary) 8%, transparent);
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--app-text-muted);
+}
 .tpc-shape-error {
   margin: 10px 0 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: color-mix(in srgb, #ef4444 12%, var(--app-card));
+  color: #ef4444;
   font-size: 12px;
   line-height: 1.45;
-}
-.tpc-shape-hint {
-  color: var(--app-text-muted);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 11px;
-}
-.tpc-shape-error {
-  color: #ef4444;
 }
 .tpc-shape-preview {
   display: flex;
@@ -389,15 +494,18 @@ function onConfirm(): void {
 .tpc-shape-legend {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: 11px;
-  color: var(--app-text-muted);
+  gap: 6px;
   width: 100%;
 }
 .tpc-shape-legend span {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--app-text-primary) 4%, transparent);
+  font-size: 11px;
+  color: var(--app-text-secondary);
 }
 .tpc-shape-swatch {
   display: inline-block;

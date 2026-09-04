@@ -12,17 +12,25 @@ import {
   rotateRAxisCont,
   stopMotionJog
 } from '@/modules/motion/api'
-import { sendTenPlusFreeParams } from '@/modules/program/api'
+import { sendTenPlusFreeParams, getTenRAxisPosition } from '@/modules/program/api'
 import {
   TEN_PLUS_CORNER_RATIO_RECOMMENDATIONS,
   TEN_PLUS_CURVE_KIND_OPTIONS,
   TEN_PLUS_CURVE_KIND_SUPERELLIPSE,
   TEN_PLUS_CURVE_PATH_TYPE,
+  TEN_PLUS_EQUAL_LINE_PATH_TYPE,
   TEN_PLUS_GRID_ORDER,
-  TEN_PLUS_PATH_TYPE_OPTIONS,
+  TEN_PLUS_LINE_KIND_OPTIONS,
+  TEN_PLUS_LINE_PARAM_MODE_MID_LENGTH,
+  TEN_PLUS_LINE_PARAM_MODE_OPTIONS,
+  TEN_PLUS_PATH_TYPE_BUTTONS,
   TEN_PLUS_STATION_OUTPUT_PORTS,
   isCurvePath,
+  isEqualLineGroup,
   isUnequalLinePath,
+  isSingleLinePath,
+  isLineParamMidLength,
+  isRStepPath,
   isSuperellipseCurve,
   resolveTenPlusCurveKind,
   slotIndexToOutputPort,
@@ -41,6 +49,8 @@ import {
   isTableAngle,
   isCornerRatioInvalid,
   isArcAngleInvalid,
+  isLineCoordInvalid,
+  isSingleLineDegenerate,
   isDivisionsInvalid,
   isRecipeInvalid,
   applyTableAngleLockedFields
@@ -56,11 +66,15 @@ import {
   toTenPlusTargetSummary
 } from '../utils/tenPlusPayload'
 import { buildQuickShapeRowDrafts } from '../utils/tenPlusShapePresets'
+import { buildDiamondPresetRowDrafts, diamondCutLabel } from '../utils/tenPlusDiamondPresets'
 import type { TenPlusCuttingConfig, TenPlusFreeParamPayload, TenPlusSlot, TenPlusTarget } from '../types/tenPlusCutting'
 import type { TenPlusQuickShapeInput } from '../types/shapePreset'
+import type { TenPlusDiamondPresetInput } from '../types/diamondPreset'
 import TenPlusCuttingPage_UrCalibDialog from '../components/TenPlusCuttingPage_UrCalibDialog.vue'
 import TenPlusCuttingPage_CompDialog from '../components/TenPlusCuttingPage_CompDialog.vue'
 import TenPlusCuttingPage_ShapePresetDialog from '../components/TenPlusCuttingPage_ShapePresetDialog.vue'
+import TenPlusCuttingPage_DiamondPresetDialog from '../components/TenPlusCuttingPage_DiamondPresetDialog.vue'
+import TenPlusCuttingPage_TourOverlay from '../components/TenPlusCuttingPage_TourOverlay.vue'
 
 type WorkMode = 'freeParam' | 'drawImage'
 
@@ -85,6 +99,7 @@ const {
   removeTarget,
   addRow,
   appendQuickShapeRows,
+  appendRowDrafts,
   removeRow,
   bindActiveTargetToSlot,
   exportToFile,
@@ -99,6 +114,7 @@ const fileInputRef = ref<HTMLInputElement | null>(null)
 const statusMsg = ref('')
 const starting = ref(false)
 const processConfirmed = ref(false)
+const showManualDialog = ref(false)
 const showStartDialog = ref(false)
 const dialogSelectedIds = ref<string[]>([])
 const tenPlusConfig = ref<TenPlusCuttingConfig>(createEmptyTenPlusConfig())
@@ -113,7 +129,17 @@ const teachDialogSlot = ref<number | null>(null)
 const showUrCalibDialog = ref(false)
 const urCalibSlot = ref<number | null>(null)
 const showQuickShapeDialog = ref(false)
+const showDiamondPresetDialog = ref(false)
 const compDialogRow = ref<TenPlusTarget['rows'][number] | null>(null)
+
+async function openManualTour(): Promise<void> {
+  workMode.value = 'freeParam'
+  if (!activeTarget.value && targets[0]) {
+    selectTarget(targets[0].id)
+  }
+  await nextTick()
+  showManualDialog.value = true
+}
 
 function openCompDialog(row: TenPlusTarget['rows'][number]): void {
   compDialogRow.value = row
@@ -144,6 +170,28 @@ function confirmQuickShape(input: TenPlusQuickShapeInput): void {
     success(`已将${label}写入当前目标`)
   } catch (err) {
     warning(err instanceof Error ? err.message : '生成快捷形状失败')
+  }
+}
+
+function openDiamondPresetDialog(): void {
+  if (!activeTarget.value) {
+    warning('请先选择目标')
+    return
+  }
+  showDiamondPresetDialog.value = true
+}
+
+function closeDiamondPresetDialog(): void {
+  showDiamondPresetDialog.value = false
+}
+
+function confirmDiamondPreset(input: TenPlusDiamondPresetInput): void {
+  try {
+    appendRowDrafts(buildDiamondPresetRowDrafts(input))
+    showDiamondPresetDialog.value = false
+    success(`已将${diamondCutLabel(input.cut)}（冠/腰/亭）三行写入当前目标`)
+  } catch (err) {
+    warning(err instanceof Error ? err.message : '生成钻石快捷形状失败')
   }
 }
 
@@ -180,6 +228,70 @@ function capturePointXyz(): void {
     return
   }
   target.pointXyz = formatPointXyz(x, y, z)
+}
+
+function roundLineCoord(v: number): number {
+  return Number(v.toFixed(3))
+}
+
+async function captureLinePoint(
+  row: TenPlusTarget['rows'][number],
+  which: 'start' | 'end' | 'mid'
+): Promise<void> {
+  const slot = activeTarget.value?.slotIndex
+  if (slot == null) {
+    warning('请先绑定工位，才能按该工位 R 轴旋转中心获取点位')
+    return
+  }
+  const mx = Number(mposition.value['X'])
+  const my = Number(mposition.value['Y'])
+  if (!Number.isFinite(mx) || !Number.isFinite(my)) {
+    warning('当前坐标无效，无法获取点位')
+    return
+  }
+  const res = await getTenRAxisPosition(slot)
+  if (!res.success || !res.data) {
+    warning(res.message || `读取工位 ${slot} R 轴旋转中心失败`)
+    return
+  }
+  const cx = Number(res.data.X)
+  const cy = Number(res.data.Y)
+  if (!Number.isFinite(cx) || !Number.isFinite(cy)) {
+    warning(`工位 ${slot} R 轴旋转中心 XY 无效`)
+    return
+  }
+  const rx = roundLineCoord(mx - cx)
+  const ry = roundLineCoord(my - cy)
+  if (which === 'start') {
+    row.lineStartX = rx
+    row.lineStartY = ry
+    return
+  }
+  if (which === 'end') {
+    row.lineEndX = rx
+    row.lineEndY = ry
+    return
+  }
+  row.lineMidX = rx
+  row.lineMidY = ry
+}
+
+function applyLineParamMode(row: TenPlusTarget['rows'][number], mode: string): void {
+  if (row.lineParamMode === mode) return
+  if (mode === TEN_PLUS_LINE_PARAM_MODE_MID_LENGTH) {
+    row.lineMidX = roundLineCoord((Number(row.lineStartX) + Number(row.lineEndX)) / 2)
+    row.lineMidY = roundLineCoord((Number(row.lineStartY) + Number(row.lineEndY)) / 2)
+    row.lineLength = roundLineCoord(
+      Math.hypot(Number(row.lineEndX) - Number(row.lineStartX), Number(row.lineEndY) - Number(row.lineStartY))
+    )
+  } else {
+    const half = Number(row.lineLength) / 2
+    row.lineStartX = Number(row.lineMidX)
+    row.lineStartY = roundLineCoord(Number(row.lineMidY) - half)
+    row.lineEndX = Number(row.lineMidX)
+    row.lineEndY = roundLineCoord(Number(row.lineMidY) + half)
+  }
+  row.lineParamMode = mode
 }
 
 const activePointAxes = computed(() => parsePointXyz(activeTarget.value?.pointXyz ?? ''))
@@ -223,39 +335,87 @@ function onPathTypeChange(row: TenPlusTarget['rows'][number], pathType: string):
     applyCurveKind(row, resolveTenPlusCurveKind(row.curveKind, row.superellipseN))
     return
   }
+  if (pathType === TEN_PLUS_EQUAL_LINE_PATH_TYPE) {
+    if (!isEqualLineGroup(row.pathType)) {
+      row.pathType = TEN_PLUS_EQUAL_LINE_PATH_TYPE
+      row.sameLayer = false
+    }
+    return
+  }
   row.pathType = pathType
   row.sameLayer = false
 }
 
-const curveKindPickerRow = ref<TenPlusTarget['rows'][number] | null>(null)
-const curveKindPickerPos = ref({ top: 0, left: 0 })
-const curveKindPickerCurrent = computed(() => {
-  const row = curveKindPickerRow.value
-  if (!row) return ''
+type SubtypePickerMode = 'curve' | 'line'
+
+const subtypePickerRow = ref<TenPlusTarget['rows'][number] | null>(null)
+const subtypePickerMode = ref<SubtypePickerMode | null>(null)
+const subtypePickerPos = ref({ top: 0, left: 0 })
+const subtypePickerOptions = computed(() =>
+  subtypePickerMode.value === 'line' ? TEN_PLUS_LINE_KIND_OPTIONS : TEN_PLUS_CURVE_KIND_OPTIONS
+)
+const subtypePickerCurrent = computed(() => {
+  const row = subtypePickerRow.value
+  if (!row || !subtypePickerMode.value) return ''
+  if (subtypePickerMode.value === 'line') {
+    return isEqualLineGroup(row.pathType) ? row.pathType : TEN_PLUS_EQUAL_LINE_PATH_TYPE
+  }
   return resolveTenPlusCurveKind(row.curveKind, row.superellipseN)
 })
+const subtypePickerAria = computed(() =>
+  subtypePickerMode.value === 'line' ? '等分线段子类型' : '曲线子类型'
+)
 
-function closeCurveKindPicker(): void {
-  curveKindPickerRow.value = null
+function closeSubtypePicker(): void {
+  subtypePickerRow.value = null
+  subtypePickerMode.value = null
 }
 
-function onCurvePathDblclick(
+function openSubtypePicker(
+  row: TenPlusTarget['rows'][number],
+  mode: SubtypePickerMode,
+  event: MouseEvent
+): void {
+  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
+  subtypePickerRow.value = row
+  subtypePickerMode.value = mode
+  subtypePickerPos.value = { top: rect.bottom + 6, left: rect.left }
+}
+
+function onPathTypeDblclick(
   row: TenPlusTarget['rows'][number],
   itemValue: string,
   event: MouseEvent
 ): void {
-  if (itemValue !== TEN_PLUS_CURVE_PATH_TYPE) return
-  applyCurveKind(row, resolveTenPlusCurveKind(row.curveKind, row.superellipseN))
-  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
-  curveKindPickerRow.value = row
-  curveKindPickerPos.value = { top: rect.bottom + 6, left: rect.left }
+  if (itemValue === TEN_PLUS_CURVE_PATH_TYPE) {
+    applyCurveKind(row, resolveTenPlusCurveKind(row.curveKind, row.superellipseN))
+    openSubtypePicker(row, 'curve', event)
+    return
+  }
+  if (itemValue === TEN_PLUS_EQUAL_LINE_PATH_TYPE) {
+    if (!isEqualLineGroup(row.pathType)) {
+      row.pathType = TEN_PLUS_EQUAL_LINE_PATH_TYPE
+      row.sameLayer = false
+    }
+    openSubtypePicker(row, 'line', event)
+  }
 }
 
-function selectCurveKind(kind: string): void {
-  const row = curveKindPickerRow.value
-  if (!row) return
-  applyCurveKind(row, kind)
-  closeCurveKindPicker()
+function selectSubtype(value: string): void {
+  const row = subtypePickerRow.value
+  if (!row || !subtypePickerMode.value) return
+  if (subtypePickerMode.value === 'line') {
+    row.pathType = value
+    row.sameLayer = false
+  } else {
+    applyCurveKind(row, value)
+  }
+  closeSubtypePicker()
+}
+
+function isPathTypeButtonOn(row: TenPlusTarget['rows'][number], itemValue: string): boolean {
+  if (itemValue === TEN_PLUS_EQUAL_LINE_PATH_TYPE) return isEqualLineGroup(row.pathType)
+  return row.pathType === itemValue
 }
 
 function validateTargetRows(targetName: string, rows: TenPlusTarget['rows']): string | null {
@@ -267,6 +427,25 @@ function validateTargetRows(targetName: string, rows: TenPlusTarget['rows']): st
       if (isDiameterInvalid(row.width)) return `${at}: 宽必须在 0~200 之间`
       if (isCornerRatioInvalid(row.cornerRatio, row.length, row.width)) {
         return `${at}: 切角比例须在 0~50% 之间，且切角量不得超过长的一半`
+      }
+    } else if (isSingleLinePath(row.pathType)) {
+      if (isLineParamMidLength(row.lineParamMode)) {
+        if (isLineCoordInvalid(row.lineMidX) || isLineCoordInvalid(row.lineMidY)) {
+          return `${at}: 单直线中点须在 ±200 mm 内`
+        }
+        if (isDiameterInvalid(row.lineLength) || Number(row.lineLength) <= 0) {
+          return `${at}: 单直线长度必须在 0 以上、200 以内`
+        }
+      } else if (isSingleLineDegenerate(row.lineStartX, row.lineStartY, row.lineEndX, row.lineEndY)) {
+        return `${at}: 单直线起点与终点须在 ±200 mm 内且不能重合`
+      }
+      if (row.sameLayer) {
+        if (i === 0) return `${at}: 首行不能勾选同层`
+        if (isTableAngle(row.angle)) return `${at}: 台面行不能勾选同层`
+        const prev = rows[i - 1]
+        if (!prev || prev.angle !== row.angle) {
+          return `${at}: 同层行的角度必须与上一行相同`
+        }
       }
     } else if (isCurvePath(row.pathType)) {
       if (isSuperellipseCurve(row.pathType, row.curveKind, row.superellipseN)) {
@@ -499,7 +678,9 @@ const divisionColumnLabel = computed((): string => {
   if (rows.some((r) => r.pathType === 'equalSegments')) labels.push('分割数')
   if (rows.some((r) => isUnequalLinePath(r.pathType))) labels.push('切角 (%)')
   if (rows.some((r) => isCurvePath(r.pathType))) labels.push('起止角')
-  return labels.length > 0 ? labels.join(' / ') : '分割数'
+  if (labels.length > 0) return labels.join(' / ')
+  if (rows.some((r) => isSingleLinePath(r.pathType))) return '—'
+  return '分割数'
 })
 
 /** 只要有一行走非等分直线，表头就挂上切角比例的推荐值说明 */
@@ -785,28 +966,28 @@ onMounted(async () => {
       </div>
     </Teleport>
 
-    <!-- 曲线子类型选择 -->
+    <!-- 等分线段 / 曲线子类型选择 -->
     <Teleport to="body">
       <div
-        v-if="curveKindPickerRow"
+        v-if="subtypePickerRow"
         class="tpc-curve-kind-overlay"
-        @click="closeCurveKindPicker"
+        @click="closeSubtypePicker"
       >
         <div
           class="tpc-curve-kind-menu"
           role="menu"
-          aria-label="曲线子类型"
-          :style="{ top: `${curveKindPickerPos.top}px`, left: `${curveKindPickerPos.left}px` }"
+          :aria-label="subtypePickerAria"
+          :style="{ top: `${subtypePickerPos.top}px`, left: `${subtypePickerPos.left}px` }"
           @click.stop
         >
           <button
-            v-for="item in TEN_PLUS_CURVE_KIND_OPTIONS"
+            v-for="item in subtypePickerOptions"
             :key="item.value"
             type="button"
             role="menuitemradio"
-            :aria-checked="curveKindPickerCurrent === item.value"
-            :class="{ on: curveKindPickerCurrent === item.value }"
-            @click="selectCurveKind(item.value)"
+            :aria-checked="subtypePickerCurrent === item.value"
+            :class="{ on: subtypePickerCurrent === item.value }"
+            @click="selectSubtype(item.value)"
           >
             {{ item.label }}
           </button>
@@ -880,6 +1061,15 @@ onMounted(async () => {
       />
     </Teleport>
 
+    <!-- 钻石快捷形状编辑 -->
+    <Teleport to="body">
+      <TenPlusCuttingPage_DiamondPresetDialog
+        v-if="showDiamondPresetDialog"
+        @close="closeDiamondPresetDialog"
+        @confirm="confirmDiamondPreset"
+      />
+    </Teleport>
+
     <!-- UR 补偿校准 -->
     <Teleport to="body">
       <TenPlusCuttingPage_UrCalibDialog
@@ -941,6 +1131,14 @@ onMounted(async () => {
       </div>
     </Teleport>
 
+    <!-- 分步操作引导 -->
+    <Teleport to="body">
+      <TenPlusCuttingPage_TourOverlay
+        v-if="showManualDialog"
+        @close="showManualDialog = false"
+      />
+    </Teleport>
+
     <header class="tpc-top">
       <div class="tpc-top-left">
         <RouterLink to="/home" class="tpc-home-link">返回首页</RouterLink>
@@ -949,6 +1147,10 @@ onMounted(async () => {
           <p class="tpc-sub">多目标任务参数 · 十工位示教绑定 · 开始切割</p>
         </div>
       </div>
+      <button type="button" class="tpc-guide-text-btn" @click="openManualTour">
+        <span class="tpc-guide-mark" aria-hidden="true">?</span>
+        <span>十轴切割操作指南</span>
+      </button>
       <div class="tpc-mode" role="tablist">
         <button
           type="button"
@@ -974,7 +1176,9 @@ onMounted(async () => {
       <aside class="tpc-targets">
         <div class="tpc-panel-head">
           <span>编程目标</span>
-          <button type="button" class="tpc-btn-sm" @click="handleAddTarget">+ 新建</button>
+          <button type="button" class="tpc-btn-sm" data-tour="add-target" @click="handleAddTarget">
+            + 新建
+          </button>
         </div>
         <div class="tpc-targets-list">
           <div
@@ -1032,7 +1236,13 @@ onMounted(async () => {
             <span class="tpc-active-name">{{ activeTarget?.name ?? '—' }}</span>
             <span class="tpc-hint">双击目标名可重命名</span>
           </div>
-          <button type="button" class="tpc-btn-sm add" :disabled="!activeTarget" @click="addRow">
+          <button
+            type="button"
+            class="tpc-btn-sm add"
+            data-tour="add-row"
+            :disabled="!activeTarget"
+            @click="addRow"
+          >
             + 添加任务
           </button>
         </div>
@@ -1040,7 +1250,21 @@ onMounted(async () => {
           <table class="tpc-table">
             <thead>
               <tr>
-                <th class="col-path">类型</th>
+                <th class="col-path">
+                  <span class="tpc-th-with-help">
+                    类型
+                    <button
+                      type="button"
+                      class="tpc-shape-preset-btn"
+                      data-tour="diamond-preset"
+                      :disabled="!activeTarget"
+                      title="按直径与冠/腰/亭高比生成三行等分线段"
+                      @click="openDiamondPresetDialog"
+                    >
+                      钻石快捷形状编辑
+                    </button>
+                  </span>
+                </th>
                 <th class="col-no">序号</th>
                 <th class="col-same" title="勾选后与上一行同一高度平面，不叠层">同层</th>
                 <th class="col-size">
@@ -1049,6 +1273,7 @@ onMounted(async () => {
                     <button
                       type="button"
                       class="tpc-shape-preset-btn"
+                      data-tour="shape-preset"
                       :disabled="!activeTarget"
                       title="按外接尺寸生成垫型等快捷形状到当前目标"
                       @click="openQuickShapeDialog"
@@ -1087,22 +1312,40 @@ onMounted(async () => {
                 <td class="col-path">
                   <div class="tpc-path-seg" role="radiogroup" aria-label="类型">
                     <button
-                      v-for="item in TEN_PLUS_PATH_TYPE_OPTIONS"
+                      v-for="item in TEN_PLUS_PATH_TYPE_BUTTONS"
                       :key="item.value"
                       type="button"
                       role="radio"
-                      :aria-checked="row.pathType === item.value"
-                      :class="{ on: row.pathType === item.value }"
-                      :aria-label="tenPlusPathTypeTitle(item.value, item.label, row.curveKind, row.superellipseN)"
+                      :aria-checked="isPathTypeButtonOn(row, item.value)"
+                      :class="{ on: isPathTypeButtonOn(row, item.value) }"
+                      :aria-label="
+                        tenPlusPathTypeTitle(
+                          item.value,
+                          item.label,
+                          row.curveKind,
+                          row.superellipseN,
+                          row.pathType
+                        )
+                      "
                       :title="
-                        item.value === TEN_PLUS_CURVE_PATH_TYPE
-                          ? `${tenPlusPathTypeTitle(item.value, item.label, row.curveKind, row.superellipseN)}（双击选择子类型）`
+                        item.value === TEN_PLUS_CURVE_PATH_TYPE || item.value === TEN_PLUS_EQUAL_LINE_PATH_TYPE
+                          ? `${tenPlusPathTypeTitle(item.value, item.label, row.curveKind, row.superellipseN, row.pathType)}（双击选择子类型）`
                           : item.label
                       "
                       @click="onPathTypeChange(row, item.value)"
-                      @dblclick.stop="onCurvePathDblclick(row, item.value, $event)"
+                      @dblclick.stop="onPathTypeDblclick(row, item.value, $event)"
                     >
-                      {{ item.label }}
+                      {{
+                        isPathTypeButtonOn(row, item.value)
+                          ? tenPlusPathTypeTitle(
+                              item.value,
+                              item.label,
+                              row.curveKind,
+                              row.superellipseN,
+                              row.pathType
+                            )
+                          : item.label
+                      }}
                     </button>
                   </div>
                 </td>
@@ -1114,12 +1357,12 @@ onMounted(async () => {
                     v-model="row.sameLayer"
                     type="checkbox"
                     class="tpc-same-layer"
-                    :disabled="rowIndex === 0 || !isCurvePath(row.pathType) || isTableAngle(row.angle)"
+                    :disabled="rowIndex === 0 || !isRStepPath(row.pathType) || isTableAngle(row.angle)"
                     :title="
                       rowIndex === 0
                         ? '首行没有上一行可同层'
-                        : !isCurvePath(row.pathType)
-                          ? '同层仅用于曲线段编组'
+                        : !isRStepPath(row.pathType)
+                          ? '同层仅用于曲线段 / 单直线编组'
                           : isTableAngle(row.angle)
                             ? '台面行不能同层'
                             : '与上一行同一高度平面，不把上一行高度叠上去'
@@ -1127,7 +1370,154 @@ onMounted(async () => {
                   />
                 </td>
                 <td class="col-size">
-                  <div v-if="isUnequalLinePath(row.pathType)" class="tpc-size-pair">
+                  <div v-if="isSingleLinePath(row.pathType)" class="tpc-line-size">
+                    <div class="tpc-line-mode" role="radiogroup" aria-label="单直线参数形式">
+                      <button
+                        v-for="item in TEN_PLUS_LINE_PARAM_MODE_OPTIONS"
+                        :key="item.value"
+                        type="button"
+                        role="radio"
+                        :aria-checked="row.lineParamMode === item.value"
+                        :class="{ on: row.lineParamMode === item.value }"
+                        :title="
+                          item.value === TEN_PLUS_LINE_PARAM_MODE_MID_LENGTH
+                            ? '中点 + 长度（过中点、沿工件 Y）'
+                            : '起点 + 终点'
+                        "
+                        @click="applyLineParamMode(row, item.value)"
+                      >
+                        {{ item.label }}
+                      </button>
+                    </div>
+                    <template v-if="isLineParamMidLength(row.lineParamMode)">
+                      <div class="tpc-line-xy">
+                        <span>中点</span>
+                        <span>(</span>
+                        <input
+                          v-model.number="row.lineMidX"
+                          type="number"
+                          class="tpc-input"
+                          :class="{ invalid: isLineCoordInvalid(row.lineMidX) }"
+                          step="0.01"
+                          title="中点 X，相对该工位 R 轴旋转中心 (mm)"
+                        />
+                        <span>,</span>
+                        <input
+                          v-model.number="row.lineMidY"
+                          type="number"
+                          class="tpc-input"
+                          :class="{ invalid: isLineCoordInvalid(row.lineMidY) }"
+                          step="0.01"
+                          title="中点 Y，相对该工位 R 轴旋转中心 (mm)"
+                        />
+                        <span>)</span>
+                        <button
+                          type="button"
+                          class="tpc-btn-sm tpc-line-capture"
+                          title="获取点位：读当前机床 XY，换成相对该工位 R 轴旋转中心"
+                          @click="captureLinePoint(row, 'mid')"
+                        >
+                          获取点位
+                        </button>
+                      </div>
+                      <label class="tpc-line-len">
+                        <span>长度</span>
+                        <input
+                          v-model.number="row.lineLength"
+                          type="number"
+                          class="tpc-input"
+                          :class="{
+                            invalid: isDiameterInvalid(row.lineLength) || Number(row.lineLength) <= 0
+                          }"
+                          step="0.01"
+                          min="0"
+                          max="200"
+                          title="过中点、沿工件 Y 的长度 (mm)"
+                        />
+                      </label>
+                    </template>
+                    <template v-else>
+                      <div class="tpc-line-xy">
+                        <span>起点</span>
+                        <span>(</span>
+                        <input
+                          v-model.number="row.lineStartX"
+                          type="number"
+                          class="tpc-input"
+                          :class="{ invalid: isLineCoordInvalid(row.lineStartX) }"
+                          step="0.01"
+                          title="起点 X，相对该工位 R 轴旋转中心 (mm)"
+                        />
+                        <span>,</span>
+                        <input
+                          v-model.number="row.lineStartY"
+                          type="number"
+                          class="tpc-input"
+                          :class="{ invalid: isLineCoordInvalid(row.lineStartY) }"
+                          step="0.01"
+                          title="起点 Y，相对该工位 R 轴旋转中心 (mm)"
+                        />
+                        <span>)</span>
+                        <button
+                          type="button"
+                          class="tpc-btn-sm tpc-line-capture"
+                          title="获取点位：读当前机床 XY，换成相对该工位 R 轴旋转中心"
+                          @click="captureLinePoint(row, 'start')"
+                        >
+                          获取点位
+                        </button>
+                      </div>
+                      <div class="tpc-line-xy">
+                        <span>终点</span>
+                        <span>(</span>
+                        <input
+                          v-model.number="row.lineEndX"
+                          type="number"
+                          class="tpc-input"
+                          :class="{
+                            invalid:
+                              isLineCoordInvalid(row.lineEndX) ||
+                              isSingleLineDegenerate(
+                                row.lineStartX,
+                                row.lineStartY,
+                                row.lineEndX,
+                                row.lineEndY
+                              )
+                          }"
+                          step="0.01"
+                          title="终点 X，相对该工位 R 轴旋转中心 (mm)"
+                        />
+                        <span>,</span>
+                        <input
+                          v-model.number="row.lineEndY"
+                          type="number"
+                          class="tpc-input"
+                          :class="{
+                            invalid:
+                              isLineCoordInvalid(row.lineEndY) ||
+                              isSingleLineDegenerate(
+                                row.lineStartX,
+                                row.lineStartY,
+                                row.lineEndX,
+                                row.lineEndY
+                              )
+                          }"
+                          step="0.01"
+                          title="终点 Y，相对该工位 R 轴旋转中心 (mm)"
+                        />
+                        <span>)</span>
+                        <button
+                          type="button"
+                          class="tpc-btn-sm tpc-line-capture"
+                          title="获取点位：读当前机床 XY，换成相对该工位 R 轴旋转中心"
+                          @click="captureLinePoint(row, 'end')"
+                        >
+                          获取点位
+                        </button>
+                      </div>
+                    </template>
+                  </div>
+                  <div v-else-if="isUnequalLinePath(row.pathType)" class="tpc-size-pair">
                     <label>
                       <span>长</span>
                       <input
@@ -1283,7 +1673,8 @@ onMounted(async () => {
                   />
                 </td>
                 <td class="col-num">
-                  <div v-if="isCurvePath(row.pathType)" class="tpc-size-pair">
+                  <span v-if="isSingleLinePath(row.pathType)" class="muted">—</span>
+                  <div v-else-if="isCurvePath(row.pathType)" class="tpc-size-pair">
                     <label>
                       <span>起</span>
                       <input
@@ -1409,33 +1800,39 @@ onMounted(async () => {
           </div>
 
           <div class="tpc-card">
-            <div class="tpc-card-head">
-              <div class="tpc-card-title">点位 XYZ</div>
-              <button type="button" class="tpc-btn-sm" title="获取当前机床 XYZ" @click="capturePointXyz">
-                获取
-              </button>
+            <div class="tpc-xyz-block" data-tour="point-xyz">
+              <div class="tpc-card-head">
+                <div class="tpc-card-title">点位 XYZ</div>
+                <button type="button" class="tpc-btn-sm" title="获取当前机床 XYZ" @click="capturePointXyz">
+                  获取
+                </button>
+              </div>
+              <div class="tpc-xyz-grid">
+                <div class="tpc-xyz-cell">
+                  <span class="tpc-xyz-axis axis-x">X</span>
+                  <span class="tpc-xyz-val" :class="{ empty: activePointAxes.x === '—' }">{{
+                    activePointAxes.x
+                  }}</span>
+                </div>
+                <div class="tpc-xyz-cell">
+                  <span class="tpc-xyz-axis axis-y">Y</span>
+                  <span class="tpc-xyz-val" :class="{ empty: activePointAxes.y === '—' }">{{
+                    activePointAxes.y
+                  }}</span>
+                </div>
+                <div class="tpc-xyz-cell">
+                  <span class="tpc-xyz-axis axis-z">Z</span>
+                  <span class="tpc-xyz-val" :class="{ empty: activePointAxes.z === '—' }">{{
+                    activePointAxes.z
+                  }}</span>
+                </div>
+              </div>
             </div>
-            <div class="tpc-xyz-grid">
-              <div class="tpc-xyz-cell">
-                <span class="tpc-xyz-axis axis-x">X</span>
-                <span class="tpc-xyz-val" :class="{ empty: activePointAxes.x === '—' }">{{
-                  activePointAxes.x
-                }}</span>
-              </div>
-              <div class="tpc-xyz-cell">
-                <span class="tpc-xyz-axis axis-y">Y</span>
-                <span class="tpc-xyz-val" :class="{ empty: activePointAxes.y === '—' }">{{
-                  activePointAxes.y
-                }}</span>
-              </div>
-              <div class="tpc-xyz-cell">
-                <span class="tpc-xyz-axis axis-z">Z</span>
-                <span class="tpc-xyz-val" :class="{ empty: activePointAxes.z === '—' }">{{
-                  activePointAxes.z
-                }}</span>
-              </div>
-            </div>
-            <label class="tpc-switch-row" title="是否对该目标做对切">
+            <label
+              class="tpc-switch-row"
+              data-tour="opposite-cut"
+              title="是否对该目标做对切"
+            >
               <span>是否对切</span>
               <input v-model="activeTarget.oppositeCut" type="checkbox" class="tpc-switch" />
             </label>
@@ -1444,13 +1841,18 @@ onMounted(async () => {
               <div class="tpc-slot-head">
                 <span>工位选择</span>
                 <div class="tpc-slot-head-actions">
-                  <label class="tpc-slot-move" title="勾选后，点击已示教工位会运动到该点">
+                  <label
+                    class="tpc-slot-move"
+                    data-tour="move-on-click"
+                    title="勾选后，点击已示教工位会运动到该点"
+                  >
                     <input v-model="moveOnSlotClick" type="checkbox" />
                     <span>点击移动</span>
                   </label>
                   <button
                     type="button"
                     class="tpc-btn-sm"
+                    data-tour="teach"
                     :disabled="slotBusy || selectedSlotIndex === null"
                     @click="onTeachSelectedSlot"
                   >
@@ -1461,7 +1863,7 @@ onMounted(async () => {
               <p v-if="activeTarget.slotIndex" class="tpc-slot-hint">
                 当前绑定工位 #{{ activeTarget.slotIndex }}
               </p>
-              <div class="tpc-slot-grid">
+              <div class="tpc-slot-grid" data-tour="slots">
                 <button
                   v-for="n in TEN_PLUS_GRID_ORDER"
                   :key="n"
@@ -1478,6 +1880,7 @@ onMounted(async () => {
               </div>
               <div
                 class="tpc-r-card"
+                data-tour="r-spin"
                 :class="{ ready: selectedSlotIndex !== null, spinning: rAxisSpinning }"
               >
                 <span class="tpc-r-badge" aria-hidden="true">R</span>
@@ -1516,6 +1919,7 @@ onMounted(async () => {
               <button
                 type="button"
                 class="tpc-ur-entry"
+                data-tour="ur-calib"
                 :class="{ ready: selectedSlotIndex !== null }"
                 @click="onOpenUrCalib"
               >
@@ -1545,13 +1949,23 @@ onMounted(async () => {
     </div>
 
     <footer class="tpc-footer">
-      <label class="tpc-confirm">
+      <label class="tpc-confirm" data-tour="confirm">
         <input v-model="processConfirmed" type="checkbox" :disabled="starting" />
         <span>已确认可正常加工</span>
       </label>
       <button
         type="button"
+        class="tpc-confirm-help"
+        aria-label="分步操作引导"
+        title="分步操作引导"
+        @click="openManualTour"
+      >
+        ?
+      </button>
+      <button
+        type="button"
         class="tpc-btn start"
+        data-tour="start"
         :disabled="starting || !processConfirmed"
         @click="onStart"
       >
@@ -1566,8 +1980,10 @@ onMounted(async () => {
         class="tpc-file"
         @change="onFileChange"
       />
-      <button type="button" class="tpc-btn ghost" @click="onLoadClick">读取</button>
-      <button type="button" class="tpc-btn ghost" @click="onSave">保存</button>
+      <span data-tour="files" class="tpc-file-ops">
+        <button type="button" class="tpc-btn ghost" @click="onLoadClick">读取</button>
+        <button type="button" class="tpc-btn ghost" @click="onSave">保存</button>
+      </span>
     </footer>
   </div>
 </template>
@@ -1589,10 +2005,10 @@ onMounted(async () => {
 }
 
 .tpc-top {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  column-gap: 16px;
   padding: 12px 16px;
   border-bottom: 1px solid var(--app-border);
   flex-shrink: 0;
@@ -1613,10 +2029,13 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 12px;
+  justify-self: start;
+  min-width: 0;
 }
 .tpc-mode {
   display: flex;
   gap: 6px;
+  justify-self: end;
 }
 .tpc-home-link {
   display: inline-flex;
@@ -1820,7 +2239,8 @@ onMounted(async () => {
   width: auto;
 }
 .tpc-table .col-path {
-  width: 20%;
+  width: 24%;
+  min-width: 220px;
 }
 .tpc-table .col-no {
   width: 36px;
@@ -1836,7 +2256,7 @@ onMounted(async () => {
 }
 .tpc-table .col-size {
   width: 18%;
-  min-width: 188px;
+  min-width: 220px;
 }
 .tpc-table .col-num {
   width: 7%;
@@ -1886,6 +2306,66 @@ onMounted(async () => {
 }
 .tpc-size-single {
   grid-template-columns: 1fr;
+}
+.tpc-line-size {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.tpc-line-mode {
+  display: flex;
+  gap: 0;
+  padding: 2px;
+  background: color-mix(in srgb, var(--app-text-primary) 8%, var(--app-card-soft));
+  border-radius: 7px;
+}
+.tpc-line-mode button {
+  flex: 1;
+  min-width: 0;
+  padding: 3px 4px;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.2;
+  font-family: inherit;
+  color: var(--app-text-muted);
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+  cursor: pointer;
+  user-select: none;
+}
+.tpc-line-mode button.on {
+  color: var(--app-text-primary);
+  font-weight: 650;
+  background: var(--app-card);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--app-text-primary) 12%, transparent);
+}
+.tpc-line-xy,
+.tpc-line-len {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+}
+.tpc-line-xy > span:first-child,
+.tpc-line-len > span:first-child {
+  flex: 0 0 28px;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--app-text-muted);
+}
+.tpc-line-xy .tpc-input,
+.tpc-line-len .tpc-input {
+  flex: 1 1 0;
+  min-width: 0;
+  width: 0;
+}
+.tpc-line-capture {
+  flex: 0 0 auto;
+  padding: 3px 6px;
+  font-size: 10px;
+  white-space: nowrap;
 }
 .tpc-th-with-help {
   display: inline-flex;
@@ -1991,8 +2471,8 @@ onMounted(async () => {
 .tpc-path-seg button {
   flex: 1;
   min-width: 0;
-  padding: 4px 5px;
-  font-size: 11px;
+  padding: 4px 3px;
+  font-size: 10px;
   font-weight: 500;
   line-height: 1.2;
   font-family: inherit;
@@ -2627,6 +3107,46 @@ onMounted(async () => {
   flex-shrink: 0;
   background: var(--app-card);
 }
+.tpc-guide-text-btn {
+  justify-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: auto;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--app-text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+.tpc-guide-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1;
+  color: inherit;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--app-text-primary) 14%, transparent);
+}
+.tpc-guide-text-btn:hover,
+.tpc-guide-text-btn:focus-visible {
+  color: var(--tpc-accent);
+  background: transparent;
+  border-color: transparent;
+  outline: none;
+}
+.tpc-guide-text-btn:hover .tpc-guide-mark,
+.tpc-guide-text-btn:focus-visible .tpc-guide-mark {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tpc-accent) 45%, transparent);
+}
 .tpc-confirm {
   display: flex;
   align-items: center;
@@ -2634,6 +3154,33 @@ onMounted(async () => {
   font-size: 12px;
   color: var(--app-text-secondary);
   user-select: none;
+}
+.tpc-confirm-help {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-left: -4px;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 650;
+  font-family: inherit;
+  line-height: 1;
+  color: var(--app-text-muted);
+  background: color-mix(in srgb, var(--app-text-primary) 7%, transparent);
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--app-text-primary) 9%, transparent);
+}
+.tpc-confirm-help:hover,
+.tpc-confirm-help:focus-visible {
+  color: var(--tpc-accent);
+  background: color-mix(in srgb, var(--tpc-accent) 14%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tpc-accent) 35%, transparent);
+  outline: none;
 }
 .tpc-status {
   max-width: 360px;
@@ -2645,6 +3192,11 @@ onMounted(async () => {
 }
 .tpc-footer-spacer {
   flex: 1;
+}
+.tpc-file-ops {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 .tpc-file {
   display: none;
