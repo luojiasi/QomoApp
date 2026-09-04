@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, toRaw } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, toRaw } from 'vue'
+import { useMotionKeyboard } from '@/modules/motion/composables/useMotionKeyboard'
 import { useHardwareState } from '@/shared/api/hardware'
 import { useNotification } from '@/shared/composables/useNotification'
 import { useRecipeSettingsStore } from '@/modules/recipe/useRecipeStore'
@@ -12,7 +13,7 @@ import {
   rotateRAxisCont,
   stopMotionJog
 } from '@/modules/motion/api'
-import { sendTenPlusFreeParams, getTenRAxisPosition } from '@/modules/program/api'
+import { sendTenPlusFreeParams, getTenRAxisPosition, getTenCameraFocusError } from '@/modules/program/api'
 import {
   TEN_PLUS_CORNER_RATIO_RECOMMENDATIONS,
   TEN_PLUS_CURVE_KIND_OPTIONS,
@@ -46,6 +47,8 @@ import {
   isSuperellipseNInvalid,
   isAngleInvalid,
   isHeightInvalid,
+  isTableDiameterZero,
+  isNonTableHeightZero,
   isTableAngle,
   isCornerRatioInvalid,
   isArcAngleInvalid,
@@ -75,6 +78,9 @@ import TenPlusCuttingPage_CompDialog from '../components/TenPlusCuttingPage_Comp
 import TenPlusCuttingPage_ShapePresetDialog from '../components/TenPlusCuttingPage_ShapePresetDialog.vue'
 import TenPlusCuttingPage_DiamondPresetDialog from '../components/TenPlusCuttingPage_DiamondPresetDialog.vue'
 import TenPlusCuttingPage_TourOverlay from '../components/TenPlusCuttingPage_TourOverlay.vue'
+import TenPlusCuttingPage_CameraWindow from '../components/TenPlusCuttingPage_CameraWindow.vue'
+import TenPlusCuttingPage_RunControls from '../components/TenPlusCuttingPage_RunControls.vue'
+import { useTenPlusPageUi } from '../composables/useTenPlusPageUi'
 
 type WorkMode = 'freeParam' | 'drawImage'
 
@@ -84,7 +90,16 @@ const { mposition, controllerConnected } = useHardwareState()
 const {
   programRunning,
   programPaused,
-  programTaskCount
+  programTaskCount,
+  currentTaskJindubaifenbi,
+  programElapsedText,
+  onPauseToggleClick,
+  onResetAlarmsClick,
+  onEstopClick,
+  onSkipTaskClick,
+  noteProgramStarted,
+  initSync: initProgramSync,
+  cleanup: cleanupProgramRunner
 } = useProgramRunner()
 
 const {
@@ -107,6 +122,8 @@ const {
 } = useTenPlusTask()
 
 const workMode = ref<WorkMode>('freeParam')
+const { keyboardEnabled, cameraVisible, runCameraEnlarge } = useTenPlusPageUi()
+useMotionKeyboard(keyboardEnabled)
 const renamingId = ref<string | null>(null)
 const renameDraft = ref('')
 const renameInputRef = ref<HTMLInputElement | null>(null)
@@ -128,6 +145,16 @@ const showTeachDialog = ref(false)
 const teachDialogSlot = ref<number | null>(null)
 const showUrCalibDialog = ref(false)
 const urCalibSlot = ref<number | null>(null)
+const cameraDockedInWorkspace = computed(
+  () =>
+    runCameraEnlarge.value &&
+    programRunning.value &&
+    workMode.value === 'freeParam' &&
+    !showUrCalibDialog.value
+)
+const showCameraWindow = computed(
+  () => !showUrCalibDialog.value && (cameraDockedInWorkspace.value || cameraVisible.value)
+)
 const showQuickShapeDialog = ref(false)
 const showDiamondPresetDialog = ref(false)
 const compDialogRow = ref<TenPlusTarget['rows'][number] | null>(null)
@@ -467,11 +494,17 @@ function validateTargetRows(targetName: string, rows: TenPlusTarget['rows']): st
         }
       }
     } else {
-      if (isDiameterInvalid(row.diameter)) return `${at}: 外接圆直径必须在 0~200 之间`
+      if (isDiameterInvalid(row.diameter) || isTableDiameterZero(row.diameter, row.angle)) {
+        return `${at}: 外接圆直径必须在 0 以上、200 以内`
+      }
       if (isDivisionsInvalid(row.divisions)) return `${at}: 分割数须为 0 或 3~360`
     }
     if (isAngleInvalid(row.angle)) return `${at}: 角度必须在 -90~90 之间`
-    if (isHeightInvalid(row.height)) return `${at}: 高度必须在 0~20 之间`
+    if (isHeightInvalid(row.height) || isNonTableHeightZero(row.height, row.angle)) {
+      return isNonTableHeightZero(row.height, row.angle)
+        ? `${at}: 非台面行高度不能为 0`
+        : `${at}: 高度必须在 0~20 之间`
+    }
     if (isRecipeInvalid(row.recipe)) return `${at}: 未选择配方`
   }
   return null
@@ -574,6 +607,27 @@ async function confirmStartDialog(): Promise<void> {
     return
   }
 
+  const slotSet = new Set<number>()
+  for (const target of selected) {
+    if (typeof target.slotIndex === 'number') slotSet.add(target.slotIndex)
+  }
+  const cameraFocusErrorBySlot = new Map<number, number>()
+  for (const slot of slotSet) {
+    const focusRes = await getTenCameraFocusError(slot)
+    if (!focusRes.success || focusRes.data == null) {
+      warning(focusRes.message || `读取工位 ${slot} 相机清晰误差失败`)
+      setStatus(`读取工位 ${slot} 相机清晰误差失败`)
+      return
+    }
+    const errorMm = Number(focusRes.data.value)
+    if (!Number.isFinite(errorMm)) {
+      warning(`工位 ${slot} 相机清晰误差无效`)
+      setStatus(`工位 ${slot} 相机清晰误差无效`)
+      return
+    }
+    cameraFocusErrorBySlot.set(slot, errorMm)
+  }
+
   const recipeState = toRaw(recipeStore.recipeState)
   const payload: TenPlusFreeParamPayload = {
     recipes: {
@@ -585,7 +639,7 @@ async function confirmStartDialog(): Promise<void> {
       verticalFormulaRecipes: JSON.parse(JSON.stringify(recipeState.verticalFormulaRecipes ?? []))
     },
     targets: summaries,
-    rows: buildTenPlusRowsFromTargets(selected)
+    rows: buildTenPlusRowsFromTargets(selected, cameraFocusErrorBySlot)
   }
 
   starting.value = true
@@ -593,10 +647,7 @@ async function confirmStartDialog(): Promise<void> {
     const res = await sendTenPlusFreeParams(payload as unknown as Record<string, unknown>)
     if (res.success) {
       const tc = typeof res.data?.task_count === 'number' ? res.data.task_count : payload.rows.length
-      programTaskCount.value = tc
-      programRunning.value = true
-      programPaused.value = false
-      localStorage.setItem('qomo.startProgram.startedAtMs', String(Date.now()))
+      noteProgramStarted(tc)
       const names = summaries.map((x) => x.name).join('、')
       success(res.message || '十工位任务已启动')
       setStatus(`已启动：${summaries.length} 个目标（${names}），共 ${tc} 行`)
@@ -943,6 +994,11 @@ onMounted(async () => {
   await recipeStore.loadRecipeState()
   initDefault('目标 1')
   await loadTenPlusConfig()
+  await initProgramSync()
+})
+
+onUnmounted(() => {
+  cleanupProgramRunner()
 })
 </script>
 
@@ -1144,30 +1200,72 @@ onMounted(async () => {
         <RouterLink to="/home" class="tpc-home-link">返回首页</RouterLink>
         <div>
           <h1 class="tpc-title">十轴切割</h1>
-          <p class="tpc-sub">多目标任务参数 · 十工位示教绑定 · 开始切割</p>
+          <p class="tpc-sub">十轴自由参数编辑切割程序</p>
         </div>
       </div>
-      <button type="button" class="tpc-guide-text-btn" @click="openManualTour">
-        <span class="tpc-guide-mark" aria-hidden="true">?</span>
-        <span>十轴切割操作指南</span>
-      </button>
-      <div class="tpc-mode" role="tablist">
-        <button
-          type="button"
-          class="tpc-mode-btn"
-          :class="{ active: workMode === 'freeParam' }"
-          @click="workMode = 'freeParam'"
-        >
-          自由参数编程
+      <div class="tpc-top-right">
+        <button type="button" class="tpc-guide-text-btn" @click="openManualTour">
+          <span class="tpc-guide-mark" aria-hidden="true">?</span>
+          <span>十轴切割操作指南</span>
         </button>
-        <button
-          type="button"
-          class="tpc-mode-btn"
-          :class="{ active: workMode === 'drawImage' }"
-          @click="workMode = 'drawImage'"
-        >
-          普通绘制图像
-        </button>
+        <div class="tpc-top-group tpc-top-group-aux" aria-label="页面辅助">
+          <button
+            type="button"
+            class="tpc-kb-toggle"
+            role="switch"
+            :aria-checked="keyboardEnabled ? 'true' : 'false'"
+            title="关闭时方向键不会点动轴，方便填表"
+            @click="keyboardEnabled = !keyboardEnabled"
+          >
+            <span class="tpc-kb-label">键盘操作</span>
+            <span class="tpc-kb-switch" :class="{ on: keyboardEnabled }" aria-hidden="true">
+              <span class="tpc-kb-knob" />
+            </span>
+            <span class="tpc-kb-state">{{ keyboardEnabled ? '开' : '关' }}</span>
+          </button>
+          <button
+            type="button"
+            class="tpc-kb-toggle"
+            role="switch"
+            :aria-checked="runCameraEnlarge ? 'true' : 'false'"
+            title="开启后，任务运行时相机会放大并替代中间任务参数表，结束后恢复"
+            @click="runCameraEnlarge = !runCameraEnlarge"
+          >
+            <span class="tpc-kb-label">运行时放大</span>
+            <span class="tpc-kb-switch" :class="{ on: runCameraEnlarge }" aria-hidden="true">
+              <span class="tpc-kb-knob" />
+            </span>
+            <span class="tpc-kb-state">{{ runCameraEnlarge ? '开' : '关' }}</span>
+          </button>
+          <button
+            type="button"
+            class="tpc-aux-btn"
+            :class="{ on: cameraVisible }"
+            :disabled="showUrCalibDialog"
+            :title="showUrCalibDialog ? 'UR 校准打开时相机窗口已关闭' : undefined"
+            @click="cameraVisible = !cameraVisible"
+          >
+            {{ cameraVisible ? '隐藏相机画面' : '显示相机画面' }}
+          </button>
+        </div>
+        <div class="tpc-top-group tpc-top-group-mode" role="tablist" aria-label="工作模式">
+          <button
+            type="button"
+            class="tpc-mode-btn"
+            :class="{ active: workMode === 'freeParam' }"
+            @click="workMode = 'freeParam'"
+          >
+            自由参数编程
+          </button>
+          <button
+            type="button"
+            class="tpc-mode-btn"
+            :class="{ active: workMode === 'drawImage' }"
+            @click="workMode = 'drawImage'"
+          >
+            普通绘制图像
+          </button>
+        </div>
       </div>
     </header>
 
@@ -1228,8 +1326,9 @@ onMounted(async () => {
         </div>
       </aside>
 
-      <!-- 中：任务表 -->
+      <!-- 中：任务表；运行放大时由相机占位 -->
       <section class="tpc-workspace">
+        <div v-show="!cameraDockedInWorkspace" class="tpc-workspace-stack">
         <div class="tpc-workspace-head">
           <div>
             <span class="tpc-kicker">任务参数表</span>
@@ -1596,11 +1695,21 @@ onMounted(async () => {
                         v-model.number="row.diameter"
                         type="number"
                         class="tpc-input"
-                        :class="{ invalid: isDiameterInvalid(row.diameter) }"
+                        :class="{
+                          invalid:
+                            isDiameterInvalid(row.diameter) ||
+                            isTableDiameterZero(row.diameter, row.angle)
+                        }"
                         step="0.01"
                         min="0"
                         max="200"
-                        :title="isDiameterInvalid(row.diameter) ? '半径必须在 0~200 之间' : '这一段弧自己的半径'"
+                        :title="
+                          isTableDiameterZero(row.diameter, row.angle)
+                            ? '台面行半径不能为 0'
+                            : isDiameterInvalid(row.diameter)
+                              ? '半径必须在 0~200 之间'
+                              : '这一段弧自己的半径'
+                        "
                       />
                     </label>
                     <label>
@@ -1631,11 +1740,21 @@ onMounted(async () => {
                         v-model.number="row.diameter"
                         type="number"
                         class="tpc-input"
-                        :class="{ invalid: isDiameterInvalid(row.diameter) }"
+                        :class="{
+                          invalid:
+                            isDiameterInvalid(row.diameter) ||
+                            isTableDiameterZero(row.diameter, row.angle)
+                        }"
                         step="0.01"
                         min="0"
                         max="200"
-                        :title="isDiameterInvalid(row.diameter) ? '外接圆直径必须在 0~200 之间' : ''"
+                        :title="
+                          isTableDiameterZero(row.diameter, row.angle)
+                            ? '台面行直径不能为 0'
+                            : isDiameterInvalid(row.diameter)
+                              ? '外接圆直径必须在 0~200 之间'
+                              : ''
+                        "
                       />
                     </label>
                   </div>
@@ -1658,7 +1777,10 @@ onMounted(async () => {
                     v-model.number="row.height"
                     type="number"
                     class="tpc-input"
-                    :class="{ invalid: isHeightInvalid(row.height) }"
+                    :class="{
+                      invalid:
+                        isHeightInvalid(row.height) || isNonTableHeightZero(row.height, row.angle)
+                    }"
                     min="0"
                     max="20"
                     step="0.001"
@@ -1666,9 +1788,11 @@ onMounted(async () => {
                     :title="
                       isTableAngle(row.angle)
                         ? '台面行（角度为 0）高度固定为 0'
-                        : isHeightInvalid(row.height)
-                          ? '高度必须在 0~20 之间'
-                          : ''
+                        : isNonTableHeightZero(row.height, row.angle)
+                          ? '非台面行高度不能为 0'
+                          : isHeightInvalid(row.height)
+                            ? '高度必须在 0~20 之间'
+                            : ''
                     "
                   />
                 </td>
@@ -1770,6 +1894,12 @@ onMounted(async () => {
             </tbody>
           </table>
         </div>
+        </div>
+        <div
+          v-show="cameraDockedInWorkspace"
+          id="tpc-workspace-cam-host"
+          class="tpc-workspace-cam-host"
+        />
       </section>
 
       <!-- 右：目标参数 + 十工位 -->
@@ -1948,6 +2078,13 @@ onMounted(async () => {
       <p class="tpc-draw-desc">功能占位，后续接入绘制流程</p>
     </div>
 
+    <Teleport :to="cameraDockedInWorkspace ? '#tpc-workspace-cam-host' : 'body'">
+      <TenPlusCuttingPage_CameraWindow
+        v-if="showCameraWindow"
+        :docked="cameraDockedInWorkspace"
+      />
+    </Teleport>
+
     <footer class="tpc-footer">
       <label class="tpc-confirm" data-tour="confirm">
         <input v-model="processConfirmed" type="checkbox" :disabled="starting" />
@@ -1971,8 +2108,18 @@ onMounted(async () => {
       >
         {{ starting ? '启动中…' : '开始任务' }}
       </button>
+      <TenPlusCuttingPage_RunControls
+        :program-running="programRunning"
+        :program-paused="programPaused"
+        :program-task-count="programTaskCount"
+        :jindubaifenbi="currentTaskJindubaifenbi"
+        :elapsed-text="programElapsedText"
+        @pause-toggle="onPauseToggleClick"
+        @reset-alarms="onResetAlarmsClick"
+        @estop="onEstopClick"
+        @skip-task="onSkipTaskClick"
+      />
       <span v-if="statusMsg" class="tpc-status" :title="statusMsg">{{ statusMsg }}</span>
-      <div class="tpc-footer-spacer" />
       <input
         ref="fileInputRef"
         type="file"
@@ -1992,7 +2139,12 @@ onMounted(async () => {
 .tpc-page,
 .tpc-dlg-overlay,
 .tpc-slot-tip {
-  --tpc-accent: #0ea5e9;
+  --tpc-accent: #007aff;
+  --tpc-apple-blue: #007aff;
+  --tpc-apple-green: #34c759;
+  --tpc-apple-orange: #ff9f0a;
+  --tpc-apple-red: #ff3b30;
+  --tpc-apple-fill: color-mix(in srgb, var(--app-text-primary) 5.5%, transparent);
 }
 .tpc-page {
   display: flex;
@@ -2002,22 +2154,35 @@ onMounted(async () => {
   background: var(--app-bg);
   color: var(--app-text-primary);
   overflow: hidden;
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    'SF Pro Text',
+    'Segoe UI Variable Display',
+    'Segoe UI',
+    system-ui,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  accent-color: var(--tpc-apple-blue);
 }
 
 .tpc-top {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   column-gap: 16px;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--app-border);
+  padding: 10px 16px;
+  border-bottom: 0.5px solid color-mix(in srgb, #fff 40%, var(--app-border));
   flex-shrink: 0;
-  background: var(--app-card);
+  background: color-mix(in srgb, var(--app-card) 72%, transparent);
+  backdrop-filter: blur(28px) saturate(1.8);
+  -webkit-backdrop-filter: blur(28px) saturate(1.8);
 }
 .tpc-title {
   margin: 0;
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.03em;
   color: var(--app-text-primary);
 }
 .tpc-sub {
@@ -2032,41 +2197,137 @@ onMounted(async () => {
   justify-self: start;
   min-width: 0;
 }
-.tpc-mode {
+.tpc-top-right {
   display: flex;
-  gap: 6px;
+  align-items: center;
+  gap: 10px;
   justify-self: end;
+  flex-wrap: wrap;
+}
+.tpc-top-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--tpc-apple-fill);
+  border: 0;
+}
+.tpc-top-group-aux {
+  gap: 6px;
+  padding: 3px 8px 3px 10px;
+}
+.tpc-top-group-mode {
+  gap: 2px;
+}
+.tpc-aux-btn {
+  padding: 5px 11px;
+  font-size: 12px;
+  font-weight: 590;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--app-text-secondary);
+  cursor: pointer;
+}
+.tpc-aux-btn.on {
+  color: var(--tpc-apple-blue);
+  background: color-mix(in srgb, var(--app-card) 88%, transparent);
+  box-shadow: 0 0.5px 1.5px color-mix(in srgb, #000 12%, transparent);
+}
+.tpc-aux-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.tpc-kb-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: 12px;
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+.tpc-kb-toggle:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--tpc-apple-blue) 70%, transparent);
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+.tpc-kb-label {
+  letter-spacing: 0.01em;
+}
+.tpc-kb-switch {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-text-muted) 22%, var(--app-card));
+  box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--app-text-primary) 8%, transparent);
+  transition: background 0.18s ease;
+}
+.tpc-kb-switch.on {
+  background: var(--tpc-apple-green);
+  box-shadow: none;
+}
+.tpc-kb-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px color-mix(in srgb, #000 22%, transparent);
+  transition: transform 0.18s ease;
+}
+.tpc-kb-switch.on .tpc-kb-knob {
+  transform: translateX(16px);
+}
+.tpc-kb-state {
+  min-width: 1.25em;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--app-text-muted);
+}
+.tpc-kb-toggle[aria-checked='true'] .tpc-kb-state {
+  color: var(--tpc-apple-green);
 }
 .tpc-home-link {
   display: inline-flex;
   align-items: center;
   padding: 6px 12px;
   font-size: 12px;
-  font-weight: 500;
-  color: var(--app-text-muted);
-  background: var(--app-card-soft);
-  border: 1px solid var(--app-border);
-  border-radius: 6px;
+  font-weight: 590;
+  color: var(--tpc-apple-blue);
+  background: var(--tpc-apple-fill);
+  border: 0;
+  border-radius: 8px;
   text-decoration: none;
-  transition: color 0.15s, background 0.15s;
+  transition: background 0.15s, color 0.15s;
 }
 .tpc-home-link:hover {
-  color: var(--app-text-primary);
-  background: var(--app-card);
+  color: var(--tpc-apple-blue);
+  background: color-mix(in srgb, var(--app-text-primary) 9%, transparent);
 }
 .tpc-mode-btn {
-  padding: 6px 12px;
+  padding: 5px 12px;
   font-size: 12px;
-  border: 1px solid var(--app-border);
-  border-radius: 6px;
-  background: var(--app-card-soft);
+  font-weight: 590;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
   color: var(--app-text-secondary);
   cursor: pointer;
 }
 .tpc-mode-btn.active {
-  border-color: var(--tpc-accent);
   color: var(--app-text-primary);
-  background: color-mix(in srgb, var(--tpc-accent) 14%, var(--app-card));
+  background: color-mix(in srgb, var(--app-card) 92%, transparent);
+  box-shadow: 0 0.5px 1.5px color-mix(in srgb, #000 14%, transparent);
 }
 
 .tpc-body {
@@ -2088,6 +2349,20 @@ onMounted(async () => {
   border: 1px solid var(--app-border);
   border-radius: 10px;
   overflow: hidden;
+}
+
+.tpc-workspace-stack {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.tpc-workspace-cam-host {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .tpc-panel-head,
@@ -2688,7 +2963,7 @@ onMounted(async () => {
   cursor: pointer;
   user-select: none;
 }
-.tpc-switch {
+.tpc-switch-row .tpc-switch {
   appearance: none;
   width: 32px;
   height: 18px;
@@ -2700,7 +2975,7 @@ onMounted(async () => {
   cursor: pointer;
   transition: background 0.15s;
 }
-.tpc-switch::after {
+.tpc-switch-row .tpc-switch::after {
   content: '';
   position: absolute;
   top: 2px;
@@ -2712,10 +2987,10 @@ onMounted(async () => {
   box-shadow: 0 0 0 1px var(--app-border);
   transition: transform 0.15s;
 }
-.tpc-switch:checked {
+.tpc-switch-row .tpc-switch:checked {
   background: #16a34a;
 }
-.tpc-switch:checked::after {
+.tpc-switch-row .tpc-switch:checked::after {
   transform: translateX(14px);
   box-shadow: none;
   background: #fff;
@@ -3103,9 +3378,11 @@ onMounted(async () => {
   align-items: center;
   gap: 10px;
   padding: 10px 16px;
-  border-top: 1px solid var(--app-border);
+  border-top: 0.5px solid color-mix(in srgb, #fff 40%, var(--app-border));
   flex-shrink: 0;
-  background: var(--app-card);
+  background: color-mix(in srgb, var(--app-card) 72%, transparent);
+  backdrop-filter: blur(28px) saturate(1.8);
+  -webkit-backdrop-filter: blur(28px) saturate(1.8);
 }
 .tpc-guide-text-btn {
   justify-self: center;
@@ -3152,8 +3429,13 @@ onMounted(async () => {
   align-items: center;
   gap: 6px;
   font-size: 12px;
+  font-weight: 510;
+  letter-spacing: -0.01em;
   color: var(--app-text-secondary);
   user-select: none;
+}
+.tpc-confirm input {
+  accent-color: var(--tpc-apple-green);
 }
 .tpc-confirm-help {
   flex: 0 0 auto;
@@ -3177,21 +3459,20 @@ onMounted(async () => {
 }
 .tpc-confirm-help:hover,
 .tpc-confirm-help:focus-visible {
-  color: var(--tpc-accent);
-  background: color-mix(in srgb, var(--tpc-accent) 14%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tpc-accent) 35%, transparent);
+  color: var(--tpc-apple-blue);
+  background: color-mix(in srgb, var(--tpc-apple-blue) 12%, transparent);
+  box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--tpc-apple-blue) 40%, transparent);
   outline: none;
 }
 .tpc-status {
-  max-width: 360px;
+  max-width: 180px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 12px;
   color: var(--app-text-muted);
-}
-.tpc-footer-spacer {
-  flex: 1;
+  flex-shrink: 1;
+  min-width: 0;
 }
 .tpc-file-ops {
   display: inline-flex;
@@ -3204,48 +3485,57 @@ onMounted(async () => {
 
 .tpc-btn,
 .tpc-btn-sm {
-  border: 1px solid var(--app-border);
-  border-radius: 6px;
-  background: var(--app-card-soft);
-  color: var(--app-text-secondary);
+  border: 0;
+  border-radius: 8px;
+  background: var(--tpc-apple-fill);
+  color: var(--tpc-apple-blue);
   cursor: pointer;
   font-size: 12px;
-  transition: all 0.15s;
+  font-weight: 590;
+  letter-spacing: -0.01em;
+  transition: background 0.15s, color 0.15s, opacity 0.15s;
 }
 .tpc-btn {
   padding: 6px 14px;
-  font-weight: 500;
 }
 .tpc-btn-sm {
   padding: 4px 10px;
+  border-radius: 7px;
 }
 .tpc-btn:hover:not(:disabled),
 .tpc-btn-sm:hover:not(:disabled) {
-  background: var(--app-card);
-  color: var(--app-text-primary);
-  border-color: var(--tpc-accent);
+  background: color-mix(in srgb, var(--tpc-apple-blue) 12%, transparent);
+  color: var(--tpc-apple-blue);
 }
 .tpc-btn:disabled,
 .tpc-btn-sm:disabled {
-  opacity: 0.4;
+  opacity: 0.38;
   cursor: not-allowed;
+}
+.tpc-btn.ghost {
+  color: var(--app-text-secondary);
+}
+.tpc-btn.ghost:hover:not(:disabled) {
+  color: var(--app-text-primary);
+  background: color-mix(in srgb, var(--app-text-primary) 9%, transparent);
 }
 .tpc-btn.primary,
 .tpc-btn.start {
-  background: color-mix(in srgb, var(--tpc-accent) 15%, var(--app-card));
-  border-color: color-mix(in srgb, var(--tpc-accent) 50%, var(--app-border));
-  color: var(--app-text-primary);
+  border: 0;
+  background: var(--tpc-apple-blue);
+  color: #fff;
+  font-weight: 650;
+  border-radius: 8px;
+  box-shadow: none;
 }
 .tpc-btn.primary:hover:not(:disabled),
 .tpc-btn.start:hover:not(:disabled) {
-  background: var(--tpc-accent);
-  border-color: var(--tpc-accent);
+  background: color-mix(in srgb, var(--tpc-apple-blue) 88%, #000);
   color: #fff;
 }
 .tpc-btn-sm.add {
-  border-color: color-mix(in srgb, var(--tpc-accent) 50%, var(--app-border));
-  color: var(--app-text-primary);
-  background: color-mix(in srgb, var(--tpc-accent) 10%, var(--app-card));
+  color: var(--tpc-apple-blue);
+  background: color-mix(in srgb, var(--tpc-apple-blue) 12%, transparent);
 }
 
 .tpc-dlg-overlay {
@@ -3255,24 +3545,31 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: color-mix(in srgb, var(--app-text-primary) 35%, transparent);
+  background: color-mix(in srgb, #000 28%, transparent);
+  backdrop-filter: blur(28px) saturate(1.4);
+  -webkit-backdrop-filter: blur(28px) saturate(1.4);
 }
 .tpc-dlg-card {
   width: 420px;
   max-width: 92vw;
-  background: var(--app-card);
-  border: 1px solid var(--app-border);
-  border-radius: 12px;
-  padding: 16px;
-  box-shadow: 0 16px 48px color-mix(in srgb, var(--app-text-primary) 18%, transparent);
+  background: color-mix(in srgb, var(--app-card) 78%, transparent);
+  border: 0.5px solid color-mix(in srgb, #fff 55%, var(--app-border));
+  border-radius: 16px;
+  padding: 18px 16px 16px;
+  box-shadow:
+    0 0 0 0.5px color-mix(in srgb, #fff 28%, transparent) inset,
+    0 18px 50px color-mix(in srgb, #000 16%, transparent);
+  backdrop-filter: blur(40px) saturate(1.6);
+  -webkit-backdrop-filter: blur(40px) saturate(1.6);
   color: var(--app-text-primary);
 }
 .tpc-dlg-wide {
   width: 520px;
 }
 .tpc-dlg-head {
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.03em;
   color: var(--app-text-primary);
   margin-bottom: 8px;
 }
@@ -3308,14 +3605,14 @@ onMounted(async () => {
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  border: 1px solid var(--app-border);
-  border-radius: 8px;
-  background: var(--app-card-soft);
+  border: 0.5px solid color-mix(in srgb, #fff 28%, var(--app-border));
+  border-radius: 10px;
+  background: var(--tpc-apple-fill);
   cursor: pointer;
 }
 .tpc-start-item.selected {
-  border-color: var(--tpc-accent);
-  background: color-mix(in srgb, var(--tpc-accent) 12%, var(--app-card));
+  border-color: color-mix(in srgb, var(--tpc-apple-blue) 45%, var(--app-border));
+  background: color-mix(in srgb, var(--tpc-apple-blue) 12%, transparent);
 }
 .tpc-start-item.disabled {
   opacity: 0.55;

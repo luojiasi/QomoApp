@@ -7,6 +7,7 @@ from services.program_control_ten.step import ProgramFreeParamsStep
 from services.program_control_ten.ten_plus_cutting_persistence import 按工位号取点位
 from services.MotionService import MotionService
 from services.program_control.recipe_resolver import 读取示教模式, 读取超时等待时间
+from services.SystemSettingService import 获取工位相机清晰误差
 from services.program_control_ten.geometry import (
     构建R轴的补偿,
     构建任务的数据,
@@ -18,6 +19,7 @@ from services.program_control_ten.geometry import (
     计算开口范围,
     更新V型开口偏移,
     更新平行型开口偏移,
+    按开口等距偏移插补点,
     曲线路径,
     单直线路径,
     归一化角度,
@@ -44,6 +46,18 @@ def 取当前边的参数(执行任务的参数: dict[str, Any], 边序号: int)
         "相对旋转角度": (360.0 / 分割数) if 分割数 > 0 else 0.0,
     }
 
+
+def 取该工位相机清晰误差数据(行: dict[str, Any], 工位号: int) -> float:
+    """开始任务下发的 cameraFocusError；缺省读该工位系统设置，再缺省为 0。"""
+    if "cameraFocusError" in 行:
+        try:
+            误差 = float(行["cameraFocusError"])
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"工位 {工位号} 相机清晰误差无效: {行.get('cameraFocusError')!r}") from exc
+        if not math.isfinite(误差):
+            raise ValueError(f"工位 {工位号} 相机清晰误差无效: {行.get('cameraFocusError')!r}")
+        return 误差
+    return 获取工位相机清晰误差(工位号)
 
 
 # ======================================================================
@@ -228,6 +242,15 @@ class ProgramRunnerTenPlus:
                         日志.error(f"目标 {目标名} 运动到示教工位失败: {e}")
                         return {"success": False, "message": f"目标 {目标名} 运动到示教工位失败: {e}"}
                     工位的轴位置 = {"x": 当前X, "y": 当前Y, "z": 当前Z, "u": 当前U}
+                    try:
+                        相机清晰误差数据 = 取该工位相机清晰误差数据(行列表[0], 工位号)
+                    except ValueError as e:
+                        return {"success": False, "message": str(e)}
+                    该工位清晰点距离自动切台面的位置 = 清晰点距离自动切台面的位置 + 相机清晰误差数据
+                    日志.info(
+                        f"[TenPlus] 工位#{工位号} 相机清晰误差数据={相机清晰误差数据} "
+                        f"该工位清晰点距离自动切台面的位置={该工位清晰点距离自动切台面的位置}"
+                    )
                 
                     上一曲线法线 = None
                     for 序号, 行数据 in enumerate(行列表):
@@ -239,7 +262,7 @@ class ProgramRunnerTenPlus:
                         该序号的配方 = 构建配方数据(配方数据, 该序号的参数.get("配方ID"))
                         累计高度 = 取同层累计高度(行列表, 序号)
                         所有高度总和 = 取同层累计高度(行列表, len(行列表))
-                        执行任务的参数 = 构建执行任务的参数(该序号的参数,当前Z,所有高度总和,累计高度,是否存在台面,清晰点距离自动切台面的位置)
+                        执行任务的参数 = 构建执行任务的参数(该序号的参数,当前Z,所有高度总和,累计高度,是否存在台面,该工位清晰点距离自动切台面的位置)
                         if str(行数据.get("pathType", "")) in (曲线路径, 单直线路径):
                             边列表 = 执行任务的参数.get("边参数列表") or []
                             本中 = float(边列表[0].get("法线角度", 0)) if 边列表 else 0.0
@@ -565,11 +588,9 @@ class ProgramRunnerTenPlus:
                     开口符号 = 1.0 if not 是否反向 else -1.0
                     曲线点列 = 当前边的参数.get("插补路径点") or []
                     if 曲线点列:
-                        本趟点列 = reversed(曲线点列) if 曲线点列反向走 else 曲线点列
-                        插补运行的路径点 = [
-                            {"x": float(p["X"]) + 开口符号 * 当前开口值, "y": float(p["Y"])}
-                            for p in 本趟点列
-                        ]
+                        偏移点列 = 按开口等距偏移插补点(曲线点列, 开口值=当前开口值, 是否反向=是否反向)
+                        本趟点列 = reversed(偏移点列) if 曲线点列反向走 else 偏移点列
+                        插补运行的路径点 = [{"x": p["x"], "y": p["y"]} for p in 本趟点列]
                         曲线点列反向走 = not 曲线点列反向走
                     else:
                         构建切割直线的坐标X = 当前边的参数.get("切割中点的坐标").get("X") + 开口符号 * 当前开口值
@@ -758,12 +779,9 @@ class ProgramRunnerTenPlus:
                     await self._十工位的运动.关闭激光()
                     await self._运动.停止轴运动("R")
                     await self._根据工位号关闭输出口(工位号)
-                    # 不重复调急停——急停已在外部控制指令中触发
-                    # TODO:回到台面的位置
-                    # await self._运动.绝对运动("Z", 起始点的位置.get("z"))
-                    # 其实坐标的路径点 = [{"x": 起始点的位置.get("x"), "y": 起始点的位置.get("y")}]
-                    # await self._运动.连续插补XY(路径点=其实坐标的路径点,速度=10)
-                    # await self._运动.U轴旋转角度(0)
+                    工位Z = float(起始点的位置["z"])
+                    await self._运动.绝对运动("Z", 工位Z)
+                    await self._运动.等待轴到位(轴名与位置=[("Z", 工位Z)], 容差=0.01)
                     当前步骤 = ProgramFreeParamsStep.结束当前任务
 
 

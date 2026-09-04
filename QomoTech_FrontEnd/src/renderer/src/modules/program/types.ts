@@ -16,6 +16,11 @@ export interface QuickMovePositionPayload extends XYZ {}
 /** R 轴旋转中心点位置 */
 export interface RAxisPositionPayload extends XYZ {}
 
+/** 十工位相机清晰误差（mm） */
+export interface TenCameraFocusErrorPayload {
+  value: number
+}
+
 /** 程序运行状态数据（WS 下行） */
 export interface StartProgramStatusData {
   running: boolean

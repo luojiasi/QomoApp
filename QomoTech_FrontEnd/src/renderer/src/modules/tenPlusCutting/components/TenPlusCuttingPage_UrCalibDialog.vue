@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { onUnmounted, provide, toRef } from 'vue'
+import { onMounted, onUnmounted, provide, ref, toRef } from 'vue'
 import AxisCenterCalibPanel from '@/modules/motion/components/AxisCenterCalibPanel.vue'
 import CameraPic from '@/modules/camera/CameraPic.vue'
 import { useMotionKeyboard } from '@/modules/motion/composables/useMotionKeyboard'
+import { useNotification } from '@/shared/composables/useNotification'
+import { getTenCameraFocusError, syncTenCameraFocusError } from '@/modules/program/api'
 import { useTenPlusAxisCenterCalib } from '../composables/useTenPlusAxisCenterCalib'
-import { useTenPlusUrCrosshair } from '../composables/useTenPlusUrCrosshair'
-import {
-  TEN_PLUS_UR_CROSSHAIR_WIDTH_MAX,
-  TEN_PLUS_UR_CROSSHAIR_WIDTH_MIN
-} from '../constants/tenPlusCutting'
+import { TEN_PLUS_DEFAULT_CAMERA_FOCUS_ERROR } from '../constants/tenPlusCutting'
+import TenPlusCuttingPage_CrosshairLines from './TenPlusCuttingPage_CrosshairLines.vue'
+import TenPlusCuttingPage_CrosshairBar from './TenPlusCuttingPage_CrosshairBar.vue'
 
 const props = defineProps<{
   slotIndex: number
@@ -18,16 +18,56 @@ const emit = defineEmits<{
   close: []
 }>()
 
+const { error, success } = useNotification()
 const axisCalib = useTenPlusAxisCenterCalib(toRef(props, 'slotIndex'))
 provide('axisCalib', axisCalib)
 const { abortAxisCenterCalib } = axisCalib
-const { settings: crosshair, resetCrosshair } = useTenPlusUrCrosshair()
 useMotionKeyboard()
+
+const cameraFocusError = ref(TEN_PLUS_DEFAULT_CAMERA_FOCUS_ERROR)
+const isSavingFocusError = ref(false)
+
+async function loadCameraFocusError(): Promise<void> {
+  const res = await getTenCameraFocusError(props.slotIndex)
+  if (!res.success || res.data == null) {
+    error(res.message || `读取工位 ${props.slotIndex} 相机清晰误差失败`)
+    cameraFocusError.value = TEN_PLUS_DEFAULT_CAMERA_FOCUS_ERROR
+    return
+  }
+  const n = Number(res.data.value)
+  cameraFocusError.value = Number.isFinite(n) ? n : TEN_PLUS_DEFAULT_CAMERA_FOCUS_ERROR
+}
+
+async function saveCameraFocusError(): Promise<void> {
+  if (isSavingFocusError.value) return
+  const n = Number(cameraFocusError.value)
+  if (!Number.isFinite(n)) {
+    error('相机清晰误差必须是有效数字')
+    return
+  }
+  isSavingFocusError.value = true
+  try {
+    const res = await syncTenCameraFocusError(props.slotIndex, { value: n })
+    if (!res.success || res.data == null) {
+      throw new Error(res.message || `保存工位 ${props.slotIndex} 相机清晰误差失败`)
+    }
+    cameraFocusError.value = Number(res.data.value)
+    success(`已保存工位 ${props.slotIndex} 相机清晰误差`, `${Number(res.data.value).toFixed(3)} mm`)
+  } catch (err) {
+    error('保存失败', err instanceof Error ? err.message : '保存相机清晰误差失败')
+  } finally {
+    isSavingFocusError.value = false
+  }
+}
 
 function tryClose(): void {
   abortAxisCenterCalib()
   emit('close')
 }
+
+onMounted(() => {
+  void loadCameraFocusError()
+})
 
 onUnmounted(() => {
   abortAxisCenterCalib()
@@ -51,55 +91,9 @@ onUnmounted(() => {
         <aside class="tpc-ur-cam">
           <div class="tpc-ur-cam-view" tabindex="0" title="点击画面后可用方向键点动">
             <CameraPic object-fit="cover" />
-            <svg class="tpc-ur-crosshair" viewBox="0 0 100 100" preserveAspectRatio="none">
-              <line
-                x1="0"
-                y1="50"
-                x2="100"
-                y2="50"
-                :stroke="crosshair.hColor"
-                :stroke-width="crosshair.hWidth"
-                vector-effect="non-scaling-stroke"
-              />
-              <line
-                x1="50"
-                y1="0"
-                x2="50"
-                y2="100"
-                :stroke="crosshair.vColor"
-                :stroke-width="crosshair.vWidth"
-                vector-effect="non-scaling-stroke"
-              />
-            </svg>
+            <TenPlusCuttingPage_CrosshairLines />
           </div>
-          <div class="tpc-ur-hair-bar">
-            <span class="tpc-ur-hair-label">十字线</span>
-            <label class="tpc-ur-hair-item" title="横线颜色与宽度">
-              <span>横</span>
-              <input v-model="crosshair.hColor" type="color" />
-              <input
-                v-model.number="crosshair.hWidth"
-                type="range"
-                :min="TEN_PLUS_UR_CROSSHAIR_WIDTH_MIN"
-                :max="TEN_PLUS_UR_CROSSHAIR_WIDTH_MAX"
-                step="0.5"
-              />
-              <span class="tpc-ur-hair-w">{{ crosshair.hWidth }}</span>
-            </label>
-            <label class="tpc-ur-hair-item" title="竖线颜色与宽度">
-              <span>竖</span>
-              <input v-model="crosshair.vColor" type="color" />
-              <input
-                v-model.number="crosshair.vWidth"
-                type="range"
-                :min="TEN_PLUS_UR_CROSSHAIR_WIDTH_MIN"
-                :max="TEN_PLUS_UR_CROSSHAIR_WIDTH_MAX"
-                step="0.5"
-              />
-              <span class="tpc-ur-hair-w">{{ crosshair.vWidth }}</span>
-            </label>
-            <button type="button" class="tpc-ur-hair-reset" @click="resetCrosshair">复位</button>
-          </div>
+          <TenPlusCuttingPage_CrosshairBar />
           <section class="tpc-ur-keys">
             <header class="tpc-ur-keys-head">
               <span class="tpc-ur-keys-title">键盘点动</span>
@@ -142,6 +136,25 @@ onUnmounted(() => {
           </section>
         </aside>
         <div class="tpc-ur-panel">
+          <div class="tpc-ur-focus">
+            <label class="tpc-ur-focus-field" title="叠加到自动计算的清晰点距离上，替代原先固定 0.38">
+              <span>相机清晰误差 (mm)</span>
+              <input
+                v-model.number="cameraFocusError"
+                type="number"
+                step="0.001"
+                :disabled="isSavingFocusError"
+              />
+            </label>
+            <button
+              type="button"
+              class="tpc-ur-focus-save"
+              :disabled="isSavingFocusError"
+              @click="saveCameraFocusError"
+            >
+              {{ isSavingFocusError ? '保存中...' : '保存' }}
+            </button>
+          </div>
           <AxisCenterCalibPanel />
         </div>
       </div>
@@ -157,18 +170,31 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: color-mix(in srgb, var(--app-text-primary) 35%, transparent);
+  background: color-mix(in srgb, #000 28%, transparent);
+  backdrop-filter: blur(28px) saturate(1.4);
+  -webkit-backdrop-filter: blur(28px) saturate(1.4);
 }
 .tpc-ur-card {
   width: min(1280px, 96vw);
   height: min(88vh, 900px);
   display: flex;
   flex-direction: column;
-  background: var(--app-card);
-  border: 1px solid var(--app-border);
-  border-radius: 12px;
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI Variable Display',
+    'Segoe UI',
+    system-ui,
+    sans-serif;
   color: var(--app-text-primary);
-  box-shadow: 0 16px 48px color-mix(in srgb, var(--app-text-primary) 18%, transparent);
+  background: color-mix(in srgb, var(--app-card) 72%, transparent);
+  border: 0.5px solid color-mix(in srgb, #fff 55%, var(--app-border));
+  border-radius: 18px;
+  box-shadow:
+    0 0 0 0.5px color-mix(in srgb, #fff 35%, transparent) inset,
+    0 18px 50px color-mix(in srgb, #000 16%, transparent);
+  backdrop-filter: blur(40px) saturate(1.6);
+  -webkit-backdrop-filter: blur(40px) saturate(1.6);
 }
 .tpc-ur-head {
   display: flex;
@@ -178,21 +204,26 @@ onUnmounted(() => {
   padding: 14px 16px 10px;
   font-size: 15px;
   font-weight: 600;
+  letter-spacing: -0.02em;
   color: var(--app-text-primary);
-  border-bottom: 1px solid var(--app-border);
+  border-bottom: 0.5px solid color-mix(in srgb, var(--app-border) 70%, transparent);
+  background: color-mix(in srgb, var(--app-card) 35%, transparent);
   flex-shrink: 0;
 }
 .tpc-ur-close {
-  border: 1px solid var(--app-border);
-  background: var(--app-card-soft);
+  border: 0.5px solid color-mix(in srgb, #fff 40%, var(--app-border));
+  background: color-mix(in srgb, var(--app-card-soft) 65%, transparent);
   color: var(--app-text-primary);
   border-radius: 8px;
   padding: 4px 10px;
   font-size: 12px;
   cursor: pointer;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 .tpc-ur-close:hover {
-  border-color: #0ea5e9;
+  border-color: var(--tpc-apple-blue, #007aff);
+  color: var(--tpc-apple-blue, #007aff);
 }
 .tpc-ur-close:disabled {
   opacity: 0.5;
@@ -224,75 +255,12 @@ onUnmounted(() => {
 .tpc-ur-cam-view:focus {
   box-shadow: 0 0 0 1px #0ea5e9;
 }
-.tpc-ur-crosshair {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-}
-.tpc-ur-hair-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 10px;
-  flex-shrink: 0;
-  padding: 6px 8px;
-  border: 1px solid var(--app-border);
-  border-radius: 8px;
-  background: var(--app-card-soft);
-}
-.tpc-ur-hair-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--app-text-primary);
-}
-.tpc-ur-hair-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  font-size: 11px;
-  color: var(--app-text-secondary);
-}
-.tpc-ur-hair-item input[type='color'] {
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  border: 1px solid var(--app-border);
-  border-radius: 4px;
-  background: var(--app-input-bg);
-  cursor: pointer;
-}
-.tpc-ur-hair-item input[type='range'] {
-  width: 72px;
-  accent-color: #0ea5e9;
-}
-.tpc-ur-hair-w {
-  min-width: 1.6em;
-  font-variant-numeric: tabular-nums;
-  color: var(--app-text-primary);
-}
-.tpc-ur-hair-reset {
-  margin-left: auto;
-  padding: 2px 8px;
-  border: 1px solid var(--app-border);
-  border-radius: 6px;
-  background: var(--app-card);
-  color: var(--app-text-secondary);
-  font-size: 11px;
-  cursor: pointer;
-}
-.tpc-ur-hair-reset:hover {
-  border-color: #0ea5e9;
-  color: var(--app-text-primary);
-}
 .tpc-ur-keys {
   flex-shrink: 0;
   padding: 8px;
-  border: 1px solid var(--app-border);
+  border: 0.5px solid color-mix(in srgb, #fff 35%, var(--app-border));
   border-radius: 10px;
-  background: var(--app-card);
+  background: color-mix(in srgb, var(--app-card) 55%, transparent);
 }
 .tpc-ur-keys-head {
   display: flex;
@@ -392,5 +360,53 @@ onUnmounted(() => {
   min-height: 0;
   overflow: auto;
   color: var(--app-text-primary);
+}
+.tpc-ur-focus {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  border: 0.5px solid color-mix(in srgb, #fff 35%, var(--app-border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--app-card-soft) 62%, transparent);
+}
+.tpc-ur-focus-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--app-text-primary);
+}
+.tpc-ur-focus-field input {
+  width: 100%;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--app-border);
+  border-radius: 6px;
+  background: var(--app-input-bg);
+  color: var(--app-text-primary);
+  font-size: 13px;
+}
+.tpc-ur-focus-save {
+  flex-shrink: 0;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  background: var(--app-card);
+  color: var(--app-text-primary);
+  font-size: 12px;
+  cursor: pointer;
+}
+.tpc-ur-focus-save:hover:not(:disabled) {
+  border-color: #0ea5e9;
+}
+.tpc-ur-focus-save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 </style>

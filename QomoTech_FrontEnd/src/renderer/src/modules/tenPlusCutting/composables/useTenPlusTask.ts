@@ -479,6 +479,16 @@ export function isHeightInvalid(v: number): boolean {
   return Number.isNaN(v) || v < 0 || v > 20
 }
 
+/** 台面行（角度为 0）直径不能为 0。 */
+export function isTableDiameterZero(diameter: number, angle: number): boolean {
+  return isTableAngle(angle) && Number(diameter) === 0
+}
+
+/** 非台面行高度不能为 0。 */
+export function isNonTableHeightZero(height: number, angle: number): boolean {
+  return !isTableAngle(angle) && Number(height) === 0
+}
+
 export function isDivisionsInvalid(v: number): boolean {
   if (Number.isNaN(v)) return true
   if (v === 0) return false

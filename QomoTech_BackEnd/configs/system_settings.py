@@ -27,6 +27,10 @@ class 中心旋转补偿请求模型(BaseModel):
     Y: float = Field(default=0.0)
     Z: float = Field(default=0.0)
 
+
+class 相机清晰误差请求模型(BaseModel):
+    value: float = Field(default=0.0)
+
 def _读取完整文件() -> dict[str, Any]:
     """读取整个 JSON 文件，文件不存在时返回空字典。"""
     path = _config_path()

@@ -83,7 +83,7 @@ export const TEN_PLUS_TOUR_STEPS: TenPlusTourStep[] = [
     id: 'ur-calib',
     target: 'ur-calib',
     title: 'UR 补偿校准',
-    body: '选中工位后打开，用相机十字对中 U/R。对位不准时先做这一步。',
+    body: '选中工位后打开，用相机十字对中 U/R。对位不准时先做这一步。相机清晰误差按工位手填，开始任务时会带上。',
     placement: 'left'
   },
   {

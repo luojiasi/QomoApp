@@ -95,6 +95,16 @@ export function useProgramRunner() {
   const { onPauseToggleClick, onResetAlarmsClick, onEstopClick, onSkipTaskClick } =
     useProgramControl(programRunning, programPaused, programTaskCount, afterEstop)
 
+  function noteProgramStarted(taskCount: number): void {
+    programTaskCount.value = Math.max(0, Math.floor(taskCount))
+    programRunning.value = true
+    programPaused.value = false
+    programStartedAtMs.value = Date.now()
+    programElapsedMs.value = 0
+    persistProgramStartedAtToStorage(programStartedAtMs.value)
+    startProgramElapsedTimer()
+  }
+
   function formatElapsedMs(ms: number): string {
     const safe = Math.max(0, Math.floor(ms))
     const totalSeconds = Math.floor(safe / 1000)
@@ -340,13 +350,7 @@ export function useProgramRunner() {
     }
     const data = result?.data as { task_count?: number } | undefined
     const tc = typeof data?.task_count === 'number' ? data.task_count : 0
-    programTaskCount.value = tc
-    programRunning.value = true
-    programPaused.value = false
-    programStartedAtMs.value = Date.now()
-    programElapsedMs.value = 0
-    persistProgramStartedAtToStorage(programStartedAtMs.value)
-    startProgramElapsedTimer()
+    noteProgramStarted(tc)
     success(result?.message || '运行指令已发送。')
   }
 
@@ -418,20 +422,7 @@ export function useProgramRunner() {
       await show4PCloseDialog()
       
       const result = await startProgram4PTest(参数)
-      if (!result?.success) {
-        error(result?.message || '运行失败：后端为提供失败参数。')
-        return
-      }
-      const data = result?.data as { task_count?: number } | undefined
-      const tc = typeof data?.task_count === 'number' ? data.task_count : 0
-      programTaskCount.value = tc
-      programRunning.value = true
-      programPaused.value = false
-      programStartedAtMs.value = Date.now()
-      programElapsedMs.value = 0
-      persistProgramStartedAtToStorage(programStartedAtMs.value)
-      startProgramElapsedTimer()
-      success(result?.message || '运行指令已发送。')
+      applyRunResult(result)
     } catch {
       error('运行失败：无法连接后端。')
     }
@@ -494,6 +485,7 @@ export function useProgramRunner() {
     onResetAlarmsClick,
     onEstopClick,
     onSkipTaskClick,
+    noteProgramStarted,
     init,
     initSync,
     cleanup

@@ -1,4 +1,4 @@
-import { ref, onUnmounted } from 'vue'
+import { ref, onUnmounted, unref, type MaybeRef } from 'vue'
 import { subscribeGlobalKeyboard } from '@/shared/composables/useGlobalKeyboard'
 import { useNotification } from '@/shared/composables/useNotification'
 import {
@@ -13,7 +13,7 @@ import { U_AXIS_NO, R_AXIS_NO, getAxisSpeed } from '../config'
 import { moveMotionAxisRel, moveMotionAxisAbs, rotateUAxisByAngle, rotateRAxisByTurns, zeroMotionAxis, setMotionIoOutput } from '../api'
 
   /** 全局键盘控制：方向键点动、F1-F4 调速、快捷键 IO 切换。 */
-export function useMotionKeyboard() {
+export function useMotionKeyboard(enabled: MaybeRef<boolean> = true) {
   const { error, success } = useNotification()
   const controllerSettingsStore = useControllerSettingsStore()
   const auxiliaryFunctionPanelStore = useAuxiliaryFunctionPanelStore()
@@ -72,6 +72,7 @@ export function useMotionKeyboard() {
   }
 
   const handler = (e: KeyboardEvent): void => {
+    if (!unref(enabled)) return
     const keyword = e.key.toUpperCase()
     const onlyctrlKey = e.ctrlKey && !e.shiftKey && !e.altKey
     const nokey = !e.ctrlKey && !e.shiftKey && !e.altKey

@@ -1,3 +1,17 @@
+/** 十轴页键盘点动默认关闭，避免填表时误触轴运动 */
+export const TEN_PLUS_DEFAULT_KEYBOARD_ENABLED = false
+/** 十轴页相机窗口默认显示，与主页 CameraPic 一致 */
+export const TEN_PLUS_DEFAULT_CAMERA_VISIBLE = true
+/** 相机窗口十字线调节条默认隐藏，点按钮再打开 */
+export const TEN_PLUS_DEFAULT_CROSSHAIR_BAR_VISIBLE = false
+/** 运行时相机放大替代中间任务参数表，默认关闭 */
+export const TEN_PLUS_DEFAULT_RUN_CAMERA_ENLARGE = false
+export const TEN_PLUS_PAGE_UI_STORAGE_KEY = 'qomo.tenPlus.pageUi'
+/** 相机窗口与屏幕边缘的间距 */
+export const TEN_PLUS_CAMERA_WINDOW_MARGIN = 16
+/** 找不到底栏时预留高度，避免挡住「开始任务」 */
+export const TEN_PLUS_CAMERA_WINDOW_FOOTER_FALLBACK = 56
+
 export const TEN_PLUS_UR_CROSSHAIR_STORAGE_KEY = 'qomo.tenPlus.urCrosshair'
 export const TEN_PLUS_UR_CROSSHAIR_WIDTH_MIN = 1
 export const TEN_PLUS_UR_CROSSHAIR_WIDTH_MAX = 10
@@ -35,6 +49,9 @@ export const TEN_PLUS_DEFAULT_DIAMETER_PERCENT = 100
 
 /** 高度百分比默认值（100 表示按原高度） */
 export const TEN_PLUS_DEFAULT_HEIGHT_PERCENT = 100
+
+/** 相机清晰误差默认值（mm）；UR 校准按工位手填 */
+export const TEN_PLUS_DEFAULT_CAMERA_FOCUS_ERROR = 0
 
 /** 钻石比例百分比默认值 */
 export const TEN_PLUS_DEFAULT_DIAMOND_PERCENT = 0

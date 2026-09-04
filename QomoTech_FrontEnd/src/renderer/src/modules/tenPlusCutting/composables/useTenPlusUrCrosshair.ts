@@ -60,25 +60,25 @@ function persistSettings(settings: TenPlusUrCrosshairSettings): void {
   )
 }
 
-/** UR 校准十字线：横/竖颜色与线宽，写入 localStorage。 */
+const settings = reactive<TenPlusUrCrosshairSettings>(loadSettings())
+
+watch(
+  settings,
+  (value) => {
+    value.hWidth = clampWidth(value.hWidth)
+    value.vWidth = clampWidth(value.vWidth)
+    value.hColor = normalizeColor(value.hColor, TEN_PLUS_UR_CROSSHAIR_DEFAULTS.hColor)
+    value.vColor = normalizeColor(value.vColor, TEN_PLUS_UR_CROSSHAIR_DEFAULTS.vColor)
+    persistSettings(value)
+  },
+  { deep: true }
+)
+
+function resetCrosshair(): void {
+  Object.assign(settings, createDefaults())
+}
+
+/** UR / 十轴相机十字线：横/竖颜色与线宽，进程内单例并写入 localStorage。 */
 export function useTenPlusUrCrosshair() {
-  const settings = reactive<TenPlusUrCrosshairSettings>(loadSettings())
-
-  watch(
-    settings,
-    (value) => {
-      value.hWidth = clampWidth(value.hWidth)
-      value.vWidth = clampWidth(value.vWidth)
-      value.hColor = normalizeColor(value.hColor, TEN_PLUS_UR_CROSSHAIR_DEFAULTS.hColor)
-      value.vColor = normalizeColor(value.vColor, TEN_PLUS_UR_CROSSHAIR_DEFAULTS.vColor)
-      persistSettings(value)
-    },
-    { deep: true }
-  )
-
-  function resetCrosshair(): void {
-    Object.assign(settings, createDefaults())
-  }
-
   return { settings, resetCrosshair }
 }

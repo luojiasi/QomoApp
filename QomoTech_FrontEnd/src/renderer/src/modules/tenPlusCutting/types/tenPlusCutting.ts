@@ -175,6 +175,8 @@ export interface TenPlusFreeParamPayload {
     slotIndex?: number | null
     targetId?: string
     targetName?: string
+    /** 该工位相机清晰误差 (mm)，开始时按工位读取后写入 */
+    cameraFocusError?: number
   }>
 }
 
@@ -184,4 +186,16 @@ export interface TenPlusUrCrosshairSettings {
   vColor: string
   hWidth: number
   vWidth: number
+}
+
+/** 十轴页顶栏与相机窗口的本地记忆 */
+export interface TenPlusPageUiSettings {
+  keyboardEnabled: boolean
+  cameraVisible: boolean
+  cameraX: number | null
+  cameraY: number | null
+  /** 相机窗口十字线调节条；默认隐藏 */
+  crosshairBarVisible: boolean
+  /** 运行时相机放大到中间任务参数表；默认关闭 */
+  runCameraEnlarge: boolean
 }

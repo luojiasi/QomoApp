@@ -6,7 +6,7 @@ import os
 from typing import Any, Optional
 
 from configs import system_settings as 系统设置
-from configs.system_settings import 中心旋转补偿请求模型
+from configs.system_settings import 中心旋转补偿请求模型, 相机清晰误差请求模型
 from utils.path_utils import 路径工具
 
 # ── 配方状态 JSON 文件持久化 ──────────────────────────────
@@ -178,6 +178,47 @@ def 获取一拖五R轴旋转中心点的位置(工位号: int) -> 中心旋转�
     n = _校验十工位号(工位号)
     return 中心旋转补偿请求模型(**product4p_center_rotation_ten_r_axis[n].model_dump())
 # =====================================================
+
+
+# 十工位相机清晰误差（按工位 1–10；默认 0）
+十工位相机清晰误差字段 = "camera_focus_error_ten"
+
+
+def _空十工位清晰误差表() -> dict[int, float]:
+    return {i: 0.0 for i in range(1, 十工位数量 + 1)}
+
+
+def _解析十工位清晰误差表(raw: Any) -> dict[int, float]:
+    表 = _空十工位清晰误差表()
+    if not isinstance(raw, dict):
+        return 表
+    for i in range(1, 十工位数量 + 1):
+        item = raw.get(str(i), raw.get(i))
+        try:
+            表[i] = round(float(item if item is not None else 0), 4)
+        except (TypeError, ValueError):
+            表[i] = 0.0
+    return 表
+
+
+def _十工位清晰误差表转存储(表: dict[int, float]) -> dict[str, float]:
+    return {str(i): 表[i] for i in range(1, 十工位数量 + 1)}
+
+
+camera_focus_error_ten = _解析十工位清晰误差表(系统设置.读取系统设置字段(十工位相机清晰误差字段))
+
+
+def 保存工位相机清晰误差(工位号: int, 误差: float) -> float:
+    n = _校验十工位号(工位号)
+    global camera_focus_error_ten
+    camera_focus_error_ten[n] = round(float(误差), 4)
+    系统设置.保存系统设置字段(十工位相机清晰误差字段, _十工位清晰误差表转存储(camera_focus_error_ten))
+    return 获取工位相机清晰误差(n)
+
+
+def 获取工位相机清晰误差(工位号: int) -> float:
+    n = _校验十工位号(工位号)
+    return float(camera_focus_error_ten.get(n, 0.0))
 
 
 

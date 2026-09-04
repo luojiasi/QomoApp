@@ -12,6 +12,7 @@ from fastapi import APIRouter, Path
 from utils.logger import 获取日志记录器
 from services.SystemSettingService import (
     中心旋转补偿请求模型,
+    相机清晰误差请求模型,
     保存R轴旋转中心点,
     获取4P旋转中心的补偿值,
     保存4P旋转中心的补偿值,
@@ -22,6 +23,8 @@ from services.SystemSettingService import (
     保存一拖五U轴旋转中心的补偿值,
     获取一拖五R轴旋转中心点的位置,
     保存一拖五R轴旋转中心点的位置,
+    获取工位相机清晰误差,
+    保存工位相机清晰误差,
 )
 
 from routers.apiresponse import ApiResponse
@@ -131,3 +134,26 @@ def 保存十工位R轴旋转中心(
         slot, payload.X, payload.Y, payload.Z,
     )
     return ApiResponse(success=True, message=f"保存工位 {slot} R 轴旋转中心成功", data=saved.model_dump())
+
+
+@路由.get("/ten/camera-focus-error/{slot}", response_model=ApiResponse)
+def 获取十工位相机清晰误差(slot: int = Path(..., ge=1, le=10)) -> ApiResponse:
+    try:
+        value = 获取工位相机清晰误差(slot)
+    except ValueError as exc:
+        return ApiResponse(success=False, message=str(exc), data=None)
+    日志.info("读取十工位相机清晰误差: slot=%s value=%s", slot, value)
+    return ApiResponse(success=True, message=f"读取工位 {slot} 相机清晰误差成功", data={"value": value})
+
+
+@路由.post("/ten/camera-focus-error/{slot}", response_model=ApiResponse)
+def 保存十工位相机清晰误差(
+    payload: 相机清晰误差请求模型,
+    slot: int = Path(..., ge=1, le=10),
+) -> ApiResponse:
+    try:
+        saved = 保存工位相机清晰误差(slot, payload.value)
+    except ValueError as exc:
+        return ApiResponse(success=False, message=str(exc), data=None)
+    日志.info("保存十工位相机清晰误差: slot=%s value=%s", slot, saved)
+    return ApiResponse(success=True, message=f"保存工位 {slot} 相机清晰误差成功", data={"value": saved})

@@ -6,7 +6,7 @@
   2. 入口 —— 构建执行任务的参数（按路径类型分发）
   3. 行数据 / 配方 / 目标 / 层高（runner 组任务时用）
   4. 机台运动学（U 角、切割中点）
-  5. 开口随切深变化（切割循环里更新 XY 偏移）
+  5. 开口随切深变化（切割循环里更新 XY 偏移 / 曲线等距）
   6. 等分线段
   7. 非等分直线（切角矩形）
   8. 曲线（中心圆 / 超椭圆：采样 → 转到右侧 → 插补点）
@@ -22,6 +22,7 @@ from utils.logger import 获取日志记录器
 from services.SystemSettingService import 获取一拖五R轴旋转中心点的位置, 获取一拖五U轴旋转中心的补偿值
 from services.program_control_ten.ten_plus_cutting_persistence import 按工位号取点位
 from services.motion_control.config_loader import 加载运动配置
+from core.calc_offset_ljs import 根据开口方向偏移开放折线
 
 日志 = 获取日志记录器("freeparamgeometry")
 
@@ -161,9 +162,9 @@ def 判断是否存在台面且计算位置(目标列表: list[dict[str, Any]]) 
                 return True, 0.0
 
             台面设置的位置X, 台面设置的位置Y, 台面设置的位置Z = 台面设置的位置
-            当前平面与旋转中心的Z的距离 = float(abs(旋转中心的位置.Z) - abs(float(该工位的的位置.get("z", 0))))
-            旋转90之后与旋转中心的X的距离 = abs(float(abs(台面设置的位置X) - abs(旋转中心的位置.X)))
-            距离 = 当前平面与旋转中心的Z的距离 - 旋转90之后与旋转中心的X的距离
+            当前平面与旋转中心的Z的距离 = round(float(abs(旋转中心的位置.Z) - abs(float(该工位的的位置.get("z", 0)))),4)
+            旋转90之后与旋转中心的X的距离 = round(abs(float(abs(台面设置的位置X) - abs(旋转中心的位置.X))),4)
+            距离 = round(当前平面与旋转中心的Z的距离 - 旋转90之后与旋转中心的X的距离,4)
             return True, 距离
     return False, 0.0
 
@@ -398,6 +399,23 @@ def 更新平行型开口偏移(*,上开口值: float,正切角度: float,累计
     最小偏移 = 正切角度 * 累计下降量 * 2 * 1000
     最大偏移 = 最小偏移 + 上开口值
     return 最小偏移, 最大偏移
+
+
+def 按开口等距偏移插补点(点列: list[dict[str, Any]],*,开口值: float,是否反向: bool,) -> list[dict[str, float]]:
+    """把十轴插补点列交给 calc_offset_ljs 做等距偏移。
+
+    先按原始点序偏移，往返切割再反转结果，避免折线反向后面法向翻向。
+    是否反向 / 开口值符号对应 LEFT/RIGHT，与原先 X±开口 在竖直边上一致。
+    """
+    平面点 = [{"x": float(p["X"]), "y": float(p["Y"])} for p in 点列]
+    if len(平面点) < 2:
+        return 平面点
+    开口方向 = "RIGHT" if 是否反向 else "LEFT"
+    距离 = float(开口值)
+    if 距离 < 0:
+        距离 = -距离
+        开口方向 = "LEFT" if 开口方向 == "RIGHT" else "RIGHT"
+    return 根据开口方向偏移开放折线(平面点, 开口方向, 距离)
 
 
 # ======================================================================

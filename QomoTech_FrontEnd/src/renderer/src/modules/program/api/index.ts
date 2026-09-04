@@ -3,7 +3,8 @@ import type {
   Product4PCenterRotationPayload,
   QuickMovePositionPayload,
   RAxisPositionPayload,
-  StartProgramControlAction
+  StartProgramControlAction,
+  TenCameraFocusErrorPayload
 } from '../types'
 
 /** 启动配方运行。 */
@@ -53,6 +54,14 @@ export const getTenRAxisPosition = async (slot: number): Promise<ApiCallResult<R
 /** 保存十工位指定工位的 R 轴旋转中心。 */
 export const syncTenRAxisPosition = async (slot: number,payload: RAxisPositionPayload): Promise<ApiCallResult<RAxisPositionPayload>> =>
   apiCall<RAxisPositionPayload>(`system-setting/ten/r-axis-position/${slot}`,'POST',payload as unknown as Record<string, unknown>)
+
+/** 读取十工位指定工位的相机清晰误差。 */
+export const getTenCameraFocusError = async (slot: number): Promise<ApiCallResult<TenCameraFocusErrorPayload>> =>
+  apiCall<TenCameraFocusErrorPayload>(`system-setting/ten/camera-focus-error/${slot}`, 'GET')
+
+/** 保存十工位指定工位的相机清晰误差。 */
+export const syncTenCameraFocusError = async (slot: number,payload: TenCameraFocusErrorPayload): Promise<ApiCallResult<TenCameraFocusErrorPayload>> =>
+  apiCall<TenCameraFocusErrorPayload>(`system-setting/ten/camera-focus-error/${slot}`,'POST',payload as unknown as Record<string, unknown>)
 
 /** 获取程序运行状态。 */
 export const getStartProgramStatus = async (): Promise<ApiCallResult<{ running?: boolean; paused?: boolean } & Record<string, unknown>>> => 

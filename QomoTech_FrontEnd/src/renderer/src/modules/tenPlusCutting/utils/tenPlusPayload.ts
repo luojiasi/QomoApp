@@ -29,6 +29,7 @@ export function buildTenPlusRowsFromTarget(
     slotIndex?: number | null
     targetId?: string
     targetName?: string
+    cameraFocusError?: number
   }
 ): TenPlusFreeParamPayload['rows'] {
   return rows.map((row) => ({
@@ -73,11 +74,15 @@ export function buildTenPlusRowsFromTarget(
     pointXyz: opts.pointXyz,
     slotIndex: opts.slotIndex,
     targetId: opts.targetId,
-    targetName: opts.targetName
+    targetName: opts.targetName,
+    cameraFocusError: opts.cameraFocusError
   }))
 }
 
-export function buildTenPlusRowsFromTargets(selected: TenPlusTarget[]): TenPlusFreeParamPayload['rows'] {
+export function buildTenPlusRowsFromTargets(
+  selected: TenPlusTarget[],
+  cameraFocusErrorBySlot?: ReadonlyMap<number, number>
+): TenPlusFreeParamPayload['rows'] {
   const ordered = [...selected].sort((a, b) => {
     const sa = a.slotIndex ?? 999
     const sb = b.slotIndex ?? 999
@@ -86,6 +91,7 @@ export function buildTenPlusRowsFromTargets(selected: TenPlusTarget[]): TenPlusF
   })
   const out: TenPlusFreeParamPayload['rows'] = []
   for (const target of ordered) {
+    const slot = target.slotIndex
     out.push(
       ...buildTenPlusRowsFromTarget(target.rows, {
         rInterval: target.rInterval,
@@ -94,7 +100,9 @@ export function buildTenPlusRowsFromTargets(selected: TenPlusTarget[]): TenPlusF
         pointXyz: target.pointXyz,
         slotIndex: target.slotIndex,
         targetId: target.id,
-        targetName: target.name
+        targetName: target.name,
+        cameraFocusError:
+          slot == null ? undefined : cameraFocusErrorBySlot?.get(slot)
       })
     )
   }
