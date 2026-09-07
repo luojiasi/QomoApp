@@ -1400,7 +1400,6 @@ onUnmounted(() => {
                     </button>
                   </span>
                 </th>
-                <th class="col-num">弦长倍率</th>
                 <th class="col-recipe">配方</th>
                 <th class="col-comp">补偿</th>
                 <th class="col-act" />
@@ -1852,9 +1851,6 @@ onUnmounted(() => {
                           : ''
                     "
                   />
-                </td>
-                <td class="col-num">
-                  <input v-model.number="row.chordRatio" type="number" class="tpc-input" step="0.1" />
                 </td>
                 <td class="col-recipe">
                   <select

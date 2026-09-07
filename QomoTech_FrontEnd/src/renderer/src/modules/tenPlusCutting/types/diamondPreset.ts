@@ -11,10 +11,12 @@ export type TenPlusDiamondCutId =
 
 export type TenPlusDiamondLayerKey = 'crownPercent' | 'girdlePercent' | 'pavilionPercent'
 
-/** 钻石快捷形状：类型 + 直径 + 冠/腰/亭占直径的百分比 */
+/** 钻石快捷形状：类型 + 直径 + 台面/冠/腰/亭百分比 */
 export interface TenPlusDiamondPresetInput {
   cut: TenPlusDiamondCutId
   diameter: number
+  /** 台面宽占腰宽（直径）的百分比 */
+  tablePercent: number
   crownPercent: number
   girdlePercent: number
   pavilionPercent: number

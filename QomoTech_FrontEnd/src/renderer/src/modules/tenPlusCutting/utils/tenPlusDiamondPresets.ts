@@ -4,6 +4,7 @@ import {
   TEN_PLUS_DEFAULT_DIAMOND_PRESET_DIAMETER,
   TEN_PLUS_DEFAULT_DIAMOND_PRESET_GIRDLE,
   TEN_PLUS_DEFAULT_DIAMOND_PRESET_PAVILION,
+  TEN_PLUS_DEFAULT_DIAMOND_PRESET_TABLE,
   TEN_PLUS_DIAMOND_CUT_OPTIONS,
   TEN_PLUS_DIAMOND_PRESET_PERCENT_MAX,
   TEN_PLUS_DIAMOND_PRESET_PERCENT_MIN,
@@ -39,6 +40,7 @@ export function createDefaultDiamondPresetInput(): TenPlusDiamondPresetInput {
   return {
     cut: TEN_PLUS_DEFAULT_DIAMOND_CUT,
     diameter: TEN_PLUS_DEFAULT_DIAMOND_PRESET_DIAMETER,
+    tablePercent: TEN_PLUS_DEFAULT_DIAMOND_PRESET_TABLE,
     crownPercent: TEN_PLUS_DEFAULT_DIAMOND_PRESET_CROWN,
     girdlePercent: TEN_PLUS_DEFAULT_DIAMOND_PRESET_GIRDLE,
     pavilionPercent: TEN_PLUS_DEFAULT_DIAMOND_PRESET_PAVILION
@@ -54,6 +56,7 @@ export function describeDiamondPresetError(input: TenPlusDiamondPresetInput): st
   if (!Number.isFinite(diameter) || diameter <= 0 || diameter > 200) {
     return '直径必须在 0 以上、200 以内'
   }
+  if (isPercentInvalid(Number(input.tablePercent))) return '台面比须在 0.1%–100% 之间'
   if (isPercentInvalid(Number(input.crownPercent))) return '冠高比须在 0.1%–100% 之间'
   if (isPercentInvalid(Number(input.girdlePercent))) return '腰高比须在 0.1%–100% 之间'
   if (isPercentInvalid(Number(input.pavilionPercent))) return '亭高比须在 0.1%–100% 之间'
@@ -76,21 +79,21 @@ function slopeAngleDeg(rise: number, run: number): number {
 }
 
 /**
- * 冠：atan(冠高 / ((腰宽 − 台宽) / 2))；腰：90°；亭：atan(亭高 / 半径)。
+ * 冠：atan(冠高 / ((腰宽 − 台宽) / 2))；腰：90°；亭：−atan(亭高 / 半径)。
  */
 export function computeDiamondPresetAngles(
   input: TenPlusDiamondPresetInput
 ): Record<TenPlusDiamondLayerKey, number> {
   const diameter = Number(input.diameter)
   const radius = diameter / 2
-  const tableHalf = radius * TEN_PLUS_DIAMOND_PROFILE_TABLE_RATIO
+  const tableHalf = radius * (Number(input.tablePercent) / 100)
   return {
     crownPercent: slopeAngleDeg(
       diamondLayerHeightMm(diameter, Number(input.crownPercent)),
       radius - tableHalf
     ),
     girdlePercent: 90,
-    pavilionPercent: slopeAngleDeg(
+    pavilionPercent: -slopeAngleDeg(
       diamondLayerHeightMm(diameter, Number(input.pavilionPercent)),
       radius
     )
@@ -148,18 +151,20 @@ function polyPath(points: DiamondProfilePoint[]): string {
 }
 
 /**
- * 圆钻侧视轮廓。高度直接用冠/腰/亭百分比，腰宽固定，台面宽按 TABLE_RATIO。
+ * 圆钻侧视轮廓。高度用冠/腰/亭百分比，腰宽固定，台面宽按台面比（占腰宽）。
  */
 export function buildDiamondProfile(
   crownPercent: number,
   girdlePercent: number,
-  pavilionPercent: number
+  pavilionPercent: number,
+  tablePercent: number = TEN_PLUS_DEFAULT_DIAMOND_PRESET_TABLE
 ): DiamondProfileModel {
   const crownH = Math.max(Number(crownPercent) || 0, 0.2)
   const girdleH = Math.max(Number(girdlePercent) || 0, 0.2)
   const pavilionH = Math.max(Number(pavilionPercent) || 0, 0.2)
   const halfW = 50
-  const tableHalf = halfW * TEN_PLUS_DIAMOND_PROFILE_TABLE_RATIO
+  const tableRatio = Math.min(1, Math.max(0.001, Number(tablePercent) / 100 || TEN_PLUS_DIAMOND_PROFILE_TABLE_RATIO))
+  const tableHalf = halfW * tableRatio
   const tableY = 0
   const girdleTopY = crownH
   const girdleBottomY = crownH + girdleH

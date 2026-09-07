@@ -113,6 +113,73 @@ def 计算点绕坐标轴旋转(
     return _旋转单个点(point_or_points, matrix)
 
 
+def _取轴心坐标(center: Any) -> Point3DDict:
+    """轴心：dict 的 x/y/z 或 X/Y/Z，或带这些属性的对象。"""
+    if center is None:
+        raise ValueError("center 不能为空")
+    if not isinstance(center, dict):
+        center = {
+            "x": getattr(center, "x", getattr(center, "X", None)),
+            "y": getattr(center, "y", getattr(center, "Y", None)),
+            "z": getattr(center, "z", getattr(center, "Z", None)),
+        }
+    x = center.get("x", center.get("X"))
+    y = center.get("y", center.get("Y"))
+    z = center.get("z", center.get("Z"))
+    点 = 安全转化三维点({"x": x, "y": y, "z": z}, 默认的Z轴高度=0.0)
+    if 点 is None:
+        raise ValueError("center 非法：需包含数值 x/y/z（或 X/Y/Z）")
+    return 点
+
+
+def 计算点绕轴心旋转(
+    point_or_points: Union[Dict[str, Any], List[Dict[str, Any]]],
+    angle_deg: float,
+    rotation_axis: str,
+    center: Any,
+) -> Union[Point3DDict, List[Point3DDict]]:
+    """绕过轴心、平行于坐标轴的直线旋转：p' = R·(p − C) + C。
+
+    与 计算点绕坐标轴旋转 的差别：轴心是传入的 C，不是原点；也不套 4P 的默认 Z。
+    点必须带 z（或 Z），缺省按轴心 z。
+    """
+    if not isinstance(angle_deg, (int, float)) or not math.isfinite(float(angle_deg)):
+        raise ValueError("angle_deg 非法：需为有限数值")
+
+    axis = 规范旋转轴(rotation_axis)
+    matrix = 构建绕坐标轴旋转矩阵(axis, float(angle_deg))
+    轴心 = _取轴心坐标(center)
+
+    def 转一个(item: Dict[str, Any]) -> Point3DDict:
+        if not isinstance(item, dict):
+            raise ValueError("point 非法：需为包含数值 x/y（可选 z）的字典")
+        src = 安全转化三维点(
+            {
+                "x": item.get("x", item.get("X")),
+                "y": item.get("y", item.get("Y")),
+                "z": item.get("z", item.get("Z", 轴心["z"])),
+            },
+            默认的Z轴高度=轴心["z"],
+        )
+        if src is None:
+            raise ValueError("point 非法：需为包含数值 x/y（可选 z）的字典")
+        相对 = {
+            "x": src["x"] - 轴心["x"],
+            "y": src["y"] - 轴心["y"],
+            "z": src["z"] - 轴心["z"],
+        }
+        转后 = _旋转单个点(相对, matrix, 默认的Z轴高度=0.0)
+        return {
+            "x": round(转后["x"] + 轴心["x"], 4),
+            "y": round(转后["y"] + 轴心["y"], 4),
+            "z": round(转后["z"] + 轴心["z"], 4),
+        }
+
+    if isinstance(point_or_points, list):
+        return [转一个(item) for item in point_or_points]
+    return 转一个(point_or_points)
+
+
 def 计算实体绕坐标轴旋转后的实体点(所有实体数据:list[dict[str, Any]],旋转轴: str) -> list[dict[str,Any]]:
     返回实体数据点列表:list[dict[str,Any]] = []
     for 实体索引 in range(len(所有实体数据)):

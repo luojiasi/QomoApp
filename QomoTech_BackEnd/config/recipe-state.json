@@ -168,18 +168,18 @@
       "cuttingAxis": "XY",
       "changePercent": 10,
       "xFeed": 0.01,
-      "xSpeed": 20,
+      "xSpeed": 26,
       "edgeCutting": {
         "speed": 50,
-        "cutTimes": 2,
-        "cutSpeedNums": 5,
+        "cutTimes": 1,
+        "cutSpeedNums": 1,
         "change": {
-          "k": 1,
-          "b": 5
+          "k": 0,
+          "b": 0
         }
       },
       "middleCutting": {
-        "speed": 100,
+        "speed": 80,
         "cutTimes": 1,
         "change": {
           "k": 0,
@@ -196,7 +196,7 @@
       },
       "id": "vertical-formula-2",
       "name": "垂直工艺配方 2",
-      "updatedAt": "2026-8-13 10:48:54"
+      "updatedAt": "2026-9-7 13:34:59"
     }
   ],
   "machiningRecipes": [
@@ -223,7 +223,7 @@
     {
       "id": "machining-3",
       "name": "固定800开口",
-      "updatedAt": "2026-8-18 17:01:15",
+      "updatedAt": "2026-9-5 08:46:16",
       "teachingMode": false,
       "timeoutWaitTime": 2,
       "horizontalFormulaId": "horizontal-formula-2",
@@ -233,7 +233,7 @@
     {
       "id": "machining-4",
       "name": "默认值",
-      "updatedAt": "2026-9-2 17:29:33",
+      "updatedAt": "2026-9-5 15:13:43",
       "teachingMode": true,
       "timeoutWaitTime": 2,
       "horizontalFormulaId": "horizontal-formula-3",

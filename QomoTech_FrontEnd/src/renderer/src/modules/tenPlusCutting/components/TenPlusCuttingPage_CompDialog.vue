@@ -2,6 +2,8 @@
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { isTableAngle } from '../composables/useTenPlusTask'
 import {
+  TEN_PLUS_CHORD_RATIO_STEP,
+  TEN_PLUS_DEFAULT_CHORD_RATIO,
   TEN_PLUS_DEFAULT_DIAMETER_PERCENT,
   TEN_PLUS_DEFAULT_DIAMOND_PERCENT,
   TEN_PLUS_DEFAULT_HEIGHT_PERCENT
@@ -141,6 +143,8 @@ const visualHeightPercent = computed(() => {
 
 const drawnHeightPercent = ref(0)
 let heightRaf = 0
+const drawnChordRatio = ref(0)
+let chordRaf = 0
 
 watch(
   visualHeightPercent,
@@ -181,6 +185,7 @@ onUnmounted(() => {
   if (angleRaf) cancelAnimationFrame(angleRaf)
   if (kbxRaf) cancelAnimationFrame(kbxRaf)
   if (heightRaf) cancelAnimationFrame(heightRaf)
+  if (chordRaf) cancelAnimationFrame(chordRaf)
 })
 
 function polar(deg: number, radius: number): { x: number; y: number } {
@@ -344,6 +349,58 @@ watch(
   },
   { immediate: true }
 )
+
+watch(
+  () => props.row.chordRatio,
+  (v) => {
+    if (!Number.isFinite(v)) props.row.chordRatio = TEN_PLUS_DEFAULT_CHORD_RATIO
+  },
+  { immediate: true }
+)
+
+const visualChordRatio = computed(() => {
+  const n = Number(props.row.chordRatio)
+  return Number.isFinite(n) ? Math.max(0, n) : TEN_PLUS_DEFAULT_CHORD_RATIO
+})
+
+watch(
+  visualChordRatio,
+  (to) => {
+    const from = drawnChordRatio.value
+    if (chordRaf) cancelAnimationFrame(chordRaf)
+    if (from === to) {
+      drawnChordRatio.value = to
+      return
+    }
+    const t0 = performance.now()
+    const step = (now: number) => {
+      const t = Math.min(1, (now - t0) / ANIM_MS)
+      drawnChordRatio.value = from + (to - from) * easeOutSoft(t)
+      if (t < 1) chordRaf = requestAnimationFrame(step)
+      else drawnChordRatio.value = to
+    }
+    chordRaf = requestAnimationFrame(step)
+  },
+  { immediate: true }
+)
+
+const chordBar = computed(() => {
+  const r = drawnChordRatio.value
+  const extra = Math.max(0, r - 1)
+  const deficit = Math.max(0, 1 - r)
+  const total = Math.max(r, 1)
+  return {
+    actualPct: (Math.min(r, 1) / total) * 100,
+    extraPct: (extra / total) * 100,
+    deficitPct: (deficit / total) * 100
+  }
+})
+
+function nudgeChordRatio(delta: number): void {
+  const cur = Number(props.row.chordRatio)
+  const base = Number.isFinite(cur) ? cur : TEN_PLUS_DEFAULT_CHORD_RATIO
+  props.row.chordRatio = Math.round((base + delta) * 1000) / 1000
+}
 
 const diamondRing = computed(() => ringDasharrayOf(Number(props.row.diamondPercent)))
 
@@ -605,6 +662,58 @@ function focusKbxCard(ev: MouseEvent): void {
           <div class="tpc-comp-unit-cap">角度补偿</div>
         </label>
 
+        <div class="tpc-comp-unit tpc-comp-unit-chord">
+          <div class="tpc-comp-chord-body">
+            <div class="tpc-comp-chord-top" aria-hidden="true">
+              <span class="tpc-comp-chord-seg is-actual" :style="{ width: `${chordBar.actualPct}%` }" />
+              <span
+                v-if="chordBar.extraPct > 0"
+                class="tpc-comp-chord-seg is-extra"
+                :style="{ width: `${chordBar.extraPct}%` }"
+              />
+              <span
+                v-if="chordBar.deficitPct > 0"
+                class="tpc-comp-chord-seg is-deficit"
+                :style="{ width: `${chordBar.deficitPct}%` }"
+              />
+            </div>
+            <div class="tpc-comp-chord-row">
+              <div class="tpc-comp-chord-aside" aria-hidden="true">
+                <span class="tpc-comp-chord-seg is-actual" />
+              </div>
+              <div class="tpc-comp-chord-stepper">
+                <button
+                  type="button"
+                  class="tpc-comp-chord-btn"
+                  aria-label="减小弦长倍率"
+                  @click="nudgeChordRatio(-TEN_PLUS_CHORD_RATIO_STEP)"
+                >
+                  ‹
+                </button>
+                <input
+                  id="tpc-comp-chord"
+                  v-model.number="row.chordRatio"
+                  type="number"
+                  class="tpc-comp-chord-val"
+                  :step="TEN_PLUS_CHORD_RATIO_STEP"
+                  aria-label="弦长倍率"
+                  :placeholder="String(TEN_PLUS_DEFAULT_CHORD_RATIO)"
+                  @focus="selectInput"
+                />
+                <button
+                  type="button"
+                  class="tpc-comp-chord-btn"
+                  aria-label="增大弦长倍率"
+                  @click="nudgeChordRatio(TEN_PLUS_CHORD_RATIO_STEP)"
+                >
+                  ›
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="tpc-comp-unit-cap">弦长倍率</div>
+        </div>
+
         <div
           class="tpc-comp-unit tpc-comp-unit-kbx"
           :class="{ locked: tableLocked }"
@@ -790,7 +899,7 @@ function focusKbxCard(ev: MouseEvent): void {
   --tpc-accent: #0071e3;
   --tpc-surface: var(--app-card);
   --tpc-surface-dim: color-mix(in srgb, var(--app-bg) 72%, var(--app-card));
-  width: 760px;
+  width: 920px;
   max-width: 96vw;
   padding: 20px 20px 16px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI Variable Display', 'Segoe UI',
@@ -915,13 +1024,13 @@ function focusKbxCard(ev: MouseEvent): void {
 }
 .tpc-comp-row1 {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 10px;
   align-items: start;
   margin: 18px 0 0;
 }
 .tpc-comp-row1.is-diamond {
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
 }
 .tpc-comp-unit {
   min-width: 0;
@@ -1217,6 +1326,110 @@ function focusKbxCard(ev: MouseEvent): void {
 }
 .tpc-comp-xyz-cell input:disabled {
   cursor: not-allowed;
+}
+.tpc-comp-unit-chord {
+  cursor: default;
+}
+.tpc-comp-chord-body {
+  width: 148px;
+  height: 148px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 12px;
+  background: var(--tpc-surface);
+}
+.tpc-comp-chord-top {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-height: 0;
+  padding: 0 10px;
+  border-bottom: 0.5px solid color-mix(in srgb, var(--app-border) 70%, transparent);
+}
+.tpc-comp-chord-seg {
+  display: block;
+  height: 4px;
+  border-radius: 999px;
+  transition: width 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.tpc-comp-chord-seg.is-actual {
+  background: color-mix(in srgb, var(--app-text-primary) 28%, transparent);
+}
+.tpc-comp-chord-seg.is-extra {
+  margin-left: 3px;
+  background: var(--tpc-accent);
+}
+.tpc-comp-chord-seg.is-deficit {
+  margin-left: 3px;
+  background: color-mix(in srgb, var(--app-text-primary) 10%, transparent);
+}
+.tpc-comp-chord-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: stretch;
+  flex: 1;
+  min-height: 0;
+}
+.tpc-comp-chord-aside {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding: 0 10px;
+  border-right: 0.5px solid color-mix(in srgb, var(--app-border) 70%, transparent);
+}
+.tpc-comp-chord-aside .tpc-comp-chord-seg {
+  width: 100%;
+}
+.tpc-comp-chord-stepper {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 0 4px;
+}
+.tpc-comp-chord-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--tpc-accent);
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 1;
+  cursor: pointer;
+}
+.tpc-comp-chord-btn:hover {
+  background: color-mix(in srgb, var(--tpc-accent) 10%, transparent);
+}
+.tpc-comp-chord-btn:active {
+  opacity: 0.7;
+}
+.tpc-comp-chord-val {
+  width: 3.4ch;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  outline: none;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 590;
+  font-variant-numeric: tabular-nums;
+  font-family: inherit;
+  letter-spacing: -0.03em;
+  color: var(--app-text-primary);
+  appearance: textfield;
+}
+.tpc-comp-chord-val::-webkit-outer-spin-button,
+.tpc-comp-chord-val::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
 }
 .tpc-comp-kbx-card {
   position: relative;

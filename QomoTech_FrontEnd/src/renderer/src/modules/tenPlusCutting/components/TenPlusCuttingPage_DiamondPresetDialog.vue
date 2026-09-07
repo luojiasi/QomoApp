@@ -4,6 +4,7 @@ import {
   TEN_PLUS_DEFAULT_DIAMOND_PRESET_CROWN,
   TEN_PLUS_DEFAULT_DIAMOND_PRESET_GIRDLE,
   TEN_PLUS_DEFAULT_DIAMOND_PRESET_PAVILION,
+  TEN_PLUS_DEFAULT_DIAMOND_PRESET_TABLE,
   TEN_PLUS_DIAMOND_CUT_OPTIONS,
   TEN_PLUS_DIAMOND_PRESET_PERCENT_MAX,
   TEN_PLUS_DIAMOND_PRESET_PERCENT_MIN
@@ -30,6 +31,7 @@ const errorText = computed(() => describeDiamondPresetError({ ...form }))
 const cutLabel = computed(() => diamondCutLabel(form.cut))
 
 const heightFields = [
+  { key: 'tablePercent', cap: '台面比', tone: 'table', id: 'tpc-d-table-pct' },
   { key: 'crownPercent', cap: '冠高比', tone: 'crown', id: 'tpc-d-crown-pct' },
   { key: 'girdlePercent', cap: '腰高比', tone: 'girdle', id: 'tpc-d-girdle-pct' },
   { key: 'pavilionPercent', cap: '亭高比', tone: 'pavilion', id: 'tpc-d-pavilion-pct' }
@@ -42,6 +44,11 @@ function formatMm(value: number): string {
 
 function actualHeightText(percent: number): string {
   return formatMm(diamondLayerHeightMm(Number(form.diameter), percent))
+}
+
+function percentInputCh(value: number): number {
+  const raw = Number.isFinite(value) ? String(value) : ''
+  return Math.max(1, raw.length)
 }
 
 const totalHeightText = computed(() =>
@@ -63,19 +70,20 @@ function clampPercent(v: number, fallback: number): number {
 }
 
 const display = reactive({
+  table: 55,
   crown: 0.4,
   girdle: 0.4,
   pavilion: 0.4
 })
 
 const profile = computed(() =>
-  buildDiamondProfile(display.crown, display.girdle, display.pavilion)
+  buildDiamondProfile(display.crown, display.girdle, display.pavilion, display.table)
 )
 
 const ANIM_MS = 380
 let rafId = 0
-let animFrom = { crown: 0.4, girdle: 0.4, pavilion: 0.4 }
-let animTo = { crown: 0.4, girdle: 0.4, pavilion: 0.4 }
+let animFrom = { table: 55, crown: 0.4, girdle: 0.4, pavilion: 0.4 }
+let animTo = { table: 55, crown: 0.4, girdle: 0.4, pavilion: 0.4 }
 let animStart = 0
 
 function easeOutCubic(t: number): number {
@@ -85,14 +93,20 @@ function easeOutCubic(t: number): number {
 function tick(now: number): void {
   const t = Math.min(1, (now - animStart) / ANIM_MS)
   const e = easeOutCubic(t)
+  display.table = animFrom.table + (animTo.table - animFrom.table) * e
   display.crown = animFrom.crown + (animTo.crown - animFrom.crown) * e
   display.girdle = animFrom.girdle + (animTo.girdle - animFrom.girdle) * e
   display.pavilion = animFrom.pavilion + (animTo.pavilion - animFrom.pavilion) * e
   if (t < 1) rafId = requestAnimationFrame(tick)
 }
 
-function animateTo(next: { crown: number; girdle: number; pavilion: number }): void {
-  animFrom = { crown: display.crown, girdle: display.girdle, pavilion: display.pavilion }
+function animateTo(next: { table: number; crown: number; girdle: number; pavilion: number }): void {
+  animFrom = {
+    table: display.table,
+    crown: display.crown,
+    girdle: display.girdle,
+    pavilion: display.pavilion
+  }
   animTo = next
   animStart = performance.now()
   cancelAnimationFrame(rafId)
@@ -100,9 +114,11 @@ function animateTo(next: { crown: number; girdle: number; pavilion: number }): v
 }
 
 watch(
-  () => [form.crownPercent, form.girdlePercent, form.pavilionPercent] as const,
-  ([crown, girdle, pavilion]) => {
+  () =>
+    [form.tablePercent, form.crownPercent, form.girdlePercent, form.pavilionPercent] as const,
+  ([table, crown, girdle, pavilion]) => {
     animateTo({
+      table: clampPercent(Number(table), TEN_PLUS_DEFAULT_DIAMOND_PRESET_TABLE),
       crown: clampPercent(Number(crown), TEN_PLUS_DEFAULT_DIAMOND_PRESET_CROWN),
       girdle: clampPercent(Number(girdle), TEN_PLUS_DEFAULT_DIAMOND_PRESET_GIRDLE),
       pavilion: clampPercent(Number(pavilion), TEN_PLUS_DEFAULT_DIAMOND_PRESET_PAVILION)
@@ -120,6 +136,7 @@ function onConfirm(): void {
   emit('confirm', {
     cut: form.cut,
     diameter: Number(form.diameter),
+    tablePercent: Number(form.tablePercent),
     crownPercent: Number(form.crownPercent),
     girdlePercent: Number(form.girdlePercent),
     pavilionPercent: Number(form.pavilionPercent)
@@ -216,13 +233,14 @@ function onConfirm(): void {
                   v-model.number="form[field.key]"
                   type="number"
                   class="tpc-d-layer-val"
+                  :style="{ width: `${percentInputCh(Number(form[field.key]))}ch` }"
                   step="0.1"
                   :min="TEN_PLUS_DIAMOND_PRESET_PERCENT_MIN"
                   :max="TEN_PLUS_DIAMOND_PRESET_PERCENT_MAX"
                   :aria-label="field.cap"
                   @focus="selectInput"
                 />
-                <span>%</span>
+                <span class="tpc-d-layer-unit">%</span>
               </span>
               <span class="tpc-d-layer-mm">{{ actualHeightText(Number(form[field.key])) }} mm</span>
             </label>
@@ -481,7 +499,7 @@ function onConfirm(): void {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 148px;
   gap: 12px;
-  height: 288px;
+  height: 360px;
   padding: 12px;
 }
 .tpc-diamond-svg {
@@ -547,6 +565,9 @@ function onConfirm(): void {
   border-radius: 99px;
   background: var(--layer);
 }
+.tpc-d-layer.is-table {
+  --layer: #9aa7b4;
+}
 .tpc-d-layer.is-crown {
   --layer: #7aa8cc;
 }
@@ -575,10 +596,13 @@ function onConfirm(): void {
   display: flex;
   align-items: baseline;
   gap: 2px;
+  min-width: 0;
+  max-width: 100%;
 }
 .tpc-d-layer-val {
   box-sizing: content-box;
-  width: 3.4ch;
+  min-width: 1ch;
+  max-width: calc(100% - 1.15em);
   height: 1em;
   margin: 0;
   padding: 0;
@@ -586,6 +610,7 @@ function onConfirm(): void {
   background: transparent;
   outline: none;
   text-align: left;
+  overflow: hidden;
   font-size: 22px;
   font-weight: 620;
   font-variant-numeric: tabular-nums;
@@ -600,7 +625,8 @@ function onConfirm(): void {
   appearance: none;
   margin: 0;
 }
-.tpc-d-layer-row > span {
+.tpc-d-layer-unit {
+  flex: 0 0 auto;
   font-size: 13px;
   font-weight: 560;
   color: var(--app-text-secondary);

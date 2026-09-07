@@ -43,6 +43,8 @@ export function slotIndexToOutputPort(slotIndex: number): number | null {
 
 /** 弦长倍率默认值；台面行仍可编辑 */
 export const TEN_PLUS_DEFAULT_CHORD_RATIO = 1.2
+/** 补偿弹窗弦长倍率步进 */
+export const TEN_PLUS_CHORD_RATIO_STEP = 0.1
 
 /** 直径百分比默认值（100 表示按原直径） */
 export const TEN_PLUS_DEFAULT_DIAMETER_PERCENT = 100
