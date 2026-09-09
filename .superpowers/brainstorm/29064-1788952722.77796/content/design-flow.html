@@ -1,0 +1,65 @@
+<h2>第一节：整体交互</h2>
+<p class="subtitle">先确认「顶栏怎么变、弹层怎么开」。细节字段下一节再定。</p>
+
+<div class="section">
+  <p class="label">未选 / 单选 — 顶栏不挤</p>
+  <div class="mockup">
+    <div class="mockup-header">参数信息 · 选中 0 或 1 个</div>
+    <div class="mockup-body" style="background:#0f172a;color:#e2e8f0;font-size:12px">
+      <div style="display:flex;align-items:center;gap:10px;padding:8px;border:1px solid #334155;border-radius:8px">
+        <div style="writing-mode:vertical-rl;font-size:11px;opacity:.8">参数</div>
+        <div style="width:1px;height:28px;background:#334155"></div>
+        <div>实体 1（LINE）· RIGHT · 基准高 60 · 起点 (-25, 8) · 终点 (1, 8)</div>
+        <button class="mock-button" style="margin-left:auto">编辑参数</button>
+      </div>
+      <p class="subtitle" style="margin-top:8px">单选仍用一行摘要 + 现有小弹窗，不改你已经习惯的路径。</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <p class="label">多选 — 顶栏只留入口</p>
+  <div class="mockup">
+    <div class="mockup-header">参数信息 · 选中 7 个</div>
+    <div class="mockup-body" style="background:#0f172a;color:#e2e8f0;font-size:12px">
+      <div style="display:flex;align-items:center;gap:10px;padding:8px;border:1px solid #334155;border-radius:8px">
+        <div style="writing-mode:vertical-rl;font-size:11px;opacity:.8">参数</div>
+        <div style="width:1px;height:28px;background:#334155"></div>
+        <button class="mock-button" style="background:#0ea5e9;color:#0f172a;border:0">已选 7 个实体 ▾</button>
+        <span style="opacity:.55">点击打开选择与参数面板</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <p class="label">点开后的弹层</p>
+  <div class="mockup">
+    <div class="mockup-header">选择与参数</div>
+    <div class="mockup-body" style="background:#0b1220;color:#e2e8f0;font-size:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <strong style="color:#7dd3fc">已选 7 个实体</strong>
+        <span style="opacity:.6">Esc / 点遮罩关闭</span>
+      </div>
+      <div style="display:flex;gap:10px;min-height:220px">
+        <div style="width:220px;background:#1e293b;border-radius:8px;padding:8px">
+          <div style="opacity:.55;margin-bottom:6px">点一项，右侧显示它的详情；画布同步高亮</div>
+          <div style="padding:6px;border-radius:4px">1 · LINE · RIGHT</div>
+          <div style="padding:6px;border-radius:4px;background:#0ea5e9;color:#0f172a">2 · LINE · RIGHT ← 当前</div>
+          <div style="padding:6px;border-radius:4px">3 · ARC · LEFT</div>
+          <div style="padding:6px;border-radius:4px;opacity:.7">…</div>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+          <div style="background:#082f49;border:1px solid #0ea5e9;border-radius:8px;padding:10px">
+            <div style="color:#7dd3fc;font-weight:700;margin-bottom:6px">应用到全部 7 个</div>
+            <div>开口方向 · 基准高 · 表面角 · 挤出高 · 焊接</div>
+          </div>
+          <div style="flex:1;background:#1e293b;border-radius:8px;padding:10px">
+            <div style="font-weight:700;margin-bottom:6px">实体 2 详情（仅这一条）</div>
+            <div>起点 / 终点 / 以及上面那些字段的单条覆盖</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

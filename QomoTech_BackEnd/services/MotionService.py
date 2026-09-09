@@ -851,15 +851,15 @@ class MotionService:
                 continue
             当前圈数 = await adapter.获取R轴的当前位置()
             if abs(当前圈数 - 目标圈数) <= 0.01:
-                日志.info(f"R轴已到达目标圈数 {目标圈数:.2f}（当前={当前圈数:.2f}）")
+                # 日志.info(f"R轴已到达目标圈数 {目标圈数:.2f}（当前={当前圈数:.2f}）")
                 break
             if asyncio.get_event_loop().time() >= 截止:
-                日志.error(f"R轴旋转超时（目标={目标圈数:.2f}，当前={当前圈数:.2f}）")
+                # 日志.error(f"R轴旋转超时（目标={目标圈数:.2f}，当前={当前圈数:.2f}）")
                 return {"success": False, "message": f"R轴旋转超时（目标={目标圈数:.2f}）"}
             await asyncio.sleep(0.02)
 
         await self._刷新快照()
-        日志.info(f"R轴旋转圈数={旋转圈数} → 已到达 {目标圈数:.2f}")
+        # 日志.info(f"R轴旋转圈数={旋转圈数} → 已到达 {目标圈数:.2f}")
         return {"success": True, "message": f"R轴已旋转到 {目标圈数:.2f} 圈"}
 
     async def R轴旋转圈数是否到达指定圈数(self, 旋转圈数: float, 超时秒: float = 60.0) -> bool:
@@ -1147,7 +1147,7 @@ class MotionService:
         gate = self._断言safety()
         cfg = gate.校验轴名(轴名)
         结果 = await self._断言adapter().等待静止(cfg.axis_no, 超时秒, 轮询间隔秒)
-        日志.info(f"等待静止 {轴名}#{cfg.axis_no} 超时={超时秒}s → {'已静止' if 结果 else '超时'}")
+        # 日志.info(f"等待静止 {轴名}#{cfg.axis_no} 超时={超时秒}s → {'已静止' if 结果 else '超时'}")
         return 结果
 
     async def 等待轴到位(
@@ -1277,7 +1277,7 @@ class MotionService:
             self._状态机.触发(状态事件.STOP, 强制=True)
             raise
         await self._刷新快照()
-        日志.info(f"连续插补XY 完成（路径点数={len(路径点)} merge={merge_enable}）")
+        日志.info(f"连续插补XY 完成（路径点数={len(路径点)} merge={merge_enable} 路径点={路径点}）")
         return True
 
     async def 连续插补运动(

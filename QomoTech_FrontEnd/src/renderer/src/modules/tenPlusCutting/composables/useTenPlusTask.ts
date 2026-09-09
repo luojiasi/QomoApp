@@ -5,6 +5,9 @@ import {
   TEN_PLUS_FILE_FORMAT,
   TEN_PLUS_FILE_VERSION,
   TEN_PLUS_DEFAULT_CHORD_RATIO,
+  TEN_PLUS_DEFAULT_CUT_END_PERCENT,
+  TEN_PLUS_DEFAULT_CUT_START_PERCENT,
+  TEN_PLUS_DEFAULT_R_TURNS,
   TEN_PLUS_DEFAULT_DIAMETER_PERCENT,
   TEN_PLUS_DEFAULT_HEIGHT_PERCENT,
   TEN_PLUS_DEFAULT_DIAMOND_PERCENT,
@@ -38,6 +41,12 @@ let seq = 0
 function nextId(prefix: string): string {
   seq += 1
   return `${prefix}-${Date.now()}-${seq}`
+}
+
+function clampCutPercent(n: unknown, fallback: number): number {
+  const v = Number(n)
+  if (!Number.isFinite(v)) return fallback
+  return Math.min(100, Math.max(0, v))
 }
 
 function createRow(taskNo: number): TenPlusTaskRow {
@@ -74,9 +83,12 @@ function createRow(taskNo: number): TenPlusTaskRow {
     compAngle: 0,
     diameterPercent: TEN_PLUS_DEFAULT_DIAMETER_PERCENT,
     heightPercent: TEN_PLUS_DEFAULT_HEIGHT_PERCENT,
+    cutStartPercent: TEN_PLUS_DEFAULT_CUT_START_PERCENT,
+    cutEndPercent: TEN_PLUS_DEFAULT_CUT_END_PERCENT,
     useDiamondRatio: false,
     diamondPercent: TEN_PLUS_DEFAULT_DIAMOND_PERCENT,
     chordRatio: TEN_PLUS_DEFAULT_CHORD_RATIO,
+    rTurns: TEN_PLUS_DEFAULT_R_TURNS,
     k: 0,
     b: 0,
     x: 0
@@ -167,15 +179,22 @@ function normalizeRow(raw: Partial<TenPlusTaskRow>, fallbackNo: number): TenPlus
     heightPercent: Number.isFinite(Number(raw.heightPercent))
       ? Number(raw.heightPercent)
       : TEN_PLUS_DEFAULT_HEIGHT_PERCENT,
+    cutStartPercent: clampCutPercent(raw.cutStartPercent, TEN_PLUS_DEFAULT_CUT_START_PERCENT),
+    cutEndPercent: clampCutPercent(raw.cutEndPercent, TEN_PLUS_DEFAULT_CUT_END_PERCENT),
     useDiamondRatio: raw.useDiamondRatio === true,
     diamondPercent: Number.isFinite(Number(raw.diamondPercent))
       ? Number(raw.diamondPercent)
       : TEN_PLUS_DEFAULT_DIAMOND_PERCENT,
     chordRatio: Number(raw.chordRatio ?? TEN_PLUS_DEFAULT_CHORD_RATIO),
+    rTurns:
+      Number.isFinite(Number(raw.rTurns)) && Number(raw.rTurns) > 0
+        ? Number(raw.rTurns)
+        : TEN_PLUS_DEFAULT_R_TURNS,
     k: Number(raw.k ?? 0),
     b: Number(raw.b ?? 0),
     x: Number(raw.x ?? 0)
   }
+  if (row.cutEndPercent < row.cutStartPercent) row.cutEndPercent = row.cutStartPercent
   if (isTableAngle(angle)) applyTableAngleLockedFields(row)
   return row
 }

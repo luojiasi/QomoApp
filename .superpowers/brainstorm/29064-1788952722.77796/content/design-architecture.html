@@ -1,0 +1,26 @@
+<h2>第三节：组件怎么拆</h2>
+<p class="subtitle">Create5PPage.vue 已经很大。多选 UI 抽成子组件，不把弹层再堆进同一份模板。</p>
+
+<div class="mockup">
+  <div class="mockup-header">依赖方向</div>
+  <div class="mockup-body" style="font-size:13px;line-height:1.8;font-family:ui-monospace,monospace">
+    <div>Create5PPage.vue</div>
+    <div>　├ Create5PPage_SelectionBar.vue　　顶栏：空 / 单选一行 / 「已选 N 个」</div>
+    <div>　├ Create5PPage_SelectionDialog.vue　弹层壳：列表 + 批量两项 + 详情槽</div>
+    <div>　└ Create5PPage_EntityDetail.vue　　当前实体几何与工艺（从现有卡片搬出）</div>
+    <div style="margin-top:10px">useQomo5PStore</div>
+    <div>　├ selectedEntityIds（已有）</div>
+    <div>　├ focusedEntityId（新增，列表/画布当前聚焦）</div>
+    <div>　└ updateSelectedEntitiesParams（新增，一次撤销改全部）</div>
+  </div>
+</div>
+
+<div class="section">
+  <p class="label">数据流</p>
+  <div style="font-size:13px;line-height:1.7">
+    <p>点「已选 N 个」→ 打开弹层，focused 默认第一条。</p>
+    <p>点列表项 → 只改 focusedEntityId，选中集合不变；画布对 focused 用更亮描边。</p>
+    <p>批量改开口 / 挤出高 → 一次 mutation 写进全部 selected，撤销一步还原全部。</p>
+    <p>详情里改几何或基准高 → 现有 updateEntityParams，只动 focused 这一条。</p>
+  </div>
+</div>

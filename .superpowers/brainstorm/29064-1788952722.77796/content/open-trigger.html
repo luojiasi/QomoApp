@@ -1,0 +1,34 @@
+<h2>这个弹层什么时候出现？</h2>
+<p class="subtitle">你选了「按需打开」，还差一步：框选完成后要不要自动弹出。点选更接近你操作习惯的一项。</p>
+
+<div class="options">
+  <div class="option" data-choice="auto-then-badge" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>多选后自动弹出，关掉后还能再开</h3>
+      <p>框选 2 个以上立刻打开面板，改完可关掉继续看画布。顶栏留下「已选 7 个」，随时点回去。</p>
+      <div class="mockup" style="margin-top:10px">
+        <div class="mockup-header">框选 → 自动出现</div>
+        <div class="mockup-body" style="font-size:11px;line-height:1.6">
+          <div>顶栏：已选 7 个</div>
+          <div style="margin-top:6px;padding:8px;background:var(--bg-tertiary);border-radius:6px">弹层自动打开：列表 + 批量 + 详情</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="badge-only" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>不自动弹，只点顶栏才打开</h3>
+      <p>框选后画布保持干净。顶栏显示「已选 7 个」，只有你要点进去改参数时才打开。少打扰，多一次点击。</p>
+      <div class="mockup" style="margin-top:10px">
+        <div class="mockup-header">框选 → 只亮徽章</div>
+        <div class="mockup-body" style="font-size:11px;line-height:1.6">
+          <div>顶栏：<strong>已选 7 个 ▾</strong>（点这里才打开）</div>
+          <div style="margin-top:6px;opacity:.6">画布全可见，没有遮罩</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

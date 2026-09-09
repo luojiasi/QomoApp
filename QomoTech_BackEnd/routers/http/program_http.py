@@ -128,7 +128,10 @@ async def send_ten_plus_free_params(payload: 自由编辑参数请求模型):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="勾选目标没有可执行的任务行")
 
     目标列表 = payload.targets or ([payload.target] if payload.target else [])
-    日志.info("十工位启动: targets=%s rows=%s", 目标列表, len(payload.rows))
+    行总数 = len(payload.rows)
+    日志.info("十工位启动: targets=%s rows=%s", 目标列表, 行总数)
+    for 序号, 行 in enumerate(payload.rows, start=1):
+        日志.info("十工位启动行 %s/%s: %s", 序号, 行总数, 行)
 
     async def _run() -> None:
         try:

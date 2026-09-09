@@ -1,0 +1,25 @@
+<h2>第二节补充：不一致时整批覆盖</h2>
+<p class="subtitle">「多个值」只是告诉你现在不统一。你一旦选 LEFT 或 RIGHT，7 个实体立刻全部改成同一个值。</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">改之前</div>
+    <div class="mockup-body" style="font-size:12px;line-height:1.8">
+      <div>实体 1 RIGHT</div>
+      <div>实体 2 LEFT</div>
+      <div>实体 3 RIGHT</div>
+      <div style="margin-top:8px">批量栏开口方向：<strong>多个值</strong></div>
+    </div>
+  </div>
+  <div class="mockup">
+    <div class="mockup-header">你在批量栏选 LEFT 之后</div>
+    <div class="mockup-body" style="font-size:12px;line-height:1.8">
+      <div>实体 1 <strong>LEFT</strong></div>
+      <div>实体 2 <strong>LEFT</strong></div>
+      <div>实体 3 <strong>LEFT</strong></div>
+      <div style="margin-top:8px">不再保留原来的 LEFT/RIGHT 差异，整批覆盖。</div>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle">数字字段同理：基准高有的 60 有的 58，你输入 60 并确认，全部变成 60。</p>

@@ -59,11 +59,20 @@ export interface TenPlusTaskRow {
   diameterPercent: number
   /** 高度百分比，默认 100 */
   heightPercent: number
+  /** 起始切割百分比，默认 0：从产品高度的该比例处开始切 */
+  cutStartPercent: number
+  /** 结束切割百分比，默认 100：进度到达该比例后结束本任务 */
+  cutEndPercent: number
   /** 是否用钻石比例换算直径百分比与高度百分比；仅前端换算入口，不下发 */
   useDiamondRatio: boolean
   /** 钻石比例百分比；仅前端换算入口，不下发 */
   diamondPercent: number
   chordRatio: number
+  /**
+   * 等分线段分割数为 0 时，R 轴持续旋转每趟等待的圈数。
+   * 其它路径不下发到等待逻辑；缺省 2。
+   */
+  rTurns: number
   k: number
   b: number
   x: number
@@ -164,7 +173,10 @@ export interface TenPlusFreeParamPayload {
     compAngle: number
     diameterPercent: number
     heightPercent: number
+    cutStartPercent: number
+    cutEndPercent: number
     chordRatio: number
+    rTurns: number
     k: number
     b: number
     x: number

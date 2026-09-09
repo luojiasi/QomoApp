@@ -1,0 +1,55 @@
+<h2>框选多个实体后，你最常想做什么？</h2>
+<p class="subtitle">这决定列表该做成「扫一眼」还是「改参数」。请点选最接近你真实操作的一项。</p>
+
+<div class="options">
+  <div class="option" data-choice="scan" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>看清选了谁，对比关键参数</h3>
+      <p>确认框选对不对，扫一眼开口方向、高度、坐标是否一致。改参数是次要的。</p>
+      <div class="mockup" style="margin-top:10px">
+        <div class="mockup-header">紧凑列表</div>
+        <div class="mockup-body" style="font-size:11px;line-height:1.5">
+          <div>□ 实体 1 · LINE · RIGHT · 高 60</div>
+          <div>□ 实体 2 · LINE · RIGHT · 高 60</div>
+          <div>□ 实体 3 · ARC · LEFT · 高 58</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="batch" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>一次改一批共同参数</h3>
+      <p>开口方向、基准高、挤出角这类字段，选中的实体要一起改，不想一张张点「编辑参数」。</p>
+      <div class="mockup" style="margin-top:10px">
+        <div class="mockup-header">批量编辑</div>
+        <div class="mockup-body" style="font-size:11px;line-height:1.5">
+          <div>已选 7 个实体</div>
+          <div>开口方向 [ RIGHT ▾ ] 应用到全部</div>
+          <div>基准高 [ 60 ] 应用到全部</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="drill" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>从多选里点进某一个细改</h3>
+      <p>列表只当索引。真正看起点终点、焊接口、表面角，是点开某一个实体之后的事。</p>
+      <div class="mockup" style="margin-top:10px">
+        <div class="mockup-header">主从布局</div>
+        <div class="mockup-body" style="display:flex;gap:8px;font-size:11px">
+          <div style="flex:0 0 38%">
+            <div style="font-weight:600">实体 1</div>
+            <div style="opacity:.7">实体 2 ←</div>
+            <div>实体 3</div>
+          </div>
+          <div style="flex:1;opacity:.85">起点 / 终点 / 开口 / 高度…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

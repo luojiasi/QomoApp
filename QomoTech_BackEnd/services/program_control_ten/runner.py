@@ -19,6 +19,7 @@ from services.program_control_ten.geometry import (
     计算开口范围,
     更新V型开口偏移,
     更新平行型开口偏移,
+    夹紧切割百分比,
     按开口等距偏移插补点,
     曲线路径,
     单直线路径,
@@ -54,6 +55,22 @@ def 取当前边切割高度(执行任务的参数: dict[str, Any], 当前边的
     if raw is None:
         raw = 执行任务的参数.get("切割产品的高度")
     return float(raw)
+
+
+def 按起始百分比取累计下降量(产品的高度: float, 起始百分比: float) -> float:
+    if 产品的高度 <= 0:
+        return 0.0
+    return 产品的高度 * 起始百分比 / 100.0
+
+
+def 按累计下降量刷新开口(水平的开口形状: str,上开口值: float,tana: float,累计下降量: float,最小的偏移: float,最大的偏移: float,) -> tuple[float, float]:
+    if 累计下降量 <= 1e-12:
+        return 最小的偏移, 最大的偏移
+    if 水平的开口形状 == "V型":
+        return 更新V型开口偏移(上开口值=上开口值, 正切角度=tana, 累计下降量=累计下降量)
+    if 水平的开口形状 == "//型":
+        return 更新平行型开口偏移(上开口值=上开口值, 正切角度=tana, 累计下降量=累计下降量)
+    return 最小的偏移, 最大的偏移
 
 
 def 取该工位相机清晰误差数据(行: dict[str, Any], 工位号: int) -> float:
@@ -247,6 +264,7 @@ class ProgramRunnerTenPlus:
                     try:
                         # print("well")
                         await self._运动到示教工位(当前X, 当前Y, 当前Z, 当前U)
+                        await asyncio.sleep(1)
                     except Exception as e:
                         日志.error(f"目标 {目标名} 运动到示教工位失败: {e}")
                         return {"success": False, "message": f"目标 {目标名} 运动到示教工位失败: {e}"}
@@ -376,7 +394,7 @@ class ProgramRunnerTenPlus:
             await self._运动.设置输出(5, False)
             await self._运动.设置输出(6, False)
             await self._运动.设置输出(7, False)
-            日志.info(f"关闭所有输出口")
+            日志.info(f"关闭所有十轴输出口")
             return True
         except Exception as exc:
             日志.error(f"关闭所有输出口失败: {exc}")
@@ -448,11 +466,12 @@ class ProgramRunnerTenPlus:
         垂直的中间切割变化率K = float(任务选择的垂直配方参数.get("middleCutting",{}).get("change",{}).get("k",0))
         垂直的中间切割变化率B = float(任务选择的垂直配方参数.get("middleCutting",{}).get("change",{}).get("b",0))
 
-        累计下降量 = 0 
+        起始切割百分比, 结束切割百分比 = 夹紧切割百分比(执行任务的参数.get("起始切割百分比", 0),执行任务的参数.get("结束切割百分比", 100))
         旋转任务的的分割数 = 执行任务的参数.get("R轴旋转的分割数")
         当前R轴旋转分割数 = 1 
         当前边的参数 = 取当前边的参数(执行任务的参数, 当前R轴旋转分割数)
         产品的高度 = 取当前边切割高度(执行任务的参数, 当前边的参数)
+        累计下降量 = 按起始百分比取累计下降量(产品的高度, 起始切割百分比)
         上层量 = 0
         
         角度 = 水平的角度K* 产品的高度 + 水平的角度B
@@ -461,6 +480,11 @@ class ProgramRunnerTenPlus:
         下开口值, 上开口值 = 计算开口范围(高度=产品的高度, 下开口K=水平的下开口K, 下开口B=水平的下开口B,深度补偿K=水平的深度补偿K, 深度补偿B=水平的深度补偿B, 正切角度=tana)
         最小的偏移 = 0
         最大的偏移 = 上开口值
+        最小的偏移, 最大的偏移 = 按累计下降量刷新开口(水平的开口形状, 上开口值, tana, 累计下降量, 最小的偏移, 最大的偏移)
+        日志.info(
+            f"[TenPlus] 切割范围={起始切割百分比}% → {结束切割百分比}%, "
+            f"起始下降量={累计下降量}"
+        )
         是否是从小到大的开口偏移 = True
         R轴是否进行持续旋转打开 = False
         准备开始切割下一次的第一次 = False
@@ -469,7 +493,10 @@ class ProgramRunnerTenPlus:
         补偿值 = float(该序号R轴的补偿.get("补偿值", 0))
         是否反向 = bool(执行任务的参数.get("是否反向", False))
         是否对切 = bool(执行任务的参数.get("是否对切", True))
-        日志.info(f"[TenPlus] 是否对切={是否对切}")
+        R轴每次旋转圈数 = float(执行任务的参数.get("R轴旋转圈数") or 2.0)
+        if not math.isfinite(R轴每次旋转圈数) or R轴每次旋转圈数 <= 0:
+            R轴每次旋转圈数 = 2.0
+        日志.info(f"[TenPlus] 是否对切={是否对切} R轴每次旋转圈数={R轴每次旋转圈数}")
 
         是否完全旋转完毕 = False
         曲线点列反向走 = False
@@ -534,6 +561,8 @@ class ProgramRunnerTenPlus:
                     try:
                         插补运行的路径点 = [{"x": 起点X, "y": 起点Y}]
                         await self._运动.连续插补XY(路径点=插补运行的路径点, 速度=20)
+                        # 等待X轴到位 = await self._运动.等待轴到位(轴名与位置=[("X", 起点X)], 容差=0.01)
+                        # 等待Y轴到位 = await self._运动.等待轴到位(轴名与位置=[("Y", 起点Y)], 容差=0.01)
                         等待X轴静止结果 = await self._运动.等待静止("X", 超时秒=XY等待静止超时秒)
                         等待Y轴静止结果 = await self._运动.等待静止("Y", 超时秒=XY等待静止超时秒)
                         if 等待X轴静止结果 and 等待Y轴静止结果:
@@ -562,7 +591,8 @@ class ProgramRunnerTenPlus:
                         当前步骤 = ProgramFreeParamsStep.清理所有状态
 
                 case ProgramFreeParamsStep.判断高度是否满足:
-                    if 累计下降量 <= 产品的高度 or not 是否完全旋转完毕:
+                    结束百分比的产品高度 = float((产品的高度 * 结束切割百分比)/100)
+                    if 累计下降量 <= 结束百分比的产品高度 or not 是否完全旋转完毕:
                         if 执行任务的参数.get("是否启用R轴旋转"):
                             日志.info("判断高度切割R轴")
                             if not R轴是否进行持续旋转打开:
@@ -623,7 +653,7 @@ class ProgramRunnerTenPlus:
                         当前步骤 = ProgramFreeParamsStep.清理所有状态
 
                 case ProgramFreeParamsStep.等待R轴旋转一圈:
-                    旋转结果 = await self._运动.R轴旋转圈数是否到达指定圈数(2.0)
+                    旋转结果 = await self._运动.R轴旋转圈数是否到达指定圈数(R轴每次旋转圈数)
                     if 旋转结果:
                         当前步骤 = ProgramFreeParamsStep.更新开口偏移值
 
@@ -680,6 +710,7 @@ class ProgramRunnerTenPlus:
                     当前量 = int(进度百分比 // 垂直的变化百分比)
                     垂直的每次下降步长量 -= (当前量 - 上层量) * 垂直的每次下降步长量减少量
                     上层量 = 当前量
+                    垂直的每次下降步长量 = max(垂直的每次下降步长量,0.008)
                     累计下降量 += round(垂直的每次下降步长量, 6)
                     
                     print("最大的偏移1",最大的偏移)
@@ -696,13 +727,15 @@ class ProgramRunnerTenPlus:
                     print("总进度百分比",总进度百分比)
                     准备开始切割下一次的第一次 = False
 
+                    日志.info(f"最大的偏移1={最大的偏移},总进度百分比={总进度百分比},累计下降量={累计下降量}")
+
 
                     # 当前大区间索引 = int(进度百分比 // 垂直的变化百分比) if 垂直的变化百分比 > 0 else 0
                     # 段内进度 = (进度百分比 % 垂直的变化百分比) // (垂直的变化百分比 // 垂直的每次下降步长量减少量) if 垂直的变化百分比 > 0 and 垂直的每次下降步长量减少量 > 0 else 0
                     # 垂直的每次下降步长量 = min(1.1, max(0.3, round((原始垂直的每次下降步长量 + 垂直的每次下降步长量减少量 / 100 * (当前大区间索引 % (垂直的每次下降步长量减少量 + 1))), 4)))
                     # 垂直的每次下降步长量 = min(1.0, max(0.3, round((原始垂直的每次下降步长量 + 垂直的每次下降步长量减少量 / 100 * 段内进度 + 垂直的每次下降步长量减少量 / 100 * 当前大区间索引), 4)))
-                    print("进度百分比",进度百分比<100)
-                    if 进度百分比 < 100:
+                    print("进度百分比",进度百分比<结束切割百分比)
+                    if 进度百分比 < 结束切割百分比:
                         if 执行任务的参数.get("是否启用R轴旋转"):
                             当前步骤 = ProgramFreeParamsStep.Z轴下降
                             是否完全旋转完毕 = True
@@ -765,8 +798,8 @@ class ProgramRunnerTenPlus:
                         垂直的中间切割变化率K = float(任务选择的垂直配方参数.get("middleCutting",{}).get("change",{}).get("k",0))
                         垂直的中间切割变化率B = float(任务选择的垂直配方参数.get("middleCutting",{}).get("change",{}).get("b",0))
 
-                        累计下降量 = 0 
                         产品的高度 = 取当前边切割高度(执行任务的参数, 当前边的参数)
+                        累计下降量 = 按起始百分比取累计下降量(产品的高度, 起始切割百分比)
                         上层量 = 0
 
                         角度 = 水平的角度K* 产品的高度 + 水平的角度B
@@ -775,6 +808,7 @@ class ProgramRunnerTenPlus:
                         下开口值, 上开口值 = 计算开口范围(高度=产品的高度, 下开口K=水平的下开口K, 下开口B=水平的下开口B,深度补偿K=水平的深度补偿K, 深度补偿B=水平的深度补偿B, 正切角度=tana)
                         最小的偏移 = 0
                         最大的偏移 = 上开口值
+                        最小的偏移, 最大的偏移 = 按累计下降量刷新开口(水平的开口形状, 上开口值, tana, 累计下降量, 最小的偏移, 最大的偏移)
                         是否是从小到大的开口偏移 = True
                         当前一层是否切割完整 = False
 

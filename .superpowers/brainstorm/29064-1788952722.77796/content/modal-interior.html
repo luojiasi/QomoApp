@@ -1,0 +1,93 @@
+<h2>弹层内部怎么排？</h2>
+<p class="subtitle">目标已定：批量改共同参数，同时能点进某一个细改。下面三种结构，<strong>推荐 A</strong>。</p>
+
+<div class="cards">
+  <div class="card" data-choice="master-detail" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#0f172a;border-radius:6px;padding:8px;font-size:10px;color:#e2e8f0">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;color:#7dd3fc;font-weight:700">已选 7 个实体 ×</div>
+        <div style="display:flex;gap:8px;height:150px">
+          <div style="width:34%;background:#1e293b;border-radius:4px;padding:6px">
+            <div style="opacity:.6;margin-bottom:4px">实体列表</div>
+            <div>1 LINE RIGHT</div>
+            <div style="background:#0ea5e9;color:#0f172a;border-radius:2px;padding:2px 4px;margin:3px 0">2 LINE RIGHT ←</div>
+            <div>3 ARC LEFT</div>
+            <div>4 LINE RIGHT</div>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:6px">
+            <div style="background:#082f49;border:1px solid #0ea5e9;border-radius:4px;padding:6px">
+              <div style="font-weight:700;color:#7dd3fc">应用到全部</div>
+              <div>开口 RIGHT · 基准高 60 · 挤出 5</div>
+            </div>
+            <div style="flex:1;background:#1e293b;border-radius:4px;padding:6px">
+              <div style="font-weight:700">实体 2 详情</div>
+              <div>起点 (-25, 8) · 终点 (1, 8)</div>
+              <div>焊接 / 表面角 / 编辑参数…</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A · 主从布局（推荐）</h3>
+      <p>左列表选中谁，右下就编谁。右上批量条只改开口、高度这类共同字段。LINE / ARC 字段不同也不互相抢格子。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="table" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#0f172a;border-radius:6px;padding:8px;font-size:10px;color:#e2e8f0">
+        <div style="margin-bottom:6px;padding:4px;background:#082f49;border-radius:4px;color:#7dd3fc">批量：开口 RIGHT 应用到勾选行</div>
+        <div style="background:#1e293b;border-radius:4px;padding:6px;line-height:1.7">
+          <div style="opacity:.55"># 类型 开口 基准高 起点 终点</div>
+          <div>□ 1 LINE RIGHT 60 -25,8 1,8</div>
+          <div style="background:#0ea5e9;color:#0f172a;border-radius:2px">☑ 2 LINE RIGHT 60 -25,0 1,0</div>
+          <div>□ 3 ARC LEFT 58 — —</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B · 表格一行一个实体</h3>
+      <p>对比参数最快，单元格可直接改。混合 LINE/ARC 时列会对不齐，圆弧的圆心半径只能挤进额外列或省略。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="tabs" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#0f172a;border-radius:6px;padding:8px;font-size:10px;color:#e2e8f0">
+        <div style="display:flex;gap:6px;margin-bottom:8px">
+          <div style="background:#0ea5e9;color:#0f172a;padding:3px 8px;border-radius:4px;font-weight:700">批量</div>
+          <div style="background:#1e293b;padding:3px 8px;border-radius:4px">逐个</div>
+        </div>
+        <div style="background:#1e293b;border-radius:4px;padding:10px;height:110px">
+          <div>开口方向 [ RIGHT ]</div>
+          <div style="margin-top:6px">基准高 [ 60 ]</div>
+          <div style="margin-top:6px">挤出高 [ 5 ]</div>
+          <div style="margin-top:10px;opacity:.6">切到「逐个」才能改起点终点</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C · 两个 Tab</h3>
+      <p>批量和详情分开，界面更简单。改开口后再改某条线的起点，必须来回切 Tab，节奏更碎。</p>
+    </div>
+  </div>
+</div>
+
+<div class="pros-cons" style="margin-top:16px">
+  <div class="pros">
+    <h4>为什么推荐 A</h4>
+    <ul>
+      <li>一次看见列表、批量、当前详情，符合你要的 B+C</li>
+      <li>可复用现有「编辑参数」表单做右下详情，改动面小</li>
+      <li>不同类型实体互不影响</li>
+    </ul>
+  </div>
+  <div class="cons">
+    <h4>A 的代价</h4>
+    <ul>
+      <li>横向对比 7 条线的起点，不如表格一眼看完</li>
+      <li>弹层比现在的小卡片大，会挡住一部分画布</li>
+    </ul>
+  </div>
+</div>

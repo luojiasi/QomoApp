@@ -52,6 +52,15 @@ export const TEN_PLUS_DEFAULT_DIAMETER_PERCENT = 100
 /** 高度百分比默认值（100 表示按原高度） */
 export const TEN_PLUS_DEFAULT_HEIGHT_PERCENT = 100
 
+/** 起始切割百分比：从产品高度的该比例处开始下降切割 */
+export const TEN_PLUS_DEFAULT_CUT_START_PERCENT = 0
+
+/** 结束切割百分比：进度到达该比例后结束本任务 */
+export const TEN_PLUS_DEFAULT_CUT_END_PERCENT = 100
+
+/** 等分线段分割数为 0 时，R 轴持续旋转每趟等待的圈数 */
+export const TEN_PLUS_DEFAULT_R_TURNS = 2
+
 /** 相机清晰误差默认值（mm）；UR 校准按工位手填 */
 export const TEN_PLUS_DEFAULT_CAMERA_FOCUS_ERROR = 0
 

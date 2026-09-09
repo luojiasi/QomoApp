@@ -4,9 +4,13 @@ import { isTableAngle } from '../composables/useTenPlusTask'
 import {
   TEN_PLUS_CHORD_RATIO_STEP,
   TEN_PLUS_DEFAULT_CHORD_RATIO,
+  TEN_PLUS_DEFAULT_CUT_END_PERCENT,
+  TEN_PLUS_DEFAULT_CUT_START_PERCENT,
   TEN_PLUS_DEFAULT_DIAMETER_PERCENT,
   TEN_PLUS_DEFAULT_DIAMOND_PERCENT,
-  TEN_PLUS_DEFAULT_HEIGHT_PERCENT
+  TEN_PLUS_DEFAULT_HEIGHT_PERCENT,
+  TEN_PLUS_DEFAULT_R_TURNS,
+  isEqualLinePath
 } from '../constants/tenPlusCutting'
 import { computeDiamondRatio } from '../utils/tenPlusDiamond'
 import type { TenPlusTaskRow } from '../types/tenPlusCutting'
@@ -350,6 +354,52 @@ watch(
   { immediate: true }
 )
 
+function clampCutPercent(n: number, fallback: number): number {
+  if (!Number.isFinite(n)) return fallback
+  return Math.min(100, Math.max(0, n))
+}
+
+function commitCutStart(): void {
+  const start = clampCutPercent(Number(props.row.cutStartPercent), TEN_PLUS_DEFAULT_CUT_START_PERCENT)
+  props.row.cutStartPercent = start
+  if (Number(props.row.cutEndPercent) < start) props.row.cutEndPercent = start
+}
+
+function commitCutEnd(): void {
+  const end = clampCutPercent(Number(props.row.cutEndPercent), TEN_PLUS_DEFAULT_CUT_END_PERCENT)
+  props.row.cutEndPercent = end
+  if (Number(props.row.cutStartPercent) > end) props.row.cutStartPercent = end
+}
+
+watch(
+  () => props.row.cutStartPercent,
+  (v) => {
+    if (!Number.isFinite(v)) props.row.cutStartPercent = TEN_PLUS_DEFAULT_CUT_START_PERCENT
+  },
+  { immediate: true }
+)
+
+watch(
+  () => props.row.cutEndPercent,
+  (v) => {
+    if (!Number.isFinite(v)) props.row.cutEndPercent = TEN_PLUS_DEFAULT_CUT_END_PERCENT
+  },
+  { immediate: true }
+)
+
+const cutRangeBar = computed(() => {
+  const start = clampCutPercent(Number(props.row.cutStartPercent), TEN_PLUS_DEFAULT_CUT_START_PERCENT)
+  const end = clampCutPercent(Number(props.row.cutEndPercent), TEN_PLUS_DEFAULT_CUT_END_PERCENT)
+  const span = H_BOTTOM - H_TOP
+  const startY = H_TOP + (start / 100) * span
+  const endY = H_TOP + (end / 100) * span
+  return {
+    startY,
+    endY,
+    height: Math.max(0, endY - startY)
+  }
+})
+
 watch(
   () => props.row.chordRatio,
   (v) => {
@@ -357,6 +407,31 @@ watch(
   },
   { immediate: true }
 )
+
+const showRTurnsCard = computed(
+  () => isEqualLinePath(props.row.pathType) && Number(props.row.divisions) === 0
+)
+
+watch(
+  () => props.row.rTurns,
+  (v) => {
+    if (!Number.isFinite(v)) props.row.rTurns = TEN_PLUS_DEFAULT_R_TURNS
+  },
+  { immediate: true }
+)
+
+const R_TURNS_RING_MAX = 4
+
+const rTurnsDasharray = computed(() => {
+  const n = Number(props.row.rTurns)
+  const turns = Number.isFinite(n) && n > 0 ? n : TEN_PLUS_DEFAULT_R_TURNS
+  return ringDasharrayOf(Math.min(100, (turns / R_TURNS_RING_MAX) * 100))
+})
+
+function commitRTurns(): void {
+  const n = Number(props.row.rTurns)
+  props.row.rTurns = Number.isFinite(n) && n > 0 ? n : TEN_PLUS_DEFAULT_R_TURNS
+}
 
 const visualChordRatio = computed(() => {
   const n = Number(props.row.chordRatio)
@@ -838,6 +913,112 @@ function focusKbxCard(ev: MouseEvent): void {
           </div>
           <div class="tpc-comp-unit-cap">拟合直线</div>
         </div>
+
+        <div class="tpc-comp-unit tpc-comp-unit-cut">
+          <div class="tpc-comp-dial">
+            <svg class="tpc-comp-cut-bar" viewBox="0 0 128 128" aria-hidden="true">
+              <line
+                class="tpc-comp-height-track"
+                :x1="H_ARROW_X"
+                :y1="H_TOP"
+                :x2="H_ARROW_X"
+                :y2="H_BOTTOM"
+              />
+              <line
+                class="tpc-comp-height-rail"
+                :x1="H_LEFT"
+                :y1="H_TOP"
+                :x2="H_RIGHT"
+                :y2="H_TOP"
+              />
+              <line
+                class="tpc-comp-height-rail"
+                :x1="H_LEFT"
+                :y1="H_BOTTOM"
+                :x2="H_RIGHT"
+                :y2="H_BOTTOM"
+              />
+              <rect
+                class="tpc-comp-cut-fill"
+                :x="H_ARROW_X - 3.2"
+                :y="cutRangeBar.startY"
+                width="6.4"
+                :height="cutRangeBar.height"
+                rx="3.2"
+              />
+            </svg>
+            <div class="tpc-comp-dial-core tpc-comp-cut-core">
+              <label class="tpc-comp-cut-row" for="tpc-comp-cut-start">
+                <span>起始</span>
+                <input
+                  id="tpc-comp-cut-start"
+                  v-model.number="row.cutStartPercent"
+                  type="number"
+                  class="tpc-comp-dial-val"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  aria-label="起始切割百分比"
+                  :placeholder="String(TEN_PLUS_DEFAULT_CUT_START_PERCENT)"
+                  @focus="selectInput"
+                  @blur="commitCutStart"
+                />
+                <span>%</span>
+              </label>
+              <label class="tpc-comp-cut-row" for="tpc-comp-cut-end">
+                <span>结束</span>
+                <input
+                  id="tpc-comp-cut-end"
+                  v-model.number="row.cutEndPercent"
+                  type="number"
+                  class="tpc-comp-dial-val"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  aria-label="结束切割百分比"
+                  :placeholder="String(TEN_PLUS_DEFAULT_CUT_END_PERCENT)"
+                  @focus="selectInput"
+                  @blur="commitCutEnd"
+                />
+                <span>%</span>
+              </label>
+            </div>
+          </div>
+          <div class="tpc-comp-unit-cap">切割范围</div>
+        </div>
+
+        <label v-if="showRTurnsCard" class="tpc-comp-unit" for="tpc-comp-r-turns">
+          <div class="tpc-comp-dial">
+            <svg class="tpc-comp-ring" viewBox="0 0 128 128" aria-hidden="true">
+              <circle class="tpc-comp-ring-track" cx="64" cy="64" :r="RING_R" />
+              <circle
+                class="tpc-comp-ring-value"
+                cx="64"
+                cy="64"
+                :r="RING_R"
+                :stroke-dasharray="rTurnsDasharray"
+              />
+            </svg>
+            <div class="tpc-comp-dial-core">
+              <span class="tpc-comp-dial-row">
+                <input
+                  id="tpc-comp-r-turns"
+                  v-model.number="row.rTurns"
+                  type="number"
+                  class="tpc-comp-dial-val"
+                  min="0.1"
+                  step="0.1"
+                  aria-label="R轴旋转圈数"
+                  :placeholder="String(TEN_PLUS_DEFAULT_R_TURNS)"
+                  @focus="selectInput"
+                  @blur="commitRTurns"
+                />
+                <span>圈</span>
+              </span>
+            </div>
+          </div>
+          <div class="tpc-comp-unit-cap">R轴旋转圈数</div>
+        </label>
       </div>
 
       <section class="tpc-comp-xyz" :class="{ locked: tableLocked }">
@@ -899,7 +1080,7 @@ function focusKbxCard(ev: MouseEvent): void {
   --tpc-accent: #0071e3;
   --tpc-surface: var(--app-card);
   --tpc-surface-dim: color-mix(in srgb, var(--app-bg) 72%, var(--app-card));
-  width: 920px;
+  width: 1080px;
   max-width: 96vw;
   padding: 20px 20px 16px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI Variable Display', 'Segoe UI',
@@ -1024,13 +1205,13 @@ function focusKbxCard(ev: MouseEvent): void {
 }
 .tpc-comp-row1 {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, 2fr);
   gap: 10px;
   align-items: start;
   margin: 18px 0 0;
 }
 .tpc-comp-row1.is-diamond {
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 2fr);
 }
 .tpc-comp-unit {
   min-width: 0;
@@ -1111,6 +1292,38 @@ function focusKbxCard(ev: MouseEvent): void {
 }
 .tpc-comp-height-core {
   padding-left: 26px;
+}
+.tpc-comp-cut-bar {
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.tpc-comp-cut-fill {
+  fill: var(--tpc-accent);
+}
+.tpc-comp-cut-core {
+  padding-left: 26px;
+  gap: 8px;
+}
+.tpc-comp-cut-row {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: center;
+  gap: 4px;
+  cursor: text;
+}
+.tpc-comp-cut-row > span:first-child {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--app-text-muted);
+}
+.tpc-comp-unit-cut {
+  cursor: default;
+}
+.tpc-comp-cut-row .tpc-comp-dial-val {
+  width: 4.2ch;
+  font-size: 18px;
 }
 .tpc-comp-ring {
   overflow: hidden;

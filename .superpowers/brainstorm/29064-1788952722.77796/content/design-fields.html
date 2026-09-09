@@ -1,0 +1,39 @@
+<h2>第二节：字段与批量规则</h2>
+<p class="subtitle">批量只动「所有实体都有」的工艺参数。几何（起点、圆心、半径）只改当前这一条。</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">应用到全部</div>
+    <div class="mockup-body" style="font-size:12px;line-height:1.7">
+      <div>开口方向　RIGHT / LEFT</div>
+      <div>基准高</div>
+      <div>挤出高</div>
+      <div>表面角</div>
+      <div>焊接名称 / 开口角 / 开口量</div>
+      <p class="subtitle" style="margin-top:8px">这些就是现在「编辑参数」小弹窗里的字段，一次写进所有选中实体。</p>
+    </div>
+  </div>
+  <div class="mockup">
+    <div class="mockup-header">只改当前实体</div>
+    <div class="mockup-body" style="font-size:12px;line-height:1.7">
+      <div>LINE：起点、终点</div>
+      <div>ARC：圆心、半径、起终角</div>
+      <div>CIRCLE：圆心、半径</div>
+      <div>BEZIER：各控制点</div>
+      <div>IRREGULAR：中心、半径、旋转</div>
+      <p class="subtitle" style="margin-top:8px">详情里也可以改开口/高度，但只影响左边高亮的那一条。</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <p class="label">值不一致时</p>
+  <div class="mockup">
+    <div class="mockup-header">7 个实体里开口有的 LEFT 有的 RIGHT</div>
+    <div class="mockup-body" style="font-size:12px">
+      <div>开口方向　[ 多个值 ▾ ]　← 空白占位，不擅自改</div>
+      <div>基准高　　[ 60 ]　　　　← 7 个都是 60，直接显示</div>
+      <div style="margin-top:8px;opacity:.75">你在批量栏改一个值并确认后，立刻写进全部选中实体。不弹二次确认。</div>
+    </div>
+  </div>
+</div>

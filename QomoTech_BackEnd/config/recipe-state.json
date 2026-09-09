@@ -113,7 +113,7 @@
       },
       "lowerOpeningFormula": {
         "k": 5,
-        "b": 35
+        "b": 100
       },
       "depthCompensationFormula": {
         "k": 2,
@@ -126,7 +126,7 @@
       },
       "focusCompensation": 0.08,
       "id": "horizontal-formula-3",
-      "updatedAt": "2026-8-17 10:04:11"
+      "updatedAt": "2026-9-9 08:39:11"
     }
   ],
   "verticalFormulaRecipes": [
