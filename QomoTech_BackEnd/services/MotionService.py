@@ -863,8 +863,10 @@ class MotionService:
         return {"success": True, "message": f"R轴已旋转到 {目标圈数:.2f} 圈"}
 
     async def R轴旋转圈数是否到达指定圈数(self, 旋转圈数: float, 超时秒: float = 60.0) -> bool:
-        """启动 R 轴持续旋转，轮询直到转够指定圈数或超时。
+        """轮询直到 R 轴转够指定圈数或超时。
 
+        - 轴已在转时只等待，不再下发持续旋转
+        - 轴空闲时才启动持续旋转
         - 旋转圈数 >= 目标时返回 True
         - 急停 / 超时返回 False
         - 暂停期间继续等待
@@ -880,16 +882,22 @@ class MotionService:
         起始圈数 = await adapter.获取R轴的当前位置()
         目标圈数 = 起始圈数 + float(旋转圈数)
 
-        # 启动持续旋转
-        self._状态机.触发(状态事件.MOVE_START)
+        # R 已在转则只轮询，不再追加 MOVE（避免缓冲堆满 1002；失败时也不应 STOP）
         try:
-            启动结果 = await adapter.R轴一直进行旋转()
-        except Exception:
-            self._状态机.触发(状态事件.STOP, 强制=True)
-            return False
-        if not 启动结果.get("success"):
-            self._状态机.触发(状态事件.STOP, 强制=True)
-            return False
+            R轴已在转 = not await adapter.读_idle(轴_R)
+        except ZMCError:
+            R轴已在转 = False
+
+        if not R轴已在转:
+            self._状态机.触发(状态事件.MOVE_START)
+            try:
+                启动结果 = await adapter.R轴一直进行旋转()
+            except Exception:
+                self._状态机.触发(状态事件.STOP, 强制=True)
+                return False
+            if not 启动结果.get("success"):
+                self._状态机.触发(状态事件.STOP, 强制=True)
+                return False
 
         # 轮询等待到达目标圈数
         截止 = asyncio.get_event_loop().time() + 超时秒

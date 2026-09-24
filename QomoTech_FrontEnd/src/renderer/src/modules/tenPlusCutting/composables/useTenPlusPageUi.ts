@@ -1,16 +1,8 @@
 import { reactive, toRefs, watch } from 'vue'
-import {
-  TEN_PLUS_DEFAULT_CAMERA_VISIBLE,
-  TEN_PLUS_DEFAULT_CROSSHAIR_BAR_VISIBLE,
-  TEN_PLUS_DEFAULT_KEYBOARD_ENABLED,
-  TEN_PLUS_DEFAULT_RUN_CAMERA_ENLARGE,
-  TEN_PLUS_PAGE_UI_STORAGE_KEY
-} from '../constants/tenPlusCutting'
+import {默认相机可见,默认十字线栏可见,默认键盘启用,默认运行相机放大,页面界面存储键} from '../constants/tenPlusCutting'
 import type { TenPlusPageUiSettings } from '../types/tenPlusCutting'
 
-function asBool(raw: unknown, fallback: boolean): boolean {
-  return typeof raw === 'boolean' ? raw : fallback
-}
+function asBool(raw: unknown, fallback: boolean): boolean {return typeof raw === 'boolean' ? raw : fallback}
 
 function asCoord(raw: unknown): number | null {
   const n = Number(raw)
@@ -19,19 +11,19 @@ function asCoord(raw: unknown): number | null {
 
 function createDefaults(): TenPlusPageUiSettings {
   return {
-    keyboardEnabled: TEN_PLUS_DEFAULT_KEYBOARD_ENABLED,
-    cameraVisible: TEN_PLUS_DEFAULT_CAMERA_VISIBLE,
+    keyboardEnabled: 默认键盘启用,
+    cameraVisible: 默认相机可见,
     cameraX: null,
     cameraY: null,
-    crosshairBarVisible: TEN_PLUS_DEFAULT_CROSSHAIR_BAR_VISIBLE,
-    runCameraEnlarge: TEN_PLUS_DEFAULT_RUN_CAMERA_ENLARGE
+    crosshairBarVisible: 默认十字线栏可见,
+    runCameraEnlarge: 默认运行相机放大
   }
 }
 
 function loadSettings(): TenPlusPageUiSettings {
   const next = createDefaults()
   try {
-    const raw = localStorage.getItem(TEN_PLUS_PAGE_UI_STORAGE_KEY)
+    const raw = localStorage.getItem(页面界面存储键)
     if (!raw) return next
     const parsed = JSON.parse(raw) as Partial<TenPlusPageUiSettings>
     next.keyboardEnabled = asBool(parsed.keyboardEnabled, next.keyboardEnabled)
@@ -48,7 +40,7 @@ function loadSettings(): TenPlusPageUiSettings {
 
 function persistSettings(settings: TenPlusPageUiSettings): void {
   localStorage.setItem(
-    TEN_PLUS_PAGE_UI_STORAGE_KEY,
+    页面界面存储键,
     JSON.stringify({
       keyboardEnabled: settings.keyboardEnabled,
       cameraVisible: settings.cameraVisible,

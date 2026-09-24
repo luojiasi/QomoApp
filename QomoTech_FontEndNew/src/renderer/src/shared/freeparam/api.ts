@@ -13,8 +13,8 @@ export interface TenPlusTargetSummary {
   name: string
   slotIndex: number
   pointXy: string
-  rInterval: number
-  rCompensation: number
+  十轴切割R旋转圈数: number
+  十轴切割R旋转补偿值: number
 }
 
 export interface TenPlusFreeParamPayload {
@@ -40,8 +40,8 @@ export interface TenPlusFreeParamPayload {
     compZ: number
     compAngle: number
     chordRatio: number
-    rInterval: number
-    rCompensation: number
+    十轴切割R旋转圈数: number
+    十轴切割R旋转补偿值: number
     pointXy?: string
     slotIndex?: number | null
     targetId?: string
@@ -99,8 +99,8 @@ export function toTenPlusTargetSummary(target: FreeParamTarget): TenPlusTargetSu
     name: target.name,
     slotIndex: target.slotIndex,
     pointXy: target.pointXy,
-    rInterval: target.rInterval,
-    rCompensation: target.rCompensation
+    十轴切割R旋转圈数: target.十轴切割R旋转圈数,
+    十轴切割R旋转补偿值: target.十轴切割R旋转补偿值
   }
 }
 
@@ -108,8 +108,8 @@ export function toTenPlusTargetSummary(target: FreeParamTarget): TenPlusTargetSu
 export function buildTenPlusRowsFromTarget(
   rows: FreeParamTaskRow[],
   opts: {
-    rInterval: number
-    rCompensation: number
+    十轴切割R旋转圈数: number
+    十轴切割R旋转补偿值: number
     pointXy?: string
     slotIndex?: number | null
     targetId?: string
@@ -128,8 +128,8 @@ export function buildTenPlusRowsFromTarget(
     compZ: row.compZ,
     compAngle: row.compAngle,
     chordRatio: row.chordRatio,
-    rInterval: opts.rInterval,
-    rCompensation: opts.rCompensation,
+    十轴切割R旋转圈数: opts.十轴切割R旋转圈数,
+    十轴切割R旋转补偿值: opts.十轴切割R旋转补偿值,
     pointXy: opts.pointXy,
     slotIndex: opts.slotIndex,
     targetId: opts.targetId,
@@ -149,8 +149,8 @@ export function buildTenPlusRowsFromTargets(selected: FreeParamTarget[]): TenPlu
   for (const target of ordered) {
     out.push(
       ...buildTenPlusRowsFromTarget(target.rows, {
-        rInterval: target.rInterval,
-        rCompensation: target.rCompensation,
+        十轴切割R旋转圈数: target.十轴切割R旋转圈数,
+        十轴切割R旋转补偿值: target.十轴切割R旋转补偿值,
         pointXy: target.pointXy,
         slotIndex: target.slotIndex,
         targetId: target.id,

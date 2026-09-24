@@ -58,18 +58,18 @@
   "horizontalFormulaRecipes": [
     {
       "name": "带角度固定没开口",
-      "openingShape": "//型",
+      "openingShape": "V型",
       "angleFormula": {
         "k": 0,
         "b": 0.54
       },
       "lowerOpeningFormula": {
-        "k": 0,
-        "b": 50
+        "k": 5,
+        "b": 35
       },
       "depthCompensationFormula": {
-        "k": 0,
-        "b": 0
+        "k": 2,
+        "b": 0.5
       },
       "upperOpeningFormula": "由系统自动计算",
       "compensationAngleFormula": {
@@ -78,7 +78,7 @@
       },
       "focusCompensation": 0.08,
       "id": "horizontal-formula-1",
-      "updatedAt": "2026-8-17 10:04:23"
+      "updatedAt": "2026-9-21 13:43:13"
     },
     {
       "name": "固定800开口",
@@ -233,8 +233,8 @@
     {
       "id": "machining-4",
       "name": "默认值",
-      "updatedAt": "2026-9-5 15:13:43",
-      "teachingMode": true,
+      "updatedAt": "2026-9-21 16:22:31",
+      "teachingMode": false,
       "timeoutWaitTime": 2,
       "horizontalFormulaId": "horizontal-formula-3",
       "verticalFormulaId": "vertical-formula-2",

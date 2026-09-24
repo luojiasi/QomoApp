@@ -22,7 +22,6 @@ from services.program_control_ten.geometry import (
     夹紧切割百分比,
     按开口等距偏移插补点,
     曲线路径,
-    单直线路径,
     归一化角度,
 )
 from utils.logger import 获取日志记录器, 格式化异常位置
@@ -54,7 +53,13 @@ def 取当前边切割高度(执行任务的参数: dict[str, Any], 当前边的
     raw = 当前边的参数.get("切割产品的高度")
     if raw is None:
         raw = 执行任务的参数.get("切割产品的高度")
-    return float(raw)
+    try:
+        高度 = float(raw)
+    except (TypeError, ValueError):
+        return 0.0
+    if not math.isfinite(高度):
+        return 0.0
+    return 高度
 
 
 def 按起始百分比取累计下降量(产品的高度: float, 起始百分比: float) -> float:
@@ -229,56 +234,38 @@ class ProgramRunnerTenPlus:
                 目标总数 = len(目标列表)
                 行总数 = sum(len(t.get("rows") or []) for t in 目标列表)
                 self.更新进度(total_tasks=行总数, current_task_index=0, current_task_jindubaifenbi=0)
-                日志.info(f"[TenPlus] ====== 开始执行，共 {目标总数} 个目标、{行总数} 行 ======")
-
                 全局已完成行 = 0
                 首个工位Z: float | None = None
-                是否存在台面, 清晰点距离自动切台面的位置 = 判断是否存在台面且计算位置(目标列表)
-                日志.info(
-                    f"[TenPlus] 是否存在台面={是否存在台面} "
-                    f"清晰点距离自动切台面的位置={清晰点距离自动切台面的位置}"
-                )
+                是否存在台面, 清晰点距离自动切台面的位置, 台面设置的位置X = 判断是否存在台面且计算位置(目标列表)
+
+                日志.info(f"[TenPlus] ====== 开始执行，共 {目标总数} 个目标、{行总数} 行 ======")
+                日志.info(f"[TenPlus] 是否存在台面={是否存在台面} "f"清晰点距离自动切台面的位置={清晰点距离自动切台面的位置}"f"台面设置的位置X={台面设置的位置X}")
                 for 目标序号, 目标 in enumerate(目标列表):
                     行列表 = list(目标.get("rows") or [])
                     目标名 = str(目标.get("name") or 目标.get("id") or 目标序号 + 1)
                     日志.info(f"\n[TenPlus] -------- 目标 {目标序号 + 1}/{目标总数}: {目标名} " + f"（{len(行列表)} 行）--------")
-                    if not 行列表:
-                        日志.warning(f"[TenPlus] 目标 {目标名} 无任务行，跳过")
-                        continue
-
-                    try:
-                        工位号 = int(行列表[0].get("slotIndex"))
-                    except (TypeError, ValueError):
-                        return {"success": False,"message": f"目标 {目标名} 缺少有效 slotIndex，无法从 TENPLUSCUTTING 取点"}
+                    工位号 = int(行列表[0].get("slotIndex"))
                     工位点 = 按工位号取点位(工位号)
-                    if 工位点 is None:
-                        return {"success": False,"message": f"目标 {目标名} 工位 {工位号} 未示教或不存在（TENPLUSCUTTING）",}
 
                     当前X = float(工位点["x"])
                     当前Y = float(工位点["y"])
                     当前Z = float(工位点["z"])
                     当前U = float(工位点["u"])
-                    if 首个工位Z is None:
-                        首个工位Z = 当前Z
                     日志.info(f"[TenPlus] 目标 {目标名} 工位#{工位号} → " + f"XYZU=({当前X}, {当前Y}, {当前Z}, {当前U})")
+
                     try:
-                        # print("well")
                         await self._运动到示教工位(当前X, 当前Y, 当前Z, 当前U)
                         await asyncio.sleep(1)
                     except Exception as e:
                         日志.error(f"目标 {目标名} 运动到示教工位失败: {e}")
                         return {"success": False, "message": f"目标 {目标名} 运动到示教工位失败: {e}"}
+                    
                     工位的轴位置 = {"x": 当前X, "y": 当前Y, "z": 当前Z, "u": 当前U}
-                    try:
-                        相机清晰误差数据 = 取该工位相机清晰误差数据(行列表[0], 工位号)
-                    except ValueError as e:
-                        return {"success": False, "message": str(e)}
+
+                    相机清晰误差数据 = 取该工位相机清晰误差数据(行列表[0], 工位号)
                     该工位清晰点距离自动切台面的位置 = 清晰点距离自动切台面的位置 + 相机清晰误差数据
-                    日志.info(
-                        f"[TenPlus] 工位#{工位号} 相机清晰误差数据={相机清晰误差数据} "
-                        f"该工位清晰点距离自动切台面的位置={该工位清晰点距离自动切台面的位置}"
-                    )
-                
+                    日志.info( f"[TenPlus] 工位#{工位号} 相机清晰误差数据={相机清晰误差数据} " + f"该工位清晰点距离自动切台面的位置={该工位清晰点距离自动切台面的位置}" )
+
                     上一曲线法线 = None
                     for 序号, 行数据 in enumerate(行列表):
                         全局已完成行 += 1
@@ -288,9 +275,21 @@ class ProgramRunnerTenPlus:
                         该序号的参数 = 构建任务的数据(行数据, 工位的轴位置, 工位号)
                         该序号的配方 = 构建配方数据(配方数据, 该序号的参数.get("配方ID"))
                         累计高度 = 取同层累计高度(行列表, 序号)
-                        所有高度总和 = 取同层累计高度(行列表, len(行列表))
-                        执行任务的参数 = 构建执行任务的参数(该序号的参数,当前Z,所有高度总和,累计高度,是否存在台面,该工位清晰点距离自动切台面的位置)
-                        if str(行数据.get("pathType", "")) in (曲线路径, 单直线路径):
+                        # 所有高度总和 = 取同层累计高度(行列表, len(行列表))
+
+
+
+
+
+                        执行任务的参数 = 构建执行任务的参数(该序号的参数,累计高度=累计高度,是否存在台面=是否存在台面,台面设置的位置X=台面设置的位置X)
+                        # if 是否存在台面: 
+                        #     执行任务的参数 = 构建执行任务的参数(该序号的参数,当前Z,累计高度,该工位清晰点距离自动切台面的位置,是否存在台面,台面设置的位置X)
+                        # else:
+                        #     执行任务的参数 = 构建执行任务的参数(该序号的参数,当前Z,累计高度,0.0,是否存在台面,台面设置的位置X)
+
+
+
+                        if str(行数据.get("pathType", "")) == 曲线路径:
                             边列表 = 执行任务的参数.get("边参数列表") or []
                             本中 = float(边列表[0].get("法线角度", 0)) if 边列表 else 0.0
                             if 行数据.get("sameLayer") and 序号 > 0 and 上一曲线法线 is not None:
@@ -301,18 +300,19 @@ class ProgramRunnerTenPlus:
                         else:
                             上一曲线法线 = None
                         self.更新进度(current_task_index=当前序号, current_task_jindubaifenbi=0)
+
+
+
                         try:
-                            await self._切割(
-                                配方数据=该序号的配方,
-                                执行任务的参数=执行任务的参数,
-                                该序号R轴的补偿=该序号R轴的补偿,
-                                起始点的位置={"x": 当前X, "y": 当前Y, "z": 当前Z, "u": 当前U},
-                                工位号=工位号,
-                            )
+                            await self._切割(配方数据=该序号的配方,执行任务的参数=执行任务的参数,该序号R轴的补偿=该序号R轴的补偿,起始点的位置={"x": 当前X, "y": 当前Y, "z": 当前Z, "u": 当前U},工位号=工位号)
                         except Exception as e:
                             位置 = 格式化异常位置(e)
                             日志.error(f"目标 {目标名} 行 {序号 + 1} 执行失败: {位置}", exc_info=True)
                             return {"success": False, "message": f"目标 {目标名} 行 {序号 + 1} 执行失败: {位置}"}
+
+
+
+
 
                         if self._是否急停请求:
                             await self._十工位的运动.关闭吹风()
@@ -405,11 +405,11 @@ class ProgramRunnerTenPlus:
         当前步骤 = ProgramFreeParamsStep.准备开始
 
         任务选择的加工配方 = dict((配方数据.get("selectedMachining") or [{}])[0])
-        任务选择的扫黑配方 = dict(配方数据.get("selectedBlackeningRecipe")[0])
-        任务选择的扫黑激光参数 = dict(配方数据.get("selectedBlackeningLaser")[0])
-        任务选择的加工激光参数 = dict(配方数据.get("selectedMachiningLaser")[0])
-        任务选择的水平配方参数 = dict(配方数据.get("selectedHorizontal")[0])
-        任务选择的垂直配方参数 = dict(配方数据.get("selectedVertical")[0])
+        任务选择的扫黑配方 = dict((配方数据.get("selectedBlackeningRecipe") or [{}])[0])
+        任务选择的扫黑激光参数 = dict((配方数据.get("selectedBlackeningLaser") or [{}])[0])
+        任务选择的加工激光参数 = dict((配方数据.get("selectedMachiningLaser") or [{}])[0])
+        任务选择的水平配方参数 = dict((配方数据.get("selectedHorizontal") or [{}])[0])
+        任务选择的垂直配方参数 = dict((配方数据.get("selectedVertical") or [{}])[0])
 
         是否进行示教模式 = 读取示教模式(任务选择的加工配方)
         超时等待时间 = 读取超时等待时间(任务选择的加工配方)
@@ -423,13 +423,13 @@ class ProgramRunnerTenPlus:
         扫黑的开口K = float(任务选择的扫黑配方.get("saoheikaikou",{}).get("k",0))
         扫黑的开口B = float(任务选择的扫黑配方.get("saoheikaikou",{}).get("b",0))
 
-        扫黑功率 = float(任务选择的扫黑激光参数.get("laserPower"))
-        扫黑频率 = float(任务选择的扫黑激光参数.get("laserFrequency"))
-        扫黑电流 = float(任务选择的扫黑激光参数.get("laserCurrent"))
+        扫黑功率 = float(任务选择的扫黑激光参数.get("laserPower") or 0)
+        扫黑频率 = float(任务选择的扫黑激光参数.get("laserFrequency") or 0)
+        扫黑电流 = float(任务选择的扫黑激光参数.get("laserCurrent") or 0)
 
-        加工功率 = float(任务选择的加工激光参数.get("laserPower"))
-        加工频率 = float(任务选择的加工激光参数.get("laserFrequency"))
-        加工电流 = float(任务选择的加工激光参数.get("laserCurrent"))
+        加工功率 = float(任务选择的加工激光参数.get("laserPower") or 0)
+        加工频率 = float(任务选择的加工激光参数.get("laserFrequency") or 0)
+        加工电流 = float(任务选择的加工激光参数.get("laserCurrent") or 0)
 
         水平的开口形状 = str(任务选择的水平配方参数.get("openingShape", ""))
         水平的焦距补偿 = float(任务选择的水平配方参数.get("focusCompensation", 0))
@@ -469,7 +469,7 @@ class ProgramRunnerTenPlus:
         起始切割百分比, 结束切割百分比 = 夹紧切割百分比(执行任务的参数.get("起始切割百分比", 0),执行任务的参数.get("结束切割百分比", 100))
         旋转任务的的分割数 = 执行任务的参数.get("R轴旋转的分割数")
         当前R轴旋转分割数 = 1 
-        当前边的参数 = 取当前边的参数(执行任务的参数, 当前R轴旋转分割数)
+        当前边的参数 = 取当前边的参数(执行任务的参数, 当前R轴旋转分割数)  #在这一步中我目的是获取非等分线段的切割参数
         产品的高度 = 取当前边切割高度(执行任务的参数, 当前边的参数)
         累计下降量 = 按起始百分比取累计下降量(产品的高度, 起始切割百分比)
         上层量 = 0
@@ -481,15 +481,12 @@ class ProgramRunnerTenPlus:
         最小的偏移 = 0
         最大的偏移 = 上开口值
         最小的偏移, 最大的偏移 = 按累计下降量刷新开口(水平的开口形状, 上开口值, tana, 累计下降量, 最小的偏移, 最大的偏移)
-        日志.info(
-            f"[TenPlus] 切割范围={起始切割百分比}% → {结束切割百分比}%, "
-            f"起始下降量={累计下降量}"
-        )
+        日志.info(f"[TenPlus] 切割范围={起始切割百分比}% → {结束切割百分比}%, "f"起始下降量={累计下降量}")
         是否是从小到大的开口偏移 = True
         R轴是否进行持续旋转打开 = False
         准备开始切割下一次的第一次 = False
 
-        多少圈进行补偿值 = float(该序号R轴的补偿.get("多少圈进行一次补偿", 0))
+        多少圈进行补偿值 = float(该序号R轴的补偿.get("十轴切割R旋转圈数", 0))
         补偿值 = float(该序号R轴的补偿.get("补偿值", 0))
         是否反向 = bool(执行任务的参数.get("是否反向", False))
         是否对切 = bool(执行任务的参数.get("是否对切", True))
@@ -555,6 +552,10 @@ class ProgramRunnerTenPlus:
                     if 插补预览:
                         起点 = 插补预览[0]
                         曲线点列反向走 = False
+                    if not isinstance(起点, dict):
+                        日志.error("移动到最开始的位置：切割中点缺失")
+                        当前步骤 = ProgramFreeParamsStep.清理所有状态
+                        continue
                     起点X = 起点.get("X")
                     起点Y = 起点.get("Y")
                     起点Z = 起点.get("Z")
@@ -706,7 +707,7 @@ class ProgramRunnerTenPlus:
                             当前步骤 = ProgramFreeParamsStep.计算下一层开口
 
                 case ProgramFreeParamsStep.计算下一层开口:
-                    进度百分比 = (累计下降量 / 产品的高度 * 100)
+                    进度百分比 = (累计下降量 / 产品的高度 * 100) if 产品的高度 > 0 else 100.0
                     当前量 = int(进度百分比 // 垂直的变化百分比)
                     垂直的每次下降步长量 -= (当前量 - 上层量) * 垂直的每次下降步长量减少量
                     上层量 = 当前量

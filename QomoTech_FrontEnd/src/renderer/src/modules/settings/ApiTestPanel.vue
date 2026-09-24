@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { reactive, ref } from 'vue'
 import { getBackendBaseUrl } from '@/shared/api/httpClient'
 
@@ -33,6 +33,8 @@ const contourWaitDone = ref(true)
 const contourDoneTimeout = ref(120)
 const contourLoading = ref(false)
 const contourResult = ref<ApiResult>(null)
+const contourImportText = ref('')
+const contourImportError = ref('')
 
 function toggleContourAxis(ax: AxisName): void {
   const idx = contourAxes.value.indexOf(ax)
@@ -53,6 +55,85 @@ function addContourPoint(): void {
 function removeContourPoint(idx: number): void {
   if (contourPoints.value.length <= 1) return
   contourPoints.value = contourPoints.value.filter((_, i) => i !== idx)
+}
+
+const PAIR_RE =
+  /([+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)\s*[,，]\s*([+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)/g
+
+function defaultSegmentSpeed(): number {
+  const v = Number(contourSpeed.value)
+  return Number.isFinite(v) && v > 0 ? v : 20
+}
+
+function toPathPoint(x: number, y: number): PathPoint {
+  return { X: x, Y: y, Z: 0, U: 0, R: 0, speed: defaultSegmentSpeed() }
+}
+
+function xyFromUnknown(item: unknown): { x: number; y: number } | null {
+  if (Array.isArray(item) && item.length >= 2) {
+    const x = Number(item[0])
+    const y = Number(item[1])
+    if (Number.isFinite(x) && Number.isFinite(y)) return { x, y }
+    return null
+  }
+  if (item && typeof item === 'object') {
+    const o = item as Record<string, unknown>
+    const x = Number(o.X ?? o.x)
+    const y = Number(o.Y ?? o.y)
+    if (Number.isFinite(x) && Number.isFinite(y)) return { x, y }
+  }
+  return null
+}
+
+function parseObjectArray(text: string): unknown[] | null {
+  const start = text.indexOf('[')
+  const end = text.lastIndexOf(']')
+  if (start < 0 || end <= start) return null
+  const raw = text
+    .slice(start, end + 1)
+    .replace(/'/g, '"')
+    .replace(/\bNone\b/g, 'null')
+    .replace(/\bTrue\b/g, 'true')
+    .replace(/\bFalse\b/g, 'false')
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed : null
+  } catch {
+    return null
+  }
+}
+
+function parseImportPoints(text: string): PathPoint[] {
+  const arr = parseObjectArray(text)
+  if (arr) {
+    const pts: PathPoint[] = []
+    for (const item of arr) {
+      const xy = xyFromUnknown(item)
+      if (xy) pts.push(toPathPoint(xy.x, xy.y))
+    }
+    if (pts.length > 0) return pts
+  }
+  const pts: PathPoint[] = []
+  for (const m of text.matchAll(PAIR_RE)) {
+    pts.push(toPathPoint(Number(m[1]), Number(m[2])))
+  }
+  return pts
+}
+
+function importContourPoints(): void {
+  contourImportError.value = ''
+  const text = contourImportText.value.trim()
+  if (!text) {
+    contourImportError.value = '请先粘贴点列数据'
+    return
+  }
+  const pts = parseImportPoints(text)
+  if (pts.length === 0) {
+    contourImportError.value = '未能解析出 XY 坐标'
+    return
+  }
+  contourMode.value = 'xy'
+  contourPoints.value = pts
 }
 
 async function executeContour(): Promise<void> {
@@ -427,6 +508,27 @@ function toggleParams(key: string): void {
             >
               {{ ax }}
             </button>
+          </div>
+        </div>
+
+        <!-- 导入点列 -->
+        <div class="space-y-1">
+          <textarea
+            v-model="contourImportText"
+            rows="3"
+            class="w-full rounded-lg border border-(--app-border) bg-(--app-input-bg) px-2 py-1.5 text-[10px] font-mono outline-none ring-amber-500/30 focus:border-amber-500/50 focus:ring-1"
+            placeholder="粘贴点列后点导入。支持：1.0,0.0;0.99,0.08  或  [{'X':71.64,'Y':-139.52}, ...]"
+          />
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              class="rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[10px] font-medium text-amber-600 hover:bg-amber-500/20 transition"
+              @click="importContourPoints"
+            >
+              导入数据
+            </button>
+            <span v-if="contourImportError" class="text-[10px] text-red-400">{{ contourImportError }}</span>
+            <span v-else class="text-[9px] app-text-muted">导入后转为 XY，速度默认 {{ contourSpeed || 20 }}</span>
           </div>
         </div>
 

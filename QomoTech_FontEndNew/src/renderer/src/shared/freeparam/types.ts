@@ -33,10 +33,10 @@ export interface FreeParamTarget {
   pointXy: string
   /** 绑定的工位号 1–10；未绑定为 null */
   slotIndex: number | null
-  /** 每旋转多少圈做一次补偿（对齐 FrontEnd rInterval） */
-  rInterval: number
-  /** 每次圈补偿量 mm（对齐 FrontEnd rCompensation） */
-  rCompensation: number
+  /** 每旋转多少圈做一次补偿（对齐 FrontEnd 十轴切割R旋转圈数） */
+  十轴切割R旋转圈数: number
+  /** 每次圈补偿量 mm（对齐 FrontEnd 十轴切割R旋转补偿值） */
+  十轴切割R旋转补偿值: number
   rows: FreeParamTaskRow[]
 }
 

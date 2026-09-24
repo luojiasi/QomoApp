@@ -1,456 +1,306 @@
 import { computed, reactive, ref } from 'vue'
-import {
-  LEGACY_TASK_TABLE_FORMAT,
-  TEN_PLUS_FILE_EXT,
-  TEN_PLUS_FILE_FORMAT,
-  TEN_PLUS_FILE_VERSION,
-  TEN_PLUS_DEFAULT_CHORD_RATIO,
-  TEN_PLUS_DEFAULT_CUT_END_PERCENT,
-  TEN_PLUS_DEFAULT_CUT_START_PERCENT,
-  TEN_PLUS_DEFAULT_R_TURNS,
-  TEN_PLUS_DEFAULT_DIAMETER_PERCENT,
-  TEN_PLUS_DEFAULT_HEIGHT_PERCENT,
-  TEN_PLUS_DEFAULT_DIAMOND_PERCENT,
-  TEN_PLUS_DEFAULT_CORNER_RATIO,
-  TEN_PLUS_DEFAULT_LINE_LENGTH,
-  TEN_PLUS_DEFAULT_LINE_WIDTH,
-  TEN_PLUS_DEFAULT_ARC_START,
-  TEN_PLUS_DEFAULT_ARC_END,
-  TEN_PLUS_DEFAULT_ARC_OFFSET,
-  TEN_PLUS_DEFAULT_LINE_START_X,
-  TEN_PLUS_DEFAULT_LINE_START_Y,
-  TEN_PLUS_DEFAULT_LINE_END_X,
-  TEN_PLUS_DEFAULT_LINE_END_Y,
-  TEN_PLUS_DEFAULT_LINE_PARAM_MODE,
-  TEN_PLUS_DEFAULT_LINE_MID_X,
-  TEN_PLUS_DEFAULT_LINE_MID_Y,
-  TEN_PLUS_DEFAULT_SINGLE_LINE_LENGTH,
-  TEN_PLUS_DEFAULT_SUPERELLIPSE_N,
-  TEN_PLUS_DEFAULT_CURVE_KIND,
-  TEN_PLUS_DEFAULT_PATH_TYPE,
-  TEN_PLUS_TABLE_ANGLE_LOCKED_DEFAULTS,
-  resolveTenPlusCurveKind,
-  resolveTenPlusLineParamMode,
-  resolveTenPlusPathType
-} from '../constants/tenPlusCutting'
-import { TEN_PLUS_CUSHION_EXPONENT_MAX, TEN_PLUS_CUSHION_EXPONENT_MIN } from '../constants/shapePreset'
-import type { TenPlusQuickShapeRowDraft } from '../types/shapePreset'
+import {文件扩展名,文件格式,文件版本,默认弦长倍率,默认结束切割百分比,默认起始切割百分比,默认R圈数,默认直径百分比,默认高度百分比,默认钻石百分比,默认切角比例,默认线长,默认线宽,默认弧起点,默认弧终点,默认弧偏移,默认超椭圆指数,默认曲线子类型,默认路径类型,台面锁定默认值,解析曲线子类型,解析路径类型,是台面角,是非等分直线,是曲线,是超椭圆曲线} from '../constants/tenPlusCutting'
+import { 垫型指数最大, 垫型指数最小 } from '../constants/shapePreset'
 import type { SerializedTenPlusTargets, TenPlusTarget, TenPlusTaskRow } from '../types/tenPlusCutting'
 
-let seq = 0
-function nextId(prefix: string): string {
-  seq += 1
-  return `${prefix}-${Date.now()}-${seq}`
+let 序号 = 0
+function 下一编号(前缀: string): string {
+  序号 += 1
+  return `${前缀}-${Date.now()}-${序号}`
 }
 
-function clampCutPercent(n: unknown, fallback: number): number {
-  const v = Number(n)
-  if (!Number.isFinite(v)) return fallback
-  return Math.min(100, Math.max(0, v))
+function 限制切削百分比(原始: unknown, 回退: number): number {
+  const 数值 = Number(原始)
+  if (!Number.isFinite(数值)) return 回退
+  return Math.min(100, Math.max(0, 数值))
 }
 
-function createRow(taskNo: number): TenPlusTaskRow {
+function 创建任务行(任务序号: number): TenPlusTaskRow {
   return {
-    id: nextId('task'),
-    taskNo,
-    pathType: TEN_PLUS_DEFAULT_PATH_TYPE,
+    id: 下一编号('task'),
+    taskNo: 任务序号,
+    pathType: 默认路径类型,
     diameter: 0,
-    length: TEN_PLUS_DEFAULT_LINE_LENGTH,
-    width: TEN_PLUS_DEFAULT_LINE_WIDTH,
-    cornerRatio: TEN_PLUS_DEFAULT_CORNER_RATIO,
-    arcStart: TEN_PLUS_DEFAULT_ARC_START,
-    arcEnd: TEN_PLUS_DEFAULT_ARC_END,
-    arcOffsetX: TEN_PLUS_DEFAULT_ARC_OFFSET,
-    arcOffsetY: TEN_PLUS_DEFAULT_ARC_OFFSET,
-    lineStartX: TEN_PLUS_DEFAULT_LINE_START_X,
-    lineStartY: TEN_PLUS_DEFAULT_LINE_START_Y,
-    lineEndX: TEN_PLUS_DEFAULT_LINE_END_X,
-    lineEndY: TEN_PLUS_DEFAULT_LINE_END_Y,
-    lineParamMode: TEN_PLUS_DEFAULT_LINE_PARAM_MODE,
-    lineMidX: TEN_PLUS_DEFAULT_LINE_MID_X,
-    lineMidY: TEN_PLUS_DEFAULT_LINE_MID_Y,
-    lineLength: TEN_PLUS_DEFAULT_SINGLE_LINE_LENGTH,
-    curveKind: TEN_PLUS_DEFAULT_CURVE_KIND,
-    superellipseN: TEN_PLUS_DEFAULT_SUPERELLIPSE_N,
+    length: 默认线长,
+    width: 默认线宽,
+    cornerRatio: 默认切角比例,
+    arcStart: 默认弧起点,
+    arcEnd: 默认弧终点,
+    arcOffsetX: 默认弧偏移,
+    arcOffsetY: 默认弧偏移,
+    curveKind: 默认曲线子类型,
+    superellipseN: 默认超椭圆指数,
     sameLayer: false,
     angle: 90,
     height: 0,
     divisions: 12,
     recipe: '',
-    compX: 0,
-    compY: 90,
-    compZ: 0,
     compAngle: 0,
-    diameterPercent: TEN_PLUS_DEFAULT_DIAMETER_PERCENT,
-    heightPercent: TEN_PLUS_DEFAULT_HEIGHT_PERCENT,
-    cutStartPercent: TEN_PLUS_DEFAULT_CUT_START_PERCENT,
-    cutEndPercent: TEN_PLUS_DEFAULT_CUT_END_PERCENT,
+    diameterPercent: 默认直径百分比,
+    heightPercent: 默认高度百分比,
+    cutStartPercent: 默认起始切割百分比,
+    cutEndPercent: 默认结束切割百分比,
     useDiamondRatio: false,
-    diamondPercent: TEN_PLUS_DEFAULT_DIAMOND_PERCENT,
-    chordRatio: TEN_PLUS_DEFAULT_CHORD_RATIO,
-    rTurns: TEN_PLUS_DEFAULT_R_TURNS,
+    diamondPercent: 默认钻石百分比,
+    chordRatio: 默认弦长倍率,
+    rTurns: 默认R圈数,
     k: 0,
     b: 0,
     x: 0
   }
 }
 
-function createTarget(name: string): TenPlusTarget {
+function 创建目标(名称: string): TenPlusTarget {
   return {
-    id: nextId('target'),
-    name,
+    id: 下一编号('target'),
+    name: 名称,
     pointXyz: '',
-    oppositeCut: true,
+    oppositeCut: false,
     slotIndex: null,
-    rInterval: 0,
-    rCompensation: 0,
-    rows: [createRow(1)]
+    十轴切割R旋转圈数: 0,
+    十轴切割R旋转补偿值: 0,
+    rows: [创建任务行(1)]
   }
 }
 
-function normalizeSlotIndex(raw: unknown): number | null {
-  if (raw === null || raw === undefined || raw === '') return null
-  const n = Number(raw)
-  if (!Number.isInteger(n) || n < 1 || n > 10) return null
-  return n
+function 规范化工位序号(原始: unknown): number | null {
+  if (原始 === null || 原始 === undefined || 原始 === '') return null
+  const 数值 = Number(原始)
+  if (!Number.isInteger(数值) || 数值 < 1 || 数值 > 10) return null
+  return 数值
 }
 
-export function isTableAngle(v: number): boolean {
-  return Number(v) === 0
+export function 应用台面锁定字段(任务行: TenPlusTaskRow): void {
+  Object.assign(任务行, 台面锁定默认值)
 }
 
-export function applyTableAngleLockedFields(row: TenPlusTaskRow): void {
-  Object.assign(row, TEN_PLUS_TABLE_ANGLE_LOCKED_DEFAULTS)
-}
-
-function normalizeRow(raw: Partial<TenPlusTaskRow>, fallbackNo: number): TenPlusTaskRow {
-  const angle = Number(raw.angle ?? 90)
-  const superellipseN = Number.isFinite(Number(raw.superellipseN))
-    ? Number(raw.superellipseN)
-    : TEN_PLUS_DEFAULT_SUPERELLIPSE_N
-  const row: TenPlusTaskRow = {
-    id: raw.id || nextId('task'),
-    taskNo: raw.taskNo ?? fallbackNo,
-    pathType: resolveTenPlusPathType(raw.pathType),
-    diameter: Number(raw.diameter ?? 0),
-    length: Number(raw.length ?? TEN_PLUS_DEFAULT_LINE_LENGTH),
-    width: Number(raw.width ?? TEN_PLUS_DEFAULT_LINE_WIDTH),
-    cornerRatio: Number.isFinite(Number(raw.cornerRatio))
-      ? Number(raw.cornerRatio)
-      : TEN_PLUS_DEFAULT_CORNER_RATIO,
-    arcStart: Number.isFinite(Number(raw.arcStart))
-      ? Number(raw.arcStart)
-      : TEN_PLUS_DEFAULT_ARC_START,
-    arcEnd: Number.isFinite(Number(raw.arcEnd)) ? Number(raw.arcEnd) : TEN_PLUS_DEFAULT_ARC_END,
-    arcOffsetX: Number.isFinite(Number(raw.arcOffsetX))
-      ? Number(raw.arcOffsetX)
-      : TEN_PLUS_DEFAULT_ARC_OFFSET,
-    arcOffsetY: Number.isFinite(Number(raw.arcOffsetY))
-      ? Number(raw.arcOffsetY)
-      : TEN_PLUS_DEFAULT_ARC_OFFSET,
-    lineStartX: Number.isFinite(Number(raw.lineStartX))
-      ? Number(raw.lineStartX)
-      : TEN_PLUS_DEFAULT_LINE_START_X,
-    lineStartY: Number.isFinite(Number(raw.lineStartY))
-      ? Number(raw.lineStartY)
-      : TEN_PLUS_DEFAULT_LINE_START_Y,
-    lineEndX: Number.isFinite(Number(raw.lineEndX)) ? Number(raw.lineEndX) : TEN_PLUS_DEFAULT_LINE_END_X,
-    lineEndY: Number.isFinite(Number(raw.lineEndY)) ? Number(raw.lineEndY) : TEN_PLUS_DEFAULT_LINE_END_Y,
-    lineParamMode: resolveTenPlusLineParamMode(raw.lineParamMode),
-    lineMidX: Number.isFinite(Number(raw.lineMidX)) ? Number(raw.lineMidX) : TEN_PLUS_DEFAULT_LINE_MID_X,
-    lineMidY: Number.isFinite(Number(raw.lineMidY)) ? Number(raw.lineMidY) : TEN_PLUS_DEFAULT_LINE_MID_Y,
-    lineLength: Number.isFinite(Number(raw.lineLength))
-      ? Number(raw.lineLength)
-      : TEN_PLUS_DEFAULT_SINGLE_LINE_LENGTH,
-    curveKind: resolveTenPlusCurveKind(raw.curveKind, superellipseN),
-    superellipseN,
-    sameLayer: raw.sameLayer === true,
-    angle,
-    height: Number(raw.height ?? 0),
-    divisions: Number(raw.divisions ?? 12),
-    recipe: typeof raw.recipe === 'string' ? raw.recipe : '',
-    compX: Number(raw.compX ?? 0),
-    compY: Number(raw.compY ?? 90),
-    compZ: Number(raw.compZ ?? 0),
-    compAngle: Number(raw.compAngle ?? 0),
-    diameterPercent: Number.isFinite(Number(raw.diameterPercent))
-      ? Number(raw.diameterPercent)
-      : TEN_PLUS_DEFAULT_DIAMETER_PERCENT,
-    heightPercent: Number.isFinite(Number(raw.heightPercent))
-      ? Number(raw.heightPercent)
-      : TEN_PLUS_DEFAULT_HEIGHT_PERCENT,
-    cutStartPercent: clampCutPercent(raw.cutStartPercent, TEN_PLUS_DEFAULT_CUT_START_PERCENT),
-    cutEndPercent: clampCutPercent(raw.cutEndPercent, TEN_PLUS_DEFAULT_CUT_END_PERCENT),
-    useDiamondRatio: raw.useDiamondRatio === true,
-    diamondPercent: Number.isFinite(Number(raw.diamondPercent))
-      ? Number(raw.diamondPercent)
-      : TEN_PLUS_DEFAULT_DIAMOND_PERCENT,
-    chordRatio: Number(raw.chordRatio ?? TEN_PLUS_DEFAULT_CHORD_RATIO),
+function 规范化任务行(原始: Partial<TenPlusTaskRow>, 回退序号: number): TenPlusTaskRow {
+  const 角度 = Number(原始.angle ?? 90)
+  const 超椭圆指数 = Number.isFinite(Number(原始.superellipseN))
+    ? Number(原始.superellipseN)
+    : 默认超椭圆指数
+  const 任务行: TenPlusTaskRow = {
+    id: 原始.id || 下一编号('task'),
+    taskNo: 原始.taskNo ?? 回退序号,
+    pathType: 解析路径类型(原始.pathType),
+    diameter: Number(原始.diameter ?? 0),
+    length: Number(原始.length ?? 默认线长),
+    width: Number(原始.width ?? 默认线宽),
+    cornerRatio: Number.isFinite(Number(原始.cornerRatio))
+      ? Number(原始.cornerRatio)
+      : 默认切角比例,
+    arcStart: Number.isFinite(Number(原始.arcStart))
+      ? Number(原始.arcStart)
+      : 默认弧起点,
+    arcEnd: Number.isFinite(Number(原始.arcEnd)) ? Number(原始.arcEnd) : 默认弧终点,
+    arcOffsetX: Number.isFinite(Number(原始.arcOffsetX))
+      ? Number(原始.arcOffsetX)
+      : 默认弧偏移,
+    arcOffsetY: Number.isFinite(Number(原始.arcOffsetY))
+      ? Number(原始.arcOffsetY)
+      : 默认弧偏移,
+    curveKind: 解析曲线子类型(原始.curveKind, 超椭圆指数),
+    superellipseN: 超椭圆指数,
+    sameLayer: 原始.sameLayer === true,
+    angle: 角度,
+    height: Number(原始.height ?? 0),
+    divisions: Number(原始.divisions ?? 12),
+    recipe: typeof 原始.recipe === 'string' ? 原始.recipe : '',
+    compAngle: Number(原始.compAngle ?? 0),
+    diameterPercent: Number.isFinite(Number(原始.diameterPercent))
+      ? Number(原始.diameterPercent)
+      : 默认直径百分比,
+    heightPercent: Number.isFinite(Number(原始.heightPercent))
+      ? Number(原始.heightPercent)
+      : 默认高度百分比,
+    cutStartPercent: 限制切削百分比(原始.cutStartPercent, 默认起始切割百分比),
+    cutEndPercent: 限制切削百分比(原始.cutEndPercent, 默认结束切割百分比),
+    useDiamondRatio: 原始.useDiamondRatio === true,
+    diamondPercent: Number.isFinite(Number(原始.diamondPercent))
+      ? Number(原始.diamondPercent)
+      : 默认钻石百分比,
+    chordRatio: Number(原始.chordRatio ?? 默认弦长倍率),
     rTurns:
-      Number.isFinite(Number(raw.rTurns)) && Number(raw.rTurns) > 0
-        ? Number(raw.rTurns)
-        : TEN_PLUS_DEFAULT_R_TURNS,
-    k: Number(raw.k ?? 0),
-    b: Number(raw.b ?? 0),
-    x: Number(raw.x ?? 0)
+      Number.isFinite(Number(原始.rTurns)) && Number(原始.rTurns) > 0
+        ? Number(原始.rTurns)
+        : 默认R圈数,
+    k: Number(原始.k ?? 0),
+    b: Number(原始.b ?? 0),
+    x: Number(原始.x ?? 0)
   }
-  if (row.cutEndPercent < row.cutStartPercent) row.cutEndPercent = row.cutStartPercent
-  if (isTableAngle(angle)) applyTableAngleLockedFields(row)
-  return row
+  if (任务行.cutEndPercent < 任务行.cutStartPercent) 任务行.cutEndPercent = 任务行.cutStartPercent
+  if (是台面角(角度)) 应用台面锁定字段(任务行)
+  return 任务行
 }
 
-function legacyPointFromRows(
-  rows: Array<Partial<TenPlusTaskRow> & { pointXyz?: string; pointXy?: string }>
-): string {
-  for (const r of rows) {
-    if (typeof r.pointXyz === 'string' && r.pointXyz.trim()) return r.pointXyz.trim()
-    if (typeof r.pointXy === 'string' && r.pointXy.trim()) return r.pointXy.trim()
-  }
-  return ''
+function 解析点位(原始: Partial<TenPlusTarget>): string {
+  return typeof 原始.pointXyz === 'string' ? 原始.pointXyz.trim() : ''
 }
 
-function resolvePointXyz(
-  raw: Partial<TenPlusTarget> & { pointXy?: string },
-  rowsSrc: Array<Partial<TenPlusTaskRow> & { pointXyz?: string; pointXy?: string }>
-): string {
-  if (typeof raw.pointXyz === 'string' && raw.pointXyz.trim()) return raw.pointXyz.trim()
-  if (typeof raw.pointXy === 'string' && raw.pointXy.trim()) return raw.pointXy.trim()
-  return legacyPointFromRows(rowsSrc)
-}
-
-function resolveOppositeCut(raw: unknown): boolean {
-  if (typeof raw === 'boolean') return raw
+function 解析对切(原始: unknown): boolean {
+  if (typeof 原始 === 'boolean') return 原始
   return true
 }
 
-function legacyRCompFromRows(
-  rows: Array<Partial<TenPlusTaskRow> & { rInterval?: number; rCompensation?: number }>
-): { rInterval: number; rCompensation: number } {
-  for (const r of rows) {
-    const hasInterval = typeof r.rInterval === 'number' && !Number.isNaN(r.rInterval)
-    const hasComp = typeof r.rCompensation === 'number' && !Number.isNaN(r.rCompensation)
-    if (hasInterval || hasComp) {
-      return {
-        rInterval: hasInterval ? Number(r.rInterval) : 0,
-        rCompensation: hasComp ? Number(r.rCompensation) : 0
-      }
-    }
-  }
-  return { rInterval: 0, rCompensation: 0 }
-}
-
-function normalizeTarget(
-  raw: Partial<TenPlusTarget> & {
-    pointXy?: string
-    rows?: Array<
-      Partial<TenPlusTaskRow> & {
-        pointXyz?: string
-        pointXy?: string
-        rInterval?: number
-        rCompensation?: number
-        oppositeCut?: boolean
-      }
-    >
-  },
-  fallbackName: string
-): TenPlusTarget {
-  const rowsSrc = Array.isArray(raw.rows) ? raw.rows : []
-  const rows =
-    rowsSrc.length > 0 ? rowsSrc.map((r, i) => normalizeRow(r, i + 1)) : [createRow(1)]
-  rows.forEach((r, i) => {
-    r.taskNo = i + 1
+function 规范化目标(原始: Partial<TenPlusTarget>, 回退名称: string): TenPlusTarget {
+  const 原始行 = Array.isArray(原始.rows) ? 原始.rows : []
+  const 行列表 =
+    原始行.length > 0 ? 原始行.map((行, 下标) => 规范化任务行(行, 下标 + 1)) : [创建任务行(1)]
+  行列表.forEach((行, 下标) => {
+    行.taskNo = 下标 + 1
   })
-  const pointXyz = resolvePointXyz(raw, rowsSrc)
-  const legacyR = legacyRCompFromRows(rowsSrc)
-  const rInterval =
-    typeof raw.rInterval === 'number' && !Number.isNaN(raw.rInterval)
-      ? Number(raw.rInterval)
-      : legacyR.rInterval
-  const rCompensation =
-    typeof raw.rCompensation === 'number' && !Number.isNaN(raw.rCompensation)
-      ? Number(raw.rCompensation)
-      : legacyR.rCompensation
-  const oppositeCut = resolveOppositeCut(raw.oppositeCut)
   return {
-    id: raw.id || nextId('target'),
-    name: (raw.name && String(raw.name).trim()) || fallbackName,
-    pointXyz,
-    oppositeCut,
-    slotIndex: normalizeSlotIndex((raw as { slotIndex?: unknown }).slotIndex),
-    rInterval,
-    rCompensation,
-    rows
+    id: 原始.id || 下一编号('target'),
+    name: (原始.name && String(原始.name).trim()) || 回退名称,
+    pointXyz: 解析点位(原始),
+    oppositeCut: 解析对切(原始.oppositeCut),
+    slotIndex: 规范化工位序号(原始.slotIndex),
+    十轴切割R旋转圈数:
+      typeof 原始.十轴切割R旋转圈数 === 'number' && !Number.isNaN(原始.十轴切割R旋转圈数)
+        ? Number(原始.十轴切割R旋转圈数)
+        : 0,
+    十轴切割R旋转补偿值:
+      typeof 原始.十轴切割R旋转补偿值 === 'number' && !Number.isNaN(原始.十轴切割R旋转补偿值)
+        ? Number(原始.十轴切割R旋转补偿值)
+        : 0,
+    rows: 行列表
   }
 }
 
-const targets = reactive<TenPlusTarget[]>([])
-const activeTargetId = ref<string | null>(null)
+const 目标列表 = reactive<TenPlusTarget[]>([])
+const 当前目标编号 = ref<string | null>(null)
 
-export function useTenPlusTask() {
-  const activeTarget = computed(() => {
-    const id = activeTargetId.value
-    if (!id) return undefined
-    return targets.find((t) => t.id === id)
+export function 使用十加任务() {
+  const 当前目标 = computed(() => {
+    const 编号 = 当前目标编号.value
+    if (!编号) return undefined
+    return 目标列表.find((项) => 项.id === 编号)
   })
 
-  const taskRows = computed(() => activeTarget.value?.rows ?? [])
+  const 任务行列表 = computed(() => 当前目标.value?.rows ?? [])
 
-  function initDefault(defaultName = '目标 1'): void {
-    if (targets.length > 0) return
-    const first = createTarget(defaultName)
-    targets.push(first)
-    activeTargetId.value = first.id
+  function 初始化默认目标(默认名称 = '目标 1'): void {
+    if (目标列表.length > 0) return
+    const 首个 = 创建目标(默认名称)
+    目标列表.push(首个)
+    当前目标编号.value = 首个.id
   }
 
-  function addTarget(name?: string): TenPlusTarget {
-    const nextIndex = targets.length + 1
-    const target = createTarget(name?.trim() || `目标 ${nextIndex}`)
-    targets.push(target)
-    activeTargetId.value = target.id
-    return target
+  function 新建目标(名称?: string): TenPlusTarget {
+    const 下一序号 = 目标列表.length + 1
+    const 目标 = 创建目标(名称?.trim() || `目标 ${下一序号}`)
+    目标列表.push(目标)
+    当前目标编号.value = 目标.id
+    return 目标
   }
 
-  function selectTarget(id: string): void {
-    if (!targets.some((t) => t.id === id)) return
-    activeTargetId.value = id
+  function 选择目标(编号: string): void {
+    if (!目标列表.some((项) => 项.id === 编号)) return
+    当前目标编号.value = 编号
   }
 
-  function renameTarget(id: string, name: string): void {
-    const hit = targets.find((t) => t.id === id)
-    if (!hit) return
-    const next = name.trim()
-    if (!next) return
-    hit.name = next
+  function 重命名目标(编号: string, 名称: string): void {
+    const 命中 = 目标列表.find((项) => 项.id === 编号)
+    if (!命中) return
+    const 新名称 = 名称.trim()
+    if (!新名称) return
+    命中.name = 新名称
   }
 
-  function removeTarget(id: string): void {
-    if (targets.length <= 1) return
-    const idx = targets.findIndex((t) => t.id === id)
-    if (idx < 0) return
-    targets.splice(idx, 1)
-    if (activeTargetId.value === id) {
-      activeTargetId.value = targets[Math.max(0, idx - 1)]?.id ?? targets[0]?.id ?? null
+  function 删除目标(编号: string): void {
+    if (目标列表.length <= 1) return
+    const 下标 = 目标列表.findIndex((项) => 项.id === 编号)
+    if (下标 < 0) return
+    目标列表.splice(下标, 1)
+    if (当前目标编号.value === 编号) {
+      当前目标编号.value = 目标列表[Math.max(0, 下标 - 1)]?.id ?? 目标列表[0]?.id ?? null
     }
   }
 
-  function addRow(): void {
-    const target = activeTarget.value
-    if (!target) return
-    const nextNo =
-      target.rows.length > 0 ? Math.max(...target.rows.map((r) => r.taskNo)) + 1 : 1
-    target.rows.push(createRow(nextNo))
+  function 添加任务行(): void {
+    const 目标 = 当前目标.value
+    if (!目标) return
+    const 下一任务号 =
+      目标.rows.length > 0 ? Math.max(...目标.rows.map((行) => 行.taskNo)) + 1 : 1
+    目标.rows.push(创建任务行(下一任务号))
   }
 
   /** 用草稿追加到当前目标末尾 */
-  function appendRowDrafts(drafts: Array<Partial<TenPlusTaskRow>>): void {
-    const target = activeTarget.value
-    if (!target || drafts.length === 0) return
-    const start = target.rows.length
-    target.rows.push(
-      ...drafts.map((draft, i) => ({
-        ...createRow(start + i + 1),
-        ...draft
-      }))
+  function 追加任务草稿(草稿列表: Array<Partial<TenPlusTaskRow>>): void {
+    const 目标 = 当前目标.value
+    if (!目标 || 草稿列表.length === 0) return
+    const 起始 = 目标.rows.length
+    目标.rows.push(
+      ...草稿列表.map((草稿, 下标) =>
+        规范化任务行({ ...创建任务行(起始 + 下标 + 1), ...草稿 }, 起始 + 下标 + 1)
+      )
     )
-    target.rows.forEach((row, i) => {
-      row.taskNo = i + 1
+    目标.rows.forEach((行, 下标) => {
+      行.taskNo = 下标 + 1
     })
   }
 
-  /** 用快捷形状草稿追加到当前目标末尾 */
-  function appendQuickShapeRows(drafts: TenPlusQuickShapeRowDraft[]): void {
-    appendRowDrafts(drafts)
-  }
-
-  function removeRow(rowId: string): void {
-    const target = activeTarget.value
-    if (!target) return
-    const idx = target.rows.findIndex((r) => r.id === rowId)
-    if (idx < 0) return
-    if (target.rows.length <= 1) return
-    target.rows.splice(idx, 1)
-    target.rows.forEach((r, i) => {
-      r.taskNo = i + 1
+  function 删除任务行(行编号: string): void {
+    const 目标 = 当前目标.value
+    if (!目标) return
+    const 下标 = 目标.rows.findIndex((行) => 行.id === 行编号)
+    if (下标 < 0) return
+    if (目标.rows.length <= 1) return
+    目标.rows.splice(下标, 1)
+    目标.rows.forEach((行, 下标) => {
+      行.taskNo = 下标 + 1
     })
   }
 
-  function bindActiveTargetToSlot(slotIndex: number, pointXyz?: string): boolean {
-    const target = activeTarget.value
-    if (!target) return false
-    const idx = normalizeSlotIndex(slotIndex)
-    if (idx === null) return false
-    for (const t of targets) {
-      if (t.id !== target.id && t.slotIndex === idx) {
-        t.slotIndex = null
+  function 绑定当前目标到工位(工位序号: number, 点位?: string): boolean {
+    const 目标 = 当前目标.value
+    if (!目标) return false
+    const 下标 = 规范化工位序号(工位序号)
+    if (下标 === null) return false
+    for (const 项 of 目标列表) {
+      if (项.id !== 目标.id && 项.slotIndex === 下标) {
+        项.slotIndex = null
       }
     }
-    target.slotIndex = idx
-    if (typeof pointXyz === 'string') {
-      target.pointXyz = pointXyz
+    目标.slotIndex = 下标
+    if (typeof 点位 === 'string') {
+      目标.pointXyz = 点位
     }
     return true
   }
 
-  function exportToFile(fileName?: string): void {
-    const data: SerializedTenPlusTargets = {
-      format: TEN_PLUS_FILE_FORMAT,
-      version: TEN_PLUS_FILE_VERSION,
+  function 导出文件(文件名?: string): void {
+    const 数据: SerializedTenPlusTargets = {
+      format: 文件格式,
+      version: 文件版本,
       savedAt: new Date().toISOString(),
-      activeTargetId: activeTargetId.value,
-      targets: JSON.parse(JSON.stringify(targets)) as TenPlusTarget[]
+      activeTargetId: 当前目标编号.value,
+      targets: JSON.parse(JSON.stringify(目标列表)) as TenPlusTarget[]
     }
-    const json = JSON.stringify(data, null, 2)
-    const name = fileName || `free_param_targets${TEN_PLUS_FILE_EXT}`
-    const blob = new Blob([json], { type: 'application/json;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const anchor = document.createElement('a')
-    anchor.href = url
-    anchor.download = name
-    document.body.appendChild(anchor)
-    anchor.click()
-    document.body.removeChild(anchor)
-    URL.revokeObjectURL(url)
+    const 文本 = JSON.stringify(数据, null, 2)
+    const 下载名 = 文件名 || `free_param_targets${文件扩展名}`
+    const 二进制 = new Blob([文本], { type: 'application/json;charset=utf-8' })
+    const 地址 = URL.createObjectURL(二进制)
+    const 链接 = document.createElement('a')
+    链接.href = 地址
+    链接.download = 下载名
+    document.body.appendChild(链接)
+    链接.click()
+    document.body.removeChild(链接)
+    URL.revokeObjectURL(地址)
   }
 
-  function loadFromFile(jsonStr: string): boolean {
+  function 从文件加载(json字符串: string): boolean {
     try {
-      const parsed = JSON.parse(jsonStr) as {
-        format?: string
-        activeTargetId?: string | null
-        targets?: Partial<TenPlusTarget>[]
-        rows?: Partial<TenPlusTaskRow>[]
-      }
+      const 解析结果 = JSON.parse(json字符串) as Partial<SerializedTenPlusTargets>
 
-      if (parsed.format === TEN_PLUS_FILE_FORMAT && Array.isArray(parsed.targets)) {
-        const next = parsed.targets.map((t, i) => normalizeTarget(t, `目标 ${i + 1}`))
-        if (next.length === 0) return false
-        targets.splice(0, targets.length, ...next)
-        const prefer = parsed.activeTargetId
-        activeTargetId.value =
-          prefer && next.some((t) => t.id === prefer) ? prefer : next[0].id
-        return true
-      }
-
-      if (parsed.format === LEGACY_TASK_TABLE_FORMAT && Array.isArray(parsed.rows)) {
-        const rawRows = parsed.rows as Array<Partial<TenPlusTaskRow> & { pointXyz?: string; pointXy?: string }>
-        const rows =
-          rawRows.length > 0 ? rawRows.map((r, i) => normalizeRow(r, i + 1)) : [createRow(1)]
-        rows.forEach((r, i) => {
-          r.taskNo = i + 1
-        })
-        const migratedXyz = legacyPointFromRows(rawRows)
-        if (targets.length === 0) {
-          const t = createTarget('目标 1')
-          t.rows = rows
-          t.pointXyz = migratedXyz
-          targets.push(t)
-          activeTargetId.value = t.id
-        } else {
-          const cur = activeTarget.value ?? targets[0]
-          cur.rows.splice(0, cur.rows.length, ...rows)
-          if (migratedXyz) cur.pointXyz = migratedXyz
-          activeTargetId.value = cur.id
-        }
+      if (解析结果.format === 文件格式 && Array.isArray(解析结果.targets)) {
+        const 下一批 = 解析结果.targets.map((项, 下标) => 规范化目标(项, `目标 ${下标 + 1}`))
+        if (下一批.length === 0) return false
+        目标列表.splice(0, 目标列表.length, ...下一批)
+        const 偏好编号 = 解析结果.activeTargetId
+        当前目标编号.value =
+          偏好编号 && 下一批.some((项) => 项.id === 偏好编号) ? 偏好编号 : 下一批[0].id
         return true
       }
 
@@ -461,100 +311,129 @@ export function useTenPlusTask() {
   }
 
   return {
-    targets,
-    activeTargetId,
-    activeTarget,
-    taskRows,
-    initDefault,
-    addTarget,
-    selectTarget,
-    renameTarget,
-    removeTarget,
-    addRow,
-    appendQuickShapeRows,
-    appendRowDrafts,
-    removeRow,
-    bindActiveTargetToSlot,
-    exportToFile,
-    loadFromFile
+    目标列表,
+    当前目标编号,
+    当前目标,
+    任务行列表,
+    初始化默认目标,
+    新建目标,
+    选择目标,
+    重命名目标,
+    删除目标,
+    添加任务行,
+    追加任务草稿,
+    删除任务行,
+    绑定当前目标到工位,
+    导出文件,
+    从文件加载
   }
 }
 
-export function isDiameterInvalid(v: number): boolean {
-  const n = Number(v)
-  return Number.isNaN(n) || n < 0 || n > 200
+export function 直径无效(值: number): boolean {
+  const 数值 = Number(值)
+  return Number.isNaN(数值) || 数值 < 0 || 数值 > 200
 }
 
-export function isSuperellipseNInvalid(n: number): boolean {
-  const v = Number(n)
-  return !Number.isFinite(v) || v < TEN_PLUS_CUSHION_EXPONENT_MIN || v > TEN_PLUS_CUSHION_EXPONENT_MAX
+export function 超椭圆指数无效(指数: number): boolean {
+  const 数值 = Number(指数)
+  return !Number.isFinite(数值) || 数值 < 垫型指数最小 || 数值 > 垫型指数最大
 }
 
-export function isAngleInvalid(v: number): boolean {
-  return Number.isNaN(v) || v < -90 || v > 90
+export function 角度无效(值: number): boolean {
+  return Number.isNaN(值) || 值 < -90 || 值 > 90
 }
 
-export function isHeightInvalid(v: number): boolean {
-  return Number.isNaN(v) || v < 0 || v > 20
+export function 高度无效(值: number): boolean {
+  return Number.isNaN(值) || 值 < 0 || 值 > 20
 }
 
 /** 台面行（角度为 0）直径不能为 0。 */
-export function isTableDiameterZero(diameter: number, angle: number): boolean {
-  return isTableAngle(angle) && Number(diameter) === 0
+export function 台面直径为零(直径: number, 角度: number): boolean {
+  return 是台面角(角度) && Number(直径) === 0
 }
 
 /** 非台面行高度不能为 0。 */
-export function isNonTableHeightZero(height: number, angle: number): boolean {
-  return !isTableAngle(angle) && Number(height) === 0
+export function 非台面高度为零(高度: number, 角度: number): boolean {
+  return !是台面角(角度) && Number(高度) === 0
 }
 
-export function isDivisionsInvalid(v: number): boolean {
-  if (Number.isNaN(v)) return true
-  if (v === 0) return false
-  return v < 3 || v > 360
+export function 分割数无效(值: number): boolean {
+  if (Number.isNaN(值)) return true
+  if (值 === 0) return false
+  return 值 < 3 || 值 > 360
 }
 
 /**
  * 切角比例校验：0–50% 之间，且切掉的量不能吃穿长边。
  * 切角量 c = 切角比例% × 宽，需同时满足 2c < 宽（等价于比例 < 50%）与 2c < 长。
  */
-export function isCornerRatioInvalid(cornerRatio: number, length: number, width: number): boolean {
-  const ratio = Number(cornerRatio)
-  if (!Number.isFinite(ratio) || ratio <= 0 || ratio >= 50) return true
-  const corner = (ratio / 100) * Number(width)
-  return !(corner > 0) || 2 * corner >= Number(length)
+export function 切角比例无效(切角比例: number, 长: number, 宽: number): boolean {
+  const 比例 = Number(切角比例)
+  if (!Number.isFinite(比例) || 比例 <= 0 || 比例 >= 50) return true
+  const 切角量 = (比例 / 100) * Number(宽)
+  return !(切角量 > 0) || 2 * 切角量 >= Number(长)
 }
 
-export function isArcAngleInvalid(start: number, end: number): boolean {
-  if (!Number.isFinite(start) || !Number.isFinite(end)) return true
-  if (start < -360 || start > 360 || end < -360 || end > 360) return true
-  return start === end
+export function 弧角无效(起点: number, 终点: number): boolean {
+  if (!Number.isFinite(起点) || !Number.isFinite(终点)) return true
+  if (起点 < -360 || 起点 > 360 || 终点 < -360 || 终点 > 360) return true
+  return 起点 === 终点
 }
 
-export function isLineCoordInvalid(v: number): boolean {
-  const n = Number(v)
-  return !Number.isFinite(n) || n < -200 || n > 200
-}
+export function 配方无效(配方: string): boolean {return !配方}
 
-export function isSingleLineDegenerate(
-  startX: number,
-  startY: number,
-  endX: number,
-  endY: number
-): boolean {
-  if (
-    isLineCoordInvalid(startX) ||
-    isLineCoordInvalid(startY) ||
-    isLineCoordInvalid(endX) ||
-    isLineCoordInvalid(endY)
-  ) {
-    return true
+export function 校验目标行(targetName: string, rows: TenPlusTaskRow[]): string | null {
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i]
+    const at = `${targetName} #${row.taskNo}`
+    if (是非等分直线(row.pathType)) {
+      if (直径无效(row.length)) return `${at}: 长必须在 0~200 之间`
+      if (直径无效(row.width)) return `${at}: 宽必须在 0~200 之间`
+      if (切角比例无效(row.cornerRatio, row.length, row.width)) {
+        return `${at}: 切角比例须在 0~50% 之间，且切角量不得超过长的一半`
+      }
+    } else if (是曲线(row.pathType)) {
+      if (是超椭圆曲线(row.pathType, row.curveKind, row.superellipseN)) {
+        if (直径无效(row.length) || Number(row.length) <= 0) return `${at}: 长必须在 0 以上、200 以内`
+        if (直径无效(row.width) || Number(row.width) <= 0) return `${at}: 宽必须在 0 以上、200 以内`
+        if (超椭圆指数无效(row.superellipseN)) {
+          return `${at}: 指数 n 须在 ${垫型指数最小}–${垫型指数最大} 之间`
+        }
+      } else if (直径无效(row.diameter) || Number(row.diameter) <= 0) {
+        return `${at}: 半径必须在 0 以上、200 以内`
+      }
+      if (弧角无效(row.arcStart, row.arcEnd)) {
+        return `${at}: 起始角与结束角须在 ±360° 内且不能相同`
+      }
+      if (row.sameLayer) {
+        if (i === 0) return `${at}: 首行不能勾选同层`
+        if (是台面角(row.angle)) return `${at}: 台面行不能勾选同层`
+        const prev = rows[i - 1]
+        if (!prev || prev.angle !== row.angle) {
+          return `${at}: 同层行的角度必须与上一行相同`
+        }
+      }
+    } else {
+      if (直径无效(row.diameter) || 台面直径为零(row.diameter, row.angle)) {
+        return `${at}: 外接圆直径必须在 0 以上、200 以内`
+      }
+      if (分割数无效(row.divisions)) return `${at}: 分割数须为 0 或 3~360`
+    }
+    if (角度无效(row.angle)) return `${at}: 角度必须在 -90~90 之间`
+    if (高度无效(row.height) || 非台面高度为零(row.height, row.angle)) {
+      return 非台面高度为零(row.height, row.angle)
+        ? `${at}: 非台面行高度不能为 0`
+        : `${at}: 高度必须在 0~20 之间`
+    }
+    if (配方无效(row.recipe)) return `${at}: 未选择配方`
   }
-  const dx = Number(endX) - Number(startX)
-  const dy = Number(endY) - Number(startY)
-  return dx * dx + dy * dy < 1e-12
+  return null
 }
 
-export function isRecipeInvalid(recipe: string): boolean {
-  return !recipe
+export function 校验全部目标(targets: Iterable<TenPlusTarget>): string | null {
+  for (const target of targets) {
+    const err = 校验目标行(target.name, target.rows)
+    if (err) return err
+  }
+  return null
 }

@@ -128,15 +128,16 @@ def 构建任务的数据(行数据: dict[str, Any]) -> dict[str, Any]:
         "B": float(行数据.get("b", 0)),
         "X": float(行数据.get("x", 0)),
     }
+
 def 构建R轴的补偿(行数据: dict[str, Any]) -> dict[str, Any]:
     """构建R轴的补偿。
 
     从行数据中提取 R 轴补偿参数：多少圈进行一次补偿 + 每次补偿值。
-    对应前端工具栏"每旋转 N 圈补偿 M mm"的全局配置，payload 中每行附带 rInterval / rCompensation。
+    对应前端工具栏"每旋转 N 圈补偿 M mm"的全局配置，payload 中每行附带 十轴切割R旋转圈数 / rCompensation。
     """
     return {
-        "多少圈进行一次补偿": float(行数据.get("rInterval", 0)),
-        "补偿值": float(行数据.get("rCompensation", 0)),
+        "十轴切割R旋转圈数": float(行数据.get("十轴切割R旋转圈数", 0)),
+        "补偿值": float(行数据.get("十轴切割R旋转补偿值", 0)),
     }
 
 def 构建执行任务的参数(数据: dict[str, Any],当前平面Z的位置, 所有高度总和: float = 0.0, 累计高度: float = 0.0 ) -> dict[str, Any]:

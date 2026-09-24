@@ -6,7 +6,7 @@ import { useMotionKeyboard } from '@/modules/motion/composables/useMotionKeyboar
 import { useNotification } from '@/shared/composables/useNotification'
 import { getTenCameraFocusError, syncTenCameraFocusError } from '@/modules/program/api'
 import { useTenPlusAxisCenterCalib } from '../composables/useTenPlusAxisCenterCalib'
-import { TEN_PLUS_DEFAULT_CAMERA_FOCUS_ERROR } from '../constants/tenPlusCutting'
+import { 默认相机清晰误差 } from '../constants/tenPlusCutting'
 import TenPlusCuttingPage_CrosshairLines from './TenPlusCuttingPage_CrosshairLines.vue'
 import TenPlusCuttingPage_CrosshairBar from './TenPlusCuttingPage_CrosshairBar.vue'
 
@@ -24,18 +24,18 @@ provide('axisCalib', axisCalib)
 const { abortAxisCenterCalib } = axisCalib
 useMotionKeyboard()
 
-const cameraFocusError = ref(TEN_PLUS_DEFAULT_CAMERA_FOCUS_ERROR)
+const cameraFocusError = ref(默认相机清晰误差)
 const isSavingFocusError = ref(false)
 
 async function loadCameraFocusError(): Promise<void> {
   const res = await getTenCameraFocusError(props.slotIndex)
   if (!res.success || res.data == null) {
     error(res.message || `读取工位 ${props.slotIndex} 相机清晰误差失败`)
-    cameraFocusError.value = TEN_PLUS_DEFAULT_CAMERA_FOCUS_ERROR
+    cameraFocusError.value = 默认相机清晰误差
     return
   }
   const n = Number(res.data.value)
-  cameraFocusError.value = Number.isFinite(n) ? n : TEN_PLUS_DEFAULT_CAMERA_FOCUS_ERROR
+  cameraFocusError.value = Number.isFinite(n) ? n : 默认相机清晰误差
 }
 
 async function saveCameraFocusError(): Promise<void> {

@@ -38,6 +38,7 @@ import {
   createDefaultLayer,
   createDefaultWelding
 } from './configs/qomo5pConfigs'
+import { zoomViewportAtPoint } from './cad/viewport'
 
 const deepClone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T
 
@@ -504,17 +505,17 @@ export const useQomo5PStore = defineStore('qomo5p', () => {
     }
   }
 
-  //   const zoomAt = (screenPoint: Point, factor: number) => {
-  //     viewport.value = zoomViewportAtPoint(viewport.value, factor, screenPoint)
-  //   }
+  const zoomAt = (screenPoint: Point, factor: number) => {
+    viewport.value = zoomViewportAtPoint(viewport.value, factor, screenPoint)
+  }
 
-  //   const panBy = (dx: number, dy: number) => {
-  //     viewport.value = {
-  //       ...viewport.value,
-  //       panX: viewport.value.panX + dx,
-  //       panY: viewport.value.panY + dy
-  //     }
-  //   }
+  const panBy = (dx: number, dy: number) => {
+    viewport.value = {
+      ...viewport.value,
+      panX: viewport.value.panX + dx,
+      panY: viewport.value.panY + dy
+    }
+  }
 
   //   const fitView = () => {
   //     viewport.value = fitViewportToBounds(sceneBounds.value, viewport.value.width, viewport.value.height)
@@ -1090,8 +1091,8 @@ export const useQomo5PStore = defineStore('qomo5p', () => {
     clearSelection,
     selectSingleEntity,
     setCanvasSize,
-    // zoomAt,
-    // panBy,
+    zoomAt,
+    panBy,
     // fitView,
     // setSelection,
     // clearSelection,

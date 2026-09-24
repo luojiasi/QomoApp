@@ -234,21 +234,124 @@
           </div>
           <div class="mx-1 h-10 w-px bg-slate-700/70"></div>
 
-          <div class="flex flex-1 items-center gap-3 text-xs text-slate-100">
+          <div class="flex min-w-0 flex-1 items-center gap-3 text-xs text-slate-100">
             <div v-if="selectedEntities.length === 0" class="text-slate-400">
               当前未选中任何实体，请在左侧 2D 视图中框选或点击实体。
             </div>
 
-            <template v-else>
+            <button
+              v-if="selectedEntities.length > 1"
+              type="button"
+              class="rounded-md border border-sky-700/60 bg-sky-900/40 px-2 py-1 text-xs text-sky-200 hover:bg-sky-900/70"
+              @click="openSelectionDialog"
+            >
+              已选 {{ selectedEntities.length }} 个实体
+            </button>
+
+            <div
+              v-if="selectedEntities.length > 1"
+              class="flex items-center gap-2 rounded-md border border-sky-800/50 bg-sky-950/40 px-2 py-1"
+            >
+              <span class="whitespace-nowrap text-sky-300">应用到全部</span>
+              <label class="flex items-center gap-1">
+                开口方向
+                <select
+                  class="rounded-md border border-slate-700 bg-slate-950 px-1.5 py-0.5 text-slate-100"
+                  :value="batchOpenDirectionValue"
+                  @change="onBatchOpenDirectionChange"
+                >
+                  <option v-if="isBatchOpenDirectionMixed" value="__mixed__" disabled>
+                    多个值
+                  </option>
+                  <option value="LEFT">LEFT</option>
+                  <option value="RIGHT">RIGHT</option>
+                </select>
+              </label>
+              <label class="flex items-center gap-1">
+                挤出高
+                <input
+                  type="number"
+                  step="0.001"
+                  class="w-24 rounded-md border border-slate-700 bg-slate-950 px-1.5 py-0.5 text-slate-100"
+                  :value="isBatchExtrudeHeightMixed ? '' : batchExtrudeHeightValue"
+                  :placeholder="isBatchExtrudeHeightMixed ? '多个值' : ''"
+                  @change="onBatchExtrudeHeightChange"
+                />
+              </label>
+            </div>
+
+            <Teleport to="body" :disabled="!isSelectionDialogActive">
               <div
-                v-for="(entity, index) in selectedEntities"
+                v-show="isSelectionDialogActive || paramCardEntities.length > 0"
+                :class="
+                  isSelectionDialogActive
+                    ? 'fixed inset-0 z-200 flex items-center justify-center bg-black/50'
+                    : ''
+                "
+                @click="isSelectionDialogActive ? closeSelectionDialog() : undefined"
+              >
+                <div
+                  :class="
+                    isSelectionDialogActive
+                      ? 'flex h-[78vh] w-[920px] max-w-[94vw] flex-col rounded-lg border border-slate-700 bg-slate-900/95 p-4 shadow-lg shadow-black/40'
+                      : ''
+                  "
+                  @click.stop
+                >
+                  <div v-if="isSelectionDialogActive" class="mb-3 flex items-center justify-between">
+                    <div class="text-sm font-semibold text-slate-100">
+                      已选 {{ selectedEntities.length }} 个实体
+                    </div>
+                    <button
+                      type="button"
+                      class="rounded-md border border-slate-700 bg-slate-800/40 px-2 py-1 text-xs text-slate-200 hover:bg-slate-800"
+                      @click="closeSelectionDialog"
+                    >
+                      关闭
+                    </button>
+                  </div>
+                  <div :class="isSelectionDialogActive ? 'flex min-h-0 flex-1 gap-3' : ''">
+                    <div
+                      v-if="isSelectionDialogActive"
+                      class="flex w-52 shrink-0 flex-col rounded-md border border-slate-700/80 bg-slate-950/60"
+                    >
+                      <div class="border-b border-slate-700/80 px-2 py-1.5 text-[11px] text-slate-400">
+                        点一项查看详情
+                      </div>
+                      <div class="min-h-0 flex-1 overflow-y-auto p-1">
+                        <button
+                          v-for="(entity, index) in selectedEntities"
+                          :key="entity.id"
+                          type="button"
+                          class="mb-1 w-full rounded px-2 py-1.5 text-left text-xs"
+                          :class="
+                            entity.id === focusedEntityId
+                              ? 'bg-sky-800/70 text-sky-100'
+                              : 'text-slate-200 hover:bg-slate-800/80'
+                          "
+                          @click="focusedEntityId = entity.id"
+                        >
+                          <div class="font-medium">实体 {{ index + 1 }}（{{ entity.type }}）</div>
+                          <div class="text-[10px] text-slate-400">{{ entity.openDirection }}</div>
+                        </button>
+                      </div>
+                    </div>
+                    <div
+                      :class="
+                        isSelectionDialogActive
+                          ? 'min-h-0 min-w-0 flex-1 overflow-y-auto rounded-md border border-slate-700/80 bg-slate-950/40 p-2'
+                          : ''
+                      "
+                    >
+              <div
+                v-for="entity in paramCardEntities"
                 :key="entity.id"
                 class="flex flex-col gap-0.5 rounded-md border border-slate-700/80 bg-slate-900/60 px-2 py-1"
               >
                 <div class="flex items-start justify-between gap-3">
                   <div class="flex items-center gap-2 min-w-0">
                     <span class="font-semibold text-sky-300 whitespace-nowrap">
-                      实体 {{ index + 1 }}（{{ entity.type }}）
+                      实体 {{ selectedEntityDisplayIndex(entity.id) }}（{{ entity.type }}）
                     </span>
                   </div>
                   <div class="flex items-center gap-2">
@@ -807,7 +910,12 @@
 
                 <div v-else class="text-slate-300">暂不支持该类型的详细参数展示。</div>
               </div>
-            </template>
+                      <div v-if="isSelectionDialogActive" id="edit-params-slot" class="mt-3"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Teleport>
           </div>
         </div>
 
@@ -901,8 +1009,8 @@
                 id="zoom-input"
                 v-model.number="viewport.zoom"
                 type="number"
-                min="1"
-                max="50"
+                :min="MIN_ZOOM"
+                :max="MAX_ZOOM"
                 step="0.1"
                 class="w-16 rounded border border-slate-700 bg-slate-800/60 px-1.5 py-0.5 text-center text-xs text-slate-200 outline-none focus:border-sky-500/70"
               />
@@ -1041,15 +1149,19 @@
       </div>
     </Teleport>
 
-    <!-- 编辑实体参数弹窗 -->
-    <Teleport to="body">
+    <!-- 编辑实体参数弹窗：多选挂在大弹窗详情下方，单选挂在顶栏参数卡片下方 -->
+    <Teleport :to="editParamsTeleportTarget" defer>
       <div
         v-if="editModalOpen"
-        class="fixed inset-0 z-200 flex items-center justify-center bg-black/50"
-        @click="closeEditParams"
+        :class="
+          isSelectionDialogActive
+            ? ''
+            : 'fixed inset-x-0 top-[8.5rem] z-[210] flex justify-center px-3'
+        "
       >
         <div
-          class="w-[440px] max-w-[92vw] rounded-lg border border-slate-700 bg-slate-900/95 p-4 shadow-lg shadow-black/40"
+          class="max-w-[92vw] rounded-lg border border-slate-700 bg-slate-900/95 p-4 shadow-lg shadow-black/40"
+          :class="isSelectionDialogActive ? 'w-full' : 'w-[440px]'"
           @click.stop
         >
           <div class="flex items-center justify-between mb-3">
@@ -1181,6 +1293,7 @@ import {
   type QomoEntityWithSurface
 } from './qomo5pTypes'
 import { useQomo5PStore } from './useQomo5PStore'
+import { MAX_ZOOM, MIN_ZOOM } from './cad/viewport'
 import {
   invertShowImageOffsetX,
   invertShowImageOffsetY,
@@ -1712,6 +1825,91 @@ const selectedEntities = computed(() =>
   entities.value.filter((entity) => selectedEntityIds.value.includes(entity.id))
 )
 
+const selectionDialogOpen = ref(false)
+const focusedEntityId = ref<string | null>(null)
+
+const isSelectionDialogActive = computed(
+  () => selectionDialogOpen.value && selectedEntities.value.length > 1
+)
+
+const editParamsTeleportTarget = computed(() =>
+  isSelectionDialogActive.value ? '#edit-params-slot' : 'body'
+)
+
+const paramCardEntities = computed(() => {
+  if (selectedEntities.value.length === 1) return selectedEntities.value
+  if (isSelectionDialogActive.value) {
+    const focused = selectedEntities.value.find((entity) => entity.id === focusedEntityId.value)
+    return [focused ?? selectedEntities.value[0]]
+  }
+  return []
+})
+
+const isBatchOpenDirectionMixed = computed(() => {
+  const list = selectedEntities.value
+  if (list.length < 2) return false
+  return list.some((entity) => entity.openDirection !== list[0].openDirection)
+})
+
+const batchOpenDirectionValue = computed(() => {
+  if (isBatchOpenDirectionMixed.value) return '__mixed__'
+  return selectedEntities.value[0]?.openDirection ?? 'RIGHT'
+})
+
+const isBatchExtrudeHeightMixed = computed(() => {
+  const list = selectedEntities.value
+  if (list.length < 2) return false
+  return list.some((entity) => entity.extrudeHeight !== list[0].extrudeHeight)
+})
+
+const batchExtrudeHeightValue = computed(() => selectedEntities.value[0]?.extrudeHeight ?? 0)
+
+function selectedEntityDisplayIndex(id: string): number {
+  const index = selectedEntities.value.findIndex((entity) => entity.id === id)
+  return index >= 0 ? index + 1 : 1
+}
+
+function openSelectionDialog(): void {
+  focusedEntityId.value = selectedEntities.value.some((entity) => entity.id === focusedEntityId.value)
+    ? focusedEntityId.value
+    : (selectedEntities.value[0]?.id ?? null)
+  selectionDialogOpen.value = true
+}
+
+function closeSelectionDialog(): void {
+  selectionDialogOpen.value = false
+}
+
+function onBatchOpenDirectionChange(event: Event): void {
+  const value = (event.target as HTMLSelectElement).value
+  if (value !== 'LEFT' && value !== 'RIGHT') return
+  for (const entity of selectedEntities.value) {
+    store.updateEntityParams(entity.id, { openDirection: value })
+  }
+}
+
+function onBatchExtrudeHeightChange(event: Event): void {
+  const value = Number((event.target as HTMLInputElement).value)
+  if (!Number.isFinite(value)) return
+  for (const entity of selectedEntities.value) {
+    store.updateEntityParams(entity.id, { extrudeHeight: value })
+  }
+}
+
+watch(
+  () => selectedEntities.value.map((entity) => entity.id),
+  (ids) => {
+    if (ids.length < 2) {
+      selectionDialogOpen.value = false
+      focusedEntityId.value = null
+      return
+    }
+    if (!focusedEntityId.value || !ids.includes(focusedEntityId.value)) {
+      focusedEntityId.value = ids[0] ?? null
+    }
+  }
+)
+
 const selectedTopToolId = computed(() => toolButtons.value.find((b) => b.selected)?.id ?? 0)
 const layerDrafts = ref<Record<string, { name: string; visible: boolean }>>({})
 
@@ -1725,6 +1923,7 @@ watch(
   () => selectedTopToolId.value,
   (id) => {
     if (id === 3) syncLayerDrafts()
+    if (id !== 2) closeSelectionDialog()
   },
   { immediate: true }
 )
@@ -1925,6 +2124,10 @@ const closeEditParams = () => {
   editingEntityId.value = null
 }
 
+watch(isSelectionDialogActive, (active) => {
+  if (!active) closeEditParams()
+})
+
 const saveEditParams = () => {
   if (!editingEntityId.value) return
   store.updateEntityParams(editingEntityId.value, {
@@ -1949,6 +2152,11 @@ const saveEditParams = () => {
 const handleKeyDown = (event: KeyboardEvent) => {
   const key = event.key.toUpperCase()
   console.log(key)
+  if (isSelectionDialogActive.value && (event.key === 'Escape' || event.key === 'Esc')) {
+    closeSelectionDialog()
+    event.preventDefault()
+    return
+  }
   if (key === 'Z' && event.ctrlKey) {
     handleCanvasUndo()
   }

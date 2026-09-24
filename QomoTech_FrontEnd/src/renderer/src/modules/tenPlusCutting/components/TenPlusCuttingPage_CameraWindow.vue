@@ -3,8 +3,8 @@ import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import CameraPic from '@/modules/camera/CameraPic.vue'
 import { useTenPlusPageUi } from '../composables/useTenPlusPageUi'
 import {
-  TEN_PLUS_CAMERA_WINDOW_FOOTER_FALLBACK,
-  TEN_PLUS_CAMERA_WINDOW_MARGIN
+  相机窗口底栏回退,
+  相机窗口边距
 } from '../constants/tenPlusCutting'
 import TenPlusCuttingPage_CrosshairLines from './TenPlusCuttingPage_CrosshairLines.vue'
 import TenPlusCuttingPage_CrosshairBar from './TenPlusCuttingPage_CrosshairBar.vue'
@@ -28,8 +28,8 @@ function footerClearance(): number {
   const footerH =
     footer instanceof HTMLElement
       ? footer.getBoundingClientRect().height
-      : TEN_PLUS_CAMERA_WINDOW_FOOTER_FALLBACK
-  return footerH + TEN_PLUS_CAMERA_WINDOW_MARGIN
+      : 相机窗口底栏回退
+  return footerH + 相机窗口边距
 }
 
 function clampPos(nx: number, ny: number): { x: number; y: number } {
@@ -37,13 +37,13 @@ function clampPos(nx: number, ny: number): { x: number; y: number } {
   const w = el?.offsetWidth ?? 480
   const h = el?.offsetHeight ?? 360
   const maxX = Math.max(
-    TEN_PLUS_CAMERA_WINDOW_MARGIN,
-    window.innerWidth - w - TEN_PLUS_CAMERA_WINDOW_MARGIN
+    相机窗口边距,
+    window.innerWidth - w - 相机窗口边距
   )
-  const maxY = Math.max(TEN_PLUS_CAMERA_WINDOW_MARGIN, window.innerHeight - h - footerClearance())
+  const maxY = Math.max(相机窗口边距, window.innerHeight - h - footerClearance())
   return {
-    x: Math.min(maxX, Math.max(TEN_PLUS_CAMERA_WINDOW_MARGIN, nx)),
-    y: Math.min(maxY, Math.max(TEN_PLUS_CAMERA_WINDOW_MARGIN, ny))
+    x: Math.min(maxX, Math.max(相机窗口边距, nx)),
+    y: Math.min(maxY, Math.max(相机窗口边距, ny))
   }
 }
 
@@ -57,7 +57,7 @@ function restoreOrPlace(): void {
   if (props.docked) return
   if (cameraX.value == null || cameraY.value == null) {
     const h = rootRef.value?.offsetHeight ?? 0
-    applyPos(TEN_PLUS_CAMERA_WINDOW_MARGIN, window.innerHeight - h - footerClearance())
+    applyPos(相机窗口边距, window.innerHeight - h - footerClearance())
     return
   }
   applyPos(cameraX.value, cameraY.value)
@@ -68,8 +68,8 @@ function onDragPointerDown(e: PointerEvent): void {
   dragging = true
   startX = e.clientX
   startY = e.clientY
-  origX = cameraX.value ?? TEN_PLUS_CAMERA_WINDOW_MARGIN
-  origY = cameraY.value ?? TEN_PLUS_CAMERA_WINDOW_MARGIN
+  origX = cameraX.value ?? 相机窗口边距
+  origY = cameraY.value ?? 相机窗口边距
   ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
 }
 
@@ -117,7 +117,7 @@ onUnmounted(() => {
     :style="
       docked
         ? undefined
-        : { left: `${cameraX ?? TEN_PLUS_CAMERA_WINDOW_MARGIN}px`, top: `${cameraY ?? TEN_PLUS_CAMERA_WINDOW_MARGIN}px` }
+        : { left: `${cameraX ?? 相机窗口边距}px`, top: `${cameraY ?? 相机窗口边距}px` }
     "
   >
     <div

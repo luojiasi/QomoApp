@@ -132,12 +132,7 @@ def _取轴心坐标(center: Any) -> Point3DDict:
     return 点
 
 
-def 计算点绕轴心旋转(
-    point_or_points: Union[Dict[str, Any], List[Dict[str, Any]]],
-    angle_deg: float,
-    rotation_axis: str,
-    center: Any,
-) -> Union[Point3DDict, List[Point3DDict]]:
+def 计算点绕轴心旋转(point_or_points: Union[Dict[str, Any], List[Dict[str, Any]]],angle_deg: float,rotation_axis: str,center: Any,) -> Union[Point3DDict, List[Point3DDict]]:
     """绕过轴心、平行于坐标轴的直线旋转：p' = R·(p − C) + C。
 
     与 计算点绕坐标轴旋转 的差别：轴心是传入的 C，不是原点；也不套 4P 的默认 Z。

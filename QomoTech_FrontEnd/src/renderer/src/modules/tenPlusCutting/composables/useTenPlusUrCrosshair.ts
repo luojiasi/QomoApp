@@ -1,9 +1,9 @@
 import { reactive, watch } from 'vue'
 import {
-  TEN_PLUS_UR_CROSSHAIR_DEFAULTS,
-  TEN_PLUS_UR_CROSSHAIR_STORAGE_KEY,
-  TEN_PLUS_UR_CROSSHAIR_WIDTH_MAX,
-  TEN_PLUS_UR_CROSSHAIR_WIDTH_MIN
+  UR十字线默认值,
+  UR十字线存储键,
+  UR十字线宽度最大,
+  UR十字线宽度最小
 } from '../constants/tenPlusCutting'
 import type { TenPlusUrCrosshairSettings } from '../types/tenPlusCutting'
 
@@ -11,10 +11,10 @@ const HEX_COLOR = /^#[0-9a-fA-F]{6}$/
 
 function clampWidth(raw: unknown): number {
   const n = Number(raw)
-  if (!Number.isFinite(n)) return TEN_PLUS_UR_CROSSHAIR_DEFAULTS.hWidth
+  if (!Number.isFinite(n)) return UR十字线默认值.hWidth
   return Math.min(
-    TEN_PLUS_UR_CROSSHAIR_WIDTH_MAX,
-    Math.max(TEN_PLUS_UR_CROSSHAIR_WIDTH_MIN, Math.round(n * 2) / 2)
+    UR十字线宽度最大,
+    Math.max(UR十字线宽度最小, Math.round(n * 2) / 2)
   )
 }
 
@@ -25,17 +25,17 @@ function normalizeColor(raw: unknown, fallback: string): string {
 
 function createDefaults(): TenPlusUrCrosshairSettings {
   return {
-    hColor: TEN_PLUS_UR_CROSSHAIR_DEFAULTS.hColor,
-    vColor: TEN_PLUS_UR_CROSSHAIR_DEFAULTS.vColor,
-    hWidth: TEN_PLUS_UR_CROSSHAIR_DEFAULTS.hWidth,
-    vWidth: TEN_PLUS_UR_CROSSHAIR_DEFAULTS.vWidth
+    hColor: UR十字线默认值.hColor,
+    vColor: UR十字线默认值.vColor,
+    hWidth: UR十字线默认值.hWidth,
+    vWidth: UR十字线默认值.vWidth
   }
 }
 
 function loadSettings(): TenPlusUrCrosshairSettings {
   const next = createDefaults()
   try {
-    const raw = localStorage.getItem(TEN_PLUS_UR_CROSSHAIR_STORAGE_KEY)
+    const raw = localStorage.getItem(UR十字线存储键)
     if (!raw) return next
     const parsed = JSON.parse(raw) as Partial<TenPlusUrCrosshairSettings>
     next.hColor = normalizeColor(parsed.hColor, next.hColor)
@@ -50,10 +50,10 @@ function loadSettings(): TenPlusUrCrosshairSettings {
 
 function persistSettings(settings: TenPlusUrCrosshairSettings): void {
   localStorage.setItem(
-    TEN_PLUS_UR_CROSSHAIR_STORAGE_KEY,
+    UR十字线存储键,
     JSON.stringify({
-      hColor: normalizeColor(settings.hColor, TEN_PLUS_UR_CROSSHAIR_DEFAULTS.hColor),
-      vColor: normalizeColor(settings.vColor, TEN_PLUS_UR_CROSSHAIR_DEFAULTS.vColor),
+      hColor: normalizeColor(settings.hColor, UR十字线默认值.hColor),
+      vColor: normalizeColor(settings.vColor, UR十字线默认值.vColor),
       hWidth: clampWidth(settings.hWidth),
       vWidth: clampWidth(settings.vWidth)
     })
@@ -67,8 +67,8 @@ watch(
   (value) => {
     value.hWidth = clampWidth(value.hWidth)
     value.vWidth = clampWidth(value.vWidth)
-    value.hColor = normalizeColor(value.hColor, TEN_PLUS_UR_CROSSHAIR_DEFAULTS.hColor)
-    value.vColor = normalizeColor(value.vColor, TEN_PLUS_UR_CROSSHAIR_DEFAULTS.vColor)
+    value.hColor = normalizeColor(value.hColor, UR十字线默认值.hColor)
+    value.vColor = normalizeColor(value.vColor, UR十字线默认值.vColor)
     persistSettings(value)
   },
   { deep: true }

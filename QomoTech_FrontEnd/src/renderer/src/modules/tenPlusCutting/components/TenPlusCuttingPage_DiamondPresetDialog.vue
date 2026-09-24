@@ -1,158 +1,153 @@
 <script setup lang="ts">
 import { computed, onUnmounted, reactive, watch } from 'vue'
-import {
-  TEN_PLUS_DEFAULT_DIAMOND_PRESET_CROWN,
-  TEN_PLUS_DEFAULT_DIAMOND_PRESET_GIRDLE,
-  TEN_PLUS_DEFAULT_DIAMOND_PRESET_PAVILION,
-  TEN_PLUS_DEFAULT_DIAMOND_PRESET_TABLE,
-  TEN_PLUS_DIAMOND_CUT_OPTIONS,
-  TEN_PLUS_DIAMOND_PRESET_PERCENT_MAX,
-  TEN_PLUS_DIAMOND_PRESET_PERCENT_MIN
-} from '../constants/diamondPreset'
-import type { TenPlusDiamondPresetInput } from '../types/diamondPreset'
-import {
-  buildDiamondProfile,
-  createDefaultDiamondPresetInput,
-  describeDiamondPresetError,
-  diamondCutLabel,
-  diamondLayerHeightMm
-} from '../utils/tenPlusDiamondPresets'
+import {百分比最大值,百分比最小值,默认亭高比,默认冠高比,默认台面比,默认腰高比,钻石切工选项} from '../constants/diamondPreset'
+import type { 钻石预设输入 } from '../types/diamondPreset'
+import {层高毫米,切工标签,切工轮廓,切工需要长宽,创建默认钻石预设,生成钻石侧视,钻石预设错误} from '../utils/diamondPresets'
 
 const emit = defineEmits<{
-  close: []
-  confirm: [input: TenPlusDiamondPresetInput]
+  关闭: []
+  确认: [输入: 钻石预设输入]
 }>()
 
-const RING_R = 54
+const 圆环半径 = 54
 
-const form = reactive(createDefaultDiamondPresetInput())
+const 表单 = reactive(创建默认钻石预设())
 
-const errorText = computed(() => describeDiamondPresetError({ ...form }))
-const cutLabel = computed(() => diamondCutLabel(form.cut))
+const 错误文案 = computed(() => 钻石预设错误({ ...表单 }))
+const 切工名称 = computed(() => 切工标签(表单.切工))
+const 轮廓 = computed(() => 切工轮廓(表单.切工))
+const 需要长宽 = computed(() => 切工需要长宽(表单.切工))
+const 写入说明 = computed((): string => {
+  if (轮廓.value.种类 === '切角矩形') {
+    return `生成四行：台面等分线段扫面，冠/腰/亭为非等分直线。长宽取左侧输入，切角比例 ${轮廓.value.切角比例}%`
+  }
+  return '生成四行等分线段（台面、冠、腰、亭）。台面直径取腰宽、角度 0、分割数 0；冠/腰/亭分割数 0'
+})
 
-const heightFields = [
-  { key: 'tablePercent', cap: '台面比', tone: 'table', id: 'tpc-d-table-pct' },
-  { key: 'crownPercent', cap: '冠高比', tone: 'crown', id: 'tpc-d-crown-pct' },
-  { key: 'girdlePercent', cap: '腰高比', tone: 'girdle', id: 'tpc-d-girdle-pct' },
-  { key: 'pavilionPercent', cap: '亭高比', tone: 'pavilion', id: 'tpc-d-pavilion-pct' }
+const 高度基准 = computed(() => (需要长宽.value ? Number(表单.宽) : Number(表单.直径)))
+
+const 高度字段 = [
+  { 键: '台面比', 标题: '台面比', 色调: '台面', 编号: 'tpc-d-table-pct' },
+  { 键: '冠高比', 标题: '冠高比', 色调: '冠', 编号: 'tpc-d-crown-pct' },
+  { 键: '腰高比', 标题: '腰高比', 色调: '腰', 编号: 'tpc-d-girdle-pct' },
+  { 键: '亭高比', 标题: '亭高比', 色调: '亭', 编号: 'tpc-d-pavilion-pct' }
 ] as const
 
-function formatMm(value: number): string {
-  if (!Number.isFinite(value)) return '—'
-  return String(Math.round(value * 1000) / 1000)
+function 格式化毫米(值: number): string {
+  if (!Number.isFinite(值)) return '—'
+  return String(Math.round(值 * 1000) / 1000)
 }
 
-function actualHeightText(percent: number): string {
-  return formatMm(diamondLayerHeightMm(Number(form.diameter), percent))
+function 实际高度文案(百分比: number): string {
+  return 格式化毫米(层高毫米(高度基准.value, 百分比))
 }
 
-function percentInputCh(value: number): number {
-  const raw = Number.isFinite(value) ? String(value) : ''
-  return Math.max(1, raw.length)
+function 百分比字宽(值: number): number {
+  const 原文 = Number.isFinite(值) ? String(值) : ''
+  return Math.max(1, 原文.length)
 }
 
-const totalHeightText = computed(() =>
-  formatMm(
-    diamondLayerHeightMm(Number(form.diameter), Number(form.crownPercent)) +
-      diamondLayerHeightMm(Number(form.diameter), Number(form.girdlePercent)) +
-      diamondLayerHeightMm(Number(form.diameter), Number(form.pavilionPercent))
+const 合计高度文案 = computed(() =>
+  格式化毫米(
+    层高毫米(高度基准.value, Number(表单.冠高比)) +
+      层高毫米(高度基准.value, Number(表单.腰高比)) +
+      层高毫米(高度基准.value, Number(表单.亭高比))
   )
 )
 
-function selectInput(ev: Event): void {
-  const el = ev.target
-  if (el instanceof HTMLInputElement) el.select()
+function 选中输入(事件: Event): void {
+  const 元素 = 事件.target
+  if (元素 instanceof HTMLInputElement) 元素.select()
 }
 
-function clampPercent(v: number, fallback: number): number {
-  if (!Number.isFinite(v)) return fallback
-  return Math.min(TEN_PLUS_DIAMOND_PRESET_PERCENT_MAX, Math.max(TEN_PLUS_DIAMOND_PRESET_PERCENT_MIN, v))
+function 限制百分比(值: number, 回退: number): number {
+  if (!Number.isFinite(值)) return 回退
+  return Math.min(百分比最大值, Math.max(百分比最小值, 值))
 }
 
-const display = reactive({
-  table: 55,
-  crown: 0.4,
-  girdle: 0.4,
-  pavilion: 0.4
-})
+const 显示 = reactive({台面比: 默认台面比,冠高比: 默认冠高比,腰高比: 默认腰高比,亭高比: 默认亭高比})
+const 侧视 = computed(() => 生成钻石侧视(显示.冠高比, 显示.腰高比, 显示.亭高比, 显示.台面比))
 
-const profile = computed(() =>
-  buildDiamondProfile(display.crown, display.girdle, display.pavilion, display.table)
-)
+const 动画毫秒 = 380
+let 动画帧 = 0
+let 动画起点 = { 台面比: 默认台面比, 冠高比: 默认冠高比, 腰高比: 默认腰高比, 亭高比: 默认亭高比 }
+let 动画终点 = { 台面比: 默认台面比, 冠高比: 默认冠高比, 腰高比: 默认腰高比, 亭高比: 默认亭高比 }
+let 动画开始 = 0
 
-const ANIM_MS = 380
-let rafId = 0
-let animFrom = { table: 55, crown: 0.4, girdle: 0.4, pavilion: 0.4 }
-let animTo = { table: 55, crown: 0.4, girdle: 0.4, pavilion: 0.4 }
-let animStart = 0
+function 缓出三次(进度: number): number {return 1 - (1 - 进度) ** 3}
 
-function easeOutCubic(t: number): number {
-  return 1 - (1 - t) ** 3
+function 动画步进(当前: number): void {
+  const 进度 = Math.min(1, (当前 - 动画开始) / 动画毫秒)
+  const 缓动 = 缓出三次(进度)
+  显示.台面比 = 动画起点.台面比 + (动画终点.台面比 - 动画起点.台面比) * 缓动
+  显示.冠高比 = 动画起点.冠高比 + (动画终点.冠高比 - 动画起点.冠高比) * 缓动
+  显示.腰高比 = 动画起点.腰高比 + (动画终点.腰高比 - 动画起点.腰高比) * 缓动
+  显示.亭高比 = 动画起点.亭高比 + (动画终点.亭高比 - 动画起点.亭高比) * 缓动
+  if (进度 < 1) 动画帧 = requestAnimationFrame(动画步进)
 }
 
-function tick(now: number): void {
-  const t = Math.min(1, (now - animStart) / ANIM_MS)
-  const e = easeOutCubic(t)
-  display.table = animFrom.table + (animTo.table - animFrom.table) * e
-  display.crown = animFrom.crown + (animTo.crown - animFrom.crown) * e
-  display.girdle = animFrom.girdle + (animTo.girdle - animFrom.girdle) * e
-  display.pavilion = animFrom.pavilion + (animTo.pavilion - animFrom.pavilion) * e
-  if (t < 1) rafId = requestAnimationFrame(tick)
-}
-
-function animateTo(next: { table: number; crown: number; girdle: number; pavilion: number }): void {
-  animFrom = {
-    table: display.table,
-    crown: display.crown,
-    girdle: display.girdle,
-    pavilion: display.pavilion
-  }
-  animTo = next
-  animStart = performance.now()
-  cancelAnimationFrame(rafId)
-  rafId = requestAnimationFrame(tick)
+function 动画到(下一项: { 台面比: number; 冠高比: number; 腰高比: number; 亭高比: number }): void {
+  动画起点 = {台面比: 显示.台面比,冠高比: 显示.冠高比,腰高比: 显示.腰高比,亭高比: 显示.亭高比}
+  动画终点 = 下一项
+  动画开始 = performance.now()
+  cancelAnimationFrame(动画帧)
+  动画帧 = requestAnimationFrame(动画步进)
 }
 
 watch(
-  () =>
-    [form.tablePercent, form.crownPercent, form.girdlePercent, form.pavilionPercent] as const,
-  ([table, crown, girdle, pavilion]) => {
-    animateTo({
-      table: clampPercent(Number(table), TEN_PLUS_DEFAULT_DIAMOND_PRESET_TABLE),
-      crown: clampPercent(Number(crown), TEN_PLUS_DEFAULT_DIAMOND_PRESET_CROWN),
-      girdle: clampPercent(Number(girdle), TEN_PLUS_DEFAULT_DIAMOND_PRESET_GIRDLE),
-      pavilion: clampPercent(Number(pavilion), TEN_PLUS_DEFAULT_DIAMOND_PRESET_PAVILION)
+  () => [表单.台面比, 表单.冠高比, 表单.腰高比, 表单.亭高比] as const,
+  ([台面比, 冠高比, 腰高比, 亭高比]) => {
+    动画到({
+      台面比: 限制百分比(Number(台面比), 默认台面比),
+      冠高比: 限制百分比(Number(冠高比), 默认冠高比),
+      腰高比: 限制百分比(Number(腰高比), 默认腰高比),
+      亭高比: 限制百分比(Number(亭高比), 默认亭高比)
     })
   },
   { immediate: true }
 )
 
-onUnmounted(() => {
-  cancelAnimationFrame(rafId)
-})
+watch(
+  () => 表单.切工,
+  (切工, 旧切工) => {
+    const 现在长宽 = 切工需要长宽(切工)
+    const 刚才长宽 = 旧切工 != null && 切工需要长宽(旧切工)
+    if (现在长宽 && !刚才长宽) {
+      表单.长 = Number(表单.直径)
+      表单.宽 = Number(表单.直径)
+    }
+    if (!现在长宽 && 刚才长宽) {
+      表单.直径 = Number(表单.宽) || Number(表单.长) || 表单.直径
+    }
+  }
+)
 
-function onConfirm(): void {
-  if (errorText.value) return
-  emit('confirm', {
-    cut: form.cut,
-    diameter: Number(form.diameter),
-    tablePercent: Number(form.tablePercent),
-    crownPercent: Number(form.crownPercent),
-    girdlePercent: Number(form.girdlePercent),
-    pavilionPercent: Number(form.pavilionPercent)
+onUnmounted(() => {cancelAnimationFrame(动画帧)})
+
+function 确认写入(): void {
+  if (错误文案.value) return
+  emit('确认', {
+    切工: 表单.切工,
+    直径: Number(表单.直径),
+    长: Number(表单.长),
+    宽: Number(表单.宽),
+    台面比: Number(表单.台面比),
+    冠高比: Number(表单.冠高比),
+    腰高比: Number(表单.腰高比),
+    亭高比: Number(表单.亭高比)
   })
 }
 </script>
 
 <template>
-  <div class="tpc-shape-overlay" @click.self="emit('close')">
+  <div class="tpc-shape-overlay" @click.self="emit('关闭')">
     <div class="tpc-shape-card" role="dialog" aria-modal="true" aria-labelledby="tpc-diamond-title">
       <header class="tpc-shape-head">
         <div>
           <h2 id="tpc-diamond-title">钻石快捷形状编辑</h2>
-          <p>生成三行等分线段（冠、腰、亭）。尺寸与高度取直径，分割数 0，补偿打开钻石比例。</p>
+          <p>{{ 写入说明 }}</p>
         </div>
-        <button type="button" class="tpc-shape-close" aria-label="关闭" @click="emit('close')">
+        <button type="button" class="tpc-shape-close" aria-label="关闭" @click="emit('关闭')">
           ✕
         </button>
       </header>
@@ -161,102 +156,138 @@ function onConfirm(): void {
         <div class="tpc-diamond-left">
           <label class="tpc-cut-field" for="tpc-d-cut">
             <span>钻石类型</span>
-            <select id="tpc-d-cut" v-model="form.cut" class="tpc-cut-select">
+            <select id="tpc-d-cut" v-model="表单.切工" class="tpc-cut-select">
               <option
-                v-for="item in TEN_PLUS_DIAMOND_CUT_OPTIONS"
-                :key="item.value"
-                :value="item.value"
+                v-for="项 in 钻石切工选项"
+                :key="项.value"
+                :value="项.value"
               >
-                {{ item.label }}
+                {{ 项.label }}
               </option>
             </select>
           </label>
-          <label class="tpc-hcard" for="tpc-d-diameter">
+          <div class="tpc-hcard">
           <div class="tpc-hcard-dial">
             <svg class="tpc-hcard-ring" viewBox="0 0 128 128" aria-hidden="true">
-              <circle class="tpc-hcard-ring-track" cx="64" cy="64" :r="RING_R" />
-              <circle class="tpc-hcard-ring-value" cx="64" cy="64" :r="RING_R" />
+              <circle class="tpc-hcard-ring-track" cx="64" cy="64" :r="圆环半径" />
+              <circle class="tpc-hcard-ring-value" cx="64" cy="64" :r="圆环半径" />
             </svg>
-            <div class="tpc-hcard-core">
+            <div v-if="!需要长宽" class="tpc-hcard-core">
               <span class="tpc-hcard-row">
                 <input
                   id="tpc-d-diameter"
-                  v-model.number="form.diameter"
+                  v-model.number="表单.直径"
                   type="number"
                   class="tpc-hcard-val tpc-hcard-val-mm"
                   min="0.1"
                   max="200"
                   step="0.1"
                   aria-label="直径"
-                  @focus="selectInput"
+                  @focus="选中输入"
                 />
                 <span>mm</span>
               </span>
               <span class="tpc-hcard-result">
                 <span class="tpc-hcard-result-label">三层合计</span>
-                {{ totalHeightText }}
+                {{ 合计高度文案 }}
+              </span>
+            </div>
+            <div v-else class="tpc-hcard-core tpc-hcard-core-lw">
+              <label class="tpc-hcard-lw-row" for="tpc-d-length">
+                <span class="tpc-hcard-lw-cap">长</span>
+                <input
+                  id="tpc-d-length"
+                  v-model.number="表单.长"
+                  type="number"
+                  class="tpc-hcard-val tpc-hcard-val-lw"
+                  min="0.1"
+                  max="200"
+                  step="0.1"
+                  aria-label="长"
+                  @focus="选中输入"
+                />
+                <span>mm</span>
+              </label>
+              <label class="tpc-hcard-lw-row" for="tpc-d-width">
+                <span class="tpc-hcard-lw-cap">宽</span>
+                <input
+                  id="tpc-d-width"
+                  v-model.number="表单.宽"
+                  type="number"
+                  class="tpc-hcard-val tpc-hcard-val-lw"
+                  min="0.1"
+                  max="200"
+                  step="0.1"
+                  aria-label="宽"
+                  @focus="选中输入"
+                />
+                <span>mm</span>
+              </label>
+              <span class="tpc-hcard-result">
+                <span class="tpc-hcard-result-label">三层合计</span>
+                {{ 合计高度文案 }}
               </span>
             </div>
           </div>
-          <div class="tpc-hcard-cap">直径</div>
-        </label>
+          <div class="tpc-hcard-cap">{{ 需要长宽 ? '长 / 宽' : '直径' }}</div>
+        </div>
         </div>
 
         <div class="tpc-diamond-stage">
           <div class="tpc-diamond-figure">
             <svg
               class="tpc-diamond-svg"
-              :viewBox="`${profile.viewMinX} ${profile.viewMinY} ${profile.viewWidth} ${profile.viewHeight}`"
+              :viewBox="`${侧视.视口左} ${侧视.视口上} ${侧视.视口宽} ${侧视.视口高}`"
               role="img"
-              :aria-label="`${cutLabel}侧视`"
+              :aria-label="`${切工名称}侧视`"
             >
-              <path class="tpc-d-fill crown" :d="profile.crownPath" />
-              <path class="tpc-d-fill girdle" :d="profile.girdlePath" />
-              <path class="tpc-d-fill pavilion" :d="profile.pavilionPath" />
-              <path class="tpc-d-facet-fill" :d="profile.leftFacetPath" />
-              <path class="tpc-d-facet" :d="profile.facetPath" />
-              <path class="tpc-d-outline" :d="profile.outlinePath" />
+              <path class="tpc-d-fill 冠" :d="侧视.冠路径" />
+              <path class="tpc-d-fill 腰" :d="侧视.腰路径" />
+              <path class="tpc-d-fill 亭" :d="侧视.亭路径" />
+              <path class="tpc-d-facet-fill" :d="侧视.左刻面路径" />
+              <path class="tpc-d-facet" :d="侧视.刻面路径" />
+              <path class="tpc-d-outline" :d="侧视.轮廓路径" />
             </svg>
 
             <div class="tpc-d-callouts">
             <label
-              v-for="field in heightFields"
-              :key="field.key"
+              v-for="字段 in 高度字段"
+              :key="字段.键"
               class="tpc-d-layer"
-              :class="`is-${field.tone}`"
-              :for="field.id"
+              :class="`is-${字段.色调}`"
+              :for="字段.编号"
             >
-              <span class="tpc-d-layer-cap">{{ field.cap }}</span>
+              <span class="tpc-d-layer-cap">{{ 字段.标题 }}</span>
               <span class="tpc-d-layer-row">
                 <input
-                  :id="field.id"
-                  v-model.number="form[field.key]"
+                  :id="字段.编号"
+                  v-model.number="表单[字段.键]"
                   type="number"
                   class="tpc-d-layer-val"
-                  :style="{ width: `${percentInputCh(Number(form[field.key]))}ch` }"
+                  :style="{ width: `${百分比字宽(Number(表单[字段.键]))}ch` }"
                   step="0.1"
-                  :min="TEN_PLUS_DIAMOND_PRESET_PERCENT_MIN"
-                  :max="TEN_PLUS_DIAMOND_PRESET_PERCENT_MAX"
-                  :aria-label="field.cap"
-                  @focus="selectInput"
+                  :min="百分比最小值"
+                  :max="百分比最大值"
+                  :aria-label="字段.标题"
+                  @focus="选中输入"
                 />
                 <span class="tpc-d-layer-unit">%</span>
               </span>
-              <span class="tpc-d-layer-mm">{{ actualHeightText(Number(form[field.key])) }} mm</span>
+              <span class="tpc-d-layer-mm">{{ 实际高度文案(Number(表单[字段.键])) }} mm</span>
             </label>
             </div>
           </div>
         </div>
       </div>
-      <p v-if="errorText" class="tpc-shape-error">{{ errorText }}</p>
+      <p v-if="错误文案" class="tpc-shape-error">{{ 错误文案 }}</p>
 
       <div class="tpc-shape-btns">
-        <button type="button" class="tpc-shape-btn" @click="emit('close')">取消</button>
+        <button type="button" class="tpc-shape-btn" @click="emit('关闭')">取消</button>
         <button
           type="button"
           class="tpc-shape-btn primary"
-          :disabled="Boolean(errorText)"
-          @click="onConfirm"
+          :disabled="Boolean(错误文案)"
+          @click="确认写入"
         >
           写入当前目标
         </button>
@@ -451,6 +482,34 @@ function onConfirm(): void {
 .tpc-hcard-val-mm {
   width: 3.6ch;
 }
+.tpc-hcard-core-lw {
+  gap: 2px;
+  padding: 18px 8px 10px;
+}
+.tpc-hcard-lw-row {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: center;
+  gap: 2px;
+}
+.tpc-hcard-lw-cap {
+  width: 1.15em;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 560;
+  color: var(--app-text-secondary);
+}
+.tpc-hcard-val-lw {
+  width: 3.6ch;
+  font-size: 22px;
+}
+.tpc-hcard-lw-row > span:last-child {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 560;
+  color: var(--app-text-secondary);
+}
 .tpc-hcard-val::-webkit-outer-spin-button,
 .tpc-hcard-val::-webkit-inner-spin-button {
   appearance: none;
@@ -507,13 +566,13 @@ function onConfirm(): void {
   width: 100%;
   height: 100%;
 }
-.tpc-d-fill.crown {
+.tpc-d-fill.冠 {
   fill: #d7e6f2;
 }
-.tpc-d-fill.girdle {
+.tpc-d-fill.腰 {
   fill: #e2d3b4;
 }
-.tpc-d-fill.pavilion {
+.tpc-d-fill.亭 {
   fill: #b7cfe3;
 }
 .tpc-d-facet-fill {
@@ -565,16 +624,16 @@ function onConfirm(): void {
   border-radius: 99px;
   background: var(--layer);
 }
-.tpc-d-layer.is-table {
+.tpc-d-layer.is-台面 {
   --layer: #9aa7b4;
 }
-.tpc-d-layer.is-crown {
+.tpc-d-layer.is-冠 {
   --layer: #7aa8cc;
 }
-.tpc-d-layer.is-girdle {
+.tpc-d-layer.is-腰 {
   --layer: #c4a574;
 }
-.tpc-d-layer.is-pavilion {
+.tpc-d-layer.is-亭 {
   --layer: #4f86b0;
 }
 .tpc-d-layer:focus-within {

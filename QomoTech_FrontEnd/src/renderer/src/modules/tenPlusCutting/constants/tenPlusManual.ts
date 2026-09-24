@@ -20,7 +20,7 @@ export const TEN_PLUS_TOUR_STEPS: TenPlusTourStep[] = [
     id: 'diamond-preset',
     target: 'diamond-preset',
     title: '钻石快捷形状',
-    body: '圆钻用这个：输入直径和冠/腰/亭高比，会按侧视算出角度，追加三行等分线段到当前目标。',
+    body: '圆钻输入直径；祖母绿 / 雷迪恩输入长宽。冠/腰/亭高比按侧视算出角度后写入当前目标。圆钻是四行等分线段；祖母绿 / 雷迪恩是四行切角矩形。',
     placement: 'bottom'
   },
   {
@@ -50,7 +50,7 @@ export const TEN_PLUS_TOUR_STEPS: TenPlusTourStep[] = [
     target: 'teach',
     title: '示教选中格',
     warning: '放置好石头之后一定要示教选中格！',
-    body: '把当前机床坐标写入选中工位。不示教该格就不能绑定目标、不能作为点位来源。',
+    body: '把当前机床坐标写入选中工位。不示教该格就不能绑定目标。点位 XYZ 请用「获取」，示教不会改它。',
     placement: 'left',
     accent: 'red',
     important: true

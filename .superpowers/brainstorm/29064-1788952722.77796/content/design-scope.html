@@ -1,0 +1,31 @@
+<h2>第三节修订：只换多选 UI，其余逻辑不动</h2>
+<p class="subtitle">按你的约束收窄范围。不改画布、不改 store、不改「编辑参数」小弹窗、不改几何编辑函数。</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">会动的</div>
+    <div class="mockup-body" style="font-size:13px;line-height:1.8">
+      <div>参数顶栏：多选时不再平铺卡片，改成「已选 N 个」</div>
+      <div>新弹层：列表 + 开口方向 + 挤出高 + 当前实体详情</div>
+      <div>批量写入：循环调用现有 updateEntityParams</div>
+    </div>
+  </div>
+  <div class="mockup">
+    <div class="mockup-header">不动的</div>
+    <div class="mockup-body" style="font-size:13px;line-height:1.8">
+      <div>QomoCanvas 框选 / 点击 / 高亮</div>
+      <div>useQomo5PStore 的增删改、撤销重做</div>
+      <div>单选摘要和「编辑参数」小弹窗</div>
+      <div>起点终点等几何编辑、3D、图层</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <p class="label">因此取消的原设计</p>
+  <ul>
+    <li>不往 store 加 focusedEntityId，聚焦只存在弹层内部</li>
+    <li>不改画布描边（选中高亮仍是现在那样）</li>
+    <li>不新增批量 mutation API，避免改撤销逻辑</li>
+  </ul>
+</div>

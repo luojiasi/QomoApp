@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { useTenPlusUrCrosshair } from '../composables/useTenPlusUrCrosshair'
 import {
-  TEN_PLUS_UR_CROSSHAIR_WIDTH_MAX,
-  TEN_PLUS_UR_CROSSHAIR_WIDTH_MIN
+  UR十字线宽度最大,
+  UR十字线宽度最小
 } from '../constants/tenPlusCutting'
 
 const { settings: crosshair, resetCrosshair } = useTenPlusUrCrosshair()
@@ -17,8 +17,8 @@ const { settings: crosshair, resetCrosshair } = useTenPlusUrCrosshair()
       <input
         v-model.number="crosshair.hWidth"
         type="range"
-        :min="TEN_PLUS_UR_CROSSHAIR_WIDTH_MIN"
-        :max="TEN_PLUS_UR_CROSSHAIR_WIDTH_MAX"
+        :min="UR十字线宽度最小"
+        :max="UR十字线宽度最大"
         step="0.5"
       />
       <span class="tpc-xh-w">{{ crosshair.hWidth }}</span>
@@ -29,8 +29,8 @@ const { settings: crosshair, resetCrosshair } = useTenPlusUrCrosshair()
       <input
         v-model.number="crosshair.vWidth"
         type="range"
-        :min="TEN_PLUS_UR_CROSSHAIR_WIDTH_MIN"
-        :max="TEN_PLUS_UR_CROSSHAIR_WIDTH_MAX"
+        :min="UR十字线宽度最小"
+        :max="UR十字线宽度最大"
         step="0.5"
       />
       <span class="tpc-xh-w">{{ crosshair.vWidth }}</span>

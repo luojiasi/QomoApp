@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>祖母绿切角比例 · 直观理解</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #181b22;
+    --text: #e7eaf0;
+    --muted: #8b93a5;
+    --border: #2a2f3a;
+    --accent: #3b82f6;
+    --corner: #f59e0b;
+    --edge: #34d399;
+    --ghost: #64748b;
+    --warn: #f87171;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  h1 { font-size: 17px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0; line-height: 1.5; }
+  .sub b { color: var(--corner); font-weight: 600; }
+  .layout {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    min-height: 0;
+  }
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
+  }
+  .stage {
+    position: relative;
+    background:
+      radial-gradient(ellipse at 50% 40%, #1a2233 0%, #0a0c10 70%);
+    min-height: 420px;
+  }
+  svg { width: 100%; height: 100%; display: block; }
+  aside {
+    border-left: 1px solid var(--border);
+    background: var(--panel);
+    padding: 16px;
+    overflow: auto;
+    font-size: 13px;
+  }
+  @media (max-width: 900px) {
+    aside { border-left: none; border-top: 1px solid var(--border); }
+  }
+  .callout {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 14px;
+    line-height: 1.55;
+    color: var(--muted);
+  }
+  .callout strong { color: var(--corner); }
+  .ctrl {
+    display: grid;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .row {
+    display: grid;
+    gap: 4px;
+  }
+  .row-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .row-head output {
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 13px;
+  }
+  input[type="range"] {
+    width: 100%;
+    accent-color: var(--accent);
+  }
+  .presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+  .presets button {
+    background: #0f172a;
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .presets button:hover { border-color: var(--accent); }
+  .presets button.active {
+    border-color: var(--corner);
+    color: var(--corner);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 14px;
+    font-variant-numeric: tabular-nums;
+  }
+  th, td {
+    text-align: left;
+    padding: 5px 4px;
+    border-bottom: 1px solid var(--border);
+  }
+  th { color: var(--muted); font-weight: 600; font-size: 11px; }
+  td.num { font-family: ui-monospace, Consolas, monospace; }
+  .dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+  .dot.edge { background: var(--edge); }
+  .dot.corner { background: var(--corner); }
+  .formula {
+    background: #0f172a;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.7;
+    color: #cbd5e1;
+    margin-bottom: 12px;
+  }
+  .formula .hi { color: var(--corner); }
+  .formula .ok { color: var(--edge); }
+  .hint { color: var(--muted); font-size: 12px; line-height: 1.55; margin: 0; }
+  .badge {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 999px;
+    font-size: 11px;
+    background: #422006;
+    color: var(--corner);
+    border: 1px solid #92400e;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>祖母绿切角比例 · 不是「切 14 个角」
+    <span class="badge">Corner Ratio ≈ 14%</span>
+  </h1>
+  <p class="sub">拖动滑块看八边形怎么变。行业定义：切角量 <b>c = 宽 × 比例%</b>，长宽方向各切掉同样的 c（45° 等距切角）。</p>
+</header>
+
+<div class="layout">
+  <div class="stage">
+    <svg id="svg" viewBox="0 0 800 560" preserveAspectRatio="xMidYMid meet"></svg>
+  </div>
+  <aside>
+    <div class="callout">
+      <strong>「十四」= 14% 切角比例</strong>，不是 14 条边。<br>
+      腰棱外轮廓永远是 <strong>8 条边</strong>：4 直边 + 4 切角。
+    </div>
+
+    <div class="presets">
+      <button type="button" data-preset="emerald" class="active">祖母绿 14%</button>
+      <button type="button" data-preset="radiant">雷迪恩 15%</button>
+      <button type="button" data-preset="small">小切角 8%</button>
+      <button type="button" data-preset="big">大切角 22%</button>
+    </div>
+
+    <div class="ctrl">
+      <div class="row">
+        <div class="row-head"><span>长度 L</span><output id="outL">14.0</output></div>
+        <input id="len" type="range" min="1" max="20" step="0.1" value="14" />
+      </div>
+      <div class="row">
+        <div class="row-head"><span>宽度 W</span><output id="outW">10.0</output></div>
+        <input id="wid" type="range" min="1" max="16" step="0.1" value="10" />
+      </div>
+      <div class="row">
+        <div class="row-head"><span>切角比例 %</span><output id="outR">14.0%</output></div>
+        <input id="ratio" type="range" min="1" max="35" step="0.1" value="14" />
+      </div>
+    </div>
+
+    <div class="formula" id="formula"></div>
+
+    <table>
+      <thead>
+        <tr><th>边</th><th>类型</th><th>边长</th></tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+
+    <p class="hint">
+      与 <code>geometry.py → 构建切角矩形的边</code> 同一公式：
+      短边 = W−2c，长边 = L−2c，切角边 = c√2。
+      切角过大时短边会逼近 0，外形接近「削尖」的八边形。
+    </p>
+  </aside>
+</div>
+
+<script>
+const svg = document.getElementById("svg");
+const NS = "http://www.w3.org/2000/svg";
+
+const lenEl = document.getElementById("len");
+const widEl = document.getElementById("wid");
+const ratioEl = document.getElementById("ratio");
+const outL = document.getElementById("outL");
+const outW = document.getElementById("outW");
+const outR = document.getElementById("outR");
+const tbody = document.getElementById("tbody");
+const formula = document.getElementById("formula");
+
+const PRESETS = {
+  emerald: { L: 14, W: 10, R: 14 },
+  radiant: { L: 12, W: 10, R: 15 },
+  small:   { L: 14, W: 10, R: 8 },
+  big:     { L: 14, W: 10, R: 22 },
+};
+
+function el(tag, attrs = {}, text) {
+  const node = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+  if (text != null) node.textContent = text;
+  return node;
+}
+
+function 归一化角度(d) {
+  let x = ((d + 180) % 360) - 180;
+  if (x <= -180) x += 360;
+  return x;
+}
+
+/** 与 geometry.py 构建切角矩形的边 一致 */
+function 构建边(L, W, R) {
+  const a = L / 2;
+  const b = W / 2;
+  const c = W * (R / 100);
+  if (!(c > 0 && c < Math.min(a, b))) {
+    return { ok: false, c, a, b, edges: [] };
+  }
+  const shortLen = W - 2 * c;
+  const longLen = L - 2 * c;
+  const cornerLen = c * Math.SQRT2;
+  const mx = a - c / 2;
+  const my = b - c / 2;
+  const dist = Math.hypot(mx, my);
+  const az = (Math.atan2(my, mx) * 180) / Math.PI;
+
+  const defs = [
+    ["右短边", 0, a, shortLen, "直边"],
+    ["右上切角", 45, dist, cornerLen, "切角"],
+    ["上长边", 90, b, longLen, "直边"],
+    ["左上切角", 135, dist, cornerLen, "切角"],
+    ["左短边", 180, a, shortLen, "直边"],
+    ["左下切角", 225, dist, cornerLen, "切角"],
+    ["下长边", 270, b, longLen, "直边"],
+    ["右下切角", 315, dist, cornerLen, "切角"],
+  ];
+  const midAz = {
+    右上切角: az,
+    左上切角: 180 - az,
+    左下切角: 180 + az,
+    右下切角: 360 - az,
+  };
+  const edges = defs.map(([name, n, d, len, kind], i) => ({
+    name,
+    normal: n,
+    dist: d,
+    len,
+    kind,
+    midAz: midAz[name] ?? n,
+    rel: 归一化角度(n - defs[(i + 7) % 8][1]),
+  }));
+  return { ok: true, c, a, b, shortLen, longLen, cornerLen, edges };
+}
+
+/** 八边形顶点：长沿 X，宽沿 Y（俯视 TOP VIEW） */
+function 八边形顶点(L, W, c) {
+  const hx = L / 2;
+  const hy = W / 2;
+  return [
+    [hx, hy - c],
+    [hx - c, hy],
+    [-hx + c, hy],
+    [-hx, hy - c],
+    [-hx, -hy + c],
+    [-hx + c, -hy],
+    [hx - c, -hy],
+    [hx, -hy + c],
+  ];
+}
+
+function 边中点(pts, i) {
+  const a = pts[i];
+  const b = pts[(i + 1) % pts.length];
+  return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+}
+
+function redraw() {
+  const L = Number(lenEl.value);
+  const W = Number(widEl.value);
+  const R = Number(ratioEl.value);
+  outL.textContent = L.toFixed(1);
+  outW.textContent = W.toFixed(1);
+  outR.textContent = R.toFixed(1) + "%";
+
+  const geo = 构建边(L, W, R);
+  const c = geo.c;
+
+  svg.replaceChildren();
+
+  const pad = 70;
+  const vbW = 800, vbH = 560;
+  const scale = Math.min((vbW - 2 * pad) / L, (vbH - 2 * pad) / W) * 0.92;
+  const cx = vbW / 2, cy = vbH / 2;
+  const toS = (x, y) => [cx + x * scale, cy - y * scale];
+
+  // 背景网格
+  const gGrid = el("g", { opacity: "0.25" });
+  for (let i = -10; i <= 10; i++) {
+    gGrid.appendChild(el("line", {
+      x1: cx + i * 40, y1: 0, x2: cx + i * 40, y2: vbH,
+      stroke: "#334155", "stroke-width": 1,
+    }));
+    gGrid.appendChild(el("line", {
+      x1: 0, y1: cy + i * 40, x2: vbW, y2: cy + i * 40,
+      stroke: "#334155", "stroke-width": 1,
+    }));
+  }
+  svg.appendChild(gGrid);
+
+  // 未切角的虚线矩形（幽灵）
+  const [rx0, ry0] = toS(-L / 2, -W / 2);
+  const [rx1, ry1] = toS(L / 2, W / 2);
+  svg.appendChild(el("rect", {
+    x: Math.min(rx0, rx1), y: Math.min(ry0, ry1),
+    width: Math.abs(rx1 - rx0), height: Math.abs(ry1 - ry0),
+    fill: "none", stroke: "#64748b", "stroke-width": 1.5,
+    "stroke-dasharray": "6 5", opacity: "0.55",
+  }));
+  svg.appendChild(el("text", {
+    x: rx1 - 4, y: ry0 + 16, fill: "#94a3b8", "font-size": 12,
+    "text-anchor": "end",
+  }, "未切角矩形"));
+
+  if (!geo.ok) {
+    formula.innerHTML = `<span style="color:var(--warn)">切角量过大：c=${c.toFixed(2)} ≥ min(L/2,W/2)=${Math.min(L/2,W/2).toFixed(2)}，轮廓非法</span>`;
+    tbody.innerHTML = "";
+    return;
+  }
+
+  const pts = 八边形顶点(L, W, c);
+  const sPts = pts.map(([x, y]) => toS(x, y));
+  const poly = sPts.map(([x, y]) => `${x},${y}`).join(" ");
+
+  // 填充八边形
+  svg.appendChild(el("polygon", {
+    points: poly,
+    fill: "rgba(59,130,246,0.12)",
+    stroke: "none",
+  }));
+
+  // 画 8 条边：直边绿、切角橙
+  const edgeOrder = [
+    [0, "右短边", "直边"],
+    [1, "右上切角", "切角"],
+    [2, "上长边", "直边"],
+    [3, "左上切角", "切角"],
+    [4, "左短边", "直边"],
+    [5, "左下切角", "切角"],
+    [6, "下长边", "直边"],
+    [7, "右下切角", "切角"],
+  ];
+
+  for (const [i, name, kind] of edgeOrder) {
+    const a = sPts[i];
+    const b = sPts[(i + 1) % 8];
+    const color = kind === "切角" ? "#f59e0b" : "#34d399";
+    svg.appendChild(el("line", {
+      x1: a[0], y1: a[1], x2: b[0], y2: b[1],
+      stroke: color, "stroke-width": kind === "切角" ? 3.5 : 2.5,
+      "stroke-linecap": "round",
+    }));
+    const m = 边中点(sPts, i);
+    // 标签稍微外推
+    const mx = (a[0] + b[0]) / 2;
+    const my = (a[1] + b[1]) / 2;
+    const dx = mx - cx, dy = my - cy;
+    const n = Math.hypot(dx, dy) || 1;
+    const lx = mx + (dx / n) * 22;
+    const ly = my + (dy / n) * 22;
+    const edge = geo.edges.find((e) => e.name === name);
+    svg.appendChild(el("text", {
+      x: lx, y: ly,
+      fill: color, "font-size": 11,
+      "text-anchor": "middle", "dominant-baseline": "middle",
+      "font-family": "ui-monospace, Consolas, monospace",
+    }, edge ? edge.len.toFixed(2) : ""));
+  }
+
+  // 顶点
+  for (const [x, y] of sPts) {
+    svg.appendChild(el("circle", {
+      cx: x, cy: y, r: 3.5, fill: "#e7eaf0", stroke: "#0f1115", "stroke-width": 1,
+    }));
+  }
+
+  // 尺寸线 L / W
+  const [blx, bly] = toS(-L / 2, -W / 2 - 0.8);
+  const [brx] = toS(L / 2, -W / 2 - 0.8);
+  svg.appendChild(el("line", {
+    x1: blx, y1: bly, x2: brx, y2: bly,
+    stroke: "#94a3b8", "stroke-width": 1.2,
+  }));
+  svg.appendChild(el("text", {
+    x: (blx + brx) / 2, y: bly + 16,
+    fill: "#cbd5e1", "font-size": 13, "text-anchor": "middle",
+  }, `L = ${L.toFixed(1)}`));
+
+  const [wlx, wly] = toS(-L / 2 - 0.9, -W / 2);
+  const [, wry] = toS(-L / 2 - 0.9, W / 2);
+  svg.appendChild(el("line", {
+    x1: wlx, y1: wly, x2: wlx, y2: wry,
+    stroke: "#94a3b8", "stroke-width": 1.2,
+  }));
+  svg.appendChild(el("text", {
+    x: wlx - 14, y: (wly + wry) / 2,
+    fill: "#cbd5e1", "font-size": 13, "text-anchor": "middle",
+    transform: `rotate(-90 ${wlx - 14} ${(wly + wry) / 2})`,
+  }, `W = ${W.toFixed(1)}`));
+
+  // 右下角放大示意 c
+  const [pA] = [pts[7]];
+  const [pB] = [pts[0]];
+  // 角上矩形切掉的直角区域：从 (hx, hy) 往回
+  const cornerGhost = [
+    toS(L / 2, W / 2),
+    toS(L / 2, W / 2 - c),
+    toS(L / 2 - c, W / 2),
+  ];
+  svg.appendChild(el("polygon", {
+    points: cornerGhost.map(([x, y]) => `${x},${y}`).join(" "),
+    fill: "rgba(245,158,11,0.25)",
+    stroke: "#f59e0b",
+    "stroke-width": 1.2,
+    "stroke-dasharray": "3 3",
+  }));
+  const [cx1, cy1] = toS(L / 2 - c / 2, W / 2 + 0.35);
+  svg.appendChild(el("text", {
+    x: cx1, y: cy1,
+    fill: "#fbbf24", "font-size": 12, "text-anchor": "middle",
+  }, `c=${c.toFixed(2)}`));
+
+  // 中心十字
+  svg.appendChild(el("line", {
+    x1: cx - 10, y1: cy, x2: cx + 10, y2: cy, stroke: "#64748b", "stroke-width": 1,
+  }));
+  svg.appendChild(el("line", {
+    x1: cx, y1: cy - 10, x2: cx, y2: cy + 10, stroke: "#64748b", "stroke-width": 1,
+  }));
+  svg.appendChild(el("text", {
+    x: cx + 8, y: cy - 8, fill: "#64748b", "font-size": 11,
+  }, "中心"));
+
+  // 图例
+  svg.appendChild(el("text", {
+    x: 24, y: 28, fill: "#e7eaf0", "font-size": 14, "font-weight": "600",
+  }, "TOP VIEW · 腰棱外轮廓"));
+  svg.appendChild(el("line", { x1: 24, y1: 48, x2: 48, y2: 48, stroke: "#34d399", "stroke-width": 3 }));
+  svg.appendChild(el("text", { x: 56, y: 52, fill: "#94a3b8", "font-size": 12 }, "直边 ×4"));
+  svg.appendChild(el("line", { x1: 24, y1: 68, x2: 48, y2: 68, stroke: "#f59e0b", "stroke-width": 3.5 }));
+  svg.appendChild(el("text", { x: 56, y: 72, fill: "#94a3b8", "font-size": 12 }, "切角 ×4  （一共 8 边，不是 14）"));
+
+  formula.innerHTML =
+    `<span class="hi">c</span> = W × ${R.toFixed(1)}% = <span class="hi">${c.toFixed(3)}</span><br>` +
+    `<span class="ok">短边</span> = W − 2c = ${geo.shortLen.toFixed(3)}<br>` +
+    `<span class="ok">长边</span> = L − 2c = ${geo.longLen.toFixed(3)}<br>` +
+    `<span class="hi">切角边</span> = c√2 = ${geo.cornerLen.toFixed(3)}<br>` +
+    `L/W = ${(L / W).toFixed(3)}`;
+
+  tbody.innerHTML = geo.edges.map((e, i) => `
+    <tr>
+      <td>${i + 1}. ${e.name}</td>
+      <td><span class="dot ${e.kind === "切角" ? "corner" : "edge"}"></span>${e.kind}</td>
+      <td class="num">${e.len.toFixed(3)}</td>
+    </tr>
+  `).join("");
+}
+
+for (const elInput of [lenEl, widEl, ratioEl]) {
+  elInput.addEventListener("input", redraw);
+}
+
+document.querySelectorAll("[data-preset]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("[data-preset]").forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+    const p = PRESETS[btn.dataset.preset];
+    lenEl.value = p.L;
+    widEl.value = p.W;
+    ratioEl.value = p.R;
+    redraw();
+  });
+});
+
+redraw();
+</script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 import type { Point, QomoBounds, QomoSelectionRect, QomoViewport } from '../qomo5pTypes'
 
-const MIN_ZOOM = 1
-const MAX_ZOOM = 50
+export const MIN_ZOOM = 1
+export const MAX_ZOOM = 200
 const FIT_PADDING = 48
 
 export const clampZoom = (zoom: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom))

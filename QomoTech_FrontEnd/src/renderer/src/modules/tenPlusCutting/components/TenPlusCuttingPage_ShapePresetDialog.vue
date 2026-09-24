@@ -1,156 +1,156 @@
 <script setup lang="ts">
 import { computed, reactive } from 'vue'
 import {
-  TEN_PLUS_CUSHION_DEFAULT_LENGTH,
-  TEN_PLUS_CUSHION_DEFAULT_WIDTH,
-  TEN_PLUS_CUSHION_EXPONENT_MAX,
-  TEN_PLUS_CUSHION_EXPONENT_MIN,
-  TEN_PLUS_MARQUISE_DEFAULT_LENGTH,
-  TEN_PLUS_MARQUISE_DEFAULT_WIDTH,
-  TEN_PLUS_QUICK_SHAPE_OPTIONS,
-  TEN_PLUS_TEARDROP_DEFAULT_LENGTH,
-  TEN_PLUS_TEARDROP_DEFAULT_WIDTH
+  垫型默认长,
+  垫型默认宽,
+  垫型指数最大,
+  垫型指数最小,
+  马眼默认长,
+  马眼默认宽,
+  快捷形状选项,
+  水滴默认长,
+  水滴默认宽
 } from '../constants/shapePreset'
 import type { TenPlusQuickShapeInput } from '../types/shapePreset'
 import {
-  buildQuickShapePreview,
-  createDefaultQuickShapeInput,
-  describeQuickShapeError,
-  marquiseGeometry,
-  pointsToSvgPolyline,
-  teardropFromSize,
-  teardropGeometry
-} from '../utils/tenPlusShapePresets'
+  构建快捷形状预览,
+  创建默认快捷形状,
+  快捷形状错误,
+  马眼几何公式,
+  点列转折线,
+  水滴由尺寸,
+  水滴几何公式
+} from '../utils/shapePresets'
 
-const PREVIEW_SIZE = 220
-const PREVIEW_PAD = 1.2
+const 预览尺寸 = 220
+const 预览边距 = 1.2
 
-const emit = defineEmits<{
+const 发出 = defineEmits<{
   close: []
   confirm: [input: TenPlusQuickShapeInput]
 }>()
 
-const form = reactive(createDefaultQuickShapeInput())
+const 表单 = reactive(创建默认快捷形状())
 
-const errorText = computed(() => describeQuickShapeError({ ...form }))
+const 错误文案 = computed(() => 快捷形状错误({ ...表单 }))
 
-const preview = computed(() => buildQuickShapePreview({ ...form }))
+const 预览 = computed(() => 构建快捷形状预览({ ...表单 }))
 
-const teardropInfo = computed(() => {
-  if (form.shape !== 'teardrop' || errorText.value) return null
-  const { a, L } = teardropFromSize(form.length, form.width)
-  return teardropGeometry(a, L)
+const 水滴几何 = computed(() => {
+  if (表单.shape !== '水滴' || 错误文案.value) return null
+  const { a, L } = 水滴由尺寸(表单.length, 表单.width)
+  return 水滴几何公式(a, L)
 })
 
-const marquiseInfo = computed(() => {
-  if (form.shape !== 'marquise' || errorText.value) return null
-  return marquiseGeometry(form.length / 2, form.width / 2)
+const 马眼几何 = computed(() => {
+  if (表单.shape !== '马眼' || 错误文案.value) return null
+  return 马眼几何公式(表单.length / 2, 表单.width / 2)
 })
 
-const subtitle = computed(() => {
-  if (form.shape === 'teardrop') {
+const 副标题 = computed(() => {
+  if (表单.shape === '水滴') {
     return '长=a+L、宽=2a；X 镜像后沿轮廓顶→左→右，同层三段中心圆'
   }
-  if (form.shape === 'marquise') {
+  if (表单.shape === '马眼') {
     return '长=2l、宽=2w；两段等半径中心圆，X 镜像后左弧→右弧，第 2 行同层'
   }
   return '超椭圆垫型，轮廓转 45°；第一段 135°~225°（X 镜像），R 每次 +90°'
 })
 
-const previewScale = computed(() => {
-  const model = preview.value
-  if (!model) return 0
-  const reach = model.outline.reduce(
-    (m, p) => Math.max(m, Math.abs(p.x), Math.abs(p.y)),
+const 预览比例 = computed(() => {
+  const 模型 = 预览.value
+  if (!模型) return 0
+  const 外伸 = 模型.轮廓.reduce(
+    (最大, 点) => Math.max(最大, Math.abs(点.横), Math.abs(点.纵)),
     0.001
   )
-  return PREVIEW_SIZE / (reach * 2 * PREVIEW_PAD)
+  return 预览尺寸 / (外伸 * 2 * 预览边距)
 })
 
-const previewHalf = PREVIEW_SIZE / 2
+const 预览半边 = 预览尺寸 / 2
 
-const outlinePoints = computed(() => {
-  const model = preview.value
-  if (!model || form.shape !== 'cushion') return ''
-  return pointsToSvgPolyline(model.outline, previewScale.value)
+const 轮廓点串 = computed(() => {
+  const 模型 = 预览.value
+  if (!模型 || 表单.shape !== '垫型') return ''
+  return 点列转折线(模型.轮廓, 预览比例.value)
 })
 
-const quarterPoints = computed(() => {
-  const model = preview.value
-  if (!model) return []
-  const scale = previewScale.value
-  return model.quarters.map((pts) => pointsToSvgPolyline(pts, scale))
+const 分段点串 = computed(() => {
+  const 模型 = 预览.value
+  if (!模型) return []
+  const 比例 = 预览比例.value
+  return 模型.分段.map((点列) => 点列转折线(点列, 比例))
 })
 
-function segmentClass(index: number): string {
-  if (form.shape === 'teardrop') {
-    if (index === 0) return 'tpc-shape-qtop'
-    if (index === 1) return 'tpc-shape-q0'
+function 分段样式(下标: number): string {
+  if (表单.shape === '水滴') {
+    if (下标 === 0) return 'tpc-shape-qtop'
+    if (下标 === 1) return 'tpc-shape-q0'
     return 'tpc-shape-qn'
   }
-  return index === 0 ? 'tpc-shape-q0' : 'tpc-shape-qn'
+  return 下标 === 0 ? 'tpc-shape-q0' : 'tpc-shape-qn'
 }
 
-function onShapeChange(): void {
-  if (form.shape === 'teardrop') {
-    form.length = TEN_PLUS_TEARDROP_DEFAULT_LENGTH
-    form.width = TEN_PLUS_TEARDROP_DEFAULT_WIDTH
+function 形状变化(): void {
+  if (表单.shape === '水滴') {
+    表单.length = 水滴默认长
+    表单.width = 水滴默认宽
     return
   }
-  if (form.shape === 'marquise') {
-    form.length = TEN_PLUS_MARQUISE_DEFAULT_LENGTH
-    form.width = TEN_PLUS_MARQUISE_DEFAULT_WIDTH
+  if (表单.shape === '马眼') {
+    表单.length = 马眼默认长
+    表单.width = 马眼默认宽
     return
   }
-  form.length = TEN_PLUS_CUSHION_DEFAULT_LENGTH
-  form.width = TEN_PLUS_CUSHION_DEFAULT_WIDTH
+  表单.length = 垫型默认长
+  表单.width = 垫型默认宽
 }
 
-function onConfirm(): void {
-  if (errorText.value) return
-  emit('confirm', {
-    shape: form.shape,
-    length: Number(form.length),
-    width: Number(form.width),
-    height: Number(form.height),
-    exponent: Number(form.exponent),
-    angle: Number(form.angle)
+function 确认(): void {
+  if (错误文案.value) return
+  发出('confirm', {
+    shape: 表单.shape,
+    length: Number(表单.length),
+    width: Number(表单.width),
+    height: Number(表单.height),
+    exponent: Number(表单.exponent),
+    angle: Number(表单.angle)
   })
 }
 
-interface ShapeEqItem {
-  symbol: string
-  formula: string
-  value: string
+interface 公式项 {
+  符号: string
+  公式: string
+  取值: string
 }
 
-const shapeEqs = computed((): ShapeEqItem[] => {
-  if (errorText.value) return []
-  if (form.shape === 'teardrop' && teardropInfo.value) {
-    const g = teardropInfo.value
+const 公式列表 = computed((): 公式项[] => {
+  if (错误文案.value) return []
+  if (表单.shape === '水滴' && 水滴几何.value) {
+    const 几何 = 水滴几何.value
     return [
-      { symbol: 'a', formula: '宽 / 2', value: g.a.toFixed(2) },
-      { symbol: 'L', formula: '长 − a', value: g.L.toFixed(2) },
-      { symbol: 'cx', formula: '(a² − L²) / 2a', value: g.cx.toFixed(2) },
-      { symbol: 'r', formula: '(a² + L²) / 2a', value: g.r.toFixed(2) },
-      { symbol: '尖角', formula: '', value: `${g.tipAngleDeg.toFixed(1)}°` }
+      { 符号: 'a', 公式: '宽 / 2', 取值: 几何.a.toFixed(2) },
+      { 符号: 'L', 公式: '长 − a', 取值: 几何.L.toFixed(2) },
+      { 符号: 'cx', 公式: '(a² − L²) / 2a', 取值: 几何.cx.toFixed(2) },
+      { 符号: 'r', 公式: '(a² + L²) / 2a', 取值: 几何.r.toFixed(2) },
+      { 符号: '尖角', 公式: '', 取值: `${几何.尖角.toFixed(1)}°` }
     ]
   }
-  if (form.shape === 'marquise' && marquiseInfo.value) {
-    const g = marquiseInfo.value
+  if (表单.shape === '马眼' && 马眼几何.value) {
+    const 几何 = 马眼几何.value
     return [
-      { symbol: 'l', formula: '长 / 2', value: g.l.toFixed(2) },
-      { symbol: 'w', formula: '宽 / 2', value: g.w.toFixed(2) },
-      { symbol: 'R', formula: '(l² + w²) / 2w', value: g.R.toFixed(2) },
-      { symbol: 'd', formula: '(l² − w²) / 2w', value: g.d.toFixed(2) },
-      { symbol: 'θ', formula: 'atan2(l, d)', value: `${g.theta0Deg.toFixed(1)}°` }
+      { 符号: 'l', 公式: '长 / 2', 取值: 几何.l.toFixed(2) },
+      { 符号: 'w', 公式: '宽 / 2', 取值: 几何.w.toFixed(2) },
+      { 符号: 'R', 公式: '(l² + w²) / 2w', 取值: 几何.R.toFixed(2) },
+      { 符号: 'd', 公式: '(l² − w²) / 2w', 取值: 几何.d.toFixed(2) },
+      { 符号: 'θ', 公式: 'atan2(l, d)', 取值: `${几何.半张角.toFixed(1)}°` }
     ]
   }
-  if (form.shape === 'cushion') {
+  if (表单.shape === '垫型') {
     return [
-      { symbol: 'a', formula: '长 / 2', value: (form.length / 2).toFixed(2) },
-      { symbol: 'b', formula: '宽 / 2', value: (form.width / 2).toFixed(2) },
-      { symbol: 'n', formula: '2 椭圆 · 4 垫型', value: Number(form.exponent).toFixed(1) }
+      { 符号: 'a', 公式: '长 / 2', 取值: (表单.length / 2).toFixed(2) },
+      { 符号: 'b', 公式: '宽 / 2', 取值: (表单.width / 2).toFixed(2) },
+      { 符号: 'n', 公式: '2 椭圆 · 4 垫型', 取值: Number(表单.exponent).toFixed(1) }
     ]
   }
   return []
@@ -163,9 +163,9 @@ const shapeEqs = computed((): ShapeEqItem[] => {
       <header class="tpc-shape-head">
         <div>
           <h2 id="tpc-shape-title">快捷形状编辑</h2>
-          <p>{{ subtitle }}</p>
+          <p>{{ 副标题 }}</p>
         </div>
-        <button type="button" class="tpc-shape-close" aria-label="关闭" @click="emit('close')">
+        <button type="button" class="tpc-shape-close" aria-label="关闭" @click="发出('close')">
           ✕
         </button>
       </header>
@@ -174,13 +174,13 @@ const shapeEqs = computed((): ShapeEqItem[] => {
         <div class="tpc-shape-form">
           <label class="tpc-shape-field">
             <span>形状</span>
-            <select v-model="form.shape" class="tpc-shape-input" @change="onShapeChange">
+            <select v-model="表单.shape" class="tpc-shape-input" @change="形状变化">
               <option
-                v-for="item in TEN_PLUS_QUICK_SHAPE_OPTIONS"
-                :key="item.value"
-                :value="item.value"
+                v-for="项 in 快捷形状选项"
+                :key="项.value"
+                :value="项.value"
               >
-                {{ item.label }}
+                {{ 项.label }}
               </option>
             </select>
           </label>
@@ -188,93 +188,93 @@ const shapeEqs = computed((): ShapeEqItem[] => {
           <div class="tpc-shape-grid">
             <label class="tpc-shape-field">
               <span>长 (mm)</span>
-              <input v-model.number="form.length" type="number" min="0.1" step="0.1" class="tpc-shape-input" />
+              <input v-model.number="表单.length" type="number" min="0.1" step="0.1" class="tpc-shape-input" />
             </label>
             <label class="tpc-shape-field">
               <span>宽 (mm)</span>
-              <input v-model.number="form.width" type="number" min="0.1" step="0.1" class="tpc-shape-input" />
+              <input v-model.number="表单.width" type="number" min="0.1" step="0.1" class="tpc-shape-input" />
             </label>
             <label class="tpc-shape-field">
               <span>高度 (mm)</span>
-              <input v-model.number="form.height" type="number" min="0" step="0.1" class="tpc-shape-input" />
+              <input v-model.number="表单.height" type="number" min="0" step="0.1" class="tpc-shape-input" />
             </label>
             <label class="tpc-shape-field">
               <span>角度 (°)</span>
-              <input v-model.number="form.angle" type="number" min="-90" max="90" step="1" class="tpc-shape-input" />
+              <input v-model.number="表单.angle" type="number" min="-90" max="90" step="1" class="tpc-shape-input" />
             </label>
-            <label v-if="form.shape === 'cushion'" class="tpc-shape-field tpc-shape-span">
-              <span>指数 n（{{ TEN_PLUS_CUSHION_EXPONENT_MIN }} 尖 … {{ TEN_PLUS_CUSHION_EXPONENT_MAX }} 方）</span>
+            <label v-if="表单.shape === '垫型'" class="tpc-shape-field tpc-shape-span">
+              <span>指数 n（{{ 垫型指数最小 }} 尖 … {{ 垫型指数最大 }} 方）</span>
               <input
-                v-model.number="form.exponent"
+                v-model.number="表单.exponent"
                 type="number"
-                :min="TEN_PLUS_CUSHION_EXPONENT_MIN"
-                :max="TEN_PLUS_CUSHION_EXPONENT_MAX"
+                :min="垫型指数最小"
+                :max="垫型指数最大"
                 step="0.1"
                 class="tpc-shape-input"
               />
             </label>
           </div>
 
-          <div v-if="shapeEqs.length" class="tpc-shape-eqs" aria-live="polite">
-            <div v-for="item in shapeEqs" :key="item.symbol" class="tpc-shape-eq">
-              <span class="tpc-shape-eq-sym">{{ item.symbol }}</span>
-              <span class="tpc-shape-eq-form">{{ item.formula ? `= ${item.formula}` : '' }}</span>
-              <span class="tpc-shape-eq-val">= {{ item.value }}</span>
+          <div v-if="公式列表.length" class="tpc-shape-eqs" aria-live="polite">
+            <div v-for="项 in 公式列表" :key="项.符号" class="tpc-shape-eq">
+              <span class="tpc-shape-eq-sym">{{ 项.符号 }}</span>
+              <span class="tpc-shape-eq-form">{{ 项.公式 ? `= ${项.公式}` : '' }}</span>
+              <span class="tpc-shape-eq-val">= {{ 项.取值 }}</span>
             </div>
-            <p v-if="form.shape === 'cushion'" class="tpc-shape-eq-note">
+            <p v-if="表单.shape === '垫型'" class="tpc-shape-eq-note">
               r(θ) = a·b / [(b·|cosθ|)ⁿ + (a·|sinθ|)ⁿ]^(1/n)
             </p>
           </div>
-          <p v-if="errorText" class="tpc-shape-error">{{ errorText }}</p>
+          <p v-if="错误文案" class="tpc-shape-error">{{ 错误文案 }}</p>
         </div>
 
         <div
           class="tpc-shape-preview"
           :aria-label="
-            form.shape === 'teardrop' ? '水滴预览' : form.shape === 'marquise' ? '马眼预览' : '垫型预览'
+            表单.shape === '水滴' ? '水滴预览' : 表单.shape === '马眼' ? '马眼预览' : '垫型预览'
           "
         >
           <svg
             class="tpc-shape-svg"
-            :width="PREVIEW_SIZE"
-            :height="PREVIEW_SIZE"
-            :viewBox="`${-previewHalf} ${-previewHalf} ${PREVIEW_SIZE} ${PREVIEW_SIZE}`"
+            :width="预览尺寸"
+            :height="预览尺寸"
+            :viewBox="`${-预览半边} ${-预览半边} ${预览尺寸} ${预览尺寸}`"
           >
             <line
-              :x1="-previewHalf"
+              :x1="-预览半边"
               y1="0"
-              :x2="previewHalf"
+              :x2="预览半边"
               y2="0"
               class="tpc-shape-axis"
             />
             <line
               x1="0"
-              :y1="-previewHalf"
+              :y1="-预览半边"
               x2="0"
-              :y2="previewHalf"
+              :y2="预览半边"
               class="tpc-shape-axis"
             />
             <polyline
-              v-if="outlinePoints"
-              :points="outlinePoints"
+              v-if="轮廓点串"
+              :points="轮廓点串"
               class="tpc-shape-outline"
               fill="none"
             />
             <polyline
-              v-for="(pts, i) in quarterPoints"
-              :key="i"
-              :points="pts"
+              v-for="(点串, 下标) in 分段点串"
+              :key="下标"
+              :points="点串"
               fill="none"
-              :class="segmentClass(i)"
+              :class="分段样式(下标)"
             />
             <circle cx="0" cy="0" r="2.5" class="tpc-shape-origin" />
           </svg>
-          <div v-if="form.shape === 'cushion'" class="tpc-shape-legend">
+          <div v-if="表单.shape === '垫型'" class="tpc-shape-legend">
             <span><i class="tpc-shape-swatch outline" />完整轮廓</span>
             <span><i class="tpc-shape-swatch q0" />第一段</span>
             <span><i class="tpc-shape-swatch qn" />其余三段</span>
           </div>
-          <div v-else-if="form.shape === 'marquise'" class="tpc-shape-legend">
+          <div v-else-if="表单.shape === '马眼'" class="tpc-shape-legend">
             <span><i class="tpc-shape-swatch q0" />左弧 · 下尖 → 上尖</span>
             <span><i class="tpc-shape-swatch qn" />右弧 · 上尖 → 下尖</span>
           </div>
@@ -287,12 +287,12 @@ const shapeEqs = computed((): ShapeEqItem[] => {
       </div>
 
       <div class="tpc-shape-btns">
-        <button type="button" class="tpc-shape-btn" @click="emit('close')">取消</button>
+        <button type="button" class="tpc-shape-btn" @click="发出('close')">取消</button>
         <button
           type="button"
           class="tpc-shape-btn primary"
-          :disabled="Boolean(errorText)"
-          @click="onConfirm"
+          :disabled="Boolean(错误文案)"
+          @click="确认"
         >
           写入当前目标
         </button>

@@ -3,13 +3,18 @@
     <div
       ref="canvasHost"
       class="relative h-full w-full overflow-hidden"
-      :class="overlayMode ? 'rounded-none bg-transparent' : 'rounded-2xl bg-slate-900/95'"
+      :class="[
+        overlayMode ? 'rounded-none bg-transparent' : 'rounded-2xl bg-slate-900/95',
+        panState ? 'cursor-grabbing' : ''
+      ]"
     >
       <svg
         ref="svgRef"
         class="h-full w-full touch-none select-none"
         @contextmenu.prevent
+        @pointerdown.capture="handleCanvasPointerDownCapture"
         @pointerdown="handleBackgroundPointerDown"
+        @wheel.prevent="handleWheel"
       >
         <template v-if="!overlayMode">
           <defs>
@@ -674,6 +679,65 @@
       </svg>
 
       <div
+        v-if="hoverEditOpen"
+        class="absolute z-20 min-w-36 rounded-md border border-slate-600 bg-slate-900/95 px-2 py-2 shadow-lg"
+        :style="hoverEditPanelStyle"
+        @pointerdown.stop
+        @wheel.stop.prevent
+      >
+        <div class="mb-1.5 text-[11px] font-medium text-sky-300">{{ hoverEditOpen.label }}</div>
+        <div v-if="hoverEditOpen.kind === 'radius'" class="flex items-center gap-1">
+          <input
+            ref="hoverEditInputRef"
+            v-model.number="hoverEditTemp.scalar"
+            type="number"
+            step="0.001"
+            min="0"
+            class="w-24 rounded border border-slate-600 bg-slate-950 px-1 py-0.5 text-xs text-slate-100 outline-none focus:border-sky-500/70"
+            @keydown.enter.prevent="saveHoverEdit"
+            @keydown.esc.prevent="closeHoverEdit"
+          />
+        </div>
+        <div v-else class="flex items-center gap-1">
+          <span class="text-[10px] text-slate-400">X</span>
+          <input
+            ref="hoverEditInputRef"
+            v-model.number="hoverEditTemp.x"
+            type="number"
+            step="0.001"
+            class="w-16 rounded border border-slate-600 bg-slate-950 px-1 py-0.5 text-xs text-slate-100 outline-none focus:border-sky-500/70"
+            @keydown.enter.prevent="saveHoverEdit"
+            @keydown.esc.prevent="closeHoverEdit"
+          />
+          <span class="text-[10px] text-slate-400">Y</span>
+          <input
+            v-model.number="hoverEditTemp.y"
+            type="number"
+            step="0.001"
+            class="w-16 rounded border border-slate-600 bg-slate-950 px-1 py-0.5 text-xs text-slate-100 outline-none focus:border-sky-500/70"
+            @keydown.enter.prevent="saveHoverEdit"
+            @keydown.esc.prevent="closeHoverEdit"
+          />
+        </div>
+        <div class="mt-1.5 flex justify-end gap-1">
+          <button
+            type="button"
+            class="rounded border border-slate-700 bg-slate-800/60 px-1.5 py-0.5 text-[10px] text-slate-200 hover:bg-slate-800"
+            @click="closeHoverEdit"
+          >
+            取消
+          </button>
+          <button
+            type="button"
+            class="rounded border border-sky-700 bg-sky-800/60 px-1.5 py-0.5 text-[10px] text-sky-100 hover:bg-sky-800"
+            @click="saveHoverEdit"
+          >
+            确定
+          </button>
+        </div>
+      </div>
+
+      <div
         v-if="!overlayMode && visibleEntities.length === 0"
         class="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-900/40 text-center text-sm text-slate-200"
       >
@@ -690,12 +754,12 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useNotification } from '@/shared/composables/useNotification'
 import { subscribeQomoToCanvasAction } from '../cad/QomoToCanvas'
 import type { Point, QomoEntityWithSurface } from '../qomo5pTypes'
 import { useQomo5PStore } from '../useQomo5PStore'
-import { screenToWorld } from '../cad/viewport'
+import { screenToWorld, worldToScreen } from '../cad/viewport'
 import type { DrawingShapeTools } from '../cad/QomoToCanvas'
 
 import {
@@ -729,6 +793,7 @@ type PanState = {
   startY: number
   lastX: number
   lastY: number
+  button: number
 } | null
 type SelectionState = {
   startX: number
@@ -891,7 +956,25 @@ const bezierDraftEnd = ref<Point | null>(null)
 const bezierDraftMouse = ref<Point | null>(null)
 const bezierSnapPreviewWorld = ref<Point | null>(null)
 
+type HoverEditKind = 'start' | 'end' | 'center' | 'radius'
+type HoverEditTarget = {
+  entityId: string
+  kind: HoverEditKind
+  world: Point
+  label: string
+}
+
+const HOVER_EDIT_DELAY_MS = 2000
+const hoverHandlePreviewWorld = ref<Point | null>(null)
+const hoverEditOpen = ref<HoverEditTarget | null>(null)
+const hoverEditCandidateKey = ref<string | null>(null)
+const hoverEditTemp = ref({ x: 0, y: 0, scalar: 0 })
+const hoverEditInputRef = ref<HTMLInputElement | null>(null)
+let hoverEditTimer: number | null = null
+
 const snapRingWorld = computed(() => {
+  if (hoverEditOpen.value) return hoverEditOpen.value.world
+  if (hoverHandlePreviewWorld.value) return hoverHandlePreviewWorld.value
   if (activeTool.value === 'line' && lineSnapPreviewWorld.value) return lineSnapPreviewWorld.value
   if (activeTool.value === 'arc' && lineSnapPreviewWorld.value) return lineSnapPreviewWorld.value
   if (activeTool.value === 'circle' && circleSnapPreviewWorld.value)
@@ -1299,6 +1382,223 @@ const pointToAngleDeg = (center: Point, point: Point) =>
 const normalizeDeg = (a: number) => ((a % 360) + 360) % 360
 
 const ccwDelta = (from: number, to: number) => (normalizeDeg(to) - normalizeDeg(from) + 360) % 360
+
+const hoverTargetKey = (target: HoverEditTarget) => `${target.entityId}:${target.kind}`
+
+const collectHoverEditTargets = (): HoverEditTarget[] => {
+  const out: HoverEditTarget[] = []
+  for (const e of visibleEntities.value) {
+    if (e.type === 'LINE') {
+      out.push({ entityId: e.id, kind: 'start', world: e.start, label: '起点' })
+      out.push({ entityId: e.id, kind: 'end', world: e.end, label: '终点' })
+    } else if (e.type === 'ARC') {
+      const start =
+        e.startPoint ?? polarToCartesian(e.center.x, e.center.y, e.radius, e.startAngle)
+      const end = e.endPoint ?? polarToCartesian(e.center.x, e.center.y, e.radius, e.endAngle)
+      const midAngle = e.startAngle + ccwDelta(e.startAngle, e.endAngle) / 2
+      out.push({ entityId: e.id, kind: 'start', world: start, label: '起点' })
+      out.push({ entityId: e.id, kind: 'end', world: end, label: '终点' })
+      out.push({ entityId: e.id, kind: 'center', world: e.center, label: '圆心' })
+      out.push({
+        entityId: e.id,
+        kind: 'radius',
+        world: polarToCartesian(e.center.x, e.center.y, e.radius, midAngle),
+        label: '半径'
+      })
+    } else if (e.type === 'CIRCLE') {
+      out.push({ entityId: e.id, kind: 'center', world: e.center, label: '圆心' })
+      out.push({
+        entityId: e.id,
+        kind: 'radius',
+        world: { x: e.center.x + e.radius, y: e.center.y },
+        label: '半径'
+      })
+    } else if (e.type === 'BEZIER' && e.points.length >= 2) {
+      const startPt = e.points[0]
+      const endPt = e.points[e.points.length - 1]
+      if (!startPt || !endPt) continue
+      out.push({ entityId: e.id, kind: 'start', world: startPt, label: '起点' })
+      out.push({ entityId: e.id, kind: 'end', world: endPt, label: '终点' })
+    }
+  }
+  return out
+}
+
+const findHoverEditTarget = (raw: Point): HoverEditTarget | null => {
+  const r = worldSnapRadius()
+  const r2 = r * r
+  let best: HoverEditTarget | null = null
+  let bestD2 = r2
+  for (const target of collectHoverEditTargets()) {
+    const d2 = dist2(raw, target.world)
+    if (d2 > bestD2) continue
+    const isSelected = selectedEntityIds.value.includes(target.entityId)
+    const bestSelected = best ? selectedEntityIds.value.includes(best.entityId) : false
+    if (!best || d2 < bestD2 - 1e-12 || (isSelected && !bestSelected)) {
+      best = target
+      bestD2 = d2
+    }
+  }
+  if (best) return best
+
+  for (const e of visibleEntities.value) {
+    if (e.type !== 'CIRCLE' && e.type !== 'ARC') continue
+    const distToCircumference = Math.abs(
+      Math.hypot(raw.x - e.center.x, raw.y - e.center.y) - e.radius
+    )
+    if (distToCircumference > r) continue
+    if (e.type === 'ARC') {
+      const ang = pointToAngleDeg(e.center, raw)
+      const onArc = ccwDelta(e.startAngle, ang) <= ccwDelta(e.startAngle, e.endAngle) + 1e-6
+      if (!onArc) continue
+    }
+    return {
+      entityId: e.id,
+      kind: 'radius',
+      world: projectPointToRadius(e.center, raw, e.radius),
+      label: '半径'
+    }
+  }
+  return null
+}
+
+const clearHoverEditTimer = () => {
+  if (hoverEditTimer == null) return
+  window.clearTimeout(hoverEditTimer)
+  hoverEditTimer = null
+}
+
+const clearHoverEditTracking = () => {
+  hoverHandlePreviewWorld.value = null
+  hoverEditCandidateKey.value = null
+  clearHoverEditTimer()
+}
+
+const closeHoverEdit = () => {
+  hoverEditOpen.value = null
+  clearHoverEditTracking()
+}
+
+const openHoverEdit = (target: HoverEditTarget) => {
+  const entity = entities.value.find((e) => e.id === target.entityId)
+  if (!entity) return
+  hoverEditOpen.value = { ...target }
+  if (target.kind === 'radius' && (entity.type === 'ARC' || entity.type === 'CIRCLE')) {
+    hoverEditTemp.value = { x: 0, y: 0, scalar: entity.radius }
+  } else {
+    hoverEditTemp.value = { x: target.world.x, y: target.world.y, scalar: 0 }
+  }
+  void nextTick(() => hoverEditInputRef.value?.focus())
+}
+
+const saveHoverEdit = () => {
+  const open = hoverEditOpen.value
+  if (!open) return
+  const entity = entities.value.find((e) => e.id === open.entityId)
+  if (!entity) {
+    closeHoverEdit()
+    return
+  }
+
+  if (open.kind === 'radius') {
+    const radius = Number(hoverEditTemp.value.scalar)
+    if (!Number.isFinite(radius) || radius <= 0) {
+      closeHoverEdit()
+      return
+    }
+    store.updateEntityParams(open.entityId, { radius })
+    closeHoverEdit()
+    return
+  }
+
+  const x = Number(hoverEditTemp.value.x)
+  const y = Number(hoverEditTemp.value.y)
+  if (!Number.isFinite(x) || !Number.isFinite(y)) {
+    closeHoverEdit()
+    return
+  }
+  const point = { x, y }
+  if (entity.type === 'LINE' && open.kind === 'start') {
+    store.updateEntityParams(open.entityId, { start: point })
+  } else if (entity.type === 'LINE' && open.kind === 'end') {
+    store.updateEntityParams(open.entityId, { end: point })
+  } else if (entity.type === 'ARC' && open.kind === 'start') {
+    store.updateEntityParams(open.entityId, { arcStartPoint: point })
+  } else if (entity.type === 'ARC' && open.kind === 'end') {
+    store.updateEntityParams(open.entityId, { arcEndPoint: point })
+  } else if (open.kind === 'center') {
+    store.updateEntityParams(open.entityId, { center: point })
+  } else if (entity.type === 'BEZIER' && open.kind === 'start') {
+    store.updateEntityParams(open.entityId, { bezierPoint: { index: 0, value: point } })
+  } else if (entity.type === 'BEZIER' && open.kind === 'end') {
+    store.updateEntityParams(open.entityId, {
+      bezierPoint: { index: entity.points.length - 1, value: point }
+    })
+  }
+  closeHoverEdit()
+}
+
+const hoverEditPanelStyle = computed(() => {
+  if (!hoverEditOpen.value) return {}
+  const screen = worldToScreen(hoverEditOpen.value.world, viewport.value)
+  return {
+    left: `${screen.x + 14}px`,
+    top: `${screen.y + 14}px`
+  }
+})
+
+const isPointerInSvg = (event: PointerEvent) => {
+  const rect = svgRef.value?.getBoundingClientRect()
+  if (!rect) return false
+  return (
+    event.clientX >= rect.left &&
+    event.clientX <= rect.right &&
+    event.clientY >= rect.top &&
+    event.clientY <= rect.bottom
+  )
+}
+
+const updateHoverEditFromEvent = (event: PointerEvent) => {
+  if (hoverEditOpen.value) return
+  const hasActiveDraft = Boolean(
+    lineDraftStart.value ||
+      arcDraftStart.value ||
+      arcDraftCenter.value ||
+      circleDraftCenter.value ||
+      ellipseDraftCenter.value ||
+      bezierDraftPoints.value.length > 0
+  )
+  if (
+    hasActiveDraft ||
+    panState.value ||
+    moveDragState.value ||
+    selectionState.value ||
+    !isPointerInSvg(event)
+  ) {
+    clearHoverEditTracking()
+    return
+  }
+
+  const target = findHoverEditTarget(getWorldPointFromEvent(event))
+  hoverHandlePreviewWorld.value = target?.world ?? null
+  const key = target ? hoverTargetKey(target) : null
+  if (key === hoverEditCandidateKey.value) return
+
+  hoverEditCandidateKey.value = key
+  clearHoverEditTimer()
+  if (!target) return
+
+  hoverEditTimer = window.setTimeout(() => {
+    if (hoverEditCandidateKey.value !== key) return
+    openHoverEdit(target)
+  }, HOVER_EDIT_DELAY_MS)
+}
+
+const handleHoverEditKeydown = (event: KeyboardEvent) => {
+  if (event.key !== 'Escape' || !hoverEditOpen.value) return
+  event.preventDefault()
+  closeHoverEdit()
+}
 
 const describeArc = (
   centerX: number,
@@ -1726,34 +2026,53 @@ const handleArcToolPoint = (raw: Point, event: PointerEvent) => {
 }
 // 处理ARC=============================
 
-// const handleWheel = (event: WheelEvent) => {
-//   const factor = event.deltaY < 0 ? 1.1 : 0.9
-//   store.zoomAt(getLocalPoint(event), factor)
-// }
+const handleWheel = (event: WheelEvent) => {
+  const factor = event.deltaY < 0 ? 1.1 : 0.9
+  store.zoomAt(getLocalPoint(event), factor)
+}
 
-// 鼠标按下
-const handleBackgroundPointerDown = (event: PointerEvent) => {
-  if (event.button === 2) {
+const beginPan = (event: PointerEvent) => {
+  const point = getLocalPoint(event)
+  panState.value = {
+    startX: point.x,
+    startY: point.y,
+    lastX: point.x,
+    lastY: point.y,
+    button: event.button
+  }
+}
+
+const finishPanIfNeeded = () => {
+  const pan = panState.value
+  if (!pan) return false
+
+  const panned =
+    Math.abs(pan.lastX - pan.startX) > 3 || Math.abs(pan.lastY - pan.startY) > 3
+  const wasRightClick = pan.button === 2
+  panState.value = null
+
+  if (wasRightClick && !panned) {
     if (activeTool.value === 'bezier' && bezierDraftPoints.value.length >= 2) {
       store.addBezierEntity(bezierDraftPoints.value)
     }
     resetDrafts()
-    return
   }
-  // 拖拽
-  if (event.button === 1) {
-    const point = getLocalPoint(event)
-    panState.value = {
-      startX: point.x,
-      startY: point.y,
-      lastX: point.x,
-      lastY: point.y
-    }
-    return
-  }
+  return true
+}
+
+/** 捕获阶段开始平移，保证点在实体上时右键/中键也能拖动画布 */
+const handleCanvasPointerDownCapture = (event: PointerEvent) => {
+  if (event.button !== 1 && event.button !== 2) return
+  beginPan(event)
+}
+
+// 鼠标按下
+const handleBackgroundPointerDown = (event: PointerEvent) => {
+  if (event.button === 1 || event.button === 2) return
 
   // 左键绘制图形
   if (event.button !== 0) return
+  if (hoverEditOpen.value) closeHoverEdit()
 
   const worldPoint = getWorldPointFromEvent(event)
 
@@ -1974,15 +2293,17 @@ const handleEntityPointerDown = (entityId: string, event: PointerEvent) => {
 }
 
 const handlePointerMove = (event: PointerEvent) => {
-  //   if (panState.value) {
-  //     const point = getLocalPoint(event)
-  //     const deltaX = point.x - panState.value.lastX
-  //     const deltaY = point.y - panState.value.lastY
-  //     store.panBy(deltaX, deltaY)
-  //     panState.value.lastX = point.x
-  //     panState.value.lastY = point.y
-  //     return
-  //   }
+  if (panState.value) {
+    const point = getLocalPoint(event)
+    const deltaX = point.x - panState.value.lastX
+    const deltaY = point.y - panState.value.lastY
+    store.panBy(deltaX, deltaY)
+    panState.value.lastX = point.x
+    panState.value.lastY = point.y
+    return
+  }
+
+  updateHoverEditFromEvent(event)
 
   // 移动entities——line====================================
   if (moveDragState.value) {
@@ -2438,6 +2759,8 @@ const handleKeyToggleArcDirection = (event: KeyboardEvent) => {
 }
 
 const handlePointerUp = () => {
+  if (finishPanIfNeeded()) return
+
   // 移动entities——line====================================
   if (moveDragState.value) {
     if (moveDragMoved.value) {
@@ -2541,7 +2864,6 @@ const handlePointerUp = () => {
     store.setSelectionRect(null)
   }
 
-  panState.value = null
   selectionState.value = null
 }
 
@@ -2564,6 +2886,7 @@ onMounted(() => {
   window.addEventListener('pointerup', handlePointerUp)
   window.addEventListener('keydown', handleKeyToggleArcDirection)
   window.addEventListener('keyup', handleKeyToggleArcDirection)
+  window.addEventListener('keydown', handleHoverEditKeydown)
 
   unsubscribeAction = subscribeQomoToCanvasAction((action) => {
     if (action.type === 'DRAWING') {
@@ -2653,12 +2976,14 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  clearHoverEditTimer()
   resizeObserver.value?.disconnect()
   resizeObserver.value = null
   window.removeEventListener('pointermove', handlePointerMove)
   window.removeEventListener('pointerup', handlePointerUp)
   window.removeEventListener('keydown', handleKeyToggleArcDirection)
   window.removeEventListener('keyup', handleKeyToggleArcDirection)
+  window.removeEventListener('keydown', handleHoverEditKeydown)
   unsubscribeAction?.()
   unsubscribeAction = null
 })

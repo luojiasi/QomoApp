@@ -17,6 +17,11 @@ const {
   axisIndices,
   writeFields,
   fmtVal,
+  axisSpeedUnit,
+  speedInputValue,
+  beginSpeedEdit,
+  onSpeedDraftInput,
+  commitSpeedEdit,
   normalizeAxisInput,
   isMergeParamField,
   mergeParamKey,
@@ -316,6 +321,21 @@ const {
                       class="w-full rounded-md border border-(--app-border) bg-(--app-input-bg) px-2 py-1 text-xs outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2 text-center"
                       @blur="normalizeAxisInput(axisIdx, field.key)"
                     />
+                    <div
+                      v-else-if="field.key === 'speed'"
+                      class="flex flex-col items-center gap-0.5"
+                    >
+                      <input
+                        :value="speedInputValue(axisIdx)"
+                        type="number"
+                        step="0.0001"
+                        class="w-full rounded-md border border-(--app-border) bg-(--app-input-bg) px-2 py-1 text-xs outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2 text-center"
+                        @focus="beginSpeedEdit(axisIdx)"
+                        @input="onSpeedDraftInput(($event.target as HTMLInputElement).value)"
+                        @blur="commitSpeedEdit(axisIdx)"
+                      />
+                      <span class="text-[10px] app-text-muted">{{ axisSpeedUnit(axisIdx) }}</span>
+                    </div>
                     <!-- 通用数值 -->
                     <input
                       v-else
@@ -489,6 +509,21 @@ const {
                       class="w-full rounded-md border border-(--app-border) bg-(--app-input-bg) px-2 py-1 text-[11px] outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2 text-center"
                       @blur="normalizeAxisInput(axisIdx, field.key)"
                     />
+                    <div
+                      v-else-if="field.key === 'speed'"
+                      class="flex flex-col items-center gap-0.5"
+                    >
+                      <input
+                        :value="speedInputValue(axisIdx)"
+                        type="number"
+                        step="0.0001"
+                        class="w-full rounded-md border border-(--app-border) bg-(--app-input-bg) px-2 py-1 text-[11px] outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2 text-center"
+                        @focus="beginSpeedEdit(axisIdx)"
+                        @input="onSpeedDraftInput(($event.target as HTMLInputElement).value)"
+                        @blur="commitSpeedEdit(axisIdx)"
+                      />
+                      <span class="text-[9px] app-text-muted">{{ axisSpeedUnit(axisIdx) }}</span>
+                    </div>
                     <!-- 通用数值 -->
                     <input
                       v-else

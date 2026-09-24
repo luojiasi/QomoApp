@@ -1,7 +1,7 @@
 import type { TenPlusTaskRow } from './tenPlusCutting'
 
 /** 快捷形状 id；新增形状只在此联合上追加 */
-export type TenPlusQuickShapeId = 'cushion' | 'teardrop' | 'marquise'
+export type TenPlusQuickShapeId = '垫型' | '水滴' | '马眼'
 
 /**
  * 快捷形状弹窗提交的尺寸。三种形状都填长/宽：
@@ -18,7 +18,9 @@ export interface TenPlusQuickShapeInput {
   angle: number
 }
 
-/** 生成任务行时要覆盖的字段；id / taskNo 由 store 分配 */
+/** 生成任务行时要覆盖的字段；id / taskNo 由 store 分配。
+ * diameter：中心圆 = 该段半径；超椭圆不使用（几何看 length/width）。
+ */
 export type TenPlusQuickShapeRowDraft = Pick<
   TenPlusTaskRow,
   | 'pathType'

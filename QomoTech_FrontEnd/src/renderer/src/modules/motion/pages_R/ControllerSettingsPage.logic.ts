@@ -9,7 +9,7 @@ import { connectMotionWithControllerSettings, emergencyStopMotion } from '../api
 import { AXIS_TAB_LABELS, createControllerSections, defaultControllerParameters } from '../config'
 import type { ControllerAxisCount, ControllerAxisUserInput } from '../types'
 import type { ParameterField } from '@/shared/types'
-import { roundMax, MAX_DECIMALS } from '../utils'
+import { roundMax, MAX_DECIMALS, SPEED_ENG_DECIMALS, 工程速度转显示速度, 显示速度转工程速度, 运行速度显示单位 } from '../utils'
 
 const USER_AXIS_KEYS = [
   'axis_no', 'axis_name', 'axis_type', 'units', 'speed', 'lspeed',
@@ -90,7 +90,52 @@ export function useControllerSettingsPageLogic() {
     }
     const v = Number(ax[fieldKey])
     if (!Number.isFinite(v)) return
-    ax[fieldKey] = roundMax(v)
+    ax[fieldKey] = roundMax(v, fieldKey === 'speed' ? SPEED_ENG_DECIMALS : MAX_DECIMALS)
+  }
+
+  function displayAxisSpeed(axisIdx: number): number {
+    const ax = controllerStore.controllerSettings.axes[axisIdx]
+    if (!ax) return 0
+    return roundMax(工程速度转显示速度(ax))
+  }
+
+  function setDisplayAxisSpeed(axisIdx: number, raw: string): void {
+    const ax = controllerStore.controllerSettings.axes[axisIdx]
+    if (!ax) return
+    const n = Number(raw)
+    if (!Number.isFinite(n)) return
+    ax.speed = roundMax(显示速度转工程速度(ax, n), SPEED_ENG_DECIMALS)
+  }
+
+  function axisSpeedUnit(axisIdx: number): string {
+    const ax = controllerStore.controllerSettings.axes[axisIdx]
+    return 运行速度显示单位(ax?.axis_name ?? '')
+  }
+
+  const speedEditAxis = ref<number | null>(null)
+  const speedEditText = ref('')
+
+  function speedInputValue(axisIdx: number): string {
+    if (speedEditAxis.value === axisIdx) return speedEditText.value
+    return String(displayAxisSpeed(axisIdx))
+  }
+
+  function beginSpeedEdit(axisIdx: number): void {
+    speedEditAxis.value = axisIdx
+    speedEditText.value = String(displayAxisSpeed(axisIdx))
+  }
+
+  function onSpeedDraftInput(raw: string): void {
+    speedEditText.value = raw
+  }
+
+  function commitSpeedEdit(axisIdx: number): void {
+    if (speedEditAxis.value === axisIdx) {
+      setDisplayAxisSpeed(axisIdx, speedEditText.value)
+      normalizeAxisInput(axisIdx, 'speed')
+    }
+    speedEditAxis.value = null
+    speedEditText.value = ''
   }
 
   // 保存 / 重置
@@ -204,6 +249,11 @@ export function useControllerSettingsPageLogic() {
     MAX_DECIMALS,
     roundMax,
     fmtVal,
+    axisSpeedUnit,
+    speedInputValue,
+    beginSpeedEdit,
+    onSpeedDraftInput,
+    commitSpeedEdit,
     normalizeAxisInput,
     isMergeParamField,
     mergeParamKey,

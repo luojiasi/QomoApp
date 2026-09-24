@@ -1655,7 +1655,14 @@ class ZMC适配器:
         """对应 core ZMotionAdapter.R轴一直进行旋转。
 
         策略：下发一个足够大的相对位移（1e6 工程单位），由外部通过急停/停止终止。
+        若 R 轴已在运动中，不再追加 MOVE，避免运动缓冲堆满（ZMC 错误码 1002）。
         """
+        try:
+            if not await self.读_idle(轴_R):
+                return {"success": True, "message": "R 轴已在旋转", "data": {"axis": 轴_R}}
+        except ZMCError as exc:
+            return {"success": False, "message": f"读取 R 轴空闲状态失败: {exc}"}
+
         if R轴旋转速度 is None:
             try:
                 状态 = await self.读全部轴状态()
@@ -1725,8 +1732,8 @@ class ZMC适配器:
           - MERGE 对所有参与轴开启,保证**同一条路径内部**段间速度连续。
           - CORNER_MODE 默认仅自动减速(bit2)；小圆限速(bit8)默认关闭，
             避免半径小于 FullSpRadius 的整圆被按比例降到指令速度的几分之一。
-          - 未显式指定时起/终点速度为 0：单次调用是一条完整路径，结束后轴必须能进 IDLE。
-            跨两次 连续插补 的衔接不应靠 EndMoveSpeed=巡航速度，那会让 IDLE 永远不到。
+          - 起点速度默认 0；中间段终点速度=巡航速度，最后一段再改为 0。
+            这样段间能连续，整条路径结束仍能停稳进 IDLE。
           - 大于 STOP_ANGLE 的拐角会按 ZMC 内置规划自动减速;小于 DECEL_ANGLE
             的拐角不减速;之间按角度比例平滑过渡。
 
@@ -1799,7 +1806,15 @@ class ZMC适配器:
 
         # ---- 进入插补前清空中止事件(允许本次完整运行) ----
         self._中止事件.clear()
-        日志.info(f"[连续插补] 启动 轴={轴号列表} 段数={len(路径点)} 速度={默认速度} 路径点={路径点} 合并={merge_on} 模式={模式}")
+        点数量 = len(路径点)
+        起点速度 = 0.0 if kw["start_move_speed"] is None else float(kw["start_move_speed"])
+        终点速度_末段 = 0.0 if kw["end_move_speed"] is None else float(kw["end_move_speed"])
+        终点速度_中间 = float(默认速度) if merge_on and 点数量 > 1 else 终点速度_末段
+        日志.info(
+            f"[连续插补] 启动 轴={轴号列表} 段数={点数量} 速度={默认速度} "
+            f"起点速度={起点速度} 中间终点速度={终点速度_中间} 末段终点速度={终点速度_末段} "
+            f"合并={merge_on} 模式={模式} 路径点={路径点}"
+        )
 
         # 保存原始起跳速度 & MERGE 状态,finally 恢复(不持锁,纯内存读取)
         原始Lspeed: Dict[int, float] = {}
@@ -1847,23 +1862,14 @@ class ZMC适配器:
             self._校验("ZAux_Direct_SetZsmooth",
                        self._dll.ZAux_Direct_SetZsmooth(
                            主轴, float(kw["corner_radius"])), 备注=f"axis={主轴}")
-            # # (4) 起点/终点速度
-            # 起点速度 = (
-            #     float(默认速度 if merge_on else 0.0)
-            #     if kw["start_move_speed"] is None else float(kw["start_move_speed"])
-            # )
-            # 终点速度 = (
-            #     float(默认速度 if merge_on else 0.0)
-            #     if kw["end_move_speed"] is None else float(kw["end_move_speed"])
-            # )
-            # (4) 起点/终点速度：单次插补结束后必须能停稳进 IDLE。
-            # MERGE 只负责本路径 361 个点之间的段间连续，不把终点速度留在巡航值。
-            起点速度 = 0.0 if kw["start_move_speed"] is None else float(kw["start_move_speed"])
-            终点速度 = 0.0 if kw["end_move_speed"] is None else float(kw["end_move_speed"])
+            # (4) 起点/终点速度。
+            # 中间段必须带着巡航速度进入下一段，否则每个点都会从 0 加到 0。
+            # 只有最后一段终点速度为 0，跑完才能停稳进 IDLE。
             self._校验("ZAux_Direct_SetStartMoveSpeed",
                        self._dll.ZAux_Direct_SetStartMoveSpeed(主轴, 起点速度), 备注=f"axis={主轴}")
             self._校验("ZAux_Direct_SetEndMoveSpeed",
-                       self._dll.ZAux_Direct_SetEndMoveSpeed(主轴, 终点速度), 备注=f"axis={主轴}")
+                       self._dll.ZAux_Direct_SetEndMoveSpeed(主轴, 终点速度_中间),
+                       备注=f"axis={主轴} 中间段")
             self._校验("ZAux_Direct_SetMovemark",
                        self._dll.ZAux_Direct_SetMovemark(主轴, 0), 备注=f"axis={主轴}")
             self._校验("ZAux_Trigger", self._dll.ZAux_Trigger())
@@ -1895,6 +1901,16 @@ class ZMC适配器:
                     ret_buf, 剩余_val = self._dll.ZAux_Direct_GetRemain_LineBuffer(主轴)
                     剩余 = int(剩余_val.value) if int(ret_buf) == 0 else 4096
                     if 剩余 > 0:
+                        # 第二段起：起点速度改为巡航，避免后续每段仍从 0 起步。
+                        if merge_on and 已推送 == 1:
+                            self._校验("ZAux_Direct_SetStartMoveSpeed",
+                                       self._dll.ZAux_Direct_SetStartMoveSpeed(主轴, 默认速度),
+                                       备注=f"axis={主轴} 续段")
+                        # 最后一段：终点速度改为 0，跑完才能停。
+                        if 已推送 == 总数 - 1 and 总数 > 1:
+                            self._校验("ZAux_Direct_SetEndMoveSpeed",
+                                       self._dll.ZAux_Direct_SetEndMoveSpeed(主轴, 终点速度_末段),
+                                       备注=f"axis={主轴} 末段")
                         位置数组 = (ctypes.c_float * n)(*段列表[已推送])
                         self._校验("ZAux_Direct_MoveAbsSp",
                                    self._dll.ZAux_Direct_MoveAbsSp(n, 轴数组, 位置数组),

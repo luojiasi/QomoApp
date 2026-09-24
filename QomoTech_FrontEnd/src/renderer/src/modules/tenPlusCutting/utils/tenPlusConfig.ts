@@ -1,10 +1,10 @@
-import { TEN_PLUS_SLOT_COUNT } from '../constants/tenPlusCutting'
+import { 工位数 } from '../constants/tenPlusCutting'
 import type { TenPlusCuttingConfig, TenPlusSlot } from '../types/tenPlusCutting'
 
 export function createEmptyTenPlusConfig(): TenPlusCuttingConfig {
   return {
     version: '1.0.0',
-    slots: Array.from({ length: TEN_PLUS_SLOT_COUNT }, (_, i) => ({
+    slots: Array.from({ length: 工位数 }, (_, i) => ({
       index: i + 1,
       x: 0,
       y: 0,
@@ -28,7 +28,7 @@ export function normalizeTenPlusConfig(raw: unknown): TenPlusCuttingConfig {
     if (!item || typeof item !== 'object') continue
     const s = item as Partial<TenPlusSlot>
     const index = Number(s.index)
-    if (!Number.isInteger(index) || index < 1 || index > TEN_PLUS_SLOT_COUNT) continue
+    if (!Number.isInteger(index) || index < 1 || index > 工位数) continue
     map.set(index, {
       index,
       x: Number(s.x ?? 0) || 0,

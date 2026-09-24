@@ -17,6 +17,12 @@ const {
   axisIndices,
   writeFields,
   fmtVal,
+  axisSpeedUnit,
+  axisFieldApplies,
+  speedInputValue,
+  beginSpeedEdit,
+  onSpeedDraftInput,
+  commitSpeedEdit,
   normalizeAxisInput,
   isMergeParamField,
   mergeParamKey,
@@ -292,9 +298,13 @@ const {
                     :key="`write-${field.key}-${axisIdx}`"
                     class="px-3 py-1"
                   >
+                    <span
+                      v-if="!axisFieldApplies(axisIdx, field.key)"
+                      class="block text-center app-text-muted"
+                    >—</span>
                     <!-- 轴名称：文本 -->
                     <input
-                      v-if="field.key === 'axis_name'"
+                      v-else-if="field.key === 'axis_name'"
                       v-model="controllerStore.controllerSettings.axes[axisIdx].axis_name"
                       type="text"
                       class="w-full rounded-md border border-(--app-border) bg-(--app-input-bg) px-2 py-1 text-xs outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2 text-center"
@@ -314,8 +324,8 @@ const {
                       v-model="controllerStore.controllerSettings.axes[axisIdx].motor_type"
                       class="w-full rounded-md border border-(--app-border) bg-(--app-input-bg) px-2 py-1 text-xs outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2 text-center"
                     >
-                      <option value="servo">servo</option>
-                      <option value="stepper">stepper</option>
+                      <option value="servo">伺服</option>
+                      <option value="stepper">步进</option>
                     </select>
                     <!-- merge_params 子字段 -->
                     <input
@@ -326,6 +336,21 @@ const {
                       class="w-full rounded-md border border-(--app-border) bg-(--app-input-bg) px-2 py-1 text-xs outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2 text-center"
                       @blur="normalizeAxisInput(axisIdx, field.key)"
                     />
+                    <div
+                      v-else-if="field.key === 'speed'"
+                      class="flex flex-col items-center gap-0.5"
+                    >
+                      <input
+                        :value="speedInputValue(axisIdx)"
+                        type="number"
+                        step="0.0001"
+                        class="w-full rounded-md border border-(--app-border) bg-(--app-input-bg) px-2 py-1 text-xs outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2 text-center"
+                        @focus="beginSpeedEdit(axisIdx)"
+                        @input="onSpeedDraftInput(($event.target as HTMLInputElement).value)"
+                        @blur="commitSpeedEdit(axisIdx)"
+                      />
+                      <span class="text-[10px] app-text-muted">{{ axisSpeedUnit(axisIdx) }}</span>
+                    </div>
                     <!-- 通用数值 -->
                     <input
                       v-else
@@ -474,9 +499,13 @@ const {
                     :key="`e-w-${field.key}-${axisIdx}`"
                     class="px-2 py-1"
                   >
+                    <span
+                      v-if="!axisFieldApplies(axisIdx, field.key)"
+                      class="block text-center app-text-muted"
+                    >—</span>
                     <!-- 轴名称：文本 -->
                     <input
-                      v-if="field.key === 'axis_name'"
+                      v-else-if="field.key === 'axis_name'"
                       v-model="controllerStore.controllerSettings.axes[axisIdx].axis_name"
                       type="text"
                       class="w-full rounded-md border border-(--app-border) bg-(--app-input-bg) px-2 py-1 text-[11px] outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2 text-center"
@@ -490,6 +519,15 @@ const {
                       <option :value="false">否</option>
                       <option :value="true">是</option>
                     </select>
+                    <!-- motor_type：下拉 -->
+                    <select
+                      v-else-if="isMotorTypeField(field)"
+                      v-model="controllerStore.controllerSettings.axes[axisIdx].motor_type"
+                      class="w-full rounded-md border border-(--app-border) bg-(--app-input-bg) px-2 py-1 text-[11px] outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2 text-center"
+                    >
+                      <option value="servo">伺服</option>
+                      <option value="stepper">步进</option>
+                    </select>
                     <!-- merge_params 子字段 -->
                     <input
                       v-else-if="isMergeParamField(field)"
@@ -499,6 +537,21 @@ const {
                       class="w-full rounded-md border border-(--app-border) bg-(--app-input-bg) px-2 py-1 text-[11px] outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2 text-center"
                       @blur="normalizeAxisInput(axisIdx, field.key)"
                     />
+                    <div
+                      v-else-if="field.key === 'speed'"
+                      class="flex flex-col items-center gap-0.5"
+                    >
+                      <input
+                        :value="speedInputValue(axisIdx)"
+                        type="number"
+                        step="0.0001"
+                        class="w-full rounded-md border border-(--app-border) bg-(--app-input-bg) px-2 py-1 text-[11px] outline-none ring-blue-500/30 focus:border-blue-500/50 focus:ring-2 text-center"
+                        @focus="beginSpeedEdit(axisIdx)"
+                        @input="onSpeedDraftInput(($event.target as HTMLInputElement).value)"
+                        @blur="commitSpeedEdit(axisIdx)"
+                      />
+                      <span class="text-[9px] app-text-muted">{{ axisSpeedUnit(axisIdx) }}</span>
+                    </div>
                     <!-- 通用数值 -->
                     <input
                       v-else

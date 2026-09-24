@@ -1,230 +1,222 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref, watch } from 'vue'
-import { isTableAngle } from '../composables/useTenPlusTask'
 import {
-  TEN_PLUS_CHORD_RATIO_STEP,
-  TEN_PLUS_DEFAULT_CHORD_RATIO,
-  TEN_PLUS_DEFAULT_CUT_END_PERCENT,
-  TEN_PLUS_DEFAULT_CUT_START_PERCENT,
-  TEN_PLUS_DEFAULT_DIAMETER_PERCENT,
-  TEN_PLUS_DEFAULT_DIAMOND_PERCENT,
-  TEN_PLUS_DEFAULT_HEIGHT_PERCENT,
-  TEN_PLUS_DEFAULT_R_TURNS,
-  isEqualLinePath
+  弦长倍率步进,
+  默认弦长倍率,
+  默认结束切割百分比,
+  默认起始切割百分比,
+  默认直径百分比,
+  默认钻石百分比,
+  默认高度百分比,
+  默认R圈数,
+  是等分线段,
+  是台面角
 } from '../constants/tenPlusCutting'
-import { computeDiamondRatio } from '../utils/tenPlusDiamond'
+import { 计算钻石比例 } from '../utils/tenPlusDiamond'
 import type { TenPlusTaskRow } from '../types/tenPlusCutting'
 
-const RING_R = 54
-const RING_C = 2 * Math.PI * RING_R
+const 圆环半径 = 54
+const 圆环周长 = 2 * Math.PI * 圆环半径
 
-const ANGLE_VX = 64
-const ANGLE_VY = 76
-const ANGLE_RAY = 44
-const ANGLE_ARC_R = 22
+const 角度圆心横 = 64
+const 角度圆心纵 = 76
+const 角度射线长 = 44
+const 角度弧半径 = 22
 
-const H_TOP = 15
-const H_BOTTOM = 113
-const H_LEFT = 13
-const H_RIGHT = 119
-const H_ARROW_X = 25
-const H_HEAD = 7
+const 高度顶 = 15
+const 高度底 = 113
+const 高度左 = 13
+const 高度右 = 119
+const 高度箭头横 = 25
+const 箭头头 = 7
 
 const props = defineProps<{
   row: TenPlusTaskRow
 }>()
 
 const emit = defineEmits<{
-  close: []
+  关闭: []
 }>()
 
-const tableLocked = computed(() => isTableAngle(props.row.angle))
+const 台面锁定 = computed(() => 是台面角(props.row.angle))
 
-function finiteOr(n: number, fallback: number): number {
-  return Number.isFinite(n) ? n : fallback
-}
+function 有限或(n: number, fallback: number): number {return Number.isFinite(n) ? n : fallback}
 
-function ringDasharrayOf(percent: number): string {
+function 圆环虚线(percent: number): string {
   const pct = Number.isFinite(percent) ? Math.min(100, Math.max(0, percent)) : 100
-  return `${(pct / 100) * RING_C} ${RING_C}`
+  return `${(pct / 100) * 圆环周长} ${圆环周长}`
 }
 
-function scaledText(base: number, percent: number, fallbackPercent: number): string {
-  const value = finiteOr(base, 0) * (finiteOr(percent, fallbackPercent) / 100)
+function 缩放文案(base: number, percent: number, fallbackPercent: number): string {
+  const value = 有限或(base, 0) * (有限或(percent, fallbackPercent) / 100)
   if (!Number.isFinite(value)) return '—'
   return String(Math.round(value * 1000) / 1000)
 }
 
-const ringDasharray = computed(() => ringDasharrayOf(Number(props.row.diameterPercent)))
+const 圆环虚线值 = computed(() => 圆环虚线(Number(props.row.diameterPercent)))
 
-const effectiveDiameterText = computed(() =>
-  scaledText(Number(props.row.diameter), Number(props.row.diameterPercent), TEN_PLUS_DEFAULT_DIAMETER_PERCENT)
-)
+const 有效直径文案 = computed(() =>缩放文案(Number(props.row.diameter), Number(props.row.diameterPercent), 默认直径百分比))
 
-const effectiveHeightText = computed(() =>
-  scaledText(Number(props.row.height), Number(props.row.heightPercent), TEN_PLUS_DEFAULT_HEIGHT_PERCENT)
-)
+const 有效高度文案 = computed(() =>缩放文案(Number(props.row.height), Number(props.row.heightPercent), 默认高度百分比))
 
-const visualAngle = computed(() => {
-  const base = finiteOr(Number(props.row.angle), 0)
-  const comp = finiteOr(Number(props.row.compAngle), 0)
+const 可视角度 = computed(() => {
+  const base = 有限或(Number(props.row.angle), 0)
+  const comp = 有限或(Number(props.row.compAngle), 0)
   return Math.max(-170, Math.min(170, base + comp))
 })
 
-const currentAngle = computed(() => {
-  const base = finiteOr(Number(props.row.angle), 0)
-  const comp = finiteOr(Number(props.row.compAngle), 0)
+const 当前角度 = computed(() => {
+  const base = 有限或(Number(props.row.angle), 0)
+  const comp = 有限或(Number(props.row.compAngle), 0)
   return base + comp
 })
 
-const ANIM_MS = 400
-const drawnAngle = ref(0)
-let angleRaf = 0
-const drawnKbx = ref({ k: 0, b: 0, x: 0 })
-let kbxRaf = 0
+const 动画毫秒 = 400
+const 绘制角度 = ref(0)
+let 角度动画帧 = 0
+const 绘制斜率截距 = ref({ k: 0, b: 0, x: 0 })
+let 斜率动画帧 = 0
 
-function easeOutSoft(t: number): number {
-  return 1 - (1 - t) ** 4
-}
+function 缓出(t: number): number {return 1 - (1 - t) ** 4}
 
 watch(
-  visualAngle,
+  可视角度,
   (to) => {
-    const from = drawnAngle.value
-    if (angleRaf) cancelAnimationFrame(angleRaf)
+    const from = 绘制角度.value
+    if (角度动画帧) cancelAnimationFrame(角度动画帧)
     if (from === to) {
-      drawnAngle.value = to
+      绘制角度.value = to
       return
     }
     const t0 = performance.now()
     const step = (now: number) => {
-      const t = Math.min(1, (now - t0) / ANIM_MS)
-      drawnAngle.value = from + (to - from) * easeOutSoft(t)
-      if (t < 1) angleRaf = requestAnimationFrame(step)
-      else drawnAngle.value = to
+      const t = Math.min(1, (now - t0) / 动画毫秒)
+      绘制角度.value = from + (to - from) * 缓出(t)
+      if (t < 1) 角度动画帧 = requestAnimationFrame(step)
+      else 绘制角度.value = to
     }
-    angleRaf = requestAnimationFrame(step)
+    角度动画帧 = requestAnimationFrame(step)
   },
   { immediate: true }
 )
 
-const targetKbx = computed(() => ({
-  k: finiteOr(Number(props.row.k), 0),
-  b: finiteOr(Number(props.row.b), 0),
-  x: finiteOr(Number(props.row.x), 0)
+const 目标斜率截距 = computed(() => ({
+  k: 有限或(Number(props.row.k), 0),
+  b: 有限或(Number(props.row.b), 0),
+  x: 有限或(Number(props.row.x), 0)
 }))
 
 watch(
-  targetKbx,
+  目标斜率截距,
   (to) => {
-    const from = { ...drawnKbx.value }
-    if (kbxRaf) cancelAnimationFrame(kbxRaf)
+    const from = { ...绘制斜率截距.value }
+    if (斜率动画帧) cancelAnimationFrame(斜率动画帧)
     if (from.k === to.k && from.b === to.b && from.x === to.x) {
-      drawnKbx.value = { ...to }
+      绘制斜率截距.value = { ...to }
       return
     }
     const t0 = performance.now()
     const step = (now: number) => {
-      const t = Math.min(1, (now - t0) / ANIM_MS)
-      const e = easeOutSoft(t)
-      drawnKbx.value = {
+      const t = Math.min(1, (now - t0) / 动画毫秒)
+      const e = 缓出(t)
+      绘制斜率截距.value = {
         k: from.k + (to.k - from.k) * e,
         b: from.b + (to.b - from.b) * e,
         x: from.x + (to.x - from.x) * e
       }
-      if (t < 1) kbxRaf = requestAnimationFrame(step)
-      else drawnKbx.value = { k: to.k, b: to.b, x: to.x }
+      if (t < 1) 斜率动画帧 = requestAnimationFrame(step)
+      else 绘制斜率截距.value = { k: to.k, b: to.b, x: to.x }
     }
-    kbxRaf = requestAnimationFrame(step)
+    斜率动画帧 = requestAnimationFrame(step)
   },
   { immediate: true }
 )
 
-const visualHeightPercent = computed(() => {
+const 可视高度百分比 = computed(() => {
   const n = Number(props.row.heightPercent)
-  return Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : TEN_PLUS_DEFAULT_HEIGHT_PERCENT
+  return Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : 默认高度百分比
 })
 
-const drawnHeightPercent = ref(0)
-let heightRaf = 0
-const drawnChordRatio = ref(0)
-let chordRaf = 0
+const 绘制高度百分比 = ref(0)
+let 高度动画帧 = 0
+const 绘制弦比 = ref(0)
+let 弦比动画帧 = 0
 
 watch(
-  visualHeightPercent,
+  可视高度百分比,
   (to) => {
-    const from = drawnHeightPercent.value
-    if (heightRaf) cancelAnimationFrame(heightRaf)
+    const from = 绘制高度百分比.value
+    if (高度动画帧) cancelAnimationFrame(高度动画帧)
     if (from === to) {
-      drawnHeightPercent.value = to
+      绘制高度百分比.value = to
       return
     }
     const t0 = performance.now()
     const step = (now: number) => {
-      const t = Math.min(1, (now - t0) / ANIM_MS)
-      drawnHeightPercent.value = from + (to - from) * easeOutSoft(t)
-      if (t < 1) heightRaf = requestAnimationFrame(step)
-      else drawnHeightPercent.value = to
+      const t = Math.min(1, (now - t0) / 动画毫秒)
+      绘制高度百分比.value = from + (to - from) * 缓出(t)
+      if (t < 1) 高度动画帧 = requestAnimationFrame(step)
+      else 绘制高度百分比.value = to
     }
-    heightRaf = requestAnimationFrame(step)
+    高度动画帧 = requestAnimationFrame(step)
   },
   { immediate: true }
 )
 
-const heightBar = computed(() => {
-  const span = H_BOTTOM - H_TOP
-  const topY = H_BOTTOM - (drawnHeightPercent.value / 100) * span
-  const gap = H_BOTTOM - topY
-  const x = H_ARROW_X
+const 高度条 = computed(() => {
+  const span = 高度底 - 高度顶
+  const topY = 高度底 - (绘制高度百分比.value / 100) * span
+  const gap = 高度底 - topY
+  const x = 高度箭头横
   return {
     topY,
     showArrow: gap > 4,
-    showHeads: gap > H_HEAD * 2 + 4,
-    headUp: `M${x},${topY} L${x - 4.4},${topY + H_HEAD} L${x + 4.4},${topY + H_HEAD} Z`,
-    headDown: `M${x},${H_BOTTOM} L${x - 4.4},${H_BOTTOM - H_HEAD} L${x + 4.4},${H_BOTTOM - H_HEAD} Z`
+    showHeads: gap > 箭头头 * 2 + 4,
+    headUp: `M${x},${topY} L${x - 4.4},${topY + 箭头头} L${x + 4.4},${topY + 箭头头} Z`,
+    headDown: `M${x},${高度底} L${x - 4.4},${高度底 - 箭头头} L${x + 4.4},${高度底 - 箭头头} Z`
   }
 })
 
 onUnmounted(() => {
-  if (angleRaf) cancelAnimationFrame(angleRaf)
-  if (kbxRaf) cancelAnimationFrame(kbxRaf)
-  if (heightRaf) cancelAnimationFrame(heightRaf)
-  if (chordRaf) cancelAnimationFrame(chordRaf)
+  if (角度动画帧) cancelAnimationFrame(角度动画帧)
+  if (斜率动画帧) cancelAnimationFrame(斜率动画帧)
+  if (高度动画帧) cancelAnimationFrame(高度动画帧)
+  if (弦比动画帧) cancelAnimationFrame(弦比动画帧)
 })
 
-function polar(deg: number, radius: number): { x: number; y: number } {
+function 极坐标(deg: number, radius: number): { x: number; y: number } {
   const a = (deg * Math.PI) / 180
   return {
-    x: ANGLE_VX + radius * Math.cos(a),
-    y: ANGLE_VY - radius * Math.sin(a)
+    x: 角度圆心横 + radius * Math.cos(a),
+    y: 角度圆心纵 - radius * Math.sin(a)
   }
 }
 
-const baseRayEnd = computed(() => polar(0, ANGLE_RAY))
-const moveRayEnd = computed(() => polar(drawnAngle.value, ANGLE_RAY))
+const 基线终点 = computed(() => 极坐标(0, 角度射线长))
+const 运动射线终点 = computed(() => 极坐标(绘制角度.value, 角度射线长))
 
-const angleArcPath = computed(() => {
-  const a = drawnAngle.value
-  const start = polar(0, ANGLE_ARC_R)
-  const end = polar(a, ANGLE_ARC_R)
+const 角度弧路径 = computed(() => {
+  const a = 绘制角度.value
+  const start = 极坐标(0, 角度弧半径)
+  const end = 极坐标(a, 角度弧半径)
   const large = Math.abs(a) > 180 ? 1 : 0
   const sweep = a >= 0 ? 0 : 1
-  return `M ${start.x} ${start.y} A ${ANGLE_ARC_R} ${ANGLE_ARC_R} 0 ${large} ${sweep} ${end.x} ${end.y}`
+  return `M ${start.x} ${start.y} A ${角度弧半径} ${角度弧半径} 0 ${large} ${sweep} ${end.x} ${end.y}`
 })
 
-const angleNowLabel = computed(() => {
-  const a = drawnAngle.value
-  const text = `${fmtCoord(currentAngle.value)}°`
+const 当前角度标签 = computed(() => {
+  const a = 绘制角度.value
+  const text = `${格式化坐标(当前角度.value)}°`
   if (Math.abs(a) < 2) {
-    return { x: ANGLE_VX + 38, y: ANGLE_VY + 18, text }
+    return { x: 角度圆心横 + 38, y: 角度圆心纵 + 18, text }
   }
-  const p = polar(a / 2, ANGLE_ARC_R + 18)
+  const p = 极坐标(a / 2, 角度弧半径 + 18)
   return { x: Math.min(118, Math.max(10, p.x)), y: Math.min(122, Math.max(48, p.y + 4)), text }
 })
 
-const KBX_PLOT = { w: 160, h: 160, padL: 16, padR: 20, padT: 16, padB: 42 }
+const 斜率图尺寸 = { w: 160, h: 160, padL: 16, padR: 20, padT: 16, padB: 42 }
 
-function axisSpan(vals: number[], minSpan: number): { lo: number; hi: number } {
+function 轴范围(vals: number[], minSpan: number): { lo: number; hi: number } {
   let lo = Math.min(...vals)
   let hi = Math.max(...vals)
   if (hi - lo < minSpan) {
@@ -236,12 +228,12 @@ function axisSpan(vals: number[], minSpan: number): { lo: number; hi: number } {
   return { lo: lo - extra, hi: hi + extra }
 }
 
-function fmtCoord(n: number): string {
+function 格式化坐标(n: number): string {
   const t = Math.round(n * 1000) / 1000
   return Object.is(t, -0) ? '0' : String(t)
 }
 
-function niceTicks(lo: number, hi: number, count: number): number[] {
+function 刻度(lo: number, hi: number, count: number): number[] {
   const span = hi - lo
   if (!(span > 0)) return []
   const raw = span / count
@@ -256,7 +248,7 @@ function niceTicks(lo: number, hi: number, count: number): number[] {
   return ticks
 }
 
-function clampLabel(
+function 限制标签(
   x: number,
   y: number,
   anchor: 'start' | 'end',
@@ -268,22 +260,22 @@ function clampLabel(
   return { x: nx, y: Math.min(yMax, Math.max(yMin, y)), anchor }
 }
 
-const kbxPlot = computed(() => {
-  const k = drawnKbx.value.k
-  const b = drawnKbx.value.b
-  const xEnd = drawnKbx.value.x
+const 斜率图 = computed(() => {
+  const k = 绘制斜率截距.value.k
+  const b = 绘制斜率截距.value.b
+  const xEnd = 绘制斜率截距.value.x
   const x0 = 0
   const y0 = b
   const x1 = xEnd
   const y1 = k * xEnd + b
-  const xs0 = axisSpan([0, x0, x1], 1)
-  const ys0 = axisSpan([0, y0, y1], 1)
+  const xs0 = 轴范围([0, x0, x1], 1)
+  const ys0 = 轴范围([0, y0, y1], 1)
   const span = Math.max(xs0.hi - xs0.lo, ys0.hi - ys0.lo)
   const xMid = (xs0.lo + xs0.hi) / 2
   const yMid = (ys0.lo + ys0.hi) / 2
   const xs = { lo: xMid - span / 2, hi: xMid + span / 2 }
   const ys = { lo: yMid - span / 2, hi: yMid + span / 2 }
-  const { w, h, padL, padR, padT, padB } = KBX_PLOT
+  const { w, h, padL, padR, padT, padB } = 斜率图尺寸
   const inner = Math.min(w - padL - padR, h - padT - padB)
   const ox = padL + (w - padL - padR - inner) / 2
   const oy = padT
@@ -296,11 +288,11 @@ const kbxPlot = computed(() => {
   const plotBottom = oy + inner
   const labelYMax = plotBottom - 6
   const p0Label = {
-    ...clampLabel(p0.x + 7, p0.y - 10, 'start', w, padT + 10, labelYMax),
-    text: `(${fmtCoord(x0)}, ${fmtCoord(y0)})`
+    ...限制标签(p0.x + 7, p0.y - 10, 'start', w, padT + 10, labelYMax),
+    text: `(${格式化坐标(x0)}, ${格式化坐标(y0)})`
   }
   const p1Label = {
-    ...clampLabel(
+    ...限制标签(
       p1.x >= w * 0.55 ? p1.x - 7 : p1.x + 7,
       p1.y - 10,
       p1.x >= w * 0.55 ? 'end' : 'start',
@@ -308,7 +300,7 @@ const kbxPlot = computed(() => {
       padT + 10,
       labelYMax
     ),
-    text: `(${fmtCoord(x1)}, ${fmtCoord(y1)})`
+    text: `(${格式化坐标(x1)}, ${格式化坐标(y1)})`
   }
   if (Math.abs(p0Label.y - p1Label.y) < 11 && Math.abs(p0.x - p1.x) < 48) {
     p1Label.y = Math.min(labelYMax, p0Label.y + 12)
@@ -321,10 +313,10 @@ const kbxPlot = computed(() => {
     p0,
     p1,
     collapsed: x0 === x1 && y0 === y1,
-    gridX: niceTicks(xs.lo, xs.hi, 3)
+    gridX: 刻度(xs.lo, xs.hi, 3)
       .filter((v) => Math.abs(v) > skip0)
       .map((v) => ({ x1: toX(v), y1: oy, x2: toX(v), y2: plotBottom })),
-    gridY: niceTicks(ys.lo, ys.hi, 3)
+    gridY: 刻度(ys.lo, ys.hi, 3)
       .filter((v) => Math.abs(v) > skip0)
       .map((v) => ({ x1: ox, y1: toY(v), x2: ox + inner, y2: toY(v) })),
     xName: {
@@ -341,7 +333,7 @@ const kbxPlot = computed(() => {
 watch(
   () => props.row.diameterPercent,
   (v) => {
-    if (!Number.isFinite(v)) props.row.diameterPercent = TEN_PLUS_DEFAULT_DIAMETER_PERCENT
+    if (!Number.isFinite(v)) props.row.diameterPercent = 默认直径百分比
   },
   { immediate: true }
 )
@@ -349,24 +341,24 @@ watch(
 watch(
   () => props.row.heightPercent,
   (v) => {
-    if (!Number.isFinite(v)) props.row.heightPercent = TEN_PLUS_DEFAULT_HEIGHT_PERCENT
+    if (!Number.isFinite(v)) props.row.heightPercent = 默认高度百分比
   },
   { immediate: true }
 )
 
-function clampCutPercent(n: number, fallback: number): number {
+function 限制切削百分比(n: number, fallback: number): number {
   if (!Number.isFinite(n)) return fallback
   return Math.min(100, Math.max(0, n))
 }
 
-function commitCutStart(): void {
-  const start = clampCutPercent(Number(props.row.cutStartPercent), TEN_PLUS_DEFAULT_CUT_START_PERCENT)
+function 提交切削起点(): void {
+  const start = 限制切削百分比(Number(props.row.cutStartPercent), 默认起始切割百分比)
   props.row.cutStartPercent = start
   if (Number(props.row.cutEndPercent) < start) props.row.cutEndPercent = start
 }
 
-function commitCutEnd(): void {
-  const end = clampCutPercent(Number(props.row.cutEndPercent), TEN_PLUS_DEFAULT_CUT_END_PERCENT)
+function 提交切削终点(): void {
+  const end = 限制切削百分比(Number(props.row.cutEndPercent), 默认结束切割百分比)
   props.row.cutEndPercent = end
   if (Number(props.row.cutStartPercent) > end) props.row.cutStartPercent = end
 }
@@ -374,7 +366,7 @@ function commitCutEnd(): void {
 watch(
   () => props.row.cutStartPercent,
   (v) => {
-    if (!Number.isFinite(v)) props.row.cutStartPercent = TEN_PLUS_DEFAULT_CUT_START_PERCENT
+    if (!Number.isFinite(v)) props.row.cutStartPercent = 默认起始切割百分比
   },
   { immediate: true }
 )
@@ -382,17 +374,17 @@ watch(
 watch(
   () => props.row.cutEndPercent,
   (v) => {
-    if (!Number.isFinite(v)) props.row.cutEndPercent = TEN_PLUS_DEFAULT_CUT_END_PERCENT
+    if (!Number.isFinite(v)) props.row.cutEndPercent = 默认结束切割百分比
   },
   { immediate: true }
 )
 
-const cutRangeBar = computed(() => {
-  const start = clampCutPercent(Number(props.row.cutStartPercent), TEN_PLUS_DEFAULT_CUT_START_PERCENT)
-  const end = clampCutPercent(Number(props.row.cutEndPercent), TEN_PLUS_DEFAULT_CUT_END_PERCENT)
-  const span = H_BOTTOM - H_TOP
-  const startY = H_TOP + (start / 100) * span
-  const endY = H_TOP + (end / 100) * span
+const 切削范围条 = computed(() => {
+  const start = 限制切削百分比(Number(props.row.cutStartPercent), 默认起始切割百分比)
+  const end = 限制切削百分比(Number(props.row.cutEndPercent), 默认结束切割百分比)
+  const span = 高度底 - 高度顶
+  const startY = 高度顶 + (start / 100) * span
+  const endY = 高度顶 + (end / 100) * span
   return {
     startY,
     endY,
@@ -403,64 +395,64 @@ const cutRangeBar = computed(() => {
 watch(
   () => props.row.chordRatio,
   (v) => {
-    if (!Number.isFinite(v)) props.row.chordRatio = TEN_PLUS_DEFAULT_CHORD_RATIO
+    if (!Number.isFinite(v)) props.row.chordRatio = 默认弦长倍率
   },
   { immediate: true }
 )
 
-const showRTurnsCard = computed(
-  () => isEqualLinePath(props.row.pathType) && Number(props.row.divisions) === 0
+const 显示圈数卡片 = computed(
+  () => 是等分线段(props.row.pathType) && Number(props.row.divisions) === 0
 )
 
 watch(
   () => props.row.rTurns,
   (v) => {
-    if (!Number.isFinite(v)) props.row.rTurns = TEN_PLUS_DEFAULT_R_TURNS
+    if (!Number.isFinite(v)) props.row.rTurns = 默认R圈数
   },
   { immediate: true }
 )
 
-const R_TURNS_RING_MAX = 4
+const 圈数圆环上限 = 4
 
-const rTurnsDasharray = computed(() => {
+const 圈数虚线 = computed(() => {
   const n = Number(props.row.rTurns)
-  const turns = Number.isFinite(n) && n > 0 ? n : TEN_PLUS_DEFAULT_R_TURNS
-  return ringDasharrayOf(Math.min(100, (turns / R_TURNS_RING_MAX) * 100))
+  const turns = Number.isFinite(n) && n > 0 ? n : 默认R圈数
+  return 圆环虚线(Math.min(100, (turns / 圈数圆环上限) * 100))
 })
 
-function commitRTurns(): void {
+function 提交圈数(): void {
   const n = Number(props.row.rTurns)
-  props.row.rTurns = Number.isFinite(n) && n > 0 ? n : TEN_PLUS_DEFAULT_R_TURNS
+  props.row.rTurns = Number.isFinite(n) && n > 0 ? n : 默认R圈数
 }
 
-const visualChordRatio = computed(() => {
+const 可视弦比 = computed(() => {
   const n = Number(props.row.chordRatio)
-  return Number.isFinite(n) ? Math.max(0, n) : TEN_PLUS_DEFAULT_CHORD_RATIO
+  return Number.isFinite(n) ? Math.max(0, n) : 默认弦长倍率
 })
 
 watch(
-  visualChordRatio,
+  可视弦比,
   (to) => {
-    const from = drawnChordRatio.value
-    if (chordRaf) cancelAnimationFrame(chordRaf)
+    const from = 绘制弦比.value
+    if (弦比动画帧) cancelAnimationFrame(弦比动画帧)
     if (from === to) {
-      drawnChordRatio.value = to
+      绘制弦比.value = to
       return
     }
     const t0 = performance.now()
     const step = (now: number) => {
-      const t = Math.min(1, (now - t0) / ANIM_MS)
-      drawnChordRatio.value = from + (to - from) * easeOutSoft(t)
-      if (t < 1) chordRaf = requestAnimationFrame(step)
-      else drawnChordRatio.value = to
+      const t = Math.min(1, (now - t0) / 动画毫秒)
+      绘制弦比.value = from + (to - from) * 缓出(t)
+      if (t < 1) 弦比动画帧 = requestAnimationFrame(step)
+      else 绘制弦比.value = to
     }
-    chordRaf = requestAnimationFrame(step)
+    弦比动画帧 = requestAnimationFrame(step)
   },
   { immediate: true }
 )
 
-const chordBar = computed(() => {
-  const r = drawnChordRatio.value
+const 弦比条 = computed(() => {
+  const r = 绘制弦比.value
   const extra = Math.max(0, r - 1)
   const deficit = Math.max(0, 1 - r)
   const total = Math.max(r, 1)
@@ -471,51 +463,51 @@ const chordBar = computed(() => {
   }
 })
 
-function nudgeChordRatio(delta: number): void {
+function 微调弦比(delta: number): void {
   const cur = Number(props.row.chordRatio)
-  const base = Number.isFinite(cur) ? cur : TEN_PLUS_DEFAULT_CHORD_RATIO
+  const base = Number.isFinite(cur) ? cur : 默认弦长倍率
   props.row.chordRatio = Math.round((base + delta) * 1000) / 1000
 }
 
-const diamondRing = computed(() => ringDasharrayOf(Number(props.row.diamondPercent)))
+const 钻石圆环 = computed(() => 圆环虚线(Number(props.row.diamondPercent)))
 
-const diamondRatio = computed(() =>
-  props.row.useDiamondRatio ? computeDiamondRatio(props.row) : null
+const 钻石比例结果 = computed(() =>
+  props.row.useDiamondRatio ? 计算钻石比例(props.row) : null
 )
 
-function percentText(v: number | null | undefined, fallback = '—'): string {
+function 百分比文案(v: number | null | undefined, fallback = '—'): string {
   if (v === null || v === undefined || !Number.isFinite(v)) return fallback
   return `${Math.round(v * 100) / 100}%`
 }
 
 watch(
-  diamondRatio,
+  钻石比例结果,
   (r) => {
     if (!r) return
-    if (r.diameterPercent !== null) props.row.diameterPercent = r.diameterPercent
-    if (r.heightPercent !== null) props.row.heightPercent = r.heightPercent
+    if (r.直径百分比 !== null) props.row.diameterPercent = r.直径百分比
+    if (r.高度百分比 !== null) props.row.heightPercent = r.高度百分比
   },
   { immediate: true }
 )
 
-function selectInput(ev: Event): void {
+function 选中输入(ev: Event): void {
   const el = ev.target
   if (el instanceof HTMLInputElement && !el.disabled) el.select()
 }
 
-const focusedField = ref<string | null>(null)
+const 焦点字段 = ref<string | null>(null)
 
-function onFieldFocus(key: string, ev: Event): void {
-  focusedField.value = key
-  selectInput(ev)
+function 字段获得焦点(key: string, ev: Event): void {
+  焦点字段.value = key
+  选中输入(ev)
 }
 
-function onFieldBlur(key: string): void {
-  if (focusedField.value === key) focusedField.value = null
+function 字段失去焦点(key: string): void {
+  if (焦点字段.value === key) 焦点字段.value = null
 }
 
-function focusKbxCard(ev: MouseEvent): void {
-  if (tableLocked.value) return
+function 聚焦斜率卡片(ev: MouseEvent): void {
+  if (台面锁定.value) return
   const t = ev.target
   if (!(t instanceof Element) || t.closest('.tpc-comp-kbx-field')) return
   const host = ev.currentTarget as HTMLElement
@@ -528,12 +520,12 @@ function focusKbxCard(ev: MouseEvent): void {
 </script>
 
 <template>
-  <div class="tpc-comp-overlay" @click.self="emit('close')">
+  <div class="tpc-comp-overlay" @click.self="emit('关闭')">
     <div class="tpc-comp-card" role="dialog" aria-modal="true">
       <header class="tpc-comp-head">
         <div class="tpc-comp-head-text">
           <h2>修改补偿值</h2>
-          <p v-if="tableLocked">台面行仅可改直径与角度</p>
+          <p v-if="台面锁定">台面行仅可改直径与角度</p>
         </div>
         <div class="tpc-comp-head-right">
           <button
@@ -556,13 +548,13 @@ function focusKbxCard(ev: MouseEvent): void {
         <label v-if="row.useDiamondRatio" class="tpc-comp-unit" for="tpc-comp-diamond">
           <div class="tpc-comp-dial">
             <svg class="tpc-comp-ring" viewBox="0 0 128 128" aria-hidden="true">
-              <circle class="tpc-comp-ring-track" cx="64" cy="64" :r="RING_R" />
+              <circle class="tpc-comp-ring-track" cx="64" cy="64" :r="圆环半径" />
               <circle
                 class="tpc-comp-ring-value"
                 cx="64"
                 cy="64"
-                :r="RING_R"
-                :stroke-dasharray="diamondRing"
+                :r="圆环半径"
+                :stroke-dasharray="钻石圆环"
               />
             </svg>
             <div class="tpc-comp-dial-core">
@@ -574,18 +566,18 @@ function focusKbxCard(ev: MouseEvent): void {
                   class="tpc-comp-dial-val"
                   step="0.1"
                   aria-label="钻石比例"
-                  :placeholder="String(TEN_PLUS_DEFAULT_DIAMOND_PERCENT)"
-                  @focus="selectInput"
+                  :placeholder="String(默认钻石百分比)"
+                  @focus="选中输入"
                 />
                 <span>%</span>
               </span>
               <span class="tpc-comp-dial-result">
                 <span class="tpc-comp-dial-result-label">直径</span>
-                {{ percentText(diamondRatio?.diameterPercent) }}
+                {{ 百分比文案(钻石比例结果?.直径百分比) }}
               </span>
               <span class="tpc-comp-dial-result">
                 <span class="tpc-comp-dial-result-label">高度</span>
-                {{ percentText(diamondRatio?.heightPercent) }}
+                {{ 百分比文案(钻石比例结果?.高度百分比) }}
               </span>
             </div>
           </div>
@@ -595,13 +587,13 @@ function focusKbxCard(ev: MouseEvent): void {
         <label v-if="!row.useDiamondRatio" class="tpc-comp-unit" for="tpc-comp-diameter">
           <div class="tpc-comp-dial">
             <svg class="tpc-comp-ring" viewBox="0 0 128 128" aria-hidden="true">
-              <circle class="tpc-comp-ring-track" cx="64" cy="64" :r="RING_R" />
+              <circle class="tpc-comp-ring-track" cx="64" cy="64" :r="圆环半径" />
               <circle
                 class="tpc-comp-ring-value"
                 cx="64"
                 cy="64"
-                :r="RING_R"
-                :stroke-dasharray="ringDasharray"
+                :r="圆环半径"
+                :stroke-dasharray="圆环虚线值"
               />
             </svg>
             <div class="tpc-comp-dial-core">
@@ -613,14 +605,14 @@ function focusKbxCard(ev: MouseEvent): void {
                   class="tpc-comp-dial-val"
                   step="0.1"
                   aria-label="直径百分比"
-                  :placeholder="String(TEN_PLUS_DEFAULT_DIAMETER_PERCENT)"
-                  @focus="selectInput"
+                  :placeholder="String(默认直径百分比)"
+                  @focus="选中输入"
                 />
                 <span>%</span>
               </span>
               <span class="tpc-comp-dial-result">
                 <span class="tpc-comp-dial-result-label">实际尺寸</span>
-                {{ effectiveDiameterText }}
+                {{ 有效直径文案 }}
               </span>
             </div>
           </div>
@@ -630,43 +622,43 @@ function focusKbxCard(ev: MouseEvent): void {
         <label
           v-if="!row.useDiamondRatio"
           class="tpc-comp-unit"
-          :class="{ locked: tableLocked }"
+          :class="{ locked: 台面锁定 }"
           for="tpc-comp-height"
         >
           <div class="tpc-comp-dial">
             <svg class="tpc-comp-height-bar" viewBox="0 0 128 128" aria-hidden="true">
               <line
                 class="tpc-comp-height-track"
-                :x1="H_ARROW_X"
-                :y1="H_TOP"
-                :x2="H_ARROW_X"
-                :y2="H_BOTTOM"
+                :x1="高度箭头横"
+                :y1="高度顶"
+                :x2="高度箭头横"
+                :y2="高度底"
               />
               <line
                 class="tpc-comp-height-rail"
-                :x1="H_LEFT"
-                :y1="heightBar.topY"
-                :x2="H_RIGHT"
-                :y2="heightBar.topY"
+                :x1="高度左"
+                :y1="高度条.topY"
+                :x2="高度右"
+                :y2="高度条.topY"
               />
               <line
                 class="tpc-comp-height-rail"
-                :x1="H_LEFT"
-                :y1="H_BOTTOM"
-                :x2="H_RIGHT"
-                :y2="H_BOTTOM"
+                :x1="高度左"
+                :y1="高度底"
+                :x2="高度右"
+                :y2="高度底"
               />
               <line
-                v-if="heightBar.showArrow"
+                v-if="高度条.showArrow"
                 class="tpc-comp-height-arrow"
-                :x1="H_ARROW_X"
-                :y1="heightBar.topY"
-                :x2="H_ARROW_X"
-                :y2="H_BOTTOM"
+                :x1="高度箭头横"
+                :y1="高度条.topY"
+                :x2="高度箭头横"
+                :y2="高度底"
               />
-              <template v-if="heightBar.showHeads">
-                <path class="tpc-comp-height-head" :d="heightBar.headUp" />
-                <path class="tpc-comp-height-head" :d="heightBar.headDown" />
+              <template v-if="高度条.showHeads">
+                <path class="tpc-comp-height-head" :d="高度条.headUp" />
+                <path class="tpc-comp-height-head" :d="高度条.headDown" />
               </template>
             </svg>
             <div class="tpc-comp-dial-core tpc-comp-height-core">
@@ -678,15 +670,15 @@ function focusKbxCard(ev: MouseEvent): void {
                   class="tpc-comp-dial-val"
                   step="0.1"
                   aria-label="高度百分比"
-                  :placeholder="String(TEN_PLUS_DEFAULT_HEIGHT_PERCENT)"
-                  :disabled="tableLocked"
-                  @focus="selectInput"
+                  :placeholder="String(默认高度百分比)"
+                  :disabled="台面锁定"
+                  @focus="选中输入"
                 />
                 <span>%</span>
               </span>
               <span class="tpc-comp-dial-result">
                 <span class="tpc-comp-dial-result-label">实际高度</span>
-                {{ effectiveHeightText }}
+                {{ 有效高度文案 }}
               </span>
             </div>
           </div>
@@ -696,29 +688,29 @@ function focusKbxCard(ev: MouseEvent): void {
         <label class="tpc-comp-unit" for="tpc-comp-angle">
           <div class="tpc-comp-dial tpc-comp-dial-angle">
             <svg class="tpc-comp-angle" viewBox="0 0 128 128" aria-hidden="true">
-              <path class="tpc-comp-angle-arc" :d="angleArcPath" />
+              <path class="tpc-comp-angle-arc" :d="角度弧路径" />
               <line
                 class="tpc-comp-angle-ray"
-                :x1="ANGLE_VX"
-                :y1="ANGLE_VY"
-                :x2="baseRayEnd.x"
-                :y2="baseRayEnd.y"
+                :x1="角度圆心横"
+                :y1="角度圆心纵"
+                :x2="基线终点.x"
+                :y2="基线终点.y"
               />
               <line
                 class="tpc-comp-angle-ray"
-                :x1="ANGLE_VX"
-                :y1="ANGLE_VY"
-                :x2="moveRayEnd.x"
-                :y2="moveRayEnd.y"
+                :x1="角度圆心横"
+                :y1="角度圆心纵"
+                :x2="运动射线终点.x"
+                :y2="运动射线终点.y"
               />
-              <circle class="tpc-comp-angle-vertex" :cx="ANGLE_VX" :cy="ANGLE_VY" r="3.2" />
+              <circle class="tpc-comp-angle-vertex" :cx="角度圆心横" :cy="角度圆心纵" r="3.2" />
               <text
                 class="tpc-comp-angle-now"
-                :x="angleNowLabel.x"
-                :y="angleNowLabel.y"
+                :x="当前角度标签.x"
+                :y="当前角度标签.y"
                 text-anchor="middle"
               >
-                {{ angleNowLabel.text }}
+                {{ 当前角度标签.text }}
               </text>
             </svg>
             <div class="tpc-comp-dial-core tpc-comp-angle-core">
@@ -729,7 +721,7 @@ function focusKbxCard(ev: MouseEvent): void {
                 class="tpc-comp-dial-val tpc-comp-angle-val"
                 step="0.01"
                 aria-label="角度补偿"
-                @focus="selectInput"
+                @focus="选中输入"
               />
               <span>°</span>
             </div>
@@ -740,16 +732,16 @@ function focusKbxCard(ev: MouseEvent): void {
         <div class="tpc-comp-unit tpc-comp-unit-chord">
           <div class="tpc-comp-chord-body">
             <div class="tpc-comp-chord-top" aria-hidden="true">
-              <span class="tpc-comp-chord-seg is-actual" :style="{ width: `${chordBar.actualPct}%` }" />
+              <span class="tpc-comp-chord-seg is-actual" :style="{ width: `${弦比条.actualPct}%` }" />
               <span
-                v-if="chordBar.extraPct > 0"
+                v-if="弦比条.extraPct > 0"
                 class="tpc-comp-chord-seg is-extra"
-                :style="{ width: `${chordBar.extraPct}%` }"
+                :style="{ width: `${弦比条.extraPct}%` }"
               />
               <span
-                v-if="chordBar.deficitPct > 0"
+                v-if="弦比条.deficitPct > 0"
                 class="tpc-comp-chord-seg is-deficit"
-                :style="{ width: `${chordBar.deficitPct}%` }"
+                :style="{ width: `${弦比条.deficitPct}%` }"
               />
             </div>
             <div class="tpc-comp-chord-row">
@@ -761,7 +753,7 @@ function focusKbxCard(ev: MouseEvent): void {
                   type="button"
                   class="tpc-comp-chord-btn"
                   aria-label="减小弦长倍率"
-                  @click="nudgeChordRatio(-TEN_PLUS_CHORD_RATIO_STEP)"
+                  @click="微调弦比(-弦长倍率步进)"
                 >
                   ‹
                 </button>
@@ -770,16 +762,16 @@ function focusKbxCard(ev: MouseEvent): void {
                   v-model.number="row.chordRatio"
                   type="number"
                   class="tpc-comp-chord-val"
-                  :step="TEN_PLUS_CHORD_RATIO_STEP"
+                  :step="弦长倍率步进"
                   aria-label="弦长倍率"
-                  :placeholder="String(TEN_PLUS_DEFAULT_CHORD_RATIO)"
-                  @focus="selectInput"
+                  :placeholder="String(默认弦长倍率)"
+                  @focus="选中输入"
                 />
                 <button
                   type="button"
                   class="tpc-comp-chord-btn"
                   aria-label="增大弦长倍率"
-                  @click="nudgeChordRatio(TEN_PLUS_CHORD_RATIO_STEP)"
+                  @click="微调弦比(弦长倍率步进)"
                 >
                   ›
                 </button>
@@ -791,12 +783,12 @@ function focusKbxCard(ev: MouseEvent): void {
 
         <div
           class="tpc-comp-unit tpc-comp-unit-kbx"
-          :class="{ locked: tableLocked }"
-          @click="focusKbxCard"
+          :class="{ locked: 台面锁定 }"
+          @click="聚焦斜率卡片"
         >
           <div class="tpc-comp-kbx-card">
             <div class="tpc-comp-plot">
-              <svg :viewBox="`0 0 ${KBX_PLOT.w} ${KBX_PLOT.h}`" aria-hidden="true">
+              <svg :viewBox="`0 0 ${斜率图尺寸.w} ${斜率图尺寸.h}`" aria-hidden="true">
                 <defs>
                   <marker
                     id="tpc-kbx-arrow"
@@ -810,103 +802,103 @@ function focusKbxCard(ev: MouseEvent): void {
                   </marker>
                 </defs>
                 <line
-                  v-for="(g, i) in kbxPlot.gridX"
+                  v-for="(g, i) in 斜率图.gridX"
                   :key="`gx-${i}`"
                   class="tpc-comp-plot-grid"
                   v-bind="g"
                 />
                 <line
-                  v-for="(g, i) in kbxPlot.gridY"
+                  v-for="(g, i) in 斜率图.gridY"
                   :key="`gy-${i}`"
                   class="tpc-comp-plot-grid"
                   v-bind="g"
                 />
                 <line
                   class="tpc-comp-plot-axis"
-                  v-bind="kbxPlot.axisX"
+                  v-bind="斜率图.axisX"
                   marker-end="url(#tpc-kbx-arrow)"
                 />
                 <line
                   class="tpc-comp-plot-axis"
-                  v-bind="kbxPlot.axisY"
+                  v-bind="斜率图.axisY"
                   marker-end="url(#tpc-kbx-arrow)"
                 />
                 <text
                   class="tpc-comp-plot-axis-name"
-                  :x="kbxPlot.xName.x"
-                  :y="kbxPlot.xName.y"
+                  :x="斜率图.xName.x"
+                  :y="斜率图.xName.y"
                   text-anchor="end"
                 >
-                  {{ kbxPlot.xName.text }}
+                  {{ 斜率图.xName.text }}
                 </text>
-                <text class="tpc-comp-plot-axis-name" :x="kbxPlot.yName.x" :y="kbxPlot.yName.y">
-                  {{ kbxPlot.yName.text }}
+                <text class="tpc-comp-plot-axis-name" :x="斜率图.yName.x" :y="斜率图.yName.y">
+                  {{ 斜率图.yName.text }}
                 </text>
                 <line
-                  v-if="!kbxPlot.collapsed"
+                  v-if="!斜率图.collapsed"
                   class="tpc-comp-plot-line-halo"
-                  v-bind="kbxPlot.line"
+                  v-bind="斜率图.line"
                 />
-                <line v-if="!kbxPlot.collapsed" class="tpc-comp-plot-line" v-bind="kbxPlot.line" />
-                <circle class="tpc-comp-plot-dot" :cx="kbxPlot.p0.x" :cy="kbxPlot.p0.y" r="3.4" />
+                <line v-if="!斜率图.collapsed" class="tpc-comp-plot-line" v-bind="斜率图.line" />
+                <circle class="tpc-comp-plot-dot" :cx="斜率图.p0.x" :cy="斜率图.p0.y" r="3.4" />
                 <circle
-                  v-if="!kbxPlot.collapsed"
+                  v-if="!斜率图.collapsed"
                   class="tpc-comp-plot-dot"
-                  :cx="kbxPlot.p1.x"
-                  :cy="kbxPlot.p1.y"
+                  :cx="斜率图.p1.x"
+                  :cy="斜率图.p1.y"
                   r="3.4"
                 />
                 <text
                   class="tpc-comp-plot-point"
-                  :x="kbxPlot.p0Label.x"
-                  :y="kbxPlot.p0Label.y"
-                  :text-anchor="kbxPlot.p0Label.anchor"
+                  :x="斜率图.p0Label.x"
+                  :y="斜率图.p0Label.y"
+                  :text-anchor="斜率图.p0Label.anchor"
                 >
-                  {{ kbxPlot.p0Label.text }}
+                  {{ 斜率图.p0Label.text }}
                 </text>
                 <text
-                  v-if="!kbxPlot.collapsed"
+                  v-if="!斜率图.collapsed"
                   class="tpc-comp-plot-point"
-                  :x="kbxPlot.p1Label.x"
-                  :y="kbxPlot.p1Label.y"
-                  :text-anchor="kbxPlot.p1Label.anchor"
+                  :x="斜率图.p1Label.x"
+                  :y="斜率图.p1Label.y"
+                  :text-anchor="斜率图.p1Label.anchor"
                 >
-                  {{ kbxPlot.p1Label.text }}
+                  {{ 斜率图.p1Label.text }}
                 </text>
               </svg>
             </div>
             <div class="tpc-comp-kbx-fields">
-              <label class="tpc-comp-kbx-field" :class="{ 'is-focused': focusedField === 'k' }">
+              <label class="tpc-comp-kbx-field" :class="{ 'is-focused': 焦点字段 === 'k' }">
                 <span>K</span>
                 <input
                   v-model.number="row.k"
                   type="number"
                   step="0.001"
-                  :disabled="tableLocked"
-                  @focus="onFieldFocus('k', $event)"
-                  @blur="onFieldBlur('k')"
+                  :disabled="台面锁定"
+                  @focus="字段获得焦点('k', $event)"
+                  @blur="字段失去焦点('k')"
                 />
               </label>
-              <label class="tpc-comp-kbx-field" :class="{ 'is-focused': focusedField === 'b' }">
+              <label class="tpc-comp-kbx-field" :class="{ 'is-focused': 焦点字段 === 'b' }">
                 <span>B</span>
                 <input
                   v-model.number="row.b"
                   type="number"
                   step="0.001"
-                  :disabled="tableLocked"
-                  @focus="onFieldFocus('b', $event)"
-                  @blur="onFieldBlur('b')"
+                  :disabled="台面锁定"
+                  @focus="字段获得焦点('b', $event)"
+                  @blur="字段失去焦点('b')"
                 />
               </label>
-              <label class="tpc-comp-kbx-field" :class="{ 'is-focused': focusedField === 'x' }">
+              <label class="tpc-comp-kbx-field" :class="{ 'is-focused': 焦点字段 === 'x' }">
                 <span>X</span>
                 <input
                   v-model.number="row.x"
                   type="number"
                   step="0.001"
-                  :disabled="tableLocked"
-                  @focus="onFieldFocus('x', $event)"
-                  @blur="onFieldBlur('x')"
+                  :disabled="台面锁定"
+                  @focus="字段获得焦点('x', $event)"
+                  @blur="字段失去焦点('x')"
                 />
               </label>
             </div>
@@ -919,31 +911,31 @@ function focusKbxCard(ev: MouseEvent): void {
             <svg class="tpc-comp-cut-bar" viewBox="0 0 128 128" aria-hidden="true">
               <line
                 class="tpc-comp-height-track"
-                :x1="H_ARROW_X"
-                :y1="H_TOP"
-                :x2="H_ARROW_X"
-                :y2="H_BOTTOM"
+                :x1="高度箭头横"
+                :y1="高度顶"
+                :x2="高度箭头横"
+                :y2="高度底"
               />
               <line
                 class="tpc-comp-height-rail"
-                :x1="H_LEFT"
-                :y1="H_TOP"
-                :x2="H_RIGHT"
-                :y2="H_TOP"
+                :x1="高度左"
+                :y1="高度顶"
+                :x2="高度右"
+                :y2="高度顶"
               />
               <line
                 class="tpc-comp-height-rail"
-                :x1="H_LEFT"
-                :y1="H_BOTTOM"
-                :x2="H_RIGHT"
-                :y2="H_BOTTOM"
+                :x1="高度左"
+                :y1="高度底"
+                :x2="高度右"
+                :y2="高度底"
               />
               <rect
                 class="tpc-comp-cut-fill"
-                :x="H_ARROW_X - 3.2"
-                :y="cutRangeBar.startY"
+                :x="高度箭头横 - 3.2"
+                :y="切削范围条.startY"
                 width="6.4"
-                :height="cutRangeBar.height"
+                :height="切削范围条.height"
                 rx="3.2"
               />
             </svg>
@@ -959,9 +951,9 @@ function focusKbxCard(ev: MouseEvent): void {
                   max="100"
                   step="0.1"
                   aria-label="起始切割百分比"
-                  :placeholder="String(TEN_PLUS_DEFAULT_CUT_START_PERCENT)"
-                  @focus="selectInput"
-                  @blur="commitCutStart"
+                  :placeholder="String(默认起始切割百分比)"
+                  @focus="选中输入"
+                  @blur="提交切削起点"
                 />
                 <span>%</span>
               </label>
@@ -976,9 +968,9 @@ function focusKbxCard(ev: MouseEvent): void {
                   max="100"
                   step="0.1"
                   aria-label="结束切割百分比"
-                  :placeholder="String(TEN_PLUS_DEFAULT_CUT_END_PERCENT)"
-                  @focus="selectInput"
-                  @blur="commitCutEnd"
+                  :placeholder="String(默认结束切割百分比)"
+                  @focus="选中输入"
+                  @blur="提交切削终点"
                 />
                 <span>%</span>
               </label>
@@ -987,16 +979,16 @@ function focusKbxCard(ev: MouseEvent): void {
           <div class="tpc-comp-unit-cap">切割范围</div>
         </div>
 
-        <label v-if="showRTurnsCard" class="tpc-comp-unit" for="tpc-comp-r-turns">
+        <label v-if="显示圈数卡片" class="tpc-comp-unit" for="tpc-comp-r-turns">
           <div class="tpc-comp-dial">
             <svg class="tpc-comp-ring" viewBox="0 0 128 128" aria-hidden="true">
-              <circle class="tpc-comp-ring-track" cx="64" cy="64" :r="RING_R" />
+              <circle class="tpc-comp-ring-track" cx="64" cy="64" :r="圆环半径" />
               <circle
                 class="tpc-comp-ring-value"
                 cx="64"
                 cy="64"
-                :r="RING_R"
-                :stroke-dasharray="rTurnsDasharray"
+                :r="圆环半径"
+                :stroke-dasharray="圈数虚线"
               />
             </svg>
             <div class="tpc-comp-dial-core">
@@ -1009,9 +1001,9 @@ function focusKbxCard(ev: MouseEvent): void {
                   min="0.1"
                   step="0.1"
                   aria-label="R轴旋转圈数"
-                  :placeholder="String(TEN_PLUS_DEFAULT_R_TURNS)"
-                  @focus="selectInput"
-                  @blur="commitRTurns"
+                  :placeholder="String(默认R圈数)"
+                  @focus="选中输入"
+                  @blur="提交圈数"
                 />
                 <span>圈</span>
               </span>
@@ -1021,46 +1013,7 @@ function focusKbxCard(ev: MouseEvent): void {
         </label>
       </div>
 
-      <section class="tpc-comp-xyz" :class="{ locked: tableLocked }">
-        <div class="tpc-comp-group">XYZ 补偿</div>
-        <div class="tpc-comp-xyz-cells">
-          <label class="tpc-comp-xyz-cell" :class="{ 'is-focused': focusedField === 'compX' }">
-            <span>X</span>
-            <input
-              v-model.number="row.compX"
-              type="number"
-              step="0.001"
-              :disabled="tableLocked"
-              @focus="onFieldFocus('compX', $event)"
-              @blur="onFieldBlur('compX')"
-            />
-          </label>
-          <label class="tpc-comp-xyz-cell" :class="{ 'is-focused': focusedField === 'compY' }">
-            <span>Y</span>
-            <input
-              v-model.number="row.compY"
-              type="number"
-              step="0.001"
-              :disabled="tableLocked"
-              @focus="onFieldFocus('compY', $event)"
-              @blur="onFieldBlur('compY')"
-            />
-          </label>
-          <label class="tpc-comp-xyz-cell" :class="{ 'is-focused': focusedField === 'compZ' }">
-            <span>Z</span>
-            <input
-              v-model.number="row.compZ"
-              type="number"
-              step="0.001"
-              :disabled="tableLocked"
-              @focus="onFieldFocus('compZ', $event)"
-              @blur="onFieldBlur('compZ')"
-            />
-          </label>
-        </div>
-      </section>
-
-      <button type="button" class="tpc-comp-done" @click="emit('close')">完成</button>
+      <button type="button" class="tpc-comp-done" @click="emit('关闭')">完成</button>
     </div>
   </div>
 </template>
@@ -1450,95 +1403,8 @@ function focusKbxCard(ev: MouseEvent): void {
   font-size: 16px;
 }
 .tpc-comp-dial-val:focus,
-.tpc-comp-xyz-cell input:focus,
 .tpc-comp-kbx-field input:focus {
   color: var(--app-text-primary);
-}
-.tpc-comp-xyz {
-  margin-top: 18px;
-}
-.tpc-comp-xyz.locked {
-  opacity: 0.42;
-}
-.tpc-comp-group {
-  margin: 0 0 7px 4px;
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: -0.01em;
-  color: var(--app-text-muted);
-}
-.tpc-comp-xyz-cells {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 6px;
-  overflow: visible;
-  border-radius: 0;
-  background: transparent;
-}
-.tpc-comp-xyz-cells:has(.is-focused) .tpc-comp-xyz-cell:not(.is-focused) {
-  background: var(--tpc-surface-dim);
-}
-.tpc-comp-xyz-cell {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: 10px 6px 11px;
-  cursor: text;
-  border: 2px solid transparent;
-  border-radius: 12px;
-  background: var(--tpc-surface);
-  transition:
-    background 0.18s ease,
-    border-color 0.18s ease,
-    box-shadow 0.18s ease;
-}
-.tpc-comp-xyz-cell.is-focused {
-  z-index: 2;
-  background: var(--tpc-surface);
-}
-.tpc-comp-xyz-cell.is-focused::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border: 2px solid color-mix(in srgb, var(--app-text-primary) 50%, #737373);
-  border-radius: 12px;
-  box-shadow: 0 4px 14px color-mix(in srgb, var(--app-text-primary) 16%, transparent);
-  pointer-events: none;
-}
-.tpc-comp-xyz-cell.is-focused span {
-  color: var(--app-text-primary);
-  font-weight: 650;
-}
-.tpc-comp-xyz-cell span {
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.02em;
-  color: var(--app-text-muted);
-}
-.tpc-comp-xyz-cell input {
-  width: 100%;
-  padding: 2px 0 0;
-  border: 0;
-  background: transparent;
-  outline: none;
-  text-align: center;
-  font-size: 20px;
-  font-weight: 560;
-  font-variant-numeric: tabular-nums;
-  font-family: inherit;
-  letter-spacing: -0.03em;
-  color: var(--app-text-primary);
-  appearance: textfield;
-}
-.tpc-comp-xyz-cell input::-webkit-outer-spin-button,
-.tpc-comp-xyz-cell input::-webkit-inner-spin-button {
-  appearance: none;
-  margin: 0;
-}
-.tpc-comp-xyz-cell input:disabled {
-  cursor: not-allowed;
 }
 .tpc-comp-unit-chord {
   cursor: default;

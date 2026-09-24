@@ -787,7 +787,7 @@ onMounted(async () => {
                 <label class="fp-field">
                   <span class="fp-field-label">{{ t('freeParam.rIntervalLabel') }}</span>
                   <input
-                    v-model.number="activeTarget.rInterval"
+                    v-model.number="activeTarget.十轴切割R旋转圈数"
                     type="number"
                     class="fp-input"
                     step="1"
@@ -800,7 +800,7 @@ onMounted(async () => {
                     <span class="fp-field-unit">{{ t('freeParam.rCompensationUnit') }}</span>
                   </span>
                   <input
-                    v-model.number="activeTarget.rCompensation"
+                    v-model.number="activeTarget.十轴切割R旋转补偿值"
                     type="number"
                     class="fp-input"
                     step="0.001"

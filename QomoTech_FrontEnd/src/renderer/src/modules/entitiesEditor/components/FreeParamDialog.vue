@@ -172,8 +172,8 @@ async function onSendToBackend(): Promise<void> {
       k: row.k,
       b: row.b,
       x: row.x,
-      rInterval: rRotationInterval.value,
-      rCompensation: rCompensationValue.value,
+      十轴切割R旋转圈数: rRotationInterval.value,
+      十轴切割R旋转补偿值: rCompensationValue.value,
     })),
   }
 

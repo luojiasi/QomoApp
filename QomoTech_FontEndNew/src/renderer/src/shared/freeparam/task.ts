@@ -40,8 +40,8 @@ function createTarget(name: string): FreeParamTarget {
     name,
     pointXy: '',
     slotIndex: null,
-    rInterval: 0,
-    rCompensation: 0,
+    十轴切割R旋转圈数: 0,
+    十轴切割R旋转补偿值: 0,
     rows: [createRow(1)]
   }
 }
@@ -78,21 +78,21 @@ function legacyPointXyFromRows(rows: Array<Partial<FreeParamTaskRow> & { pointXy
   return ''
 }
 
-/** 旧文件行内 rInterval / rCompensation → 目标级（取首个有值） */
+/** 旧文件行内 十轴切割R旋转圈数 / 十轴切割R旋转补偿值 → 目标级（取首个有值） */
 function legacyRCompFromRows(
-  rows: Array<Partial<FreeParamTaskRow> & { rInterval?: number; rCompensation?: number }>
-): { rInterval: number; rCompensation: number } {
+  rows: Array<Partial<FreeParamTaskRow> & { 十轴切割R旋转圈数?: number; 十轴切割R旋转补偿值?: number }>
+): { 十轴切割R旋转圈数: number; 十轴切割R旋转补偿值: number } {
   for (const r of rows) {
-    const hasInterval = typeof r.rInterval === 'number' && !Number.isNaN(r.rInterval)
-    const hasComp = typeof r.rCompensation === 'number' && !Number.isNaN(r.rCompensation)
+    const hasInterval = typeof r.十轴切割R旋转圈数 === 'number' && !Number.isNaN(r.十轴切割R旋转圈数)
+    const hasComp = typeof r.十轴切割R旋转补偿值 === 'number' && !Number.isNaN(r.十轴切割R旋转补偿值)
     if (hasInterval || hasComp) {
       return {
-        rInterval: hasInterval ? Number(r.rInterval) : 0,
-        rCompensation: hasComp ? Number(r.rCompensation) : 0
+        十轴切割R旋转圈数: hasInterval ? Number(r.十轴切割R旋转圈数) : 0,
+        十轴切割R旋转补偿值: hasComp ? Number(r.十轴切割R旋转补偿值) : 0
       }
     }
   }
-  return { rInterval: 0, rCompensation: 0 }
+  return { 十轴切割R旋转圈数: 0, 十轴切割R旋转补偿值: 0 }
 }
 
 function normalizeTarget(
@@ -100,8 +100,8 @@ function normalizeTarget(
     rows?: Array<
       Partial<FreeParamTaskRow> & {
         pointXy?: string
-        rInterval?: number
-        rCompensation?: number
+        十轴切割R旋转圈数?: number
+        十轴切割R旋转补偿值?: number
       }
     >
   },
@@ -120,21 +120,21 @@ function normalizeTarget(
       ? raw.pointXy.trim()
       : legacyPointXyFromRows(rowsSrc)
   const legacyR = legacyRCompFromRows(rowsSrc)
-  const rInterval =
-    typeof raw.rInterval === 'number' && !Number.isNaN(raw.rInterval)
-      ? Number(raw.rInterval)
-      : legacyR.rInterval
-  const rCompensation =
-    typeof raw.rCompensation === 'number' && !Number.isNaN(raw.rCompensation)
-      ? Number(raw.rCompensation)
-      : legacyR.rCompensation
+  const 十轴切割R旋转圈数 =
+    typeof raw.十轴切割R旋转圈数 === 'number' && !Number.isNaN(raw.十轴切割R旋转圈数)
+      ? Number(raw.十轴切割R旋转圈数)
+      : legacyR.十轴切割R旋转圈数
+  const 十轴切割R旋转补偿值 =
+    typeof raw.十轴切割R旋转补偿值 === 'number' && !Number.isNaN(raw.十轴切割R旋转补偿值)
+      ? Number(raw.十轴切割R旋转补偿值)
+      : legacyR.十轴切割R旋转补偿值
   return {
     id: raw.id || nextId('target'),
     name: (raw.name && String(raw.name).trim()) || fallbackName,
     pointXy,
     slotIndex: normalizeSlotIndex((raw as { slotIndex?: unknown }).slotIndex),
-    rInterval,
-    rCompensation,
+    十轴切割R旋转圈数,
+    十轴切割R旋转补偿值,
     rows
   }
 }
