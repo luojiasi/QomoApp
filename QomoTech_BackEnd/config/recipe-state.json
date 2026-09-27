@@ -233,8 +233,8 @@
     {
       "id": "machining-4",
       "name": "默认值",
-      "updatedAt": "2026-9-21 16:22:31",
-      "teachingMode": false,
+      "updatedAt": "2026-9-27 08:45:31",
+      "teachingMode": true,
       "timeoutWaitTime": 2,
       "horizontalFormulaId": "horizontal-formula-3",
       "verticalFormulaId": "vertical-formula-2",

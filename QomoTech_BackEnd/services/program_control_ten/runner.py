@@ -255,6 +255,7 @@ class ProgramRunnerTenPlus:
 
                     try:
                         await self._运动到示教工位(当前X, 当前Y, 当前Z, 当前U)
+                        当前R轴的位置 = await self._运动.获取R轴的当前位置()
                         await asyncio.sleep(1)
                     except Exception as e:
                         日志.error(f"目标 {目标名} 运动到示教工位失败: {e}")
@@ -292,7 +293,11 @@ class ProgramRunnerTenPlus:
                         if str(行数据.get("pathType", "")) == 曲线路径:
                             边列表 = 执行任务的参数.get("边参数列表") or []
                             本中 = float(边列表[0].get("法线角度", 0)) if 边列表 else 0.0
-                            if 行数据.get("sameLayer") and 序号 > 0 and 上一曲线法线 is not None:
+                            是中心圆往复 = bool(执行任务的参数.get("是否启用R轴旋转")) and any(边.get("沿途R的绝对角") for 边 in 边列表)
+                            if 是中心圆往复:
+                                # 每个点按自己的绝对极角转到任务开始时的 R 上，这里不再预转。
+                                执行任务的参数["同层R轴步进角"] = 0.0
+                            elif 行数据.get("sameLayer") and 序号 > 0 and 上一曲线法线 is not None:
                                 执行任务的参数["同层R轴步进角"] = 归一化角度(上一曲线法线 - 本中)
                             else:
                                 执行任务的参数["同层R轴步进角"] = 归一化角度(-本中)
@@ -304,7 +309,7 @@ class ProgramRunnerTenPlus:
 
 
                         try:
-                            await self._切割(配方数据=该序号的配方,执行任务的参数=执行任务的参数,该序号R轴的补偿=该序号R轴的补偿,起始点的位置={"x": 当前X, "y": 当前Y, "z": 当前Z, "u": 当前U},工位号=工位号)
+                            await self._切割(配方数据=该序号的配方,执行任务的参数=执行任务的参数,该序号R轴的补偿=该序号R轴的补偿,起始点的位置={"x": 当前X, "y": 当前Y, "z": 当前Z, "u": 当前U},工位号=工位号,开始任务时R轴的位置=当前R轴的位置)
                         except Exception as e:
                             位置 = 格式化异常位置(e)
                             日志.error(f"目标 {目标名} 行 {序号 + 1} 执行失败: {位置}", exc_info=True)
@@ -400,9 +405,10 @@ class ProgramRunnerTenPlus:
             日志.error(f"关闭所有输出口失败: {exc}")
             return False
 
-    async def _切割(self,配方数据:dict[str, Any],执行任务的参数:dict[str, Any],该序号R轴的补偿:dict[str, Any],起始点的位置:dict[str, Any],工位号:int)->bool:
+    async def _切割(self,配方数据:dict[str, Any],执行任务的参数:dict[str, Any],该序号R轴的补偿:dict[str, Any],起始点的位置:dict[str, Any],工位号:int,开始任务时R轴的位置:float)->bool:
         是否完成切割 = False
         当前步骤 = ProgramFreeParamsStep.准备开始
+        中心圆往复 = bool(执行任务的参数.get("是否启用R轴旋转")) and any(边.get("沿途R的绝对角") for 边 in (执行任务的参数.get("边参数列表") or []))
 
         任务选择的加工配方 = dict((配方数据.get("selectedMachining") or [{}])[0])
         任务选择的扫黑配方 = dict((配方数据.get("selectedBlackeningRecipe") or [{}])[0])
@@ -595,10 +601,13 @@ class ProgramRunnerTenPlus:
                     结束百分比的产品高度 = float((产品的高度 * 结束切割百分比)/100)
                     if 累计下降量 <= 结束百分比的产品高度 or not 是否完全旋转完毕:
                         if 执行任务的参数.get("是否启用R轴旋转"):
-                            日志.info("判断高度切割R轴")
-                            if not R轴是否进行持续旋转打开:
-                                await self._运动.R轴一直进行旋转()
-                                R轴是否进行持续旋转打开 = True
+                            if 当前边的参数.get("沿途R的绝对角"):
+                                日志.info("判断高度R轴往复")
+                            else:
+                                日志.info("判断高度切割R轴")
+                                if not R轴是否进行持续旋转打开:
+                                    await self._运动.R轴一直进行旋转()
+                                    R轴是否进行持续旋转打开 = True
                             当前步骤 = ProgramFreeParamsStep.切割R轴
                             if 是否进行示教模式:
                                 await self._十工位的运动.开启激光()
@@ -610,6 +619,48 @@ class ProgramRunnerTenPlus:
                         当前步骤 = ProgramFreeParamsStep.清理所有状态
 
                 case ProgramFreeParamsStep.切割R轴:
+                    绝对角列 = [float(a) for a in (当前边的参数.get("沿途R的绝对角") or [])]
+                    摆动点列 = list(当前边的参数.get("插补路径点") or [])
+                    if 绝对角列:
+                        if len(绝对角列) != len(摆动点列):
+                            日志.info("切割R轴往复点列与绝对角数量不一致")
+                            当前步骤 = ProgramFreeParamsStep.清理所有状态
+                            continue
+                        开口符号 = 1.0 if not 是否反向 else -1.0
+                        if 曲线点列反向走:
+                            摆动点列 = list(reversed(摆动点列))
+                            绝对角列 = list(reversed(绝对角列))
+                        曲线点列反向走 = not 曲线点列反向走
+                        摆动成功 = True
+                        for 点, 角度 in zip(摆动点列, 绝对角列):
+                            当前圈数 = await self._运动.获取R轴的当前位置()
+                            目标圈数 = 开始任务时R轴的位置 - 角度 / 360.0
+                            回转圈数 = 目标圈数 - 当前圈数
+                            回转圈数 -= round(回转圈数)
+                            旋转结果 = await self._运动.R轴旋转的圈数(回转圈数)
+                            if not 旋转结果.get("success"):
+                                摆动成功 = False
+                                break
+                            走到 = await self._运动.连续插补XY(路径点=[{"x": float(点["X"]) + 开口符号 * 当前开口值, "y": float(点["Y"])}],速度=插补的运行速度)
+                            if not 走到:
+                                摆动成功 = False
+                                break
+                            目标Z = -累计下降量 + float(点["Z"])
+                            await self._运动.绝对运动("Z", 目标Z)
+                            if not await self._运动.等待轴到位(轴名与位置=[("Z", 目标Z)], 容差=0.01):
+                                摆动成功 = False
+                                break
+                            等待X = await self._运动.等待静止("X", 超时秒=XY等待静止超时秒)
+                            等待Y = await self._运动.等待静止("Y", 超时秒=XY等待静止超时秒)
+                            if not (等待X and 等待Y):
+                                摆动成功 = False
+                                break
+                        if 摆动成功:
+                            当前步骤 = ProgramFreeParamsStep.更新开口偏移值
+                        else:
+                            日志.info("切割R轴往复失败")
+                            当前步骤 = ProgramFreeParamsStep.清理所有状态
+                        continue
                     if not 是否反向:
                         构建切割直线的坐标X = 当前边的参数.get("切割中点的坐标").get("X") + 当前开口值
                     else:
@@ -737,7 +788,7 @@ class ProgramRunnerTenPlus:
                     # 垂直的每次下降步长量 = min(1.0, max(0.3, round((原始垂直的每次下降步长量 + 垂直的每次下降步长量减少量 / 100 * 段内进度 + 垂直的每次下降步长量减少量 / 100 * 当前大区间索引), 4)))
                     print("进度百分比",进度百分比<结束切割百分比)
                     if 进度百分比 < 结束切割百分比:
-                        if 执行任务的参数.get("是否启用R轴旋转"):
+                        if 执行任务的参数.get("是否启用R轴旋转") and not 当前边的参数.get("沿途R的绝对角"):
                             当前步骤 = ProgramFreeParamsStep.Z轴下降
                             是否完全旋转完毕 = True
                         else:
@@ -759,6 +810,15 @@ class ProgramRunnerTenPlus:
                         R轴旋转圈数 = float(当前边的参数.get("相对旋转角度", 0.0)) / 360.0
 
                         await self._运动.R轴旋转的圈数(R轴旋转圈数)
+                        if 中心圆往复:
+                            当前圈数 = await self._运动.获取R轴的当前位置()
+                            回转圈数 = 开始任务时R轴的位置 - 当前圈数
+                            日志.info(f"[TenPlus] 中心圆切完，R 从 {当前圈数} 转回任务开始时的 {开始任务时R轴的位置}（{回转圈数} 圈）")
+                            回转结果 = await self._运动.R轴旋转的圈数(回转圈数)
+                            if not 回转结果.get("success"):
+                                日志.error(f"中心圆 R 转回任务开始位置失败: {回转结果.get('message')}")
+                                当前步骤 = ProgramFreeParamsStep.清理所有状态
+                                continue
                         当前R轴旋转分割数 = 1
                         当前步骤 = ProgramFreeParamsStep.清理所有状态
                     else:
@@ -838,6 +898,5 @@ class ProgramRunnerTenPlus:
         print("执行任务的参数",执行任务的参数)
         return 是否完成切割
 
-
-    async def _切割直线(self,配方数据:dict[str, Any],执行任务的参数:dict[str, Any])->bool:
+    async def _切割_中心圆曲线(self,配方数据:dict[str, Any],执行任务的参数:dict[str, Any],起始点的位置:dict[str, Any],工位号:int) -> bool:
         return True

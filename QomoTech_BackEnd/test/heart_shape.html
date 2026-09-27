@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>爱心腰形 · 由长和宽绘制</title>
+<style>
+  :root {
+    --bg: #e7e9ee;
+    --card: #f4f6f8;
+    --text: #1c2430;
+    --muted: #6b7380;
+    --line: #d5dae2;
+    --blue: #3b82f6;
+    --red: #ef6b4a;
+    --ink: #1a1a1a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    background: var(--bg);
+    font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: var(--text);
+  }
+  .card {
+    width: min(920px, calc(100vw - 32px));
+    background: var(--card);
+    border-radius: 16px;
+    box-shadow: 0 12px 40px rgba(20, 24, 32, 0.12);
+    padding: 22px 24px 18px;
+  }
+  h1 { margin: 0; font-size: 18px; font-weight: 650; }
+  .sub { margin: 6px 0 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
+  .body { display: grid; grid-template-columns: 1fr 280px; gap: 22px; margin-top: 18px; }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 16px;
+  }
+  label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #3c4654; }
+  input {
+    height: 36px;
+    border: 1px solid #cfd6e0;
+    border-radius: 8px;
+    padding: 0 10px;
+    font-size: 15px;
+    background: #fff;
+    color: var(--text);
+  }
+  table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 13px; }
+  th, td { text-align: left; padding: 7px 0; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 550; }
+  td.sym { width: 52px; font-family: "Cambria Math", Georgia, serif; font-size: 16px; }
+  td.eq { color: #3c4654; }
+  td.val { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+  .preview-wrap { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  svg { width: 280px; height: 280px; background: #f7f8fa; border-radius: 12px; }
+  .legend { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #4b5563; width: 100%; }
+  .legend span::before {
+    content: "";
+    display: inline-block;
+    width: 18px;
+    height: 3px;
+    border-radius: 2px;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+  .lb::before { background: var(--blue); }
+  .ls::before { background: var(--blue); opacity: 0.45; }
+  .rb::before { background: var(--red); }
+  .rs::before { background: var(--red); opacity: 0.45; }
+  .warn { margin: 10px 0 0; color: #b45309; font-size: 12px; min-height: 1.2em; }
+  @media (max-width: 760px) { .body { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>爱心腰形</h1>
+    <p class="sub">长 = 尖点到两叶顶，宽 = 两叶最宽。两叶等圆且圆心距 = 叶半径，所以叶半径只由宽决定；下侧两弧在最宽点与叶圆相切，并过尖点。</p>
+    <div class="body">
+      <div>
+        <div class="grid">
+          <label>长 (mm)<input id="len" type="number" min="0.1" step="0.1" value="6" /></label>
+          <label>宽 (mm)<input id="wid" type="number" min="0.1" step="0.1" value="6" /></label>
+        </div>
+        <table>
+          <thead><tr><th>符号</th><th>公式</th><th></th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+        <p class="warn" id="warn"></p>
+      </div>
+      <div class="preview-wrap">
+        <svg id="svg" viewBox="0 0 280 280"></svg>
+        <div class="legend">
+          <span class="lb">左叶 · 缺口 → 最宽</span>
+          <span class="ls">左下弧 · 最宽 → 尖点</span>
+          <span class="rb">右叶 · 最宽 → 缺口</span>
+          <span class="rs">右下弧 · 尖点 → 最宽</span>
+        </div>
+      </div>
+    </div>
+  </div>
+<script>
+/** 圆心距 = 叶半径 ⇒ s = r/2，外宽 s+r = 宽/2 ⇒ r = 宽/3。 */
+function 爱心几何(长, 宽) {
+  const r = 宽 / 3
+  const s = r / 2
+  const cy = 长 / 2 - r
+  const h = Math.sqrt(r * r - s * s)
+  const R = 宽 / 4 + (长 - r) ** 2 / 宽
+  const 侧心X = 宽 / 2 - R
+  const 尖Y = -长 / 2
+  const 缺口角 = Math.atan2(h, -s) * 180 / Math.PI
+  const 侧尖角 = Math.atan2(尖Y - cy, -侧心X) * 180 / Math.PI
+  return { r, s, cy, h, 缺口深: r - h, R, 侧心X, 尖Y, 缺口角, 侧尖角 }
+}
+
+function 采样(cx, cy, 半径, 起角, 止角, 点数) {
+  const 点 = []
+  for (let i = 0; i <= 点数; i++) {
+    const 角 = (起角 + (止角 - 起角) * i / 点数) * Math.PI / 180
+    点.push([cx + 半径 * Math.cos(角), cy + 半径 * Math.sin(角)])
+  }
+  return 点
+}
+
+function 折线(点列, 比例) {
+  return 点列.map(([x, y], i) => {
+    const X = (140 + x * 比例).toFixed(2)
+    const Y = (140 - y * 比例).toFixed(2)
+    return (i ? "L" : "M") + X + " " + Y
+  }).join(" ")
+}
+
+function 绘制() {
+  const 长 = Number(document.getElementById("len").value)
+  const 宽 = Number(document.getElementById("wid").value)
+  const 行 = document.getElementById("rows")
+  const 警告 = document.getElementById("warn")
+  const svg = document.getElementById("svg")
+  if (!(长 > 0) || !(宽 > 0)) {
+    警告.textContent = "长和宽都要大于 0。"
+    return
+  }
+  const g = 爱心几何(长, 宽)
+  const 项 = [
+    ["r", "宽 / 3", g.r.toFixed(2)],
+    ["s", "r / 2", g.s.toFixed(2)],
+    ["cy", "长 / 2 − r", g.cy.toFixed(2)],
+    ["h", "√(r² − s²)", g.h.toFixed(2)],
+    ["缺口", "r − h", g.缺口深.toFixed(2)],
+    ["R", "宽/4 + (长−r)²/宽", g.R.toFixed(2)],
+    ["d", "宽/2 − R", g.侧心X.toFixed(2)],
+    ["θ", "叶弧张角", (g.缺口角).toFixed(1) + "°"],
+    ["φ", "下弧张角", Math.abs(g.侧尖角).toFixed(1) + "°"]
+  ]
+  行.innerHTML = 项.map(([符号, 公式, 值]) =>
+    `<tr><td class="sym">${符号}</td><td class="eq">${公式}</td><td class="val">${值}</td></tr>`
+  ).join("")
+
+  const 尖在叶内 = Math.hypot(g.s, g.尖Y - g.cy) < g.r
+  警告.textContent = 尖在叶内
+    ? "尖点落进叶圆里了。把长加大，或把宽减小。"
+    : ""
+
+  const 右叶 = 采样(g.s, g.cy, g.r, 0, g.缺口角, 48)
+  const 右下 = 采样(g.侧心X, g.cy, g.R, 0, g.侧尖角, 48)
+  const 左叶 = 右叶.map(([x, y]) => [-x, y])
+  const 左下 = 右下.map(([x, y]) => [-x, y])
+  const 外伸 = Math.max(长, 宽) / 2
+  const 比例 = 108 / (外伸 * 1.15)
+
+  const 轴 = (x1, y1, x2, y2) => {
+    const X = (v) => (140 + v * 比例).toFixed(2)
+    const Y = (v) => (140 - v * 比例).toFixed(2)
+    return `<line x1="${X(x1)}" y1="${Y(y1)}" x2="${X(x2)}" y2="${Y(y2)}" stroke="#d0d5de" stroke-width="1"/>`
+  }
+  svg.innerHTML = `
+    ${轴(-外伸, 0, 外伸, 0)}
+    ${轴(0, -外伸, 0, 外伸)}
+    <path d="${折线(左叶, 比例)}" fill="none" stroke="#3b82f6" stroke-width="2.4" stroke-linecap="round"/>
+    <path d="${折线(左下, 比例)}" fill="none" stroke="#3b82f6" stroke-width="2.4" stroke-linecap="round" opacity="0.45"/>
+    <path d="${折线(右叶, 比例)}" fill="none" stroke="#ef6b4a" stroke-width="2.4" stroke-linecap="round"/>
+    <path d="${折线(右下, 比例)}" fill="none" stroke="#ef6b4a" stroke-width="2.4" stroke-linecap="round" opacity="0.45"/>
+    <circle cx="${140 + g.s * 比例}" cy="${140 - g.cy * 比例}" r="2.2" fill="#1a1a1a"/>
+    <circle cx="${140 - g.s * 比例}" cy="${140 - g.cy * 比例}" r="2.2" fill="#1a1a1a"/>
+    <circle cx="${140 + g.侧心X * 比例}" cy="${140 - g.cy * 比例}" r="2.2" fill="#1a1a1a"/>
+    <circle cx="${140 - g.侧心X * 比例}" cy="${140 - g.cy * 比例}" r="2.2" fill="#1a1a1a"/>
+  `
+}
+
+document.getElementById("len").addEventListener("input", 绘制)
+document.getElementById("wid").addEventListener("input", 绘制)
+绘制()
+</script>
+</body>
+</html>
